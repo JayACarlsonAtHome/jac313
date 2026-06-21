@@ -1,0 +1,56 @@
+//File:    persist_keeper_Floats.jtext
+//Date:    2026-06-18
+//Purpose: jText Data File
+//Related: type=ts_store table=persist_keeper_floats
+//
+=== jText File ===
+# JText File - created 
+# Purpose - ts_store double metrics
+# Case: INSENSITIVE
+
+=== Section: persist_keeper_floats ===
+=== <#include#> Schema: ../../../tests/jtext_includes/ts_store_floats_schema.jschma ===
+=== Template: Create Table ===
+ 1. <<< !!!CT!!!
+CREATE TABLE IF NOT EXISTS persist_keeper_floats (
+    id BIGINT PRIMARY KEY,
+    dbl0 DOUBLE PRECISION,
+    dbl1 DOUBLE PRECISION,
+    dbl2 DOUBLE PRECISION,
+    dbl3 DOUBLE PRECISION,
+    dbl4 DOUBLE PRECISION,
+    dbl5 DOUBLE PRECISION
+);
+!!!CT!!!
+
+=== Template: SQL Insert ===
+ 1. <<< !!!INS!!!
+INSERT OR IGNORE INTO persist_keeper_floats (id, dbl0, dbl1, dbl2, dbl3, dbl4, dbl5)
+VALUES ({1}, {2}, {3}, {4}, {5}, {6}, {7});
+!!!INS!!!
+
+=== Fields ===
+=== <#include#> Fields: ../../../tests/jtext_includes/ts_store_floats_fields.jtFlds ===
+=== End Fields ===
+=== Data ===
+
+
+
+
+
+
+
+
+
+
+1. #|# 1|0|0|0|0|0|0
+3. #|# 3|0.01|0.01|0.01|0.01|0.01|0.01
+5. #|# 5|0.02|0.02|0.02|0.02|0.02|0.02
+8. #|# 8|0.03|0.03|0.03|0.03|0.03|0.03
+11. #|# 11|0.04|0.04|0.04|0.04|0.04|0.04
+14. #|# 14|0.05|0.05|0.05|0.05|0.05|0.05
+19. #|# 19|0.06|0.06|0.06|0.06|0.06|0.06
+22. #|# 22|0.07|0.07|0.07|0.07|0.07|0.07
+26. #|# 26|0.08|0.08|0.08|0.08|0.08|0.08
+39. #|# 39|0.09|0.09|0.09|0.09|0.09|0.09
+-- EOF --

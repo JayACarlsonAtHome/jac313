@@ -1,0 +1,28 @@
+# jac313 test parameters (local matrix runner)
+#
+# DISK_TYPE: ssd | x7k | 10k  (results layout label)
+# SIZE:      smoke | full       (smoke = default; full uses per-test scaling via test_params_full.txt)
+# OS_ID:     optional (e.g. OS_001) for test-results/OS_001/... layout
+#
+# Package toggles (x = include all ctest smokes/units in package):
+qlite=x
+jtext=x
+store=x
+
+# Matrix stress tests (ported ts_store 001-008 TS/XS + flags):
+001=x
+002=x
+003=x
+004=x
+005=x
+006=x
+007=x
+008=x
+flags=x
+metric_view=x
+#
+# Per-test overrides (optional, name without path):
+# jac313_store_binary_persist_smoke=x
+
+DISK_TYPE=auto
+SIZE=smoke

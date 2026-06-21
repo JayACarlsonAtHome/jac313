@@ -1,0 +1,51 @@
+# CMake / Ninja build trees
+build/
+build-*/
+**/build/
+
+# Compiled objects and archives
+*.o
+*.a
+*.so
+*.dylib
+
+# Module artifacts (GCC)
+*.gcm
+*.dd
+*.ddi
+*.modmap
+
+# Executables (local smoke/test binaries)
+*.out
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local scratch (smoke monitor + ad-hoc helpers)
+/.tmp_*
+
+# Local matrix run artifacts (logs, persist files)
+test-results/
+
+# Matrix persist spillover at repo root (cwd-relative test output)
+/persist*
+
+# Auto-generated, per-machine sensed-environment snapshot (informational only)
+/FileCheckList.txt
+
+# Machine-local compiler registry override
+/compilers.local.conf
+
+# Machine-local host label (anonymizes results: hostname() reads this instead of uname)
+/host_label.local
+
+# Generated, per-machine provisioning script + local recipe override
+/Setup.sh
+/recipes.local.conf

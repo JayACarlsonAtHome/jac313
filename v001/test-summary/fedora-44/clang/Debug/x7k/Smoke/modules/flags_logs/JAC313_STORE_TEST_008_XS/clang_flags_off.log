@@ -1,0 +1,31 @@
+# jac313 log tail (last 50 lines)
+# captured at matrix run
+
+═══════════════════════════════════════════════════════════════
+ TEST 008 XS — Flag-selective persistence (smoke scale)
+═══════════════════════════════════════════════════════════════
+ Purpose:
+   Same as 008 TS: KeeperRecord → jText, DatabaseEntry → SQLite,
+   disjoint index sets, remainder in-memory on the persist path.
+
+ Plan: 1,000 events × 1 runs, 10 keeper + 10 database flags
+
+Flag routing persistence attaches only on the *last* run.
+
+Run 1 / 1
+[VERIFY] ALL 1000 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
+PASS — 5,460 µs → 183,150 ops/sec
+
+Persist verification:
+  jText main rows:  10 (expected 10)
+  SQLite main rows: 10 (expected 10)
+  PASS — 20 / 1,000 persisted
+
+═══════════════════════════════════════════════════════════════
+               FINAL RESULT — 1-RUN STATISTICS            
+═══════════════════════════════════════════════════════════════
+  Fastest run        : 5,460 µs  → 183,150 ops/sec
+  Slowest run        : 5,460 µs  → 183,150 ops/sec
+  Average            : 5,460 µs  → 183,150 ops/sec
+  (1,000 events per run, flag routing verified on final run)
+═══════════════════════════════════════════════════════════════

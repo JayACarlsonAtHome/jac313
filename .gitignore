@@ -1,0 +1,31 @@
+# Root-level ignores. Each v00N/ carries its own .gitignore for its self-contained
+# build/runtime output; these are belt-and-suspenders in case artifacts land at the
+# root or a new version dir before its own .gitignore is in place.
+
+# CMake / Ninja build trees (any version, any depth)
+build/
+build-*/
+**/build/
+**/build-*/
+
+# Local matrix run artifacts
+**/test-results/
+
+# Compiled objects, archives, module artifacts, local binaries
+*.o
+*.a
+*.so
+*.dylib
+*.gcm
+*.dd
+*.ddi
+*.modmap
+*.out
+
+# IDE / editor / OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db

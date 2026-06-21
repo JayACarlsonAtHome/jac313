@@ -1,0 +1,18 @@
+# Big in-memory benchmark tier (SIZE=bench): 005 + 007 at ~1M events/run.
+#
+# Measures the store hot-path peak ops/sec at amortized scale and records it to the
+# results DB under size_label "Bench". Best built in Release:
+#
+#   ./build/tools/jac313_test_cli all --gcc15 --release --build-dir build-gcc15-release
+#   ./build/tools/jac313_test_cli matrix run --params tests/test_params_bench.txt \
+#       --gcc15 --build-dir build-gcc15-release --filter none
+#
+# --filter none = pure in-memory hot path (compare to the historical peak).
+# Drop --filter to also measure binary/jText/SQL throughput at 1M events.
+# Then: ./build/tools/jac313_test_cli matrix top
+
+005=x
+007=x
+
+DISK_TYPE=ssd
+SIZE=bench

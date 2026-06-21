@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+#
+# jac313 pre-push gate — run the valgrind verify-lite before every push.
+#
+# Layout-aware: the repo holds self-contained major versions (v002/, v002/, ...),
+# each with its OWN build tree and runner. This gate inspects the push's commit
+# range, determines which v00N world(s) actually changed, and runs the gate only
+# for those. A change to shared/root files (anything outside a v00N/) verifies
+# every v00N. With no resolvable range (e.g. run by hand) it verifies all worlds.
+#
+# Installed into .git/hooks/pre-push by bootstrap.sh (git hooks are local and not
+# version-controlled, so they must be installed per clone). Keep this file IDENTICAL
+# across every v00N/tools/hooks/ until the versions intentionally diverge.
+#
+# Bypass for a single push (use sparingly):  git push --no-verify
+#
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+ZERO="0000000000000000000000000000000000000000"
+EMPTY_TREE="$(git hash-object -t tree /dev/null)"
+
+# --- 1. collect changed paths across every ref being pushed (git pre-push stdin) ---
+# Each stdin line: <local_ref> <local_sha> <remote_ref> <remote_sha>
+changed=""
+have_range=0
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+    [[ -z "${local_sha:-}" ]] && continue
+    [[ "$local_sha" == "$ZERO" ]] && continue            # branch deletion — nothing to verify
+    have_range=1
+    base="$remote_sha"
+    [[ "$base" == "$ZERO" ]] && base="$EMPTY_TREE"        # new branch — diff against empty tree
+    changed+=$'\n'"$(git diff --name-only "$base" "$local_sha" 2>/dev/null || true)"
+done
+
+# --- 2. map changed paths to v00N world(s); any root/shared change => all worlds ---
+shared=0
+[[ "$have_range" -eq 0 ]] && shared=1                      # no stdin range (manual run) => verify all
+declare -A want=()
+while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    case "$f" in
+        v[0-9][0-9][0-9]/*) want["${f%%/*}"]=1 ;;
+        *)                  shared=1 ;;
+    esac
+done <<< "$changed"
+
+versions=()
+if [[ "$shared" -eq 1 ]]; then
+    for d in v[0-9][0-9][0-9]/; do
+        [[ -d "$d" ]] && versions+=("${d%/}")
+    done
+else
+    for v in "${!want[@]}"; do versions+=("$v"); done
+fi
+
+if [[ "${#versions[@]}" -eq 0 ]]; then
+    echo "[pre-push] no v00N world resolved from the push — nothing to verify."
+    exit 0
+fi
+
+# --- 3. run the gate per selected world (rebuild driver so it never runs stale tool code) ---
+verify_world() {
+    local vdir="$1" driver=""
+    cd "$ROOT/$vdir"
+    if [[ -f build-bootstrap/build.ninja ]]; then
+        echo "[pre-push:$vdir] refreshing jac313_test_cli (build-bootstrap) ..."
+        if cmake --build build-bootstrap --target jac313_test_cli >/tmp/jac313-prepush-build.log 2>&1; then
+            driver="build-bootstrap/tools/jac313_test_cli"
+        else
+            echo "[pre-push:$vdir] driver rebuild failed — see /tmp/jac313-prepush-build.log" >&2
+            return 1
+        fi
+    fi
+    if [[ -z "$driver" ]]; then
+        for d in build-gcc15-debug build-gcc15-release build-*/; do
+            if [[ -x "${d%/}/tools/jac313_test_cli" ]]; then driver="${d%/}/tools/jac313_test_cli"; break; fi
+        done
+    fi
+    if [[ -z "$driver" ]]; then
+        echo "[pre-push:$vdir] no jac313_test_cli driver — run ./bootstrap.sh in $vdir first." >&2
+        return 1
+    fi
+    echo "[pre-push:$vdir] version-check (sub_version bumps) ..."
+    "$driver" version-check || return $?
+    echo "[pre-push:$vdir] valgrind verify-lite via $driver  (bypass: git push --no-verify)"
+    "$driver" matrix verify-lite || return $?
+}
+
+echo "[pre-push] verifying world(s): ${versions[*]}"
+for v in "${versions[@]}"; do
+    if ! ( verify_world "$v" ); then
+        echo "[pre-push] gate FAILED for $v — push aborted (bypass: git push --no-verify)" >&2
+        exit 1
+    fi
+done
+echo "[pre-push] all selected world(s) passed."

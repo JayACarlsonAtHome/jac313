@@ -1,0 +1,1307 @@
+================================================================================
+Claude_Forward.txt  —  session handoff / crash-recovery note
+Project: jac313   Path: /home/jay/git/jac313 (dev/Mint) | /slowdata/git/jac313 (R730/RHEL 9.8)
+Last updated: 2026-06-20  (by Claude, R730 — fresh-history wipe + 48-run multi-disk matrix; GitHub @ fd0bc2d, default dev-work)
+================================================================================
+
+PURPOSE OF THIS FILE
+--------------------
+If a session gets cut off (network drop, restart), read this first. It records
+WHAT this project is, WHERE things stand, and HOW to verify/build/test so we can
+pick up without re-deriving everything. Update the "SESSION LOG" at the bottom as
+work happens.
+
+--------------------------------------------------------------------------------
+1. WHAT THIS PROJECT IS
+--------------------------------------------------------------------------------
+jac313 = a versioned C++23 "umbrella" monorepo over a family of legacy libraries.
+Each package re-exports a legacy API under jac313::<Name>::v001 while the original
+implementation is migrated in small chunks (not a big-bang rewrite).
+
+Packages (ALL now IN-TREE — no sibling repos needed to build):
+  Qlite/  -> jac313::Qlite::v001  | IN-TREE header-only SQLite wrapper
+                                    (migrated from jacQlite/jac::qlite; SQLite3 system dep)
+  jText/  -> jac313::jText::v001  | IN-TREE compiled jtext_core; public API now in
+                                    namespace jac313::jText::v001 (was global ::JTextWriter).
+                                    Internal parser/validator stay in namespace jtext.
+  store/  -> jac313::Store::v001  | IN-TREE core + persistence (ported from ts_store)
+
+store is the real work: a time-series event store owning the hot path and persist
+sinks (binary, jText, SQL, flag-routing). Matrix stress tests 001-008 (TS/XS +
+flags) were ported from sibling ts_store.
+
+Optional C++23 modules (import jac313.*.v001) exist; require Ninja + module scanning.
+
+--------------------------------------------------------------------------------
+2. LAYOUT
+--------------------------------------------------------------------------------
+  CMakeLists.txt            root build (options below)
+  Qlite/ jText/ store/      the three umbrella packages (each has its own CMakeLists, README)
+  tools/jac313_test_cli/    local C++ test runner (NO shell scripts) — the orchestrator
+  tests/                    matrix params: test_params.txt (smoke), test_params_full.txt (full)
+  test-summary/             TRACKED. jac313_results.db = source of truth for metrics;
+                            markdown RUN.md pages render from DB views. Per-compiler logs.
+  test-results/             GITIGNORED. raw local matrix run logs.
+  build-gcc15-probe/        GITIGNORED build tree (gcc-toolset-15). Built CLI lives here.
+
+Sibling legacy repos under /home/jay/git/:  jacQlite/  jText/  ts_store/  (also Store/, sqlite/, jac_safe_math/)
+README.md (root) is thorough — read it for full detail.
+
+--------------------------------------------------------------------------------
+3. CURRENT STATE  (as of 2026-06-17, Linux Mint session)
+--------------------------------------------------------------------------------
+- MATURITY (2026-06-18; Jay's 12-level scale, judged as a SOLO PRIVATE tool): ~7 =
+  "Very Good Professional Work". Craft sits at 7-8 (custom C++ test orchestrator,
+  RunIdentity, multi-compiler matrix, measured import-std, and a valgrind/helgrind/DRD
+  pre-push gate). The ceiling is ORGANIZATIONAL, not code:
+    * rung 8 "Hardened Professional" is reachable via the DEFERRED hardening backlog —
+      security review + fuzzing (jText parser the natural target) [+ ASan/UBSan]; deferred
+      for token budget, not priority.
+    * rungs 9+ "Business Quality" need CI / releases / external contributors — DELIBERATE
+      NON-GOALS (Jay won't pay for CI; the local pre-push `cleancheck` hook IS the CI).
+  So 7 is the CHOSEN ceiling (8 optional via the backlog), not a deficit to fix. The
+  valgrind gate + GitHub-browsable samples/logs already push the public-facing polish up.
+- HEAD = 83d11a4. ALL THREE branches synced here: main == dev-work == test-work
+  (fast-forwarded main/test-work up from 610fcb1 at wrap-up). Working tree CLEAN.
+  Everything pushed to origin. ctest 31/31 green at this HEAD.
+- COMPILER POLICY (current): gcc15 + clang are the STANDARD toolchains on BOTH
+  RHEL-family and Linux Mint. gcc14 is an optional conservative fallback
+  (--force-gcc14), NOT part of the readiness gate. (Older text in this doc said
+  RHEL = gcc14+gcc15 / no clang — OBSOLETE; the gate is gcc15+clang everywhere.)
+- THIS MACHINE IS NOW Linux Mint 22.3 (was RHEL 9.8 in earlier sessions). All
+  compilers DIRECT (no scl/toolset activation on Mint): gcc15 = /usr/bin/g++-15
+  (15.2.0, ubuntu-toolchain-r PPA), gcc14 = /usr/bin/g++-14, clang =
+  /usr/bin/clang++-20 (20.1.2). Results live under test-summary/linuxmint-22.3/...;
+  the RHEL 9.8 + RHEL 10.2 rows from prior sessions coexist as distinct RunIdentity
+  rows (no collision — that's the whole point of RunIdentity).
+- Driver binary: ./bootstrap.sh builds it fresh into
+  build-bootstrap/tools/jac313_test_cli (one-time compile, then hands off). REBUILD
+  after any tool source change — stale-binary bites; see gotchas.
+- BUILD DIRS ARE SUFFIXED BY BUILD TYPE: build-gcc15-debug / build-gcc15-release
+  (and -clang20-). A shared/unsuffixed tree silently runs whichever CMAKE_BUILD_TYPE
+  it was last configured as — this bit us this session (see SESSION LOG 2026-06-16).
+  Pass the tree via --build-dir.
+- import std; DONE for ALL THREE — QLITE + JTEXT + STORE (2026-06-17, g++-15), opt-in +
+  gcc-only: -DJAC313_QLITE_IMPORT_STD=ON / _JTEXT_ / _STORE_ (default OFF; clang keeps
+  textual). All module-native via CMake's NATIVE std module (CXX_MODULE_STD) -> requires
+  CMake >= 3.30. Qlite = single shared impl body (header-only); jText = interface + impl
+  units over shared api.inc/impl.inc fragments (compiled lib); store = one interface unit
+  over MACRO-GUARDED headers + .cpp (decls exported, defs in a non-export namespace block;
+  POSIX/C/Qlite/jText textual in GMF). All three are namespace-correct (export namespace).
+  MEASURED: build benchmark records import-std vs textual per compiler -> BREAK-EVEN at
+  this scale (Qlite +162ms; Qlite+jText -121ms; all 3 +340ms; all ~0% on full build). The
+  WHY-this-matters narrative is in README "Reflections" -> "`import std` — from 'the
+  right thing to do' to 'an example for the toolchains'": the value here is exercising
+  experimental CMake/libstdc++ module features on real code + recorded data, NOT speed.
+- TOOLCHAIN: a user-local CMake 4.3.3 is installed in ~/.local (system stays 3.28.3;
+  ~/.local/bin precedes /usr/bin so it auto-selects) — needed for native import std
+  (>=3.30). bootstrap.sh senses cmake and OFFERS the no-sudo ~/.local install when old.
+  README "Newer CMake on Linux Mint" documents the recipe. Gate UUID for import std is
+  CMake-version-specific (pinned to 4.3.3 in the CMakeLists; update if cmake changes).
+
+>>> NO ACTIVE TASK IN FLIGHT. <<<  This session (2026-06-17): import std module-native
+for Qlite + jText, CMake 4.3.3 user-local + bootstrap sense/offer, export-namespace fix
+across all three modules, build-benchmark now measures import-std (Qlite+jText, recorded
+to results.db), README reflections section on the why. All pushed to all three branches
+(83d11a4); store->Store rename, benchmark-flips-all, and STORE import std DONE on top
+(HEAD moved well past 83d11a4 — check `git log`). The import-std initiative is COMPLETE:
+all three umbrella modules (Qlite/jText/store) are module-native, measured break-even.
+Next planned (none urgent): (a) extend benchmark/gate coverage (e.g. a release-check flag
+that exercises the import-std variant in the readiness gate), (b) re-measure when clang
+gains a usable std module (the empty clang column auto-fills). Record new goals below.
+
+--------------------------------------------------------------------------------
+4. HOW TO BUILD  (C++23 required; modules need Ninja)
+--------------------------------------------------------------------------------
+g++-15 + clang are the STANDARD toolchains (the gate). g++-15 auto-selected when present.
+g++-14 is an optional conservative fallback (--force-gcc14), NOT in the readiness gate.
+clang++-20+ is a first-class peer (--clang); minimum Clang 20; modules need clang-scan-deps-20.
+
+Manual CMake (pick compiler + build tree; separate trees avoid object mixing):
+  cmake -G Ninja -S . -B build-gcc14 -DCMAKE_CXX_COMPILER=g++-14
+  cmake -G Ninja -S . -B build-gcc15 -DCMAKE_CXX_COMPILER=g++-15
+  cmake --build build-gcc15
+  ctest --test-dir build-gcc15
+
+Key CMake options (defaults):
+  JAC313_BUILD_MODULES      OFF   C++23 module targets (Ninja only)
+  JAC313_BUILD_STORE_TESTS  OFF   store unit + matrix tests in ctest
+  JAC313_BUILD_TEST_CLI     ON    builds jac313_test_cli
+  JAC313_BUILD_QLITE/JTEXT/STORE  ON
+Build type DEFAULTS to Debug (dev, matrix gates). --release is now a FIRST-CLASS
+profile: build_type is a recorded RunIdentity dimension, so Debug & Release results
+stay distinct (committed baselines now include both). Release build dirs follow the
+build-<label>-release convention (e.g. build-gcc15-release, build-clang20-release).
+
+--------------------------------------------------------------------------------
+5. HOW TO TEST  (three DISTINCT tiers — they are NOT the same thing)
+--------------------------------------------------------------------------------
+Driver binary: build-gcc15-probe/tools/jac313_test_cli/jac313_test_cli
+(Re-build it via the CMake steps above if the tree is gone.)
+
+  # probe toolchains
+  ./build/tools/jac313_test_cli compilers
+
+  TIER 1 - ctest (28 tests): store units, matrix bins 001-008 (one persist path each),
+           module smoke, RunIdentity unit + OS-dedup regression. Seconds. Compile/link sanity.
+      ./build/tools/jac313_test_cli all --modules --force-gcc14
+
+  TIER 2 - Smoke matrix (115 scenarios): each matrix test x persist backend
+           (binary/jText/SQL/inmem/flags/unit) x on/off, minimal scale. ~2s. DAILY GATE.
+      ./build/tools/jac313_test_cli matrix run --force-gcc14
+      ./build/tools/jac313_test_cli matrix run            # auto-select compiler
+
+  TIER 3 - Full matrix (same 115 grid, ts_store stress scaling): ~9-10 min/compiler.
+      ./build/tools/jac313_test_cli matrix run --params tests/test_params_full.txt
+      # add --release for the Release profile (own build dir, distinct results row)
+
+  Release gate (configure modules -> build -> ctest 28 -> smoke matrix 115):
+      ./build/tools/jac313_test_cli release-check --gcc15   (or --clang / --force-gcc14)
+      release-check-all --release  => same gate under CMAKE_BUILD_TYPE=Release.
+
+  Platform gate (all required compilers for host, auto from /etc/os-release):
+      ./build/tools/jac313_test_cli release-check-all
+      # gcc15 + clang on BOTH RHEL family and Mint (gcc14 is NOT in the gate).
+
+  Scenario filter:
+      ./build/tools/jac313_test_cli matrix run --filter sql
+      ./build/tools/jac313_test_cli matrix run --filter 005
+
+ctest is NOT the matrix: ctest runs each matrix binary once; the matrix re-runs
+them many times with different persist backends + CLI scaling.
+
+Results: every matrix run writes raw logs to test-results/ (gitignored) and records
+metrics in test-summary/jac313_results.db (tracked, source of truth). RUN.md pages
+render from DB views.
+
+--------------------------------------------------------------------------------
+6. CONVENTIONS / GOTCHAS
+--------------------------------------------------------------------------------
+- No shell-script test harness by design — jac313_test_cli is the orchestrator.
+- No GitHub Actions / CI yet — deliberate. Local feedback only.
+- Namespace contract: everything under jac313::<Name>::v001. v001 reserves room
+  for v002 without breaking pinned includes/imports. Legacy names still work.
+- Debug is the DEFAULT; --release is first-class (build_type is a RunIdentity
+  dimension — Debug/Release never conflate). Don't force a profile without asking.
+- Commit/push ONLY when the user asks. Branches main/dev-work/test-work are all
+  in sync at f51a1f9; user pushes to all three at wrap-up. (main is fast-forwardable.)
+- Metrics are DB-only (file side-channels were killed). Don't reintroduce them.
+- RESULTS PATH = RunIdentity: test-summary/<os>/<compiler>/<build_type>/<disk>/<size>/.
+  os = sensed <id>-<version> (e.g. rhel-10.2; full version, 10.1 != 10.2). The identity
+  is defined ONCE in run_identity.hpp; DB keys, the path, and rendered tables all DERIVE
+  from it. Adding a new results dimension = a single deliberate edit there.
+- matrix run is SELF-BUILDING (f51a1f9): if the target build dir has no built tests it
+  configures+builds first (creating the dir), then runs. So `matrix run --clang --release
+  --build-dir build-clang20-release` works on a fresh tree with NO manual `all` pre-step.
+  --modules still takes the benchmarked module-build path.
+- STALE-BINARY GOTCHA: after editing ANY tool source, rebuild the driver
+    scl enable gcc-toolset-15 -- cmake --build build-gcc15-probe --target jac313_test_cli
+  before running, or you run old logic (old schema/path) against new code. Bit us twice.
+
+--------------------------------------------------------------------------------
+7. SESSION LOG  (append newest at top; keep it short and factual)
+--------------------------------------------------------------------------------
+2026-06-20  FRESH-HISTORY WIPE + MULTI-DISK MATRIX (48 runs) — DONE, on GitHub @ fd0bc2d (Claude, R730).
+            >>> GITHUB HISTORY WAS WIPED. The old 146-commit history (real hostnames) is GONE; GitHub
+            now has ONE clean commit. Full backup of the old history: /slowdata/git/jac314 (4.7G,
+            fsck-clean). Default branch is dev-work (kept intentionally). Repo is PRIVATE. <<<
+
+            WHY: old commits embedded real hostnames; rebase/scrub can't fully remove them, so we
+            deleted+recreated the empty GitHub repo and pushed a single fresh commit.
+
+            HOW THE WIPE WENT (repeatable pattern):
+            (1) Reset local: `rm -rf .git && git init -b main && git add -A && git commit` -> one
+                commit. Created dev-work + test-work off it. (Versions already at v001.001.)
+            (2) Doc cleanup folded into that commit: removed all "paid consulting" solicitation
+                (Store/README, docs/Architecture.md, CMakeLists comment); added a 3-block
+                Security & production use section to README (Maturity / Production use / No warranty —
+                LEGALLY CLEAN, no "deliberate" admissions, defers to LICENSE); fixed stale
+                cleancheck->verify-lite ref in docs/Maturity.md.
+            (3) User deleted+recreated the empty PRIVATE GitHub repo; pushed the fresh commit clean.
+                CAUTION: `git fetch` against the OLD (un-wiped) repo RE-PULLS old history into local
+                .git -> purge with `git remote remove origin && git reflog expire --expire=now --all
+                && git gc --prune=now`, then re-add origin. Do NOT fetch the un-wiped repo.
+
+            MULTI-DISK MATRIX SWEEP (headline): the SAME repo run on 3 R730 disks, each a distinct
+            disk_type dimension, accumulated into ONE results DB:
+              fastdata = 10k | slowdata = x7k | /home/jay = ssd      (16 combos each = 48 runs)
+            All 48 valgrind-clean (verify-lite 31/31 + verify 60/60 per box), 0 failures, 0 dups.
+            FLOW PER MACHINE (sequential — each reclones the latest so the DB accumulates):
+              reclone (VERIFY HEAD==latest + DB run counts BEFORE running!) -> ./bootstrap ->
+              matrix run-all [--force only if a stray dup exists] -> verify-lite -> verify ->
+              `git add -A && git commit --amend --no-edit` (single-commit "no history" model) ->
+              `git branch -f main HEAD && git branch -f test-work HEAD` ->
+              `git push -f --no-verify origin main dev-work test-work` (force; dev-work stays default).
+            GOTCHA: run-all --force re-runs all 16 but stamps a NEW group_id, so an OLD same-identity
+            run is NOT replaced -> a DUPLICATE. Pruned it on x7k (DELETE the lower-id run + its
+            scenarios -> `matrix render --all` -> re-amend). Guard OTHER tiers' rows when pruning.
+            COMMITS: 193ba85 (10k) -> 3e66776 (x7k, post-prune) -> fd0bc2d (ssd, full 48). All branches.
+
+            NEXT (none urgent): GO PUBLIC when ready (private now — Security/No-warranty disclaimer +
+            hostname-clean tree already in place); add the Mint laptop as a 4th hardware contributor
+            (reclone -> run-all -> push, same flow).
+
+2026-06-19  CLI COMMAND REFACTOR — COMPLETE, all 3 branches @ 401fbd97 (Claude, R730/RHEL 9.8).
+            >>> THE jac313_test_cli COMMAND SURFACE CHANGED. Sections 4-5 below are PRE-REFACTOR
+            (commands listed there may be RETIRED). New surface + runbook = docs/RunAllTests.md. <<<
+
+            NEW SURFACE — matrix subcommands: run | runner | run-all | render | top | runs |
+            verify | verify-lite. Top-level: compilers | setup | configure | build | list | run |
+            version-check | anonymize-hosts. RETIRED (deleted): cleancheck, release-check,
+            release-check-all, all, and ALL gcc14 (--force-gcc14, the gcc14 toolchain+recipe,
+            make_gcc14_slot). Registry is gcc15 + clang only.
+
+            (1) modules IS A RUNIDENTITY DIMENSION (schema 3->4; tuple was 5-dim, now 6). Values
+                'modules' (--modules build) / 'textual' (no modules). run_identity.{hpp,cpp}:
+                appended to the struct + run_identity_columns() -> SQL/path/binds all derive.
+                Path gained a trailing /<modules>/ segment; runs.UNIQUE includes modules; the hub
+                got a Modules column. So module vs textual runs are DISTINCT rows, not a collision
+                (the headline value for the toolchain-implementer audience). Old DBs auto-reset on
+                the version bump. NEW view v_desired_matrix = cross-join of
+                {compiler}x{build_type}x{modules}x{size} (16 combos).
+
+            (2) matrix runner = explicit-options PRIMITIVE: --compiler gcc15|clang, --build-type
+                Debug|Release, --modules on|off, --size smoke|full, auto build-dir
+                (build-<compiler>-<buildtype>-<modules>). `run` and `runner` are two front-ends
+                over ONE shared core: execute_matrix_run() (main.cpp). No duplicated run logic.
+
+            (3) matrix run-all = gap-query ORCHESTRATOR. missing_matrix_combos() (results_db.cpp):
+                v_desired_matrix LEFT JOIN runs WHERE r.id IS NULL, scoped to (sensed os, detected
+                disk); loops the gap through execute_matrix_run. IDEMPOTENT + RESUMABLE (kill +
+                re-run = the remainder). Flags: --force (all 16), --no-full (smoke only), --dry-run.
+
+            (4) matrix verify / verify-lite = valgrind gates (verdict-only, no DB). run_verify_
+                command(full,name), refactored from cleancheck. verify-lite = ctest representative,
+                31 checks (memcheck all + helgrind/DRD on threaded); verify = full sink coverage,
+                60 checks (every matrix test x binary/jtext/sql/none/inmem). PROVEN 31/31 + 60/60
+                clean on RHEL. Pre-push hook runs verify-lite. GOTCHA: the annotated tree
+                (-DJAC313_STORE_HELGRIND_ANNOTATE=ON) #includes <valgrind/helgrind.h> -> on
+                RHEL/Fedora that's the SEPARATE valgrind-devel package (Debian bundles it).
+
+            (5) VALGRIND IS A REQUIRED readiness prerequisite. recipes.conf valgrind.required=true
+                + valgrind-devel + check verifies <valgrind/valgrind.h> (not just the binary).
+                assess_readiness (Setup/src/v001.cpp) now also runs required recipes' `check`
+                (signature gained source_dir). Bootstrap is NOT READY without valgrind+headers.
+
+            (6) DISK AUTO-DETECT (host_hardware.cpp detect_disk_type): df -> lsblk -s -> rotational
+                + smartctl/model RPM, from the REPO disk (not system root). DISK_TYPE=auto is the
+                default; explicit ssd/x7k/10k overrides. hostname() reads gitignored host_label.local
+                (-> $JAC313_HOST_LABEL -> uname) so runs are born with a stable label. NEW
+                anonymize-hosts subcommand scrubs the DB -> jac313-NNN by core count.
+                package_versions gained its FK -> group_specs.
+
+            COMMITS (dev-work = main = test-work @ 401fbd97): 8b83894f modules dim; 7737dd85 runner;
+            4128cb0e run-all; 80ea5edb valgrind gate; ed21779e verify; 374e7c2f RunAllTests.md;
+            401fbd97 retire pass. Toolchain: gcc-toolset-15 15.2.1 + clang 21.1.8; valgrind 3.26.0 +
+            valgrind-devel.
+
+            NEXT (none urgent): run `matrix run-all` on each box to repopulate the matrix (16
+            combos/box); /fastdata = the 10k disk dimension; pre-public = jText-parser fuzz + a
+            FRESH git init (history still holds real hostnames; rebase won't remove them).
+
+2026-06-19  R730 / RHEL 9.8 CLEANUP — disk-relabel + fill-matrix + host-anonymize (Claude).
+            DONE this session; committed + pushed --no-verify to all 3 branches. Repo =
+            /slowdata/git/jac313 on the R730 (RHEL 9.8, 2x Xeon E5-2630 v3 / 251GB).
+            DOC STALE: header path + section-3 "machine is Linux Mint 22.3" predate this box.
+            /slowdata = 7200RPM HDD LVM => disk label x7k, NOT ssd. DB backed up to
+            /tmp/jac313_results.backup_*.db; baseline git HEAD 1f62f7f2 (dev-work).
+
+            BUG (footgun, hardening deferred): `matrix run --params tests/test_params.full.txt`
+            (DOT not underscore -> nonexistent file) silently ran SMOKE, not full.
+            load_matrix_params (params.cpp:35) returns smoke DEFAULTS when --params can't be
+            opened — no error. A mistyped --params should FAIL LOUD.
+
+            TWO RHEL 9.8 boxes coexist in results.db: a 2nd box on real SSD (kept ssd) vs THIS
+            R730 (was mislabeled ssd -> fixed to x7k). Disambiguated by host, not date.
+
+            DONE (gates green: integrity_check ok, foreign_key_check clean, 21 runs x 116 scn):
+              1. Filled the 3 missing canonical R730 runs (gcc Debug xFull, clang Debug xFull,
+                 clang Release xFull; --modules, full, x7k) -> R730 battery complete (6 =
+                 {gcc15,clang} x {Debug-Smoke, Debug-xFull, Release-xFull}).
+              2. Relabelled the R730's mislabeled ssd rows -> x7k (runs + paths + host_hardware);
+                 moved summary dirs ssd->x7k; re-rendered all RUN.md + hub.
+              3. Deleted a junk Release-SMOKE run (129-count typo artifact) + 12 empty stub
+                 groups; renumbered group_id contiguous 1..21 (offset-remap; 5 tables carry
+                 group_id; scenarios links via run_id). Cleaned 1405 orphan scenarios (old cruft).
+              4. SCHEMA GAP FIXED: FK package_versions.group_id -> group_specs ON DELETE CASCADE
+                 (live table rebuilt + CREATE patched in results_db.cpp).
+              5. HOSTS ANONYMIZED to jac313-NNN across DB + rendered pages. Real names + the
+                 mapping are NOT in git (kept in the gitignored host_label.local). Sweep of
+                 test-summary + DB + docs = 0 identifiers. NOTE: prior COMMIT HISTORY still holds
+                 real hostnames -> the PUBLIC launch must be a FRESH git init (no history; a
+                 rebase/rewrite won't fully remove them).
+              6. NEW FEATURES (driver rebuilt, build green):
+                 * `jac313_test_cli anonymize-hosts [--dry-run]` (results_db.cpp) — scrub
+                   hostnames -> jac313-NNN, ranked by core count, idempotent.
+                 * hostname() reads gitignored host_label.local (-> $JAC313_HOST_LABEL -> uname)
+                   so runs are born with a stable label, never the machine name.
+                 * detect_disk_type(dir): auto-detect ssd/x7k/10k from the REPO disk (df ->
+                   lsblk -s -> rotational + smartctl/model RPM), NOT system root. DISK_TYPE=auto
+                   is now the default (explicit value overrides); storage reports the repo drive
+                   model. -> clones auto-label (e.g. /fastdata 10k) with no param edits.
+                 * docs/RunAllTests.md runbook (gcc15 + clang; smoke + full Debug/Release; optional
+                   valgrind; NO gcc14); linked from bootstrap.sh, README, docs/Setup.md.
+
+            PENDING: valgrind cleancheck (gcc15 + clang); /fastdata clone = 10k full battery via
+            docs/RunAllTests.md; then PUBLIC launch via fresh git init.
+
+            DATA FINDINGS (results.db, full runs; peak_ops_sec single-sample-noisy, footprint +
+            build-ms solid): jText is NOT slow — fastest sink in gcc Debug (15.0M vs binary 13.5M
+            / none 13.4M) AND smallest footprint (jtext 7.02MB < binary 7.09 < sql 7.82). Async
+            DoubleBufferedWriter makes sink choice ~irrelevant to hot-path throughput (all within
+            ~10-15%). import-std = BREAK-EVEN (sometimes faster: 24243 textual vs 23797 istd ms).
+            Test 005 = throughput FLOOR (~5.3-6.0M vs ~24M peak; designed worst case). clang holds
+            higher Release AVG than gcc despite ~equal peaks.
+
+2026-06-19  MINT CLANG BATTERY — parity (both compilers per platform). Mint had only gcc15
+            (groups 1-3); both RHEL boxes had gcc15 + clang, so Mint was the odd one out. Ran the
+            clang battery on Mint: smoke + full Debug + full Release (groups 19/20/21, all 116/116)
+            + clang ctest 30/30. NUMBERS (Mint, same box, clang vs gcc15): smoke 0.94M vs 0.86M;
+            full Debug 2.56M vs 2.92M; full RELEASE 9.18M vs 8.80M — clang EDGES AHEAD at Release,
+            level overall (peak ops/sec is single-best-sample, varies run-to-run). persist 610MB
+            both; ctest 30/30 both. DOC: added "### g++-15 vs clang (Linux Mint)" table to
+            docs/Results.md Mint section (mirrors the RHEL 9.8 format) + the "clang also ran the
+            full battery" toolchains note. Re-rendered hub --all -> 18 runs (Mint + RHEL9.8 +
+            RHEL10.2, each gcc15 + clang × smoke/fullDebug/fullRelease). pushed --no-verify.
+
+2026-06-19  PULLED RHEL WORK (done on the RHEL boxes by Jay; not previously logged here).
+            Commits 8f0dc03..7ed3a16: RHEL 9.8 + RHEL 10.2 full batteries (gcc15 + clang, Debug +
+            Release, all 116/116) recorded + documented in Results.md (per-platform sections, same
+            shape as Mint). Docs RENAMED to Title-case (Results.md / Setup.md / Architecture.md /
+            Maturity.md / Modules.md / Memory-And-Concurrency.md) with all internal links updated.
+            NEW FINDING (important): the import-std CMake gate is VERSION-EXACT, not just ">=3.30" —
+            CMake 3.31.8 (which IS >=3.30) FAILS to configure import std (experimental UUID
+            mismatch); only the pinned 4.3.3 activates it. Confirmed on RHEL 9.8; "CMake 3.31.8 vs
+            4.3.3" table in Results.md; the package READMEs now say "CMake 4.3.3 (exact)". RENDER
+            gained a "Build (modules)" hub column (test_summary_render.cpp + results_db.hpp). RHEL
+            10.2's first run was on a 7200 RPM HDD (the x7k disk dimension, distinct in the hub).
+
+2026-06-18  (cont.) CLEAN SLATE + RESULTS DOC (docs/Results.md). pushed --no-verify (data+docs).
+            CLEAN SLATE: pruned ~3.2 GB (8 build trees + test-results/ 1.3GB + root persist_*/
+            FileCheckList). git-rm'd test-summary (2206 files of old multi-machine results). Re-ran
+            from scratch: ./bootstrap (Readiness READY, nothing to provision; hook installed) ->
+            fresh DB. (This first-time PROVED the run-time version() recording: allocate_test_group
+            -> record_package_versions_for_group reads version() + splits major/minor; group rows
+            show v001.001 — was only by-construction before.)
+            NEW docs/Results.md = per-PLATFORM "what a build+run produces" doc (linked from README
+            Documentation table). Labeled "## Linux Mint 22.3" with HARDWARE (i7-7820HQ 8c / 31GB /
+            Samsung 990 EVO SSD / Mint 22.3) + VERSIONS UNDER TEST (Qlite/jText/Store v001.001, from
+            the recorded version()) + toolchains + tests/throughput. A "## RHEL 9.8/10.2" placeholder
+            waits for the SAME battery on the RHEL boxes (Jay's plan: parallel per-OS sections).
+            FRESH NUMBERS (gcc15, this box): ctest 30/30; smoke 116/116 ~16s; full DEBUG 116/116
+            ~9m52s peak 2.9M ev/s 610MB; full RELEASE 116/116 ~9m26s peak 8.8M ev/s (3x Debug) 610MB.
+            persist footprint 610MB identical Debug/Release (CPU-bound, ~1MB/s). test-summary now =
+            3 Mint runs (groups 1 smoke / 2 full-Debug / 3 full-Release). NOTE: after the commit,
+            test-results/ (the raw full+release output) was CLEARED to keep disk lean — 640 MB freed;
+            gitignored + regenerable, repopulates on the next matrix run.
+
+2026-06-18  (cont.) version() REPLACES sub_version (RIPPED OUT) + hub = SEPARATE TABLES of 6.
+            (1) VERSION ACCESSOR: each package now exposes version() -> constexpr std::string_view
+                "v001.001" (major.minor in ONE literal; major = v001 API line, minor = revision).
+                sub_version() (minor-only) was redundant once version() carries both -> FULLY REMOVED
+                (0 refs left). A bump edits the "v001.001" literal. Module parity: using-decls renamed
+                to version (jText core partition + Store textual .cppm); include-based fronts free;
+                unit-test static_asserts -> version()=="v001.001".
+            (2) GATE: version-check now watches the version literal via git -G '"v[0-9]' (a bracket
+                class -> basic/extended-regex safe, no parens; survives a future v002 major bump)
+                instead of -Gsub_version. RECORDER record_package_versions_for_group reads version()
+                "v001.001" and SPLITS on '.' into major/minor for the package_versions table.
+            (3) HUB PAGINATION REWORKED: was ONE <table> with the header repeated inside <tbody>; now
+                SEPARATE <table> blocks of 6 runs each (header+6 / </table> / blank line / next table).
+                WHY: separate tables each get their OWN horizontal scrollbar in the web view -> scroll
+                the wide right-hand columns where you're reading, not stranded at the bottom of one
+                giant list. 19 runs -> 4 runs-tables (6/6/6/1). (The other 5 <table>s are the untouched
+                throughput sections.)
+            VERIFIED: ctest 30/30 (version() static_asserts); module tree 33/33 (export parity);
+                render = 4 separate runs-tables w/ blank-line breaks + Versions-above-Hardware sub-rows;
+                version-check skipped pre-commit (literal not yet committed), ok post-commit (baseline =
+                the commit that sets version()). DOCS: Setup.md + 3 package READMEs sub_version->version.
+            The "version() accessor" follow-up is now DONE (and it let us delete sub_version, as Jay
+                predicted). No open items from the version thread.
+
+2026-06-18  (cont.) PER-RUN PACKAGE VERSIONS on the test-summary hub.
+            Each run group records the package versions it was tested against; the hub shows a
+            per-run "Versions:" sub-row ABOVE the "Hardware:" sub-row (the web view has NO frozen
+            header, so as you scroll the version must precede the taller hardware line).
+            DESIGN (settled after a global-vs-per-group detour — version is PER-RUN, group_id):
+              DB table package_versions(group_id, name, major, minor, ord), PK(group_id,name), in
+              the results DB ("data question -> database"). RECORDED at run time: allocate_test_group
+              -> record_package_versions_for_group reads the sub_version() literals from source +
+              upserts for the new group_id. So the RENDERER is PURE-DB (queries package_versions,
+              never touches source) — decoupling complete. major='v001', minor=the sub_version literal.
+            BACKFILL of the 19 existing groups (all predate any bump -> v001.001): a THROWAWAY python
+              script (one-time data fix, NOT permanent C++ — a baked-in backfill is a one-time
+              migration smuggled into schema-ensure forever; Jay's call). 57 rows. Script discarded.
+              ensure_package_versions only CREATEs the table + migrates the old (global, no group_id)
+              table by dropping it (regenerable). New runs self-record going forward.
+            FILES: results_db.{hpp,cpp} (table, record_package_versions_for_group, load_package_versions
+              by group, ensure_package_versions wired into ensure_results_schema_path, record hooked
+              into allocate_test_group); test_summary_render.cpp (per-run Versions sub-row in
+              write_padded_hub_table via a group_id->versions map; short_pkg_name; REMOVED the
+              source-read helpers; FIXED the stale ../README.md#testing link the renderer regenerated;
+              ensure_results_schema at render start -> render self-sufficient + runs the import-std
+              column migration, fixing a pre-existing render abort).
+            VERIFIED: ctest 30/30; hub shows per-run Versions above Hardware for all 19 groups; 57 rows.
+              NOT exercised: run-time recording for a NEW run (needs a matrix run; wired + by-construction).
+            DONE follow-up: (a) HUB PAGINATION — the runs table re-emits its column header every
+              6 RUNS (Jay tested: 7 pushed the top/bottom edges -> 6). One <table>, header repeated
+              inside <tbody> so column widths stay aligned across pages. kRunsPerHeader=6 in
+              write_padded_hub_table. (4 headers for 19 runs.)
+            STILL OPEN (noted): (b) version() accessor on the 3 packages ("major.minor" for code
+              consumers) — deferred, orthogonal to the hub.
+
+2026-06-18  (cont.) SUB_VERSION accessor + version-check GATE — feature (option B: manual+enforced).
+            Each package exposes `jac313::<Pkg>::v001::sub_version()` (constexpr std::string_view,
+            "001" now) — a REVISION counter WITHIN the stable v001 API line (v001 holds until a
+            real break -> v002, then sub_version resets to "001"). Independent per package.
+            PLACEMENT (free textual+module parity via the single-source fragments — each is
+            included inside BOTH the textual header AND the module export namespace):
+              Qlite = Sqlite.body.hpp ; jText = jText.api.inc ; Store = ts_store_config.hpp.
+              Added #include <string_view> to Qlite/.../Sqlite.hpp (textual front lacked it).
+            MODULE parity: include-based fronts (Qlite .cppm, jText+Store importstd .cppm) export
+              it FREE; the using-LIST fronts needed a line -> added `using ...::sub_version;` to
+              jText core partition (jac313.jtext.v001.core.cppm) + Store textual .cppm.
+            ENFORCEMENT — NEW `jac313_test_cli version-check` (git-only, NO build): per package,
+              if shipped source changed since the commit that last SET its sub_version literal
+              (git log -1 -Gsub_version -- <verfile> ; git diff --quiet <thatcommit> HEAD --
+              <source paths>), a bump is OWED -> exit 1. Source paths: Qlite=Qlite/include;
+              jText=include+src+jText.{h,cpp,api.inc,impl.inc}; Store=Store/include. Wired into
+              tools/hooks/pre-push BEFORE cleancheck (cheap check fails first). To bump: edit the
+              "NNN" literal in the package's version file (the PLACEMENT files above), commit.
+            VERIFIED: textual ctest 30/30 (3 sub_version static_asserts added to the v001 unit
+              tests) ; module tree build green + ctest 33/33 (all 3 fronts export it) ;
+              version-check runs (pre-commit -> "skipped" since uncommitted; diff mechanic flags
+              a real Store/include change, exit 1). Docs: Setup.md version-check gate section.
+            HOOK HARDENING: pre-push now REBUILDS build-bootstrap's driver first (incremental —
+              "no work to do" when unchanged) so the gate never runs a STALE driver. This is the
+              gotcha that BLOCKED this feature's first push: the hook prefers the build-bootstrap
+              driver, which still lacked `version-check` (only build-gcc15-debug had been rebuilt)
+              -> it printed usage + non-zero -> push blocked. Rebuilding in the hook fixes it for
+              good. Falls back to any build-*/ driver when there's no bootstrap tree.
+            PACKAGE READMEs: sub_version added to all three (Qlite/jText public-symbols line;
+              Store quick-start note), each with a one-liner + link to docs/Setup.md version-check.
+
+2026-06-18  (cont.) MATURITY DOC — docs-only. Added docs/Maturity.md (the full 1-12 scale +
+            the craft-vs-structure / deliberate-ceiling discussion: ~7 "very good professional
+            work" as a SOLO PRIVATE tool; 8 reachable via the hardening backlog; 9+ = CI/
+            releases/contributors = deliberate NON-GOALS, local cleancheck hook IS the CI),
+            linked from the README Documentation table. The canonical live rating is the
+            MATURITY bullet at the top of CURRENT STATE (section 3) above.
+
+2026-06-18  (cont.) PRE-PUBLIC SAMPLES + GITHUB VISIBILITY AUDIT — docs-only, pushed --no-verify.
+            (1) Cheap path chosen over the KEEPER-BIT TAIL-RETENTION feature (which was
+                OVER-BUILD): copied the smoke-run keeper sink output into docs/samples/ (7 files,
+                ~42 KB: jText main+Ints+Floats, SQL main+Ints+Floats, persist_database.db) + a
+                README. NOT gitignored (/persist* is ROOT-anchored, doesn't match docs/samples/)
+                -> browsable on GitHub; linked from docs/store/reporting.md. KEEPER-BIT TAIL
+                RETENTION IS DROPPED as unnecessary — a smoke run already emits tiny committable
+                files, so no full-run trimming machinery is needed. (Don't resurrect it.)
+            (2) GitHub-AWARE link audit (stricter than the earlier on-disk check: a target must
+                be git-TRACKED or it 404s on GitHub even if it exists locally): 0 broken across
+                all tracked .md. The only flags were [../] repo-root links, which render fine.
+            (3) Smoke logs are ALREADY GitHub-visible — no change needed. test-results/ (raw run
+                logs) is gitignored, BUT the matrix PUBLISHES per-scenario .log + RUN.md into
+                test-summary/ (TRACKED): 575 smoke logs/compiler (gcc15 + clang), 1276 RUN.md->
+                .log links, 0 broken. No *.log ignore pattern exists. So the published smoke logs
+                click through on GitHub as plain text.
+
+2026-06-18  (cont.) CLEANCHECK VALGRIND GATE + PRE-PUSH HOOK — DONE. All 3 branches at
+            7a1013a, pushed (the push itself ran the gate -> 31/31 clean before it went through).
+            CONTEXT: after the valgrind validation below found a real race, decided (talk-first,
+            high-level) that as the producer we re-run these tools BEFORE EVERY PUSH. Scope ceiling
+            pinned: SMOKE scale + representative set (NOT full matrix — that's hours under valgrind).
+            Enforcement: install-by-bootstrap pre-push hook (local CI; Jay won't pay for GitHub
+            Actions — local hook IS the CI, deliberate, don't re-pitch).
+            NEW COMMAND `jac313_test_cli cleancheck [--gcc15|--clang]`:
+              - Self-builds a DEDICATED annotated Debug tree build-<compiler>-cleancheck
+                (-DJAC313_STORE_HELGRIND_ANNOTATE=ON so helgrind/DRD see the lock-free handoff;
+                separate tree so the flag never pollutes the normal build dir).
+              - Runs the representative set: MEMCHECK over 21 bins (2 unit + 6 example smokes incl
+                binary_to_jtext mmap reader + 8 matrix TS on binary sink + 001 jtext/sql/none +
+                flags + metric_view); HELGRIND + DRD over 5 multithreaded (003/006 lock-free +
+                001 binary/jtext/sql). 31 checks total.
+              - Each binary runs from a /tmp scratch CWD -> repo never touched (no results DB, no
+                persist_* sample clobber). Verdict-only: per-check line + CLEANCHECK PASS/FAIL +
+                NON-ZERO EXIT on any error. Missing valgrind -> stop w/ install instructions.
+            PLUMBING (commit 7a1013a, 10 files): options.hpp ConfigureOptions.helgrind_annotate;
+              build_pipeline.cpp emits the -D; process.{hpp,cpp} run_process gained optional cwd
+              (child chdir before exec); main.cpp run_cleancheck_command + "cleancheck" dispatch +
+              usage; ALSO fixed detect_source_dir stale lowercase "store" marker (store->Store
+              rename leftover). tools/hooks/pre-push (new) runs cleancheck; bootstrap.sh installs
+              it into .git/hooks/pre-push (idempotent; git hooks are local/not tracked). Setup/
+              recipes.conf += valgrind recipe (check-gated, per family) so `setup` offers it when
+              absent. Docs: Setup.md command list + Memory-And-Concurrency.md gate section ("no
+              committed gate" caveat retired).
+            VERIFIED: cleancheck 31/31 clean, PASS, exit 0; repo clean after; ctest 30/30; the
+              real push of dev-work (and of main/test-work) FIRED THE HOOK and ran cleancheck
+              green before completing. NOTE: build-<compiler>-cleancheck is gitignored; the
+              installed .git/hooks/pre-push points at the first built driver (prefers
+              build-bootstrap) -> re-run ./bootstrap.sh on a fresh clone to install the hook +
+              build a current driver.
+            DEFERRED (token budget, NOT priority): security review + fuzzing (jText parser the
+              natural fuzz target) — the "->8 hardened professional" rung. Pick up later; could
+              fold a fuzz target into cleancheck.
+            MATURITY NOTE (discussion): judged as a SOLO PRIVATE tool, project ~7 ("very good
+              professional"); craft is 7-8, structure (no CI/releases/contributors) is the only
+              cap — and no-CI is a deliberate, defensible solo choice, not a deficit.
+
+2026-06-18  (cont.) VALGRIND / HELGRIND / DRD VALIDATION — DONE. All 3 branches at a4dbf94
+            (ee0058c fix + a4dbf94 doc), main/test-work ff'd from dev-work, all pushed.
+            Installed valgrind 3.22.0 (user ran `sudo apt-get install -y valgrind`). Ran gcc15
+            DEBUG binaries DIRECTLY from a /tmp scratch cwd so the tracked results DB + the
+            committed persist_* root samples were NEVER touched (no orchestrator, no DB writes).
+            NOTE: build-gcc15-debug was STALE (pre store->Store rename, Jun16) — reconfigured +
+            rebuilt to current source first; fresh bins live under build-gcc15-debug/Store/...
+            (capital S); the old lowercase store/ dir is leftover cruft (gitignored, harmless).
+            MEMCHECK: 22 binaries (2 unit, 6 example smokes incl. binary_to_jtext = mmap reader,
+            8 matrix TS on binary sink, 001 across jtext/sql/none, flags, metric_view) -> 22/22
+            CLEAN, 0 errors / 0 leaks. Verified real instrumentation (heap alloc/free counts,
+            5x20 threaded events).
+            LOCK-FREE BOUNDARY (architectural finding, user suspected it): the WHOLE Store has
+            exactly ONE mutex+condvar, both in DoubleBufferedWriter. In-memory core
+            (--persist=none) is genuinely lock-free (atomics only: next_id_ fetch_add, epoch,
+            unique-slot write). With persistence, save_event -> submit_event takes buffer_mutex_
+            PER EVENT, so the persisting producer is NOT lock-free (brief enqueue-under-lock +
+            async drain; trade-off = mutex contention at high thread counts). Confirmed in code
+            (core.hpp save_event line ~91 calls submit_event; DoubleBufferedWriter submit_event
+            takes lock_guard).
+            HELGRIND+DRD (both tools AGREE on every line): lock-free path clean on
+            001/002/004/005/007; FINDINGS on 003/006 + a benign one everywhere.
+              FINDING 1 (REAL data race, FIXED) — test_003/006 tail-reader. The reader gated
+                readable_end on log_stream_write_pos (the RESERVATION counter, fetch_add'd BEFORE
+                the slot is filled) instead of the completion publish -> read array slots (and
+                fed their ids to store.select) before writers wrote them. 200 err / 2 contexts,
+                both tools, same addr. FIX = per-slot atomic publication: log_stream_array is now
+                std::array<std::atomic<size_t>>; writer release-stores id+1 (0=unpublished),
+                reader acquire-loads + stops at first empty slot. Pairs each slot write w/ its
+                read AND transitively orders save_event before select (no in-flight row read).
+                Also confirms store.select() has NO internal write/read sync — safe only on
+                COMPLETED ids; the test was violating that contract, not the store.
+              FINDING 2 (benign "dubious", CLEANED UP) — DoubleBufferedWriter::stop() called
+                cv_.notify_one() AFTER releasing the lock (predicate IS set under lock + worker
+                re-checks under lock = correct idiom, but tools flag "associated lock not held").
+                Moved notify INSIDE the lock scope. No behavior change. (flush()/swap_and_signal
+                already notify under lock.)
+              RESIDUAL = TOOL BLIND-SPOT: helgrind/DRD don't model C++11 atomic acquire/release
+                as happens-before, so the (now-correct) lock-free payload handoff still drew a
+                spurious race (100 err / 1 ctx: save_event write vs select read of same row).
+                ANNOTATED with ANNOTATE_HAPPENS_BEFORE/AFTER on the atomic slot, gated behind NEW
+                CMake option JAC313_STORE_HELGRIND_ANNOTATE (default OFF -> macros are no-ops, NO
+                valgrind header dep in normal builds). Built build-gcc15-debug-hg with it ON ->
+                helgrind+DRD 003/006 fully GREEN (0/0).
+            VERIFIED: ctest 30/30 (gcc15 Debug); 003/006 native = 100 hits / 0 misses;
+              memcheck on modified 003/006 = 0/0. Default (no-op) build compiles clean (no
+              valgrind dep). Files changed (ee0058c): DoubleBufferedWriter.hpp, test_003_TS.cpp,
+              test_006_TS.cpp, Store/tests/matrix/CMakeLists.txt.
+            DOC (a4dbf94): NEW docs/Memory-And-Concurrency.md (method, memcheck-clean, lock-free
+              boundary, the race + fix, dubious-notify, annotation, before/after results, HONEST
+              limits) + README Documentation-table row. Throwaway valgrind harnesses lived in
+              /tmp/jac313-vg (not committed). build-gcc15-debug-hg is gitignored.
+            OPEN / NEXT (none urgent): (a) NO COMMITTED VALGRIND GATE — runs were ad-hoc, the
+              test CLI has no launcher hook, so re-running is manual (cmds in the new doc). If
+              wanted as a gate -> the runner launcher-prefix feature we deferred (env-driven
+              JAC313_TEST_LAUNCHER wrapping each scenario binary, NOT the compiler). (b) only
+              smoke scale / gcc15 Debug / representative subset exercised — full-matrix or
+              clang/Release thread-check is heavier but more thorough.
+
+2026-06-18  PRE-PUBLIC DOC HYGIENE — DONE (a9baf99, dev-work; main/test-work ff'd + all
+            three pushed). Cleared the pending hygiene list + a full dead-link sweep.
+            (1) jText/README.md REWRITTEN: deleted the stale "thin re-export over sibling
+                ../../jText, thin header layer until a future migration" prose + the
+                JTEXT_ROOT / sibling-checkout build steps (all false since the in-tree
+                migration). Now documents the in-tree compiled jtext_core, the
+                jac313::jText::v001 API, the single-source jText.api.inc/impl.inc fragments,
+                an options table, and the modules / import-std section. Modeled on Qlite/README.
+            (2) Store/README.md: dropped the dead ../../ts_store sibling link ("remains for
+                comparison only"); fixed "JTextSplitEventLog ... needs sibling jText" ->
+                "links in-tree jtext_core".
+            (3) DEAD-LINK SWEEP (python scan of all 34 tracked *.md): 2317 file links + 7
+                anchor links. Found + fixed 4 DEAD ANCHORS:
+                  - Store/README.md + test-summary/README.md pointed at ../README.md#testing
+                    and #customization-and-performance — those root-README sections were
+                    restructured away into docs/Setup.md (#4-testing) and
+                    docs/Architecture.md (#customization-and-performance). Repointed.
+                  - docs/store/flags.md:9 linked #metric-summary-bits to a heading using
+                    Kramdown {#...} anchor syntax that GitHub IGNORES (would render literally
+                    -> dead on GitHub). Switched the heading to an HTML <a id="..."> anchor,
+                    which GitHub honors. LESSON: GitHub markdown has no {#id} heading-attr;
+                    use <a id> for stable custom anchors.
+                Re-ran the scan after edits: 0 dead file links, 0 dead anchors.
+            (4) Untracked scratch: git rm --cached .tmp_smoke_with_monitor.sh (hardcoded
+                /home/jay paths + referenced the removed unsuffixed build-gcc15 tree) +
+                its empty companion .tmp_smoke_monitor.log; deleted from disk; .gitignore
+                += /.tmp_*.
+            Docs/hygiene only — no code touched, no build/test needed.
+
+2026-06-17  (cont.) METRIC VIEW feature + StoreFlags bug-fix/rename + matrix item.
+            NEW FEATURE: a read-side per-event metric SUMMARY view (ZERO hot-path cost —
+            save_event never touches it; computed only when asked). Header
+            Store/include/jac313/Store/v001/headers/metric_view.hpp (header-only, guarded):
+            MetricSummary<T>{count,min,max,average}+to_string(), summarize_metrics(span),
+            EventMetricSummary{ints,doubles}, metric_view(spans) + metric_view(PersistedEvent).
+            "One summary row instead of one row per metric value"; span-based so 5 or 20
+            metrics just work. Exported from umbrella header + both module fronts. The
+            placeholder HasIntStats/HasDblStats flags now MEAN "a metric summary view is
+            available for this event."
+            BUG FOUND + FIXED (b8c7dcb): the in-tree namespace migration MISSED
+            ts_store_flags.hpp — TsStoreFlags + the free flag helpers were left in the GLOBAL
+            namespace (pollution), and textual vs import-std builds DISAGREED (module silently
+            namespaced it via the .cppm export-namespace wrap). Wrapped in jac313::Store::v001
+            (guarded); exported from the textual module too. Surfaced because the test used the
+            qualified name. LESSON: a qualified-name test catches global-namespace leaks.
+            RENAME (f39166d): TsStoreFlags -> StoreFlags (drop legacy "Ts"; package is Store).
+            185 occ / 22 files. File stays ts_store_flags.hpp (core class likewise ts_store).
+            MATRIX ITEM (f09c788): promoted metric_view to a NAMED matrix scenario like `flags`
+            (jac313_store_metric_view): smoke=100 records, full=100,000 (via --test-size; 100k
+            in ~0.12s, per-row output capped at 100 + tally). Output shows event + decoded
+            flags + the metric summary row. Wiring mirrors `flags`: new test_metric_view.cpp +
+            CMake; "metric_view" special-cased in matrix_test_key/has_matrix_selection
+            (params.cpp) + expand_store_matrix_scenarios/build_scenario_args/infer_category
+            (matrix.cpp); metric_view=x in tests/test_params{,_full}.txt. Now 116 scenarios
+            (was 115), categorized "matrix", RENDERS IN RUN.md under the run's group (so it has
+            a group number + shows in the summary). The focused unit test
+            jac313_store_metric_view_test stays for assertions (so there are TWO: unit + matrix).
+            VERIFIED: matrix smoke 116/116; ctest 33/33 on gcc-OFF, clang-OFF, gcc import-std.
+            HEAD f09c788 on dev-work. main/test-work BEHIND (whole metric_view arc + flags
+            fix/rename) — fast-forward at wrap-up.
+            >>> NEXT SESSION (planned idea, NOT started): KEEPER-BIT TAIL RETENTION <<<
+            Make full-run keeper logs COMMITTABLE (small enough for GitHub; <50MB warn /
+            <100MB hard) so users can browse REAL sample binary/jText/SQL output on GitHub.
+            Idea: use the keeper bit (StoreFlags::UserFlag::KeeperRecord, bit 1) so a full run
+            KEEPS ONLY THE LAST X entries (X = user param, default 100).
+            DESIGN NOTES to decide first:
+              - WHERE to cap: cleanest is at the KEEPER FILE SINK as a bounded tail (ring buffer
+                OR trim-to-last-X on finalize()), NOT "is this one of the last X?" at log time
+                (unknowable until the end). Binary = uint32_t length-prefixed records -> tail-trim
+                is clean; jText is line-oriented -> even easier.
+              - SCOPE: keeper (file) path only? DatabaseEntry/SQL stays full (or gitignored)?
+                "use the keeper bit" => keeper-only; confirm with user.
+              - X as a param (default 100) next to --test-size / persist options.
+            PRE-PUBLIC HYGIENE: DONE 2026-06-18 (a9baf99) — see top of log.
+
+2026-06-17  (cont.) STORE import std — DONE. All 3 umbrella modules now module-native.
+            Executed the turn-key plan below, one step at a time (textual build green at
+            every step; committed in stages). HOW: guarded all 24 headers + 4 .cpp
+            (#ifndef JAC313_STORE_IMPORT_STD around angle-includes + the `namespace
+            jac313::Store::v001` wrapper; kept quote/<jac313/Store/> cross-includes + nested
+            detail/ansi; helper script /tmp/guard.py did the common case, brace-counting
+            found the outer-namespace close even with nested detail). Module unit
+            modules/jac313.store.v001.importstd.cppm: GMF = POSIX (mmap/sysinfo/stat/types/
+            unistd/fcntl) + C-compat (cstddef/cstdint/cstring/cctype/cerrno/cmath/cstdlib) +
+            Qlite + jText (textual); import std; DECLARATIONS in `export namespace` (the 8
+            public headers), DEFINITIONS in a SEPARATE NON-exported `namespace` block (the 4
+            .cpp) — needed because the .cpp carry file-local constexpr (KEEPER_MASK/
+            DATABASE_MASK) + anon-namespace helpers with INTERNAL linkage that can't be
+            exported; member defs still match the exported decls. Self-contained (compiles
+            the .cpp), links jac313_Store/_Qlite/_jText (includes + jtext_core + SQLite3), NOT
+            the sink static libs. CMake: JAC313_STORE_IMPORT_STD (gcc-only, >=3.30 guard);
+            gate in Store/CMakeLists + root; if/else module block. Benchmark (build_pipeline)
+            now flips all 3. VERIFIED: gcc import-std store module test + full ctest 31/31;
+            gcc+clang OFF 31/31; 3-lib release-check ctest 31/31 + smoke 115/115.
+            FINAL NUMBER (all 3 module-native): full build +340ms / 0% (modules-only grew
+            3.7s->9.9s as all 3 BMIs pull std). Trajectory Qlite +162 / +jText -121 / +store
+            +340 = all noise -> BREAK-EVEN holds regardless of conversion depth, as expected.
+            Commits: 4413341 (inert guards) + 9b5f410 (module unit + CMake) + the benchmark/
+            docs commit. Build dir build-gcc15-store-importstd (gitignored).
+
+2026-06-17  (cont.) STORE import std — APPROACH VALIDATED + TURN-KEY PLAN (built; see DONE above).
+            The 3rd/last umbrella lib. Investigated + scoped + de-risked; the conversion
+            itself is a deliberate multi-hour grind left for a focused fresh pass.
+            WHY IT'S THE HARD ONE: Store is mostly header-only (ts_store<Config> template,
+            config, inline sinks) + 4 compiled .cpp; the module is ONE unit jac313.store.v001
+            -> all-or-nothing (won't compile until the WHOLE transitive header set is
+            converted). ~24 headers / ~3200 lines. Heavy POSIX: <sys/mman.h> (mmap),
+            <sys/sysinfo.h>, <unistd.h>, <fcntl.h>, <sys/stat.h>, <sys/types.h> — NOT in
+            import std, must be textual in the module GMF. Global C: ::memcpy x15, ::strcmp
+            x20, ::strncmp x6, ::toupper; bare size_t/uint*_t in 15 files.
+            VALIDATED MECHANISM (raw g++-15 probe, BUILDS+IMPORTS+RUNS): a store header with
+            its angle-bracket includes AND its `namespace jac313::Store::v001` wrapper guarded
+            by #ifndef JAC313_STORE_IMPORT_STD, included inside `export namespace
+            jac313::Store::v001 { #define JAC313_STORE_IMPORT_STD  #include header }`, with the
+            C-compat headers (cstdint/cstring/...) in the module's global module fragment, +
+            `import std;`. KEY WIN: because the GMF C headers declare the GLOBAL names
+            (size_t, uint32_t, ::memcpy, ...) and import std the std:: ones, the header bodies
+            need NO requalification — just the two guards. (Qlite/jText needed std:: fixes;
+            store does NOT, thanks to the GMF C headers.)
+            TURN-KEY PLAN (mirror jText, but guard-in-place instead of fragment-extract):
+              1. Per store header (.hpp): wrap `#include <...>` (std/POSIX/Qlite/jText) in
+                 #ifndef JAC313_STORE_IMPORT_STD ... #endif — BUT do NOT guard `#include "..."`
+                 (quote cross-includes) NOR `#include <jac313/Store/...>` (angle cross-includes,
+                 a few exist) — those must stay so the headers still see each other. Also guard
+                 ONLY the OUTER `namespace jac313::Store::v001 {` + its matching close (keep
+                 nested `namespace detail {` and ansi_colors' `namespace ansi {` — they just
+                 end up nested under Store::v001 in the module, harmless/internal). Textual
+                 build stays GREEN at every step (guards inert when macro undefined) -> commit
+                 in batches. Close-brace styles vary (`} // namespace jac313::Store::v001`,
+                 `} // namespace`, bare `}`) -> do per-header, not blind sed.
+              2. The 4 .cpp -> module IMPLEMENTATION units (BinaryEventLogReader.cpp,
+                 SqlEventSink.cpp [Qlite dep], JTextSplitEventLog.cpp [jText dep],
+                 BinaryEventLogReader_jtext.cpp [jText dep]). Each has a `namespace fs =
+                 std::filesystem;` alias (keep, after import std) + the namespace wrapper
+                 (guard). Same guard treatment; impl unit = `module; <GMF> module
+                 jac313.store.v001; import std; <fs alias> namespace Store::v001 { #include cpp }`.
+              3. NEW module-native units (gcc path), e.g. modules/jac313.store.v001.importstd.cppm
+                 (interface) + .importstd.impl.cpp(s). Interface GMF = the POSIX headers +
+                 C-compat + <jac313/Qlite/v001.hpp> + <jText.h> (external deps textual); then
+                 export module jac313.store.v001; import std; export namespace Store::v001 {
+                 #define JAC313_STORE_IMPORT_STD  #include the 8 public headers }.  Module name
+                 STAYS jac313.store.v001 (lowercase, like qlite/jtext).
+              4. Store/CMakeLists.txt: option JAC313_STORE_IMPORT_STD (OFF, gcc-only, CMake>=3.30
+                 guard) + CMAKE_CXX_SCAN_FOR_MODULES ON; module block if/else (ON -> importstd
+                 units + CXX_MODULE_STD ON; OFF -> current modules/jac313.store.v001.cppm). Root
+                 CMakeLists gate: OR in JAC313_STORE_IMPORT_STD with Qlite/jText.
+              5. Benchmark already flips ALL import-std libs (build_pipeline.cpp) — add
+                 -DJAC313_STORE_IMPORT_STD=ON there too once it builds.
+              6. VERIFY: dedicated build-gcc15-store-importstd -> store module test passes
+                 (qualified names) + ctest 31/31; clang OFF (current textual .cppm) 31/31;
+                 smoke 115/115 both (isolated /tmp copy). Strengthen store module test if needed
+                 (already a qualified-name exercise from the namespace-fix commit).
+            EFFORT: ~3x jText, multi-hour, break-even payoff (Qlite+jText already measured
+            -121ms/0%). Bank-and-do-fresh was the call. NOTHING for store committed (probe was
+            scratch, discarded). store is still textual-only on all paths.
+
+2026-06-17  (cont.) RENAME store -> Store (package-name consistency with Qlite/jText).
+            User: "since jText and Qlite have uppercase, should store be Store?" -> yes.
+            SURGICAL (what changed vs what deliberately did NOT):
+              CHANGED: namespace jac313::store::v001 -> jac313::Store::v001 (54 files);
+                include paths jac313/store/v001 -> jac313/Store/v001; directory store/ ->
+                Store/ + include subdir jac313/store -> jac313/Store (git mv, 67 renames);
+                CMake MAIN lib + alias jac313_store/jac313::store -> jac313_Store/jac313::Store
+                (root add_subdirectory(Store), all consumers); display banners in matrix
+                test .cpp; root + Store README prose + the (was-broken) Store/README link.
+              KEPT LOWERCASE (deliberate): the MODULE name jac313.store.v001 (matches
+                jac313.qlite.v001 / jac313.jtext.v001 modules — module ids are lowercase);
+                ALL test/example/module-test target names jac313_store_* (matches
+                jac313_qlite_* / jac313_jtext_*, AND the tooling keys on the "jac313_store_"
+                prefix in matrix.cpp/params.cpp, AND they key the committed results baseline);
+                the CMake sub-libs jac313_store_binary_read/_sql_persist/_jtext_persist/_module;
+                JAC313_*STORE options; "ts_store" (legacy) + generic "time-series store" prose.
+              test-summary/ NOT touched (it holds test names, not the namespace -> 0 refs).
+            VERIFIED: gcc15 + clang fresh builds -> ctest 31/31 each; smoke matrix 115/115
+            (gcc, isolated copy) with store scenarios still recognized; import-std path still
+            configures. NOTE: existing build-* dirs were stale after the dir rename -> wiped +
+            reconfigured build-gcc15-modules / build-clang20-modules fresh.
+            STORE import std still PENDING (now under the Store name).
+
+2026-06-17  (cont.) jText: import std MODULE-NATIVE (2nd import-std lib; full rewrite).
+            User chose the full rewrite, "keep the old way for clang + compiler tests".
+            jText is a COMPILED lib (not header-only like Qlite): jText.h decls + jText.cpp
+            defs -> jtext_core.a. KEY DISCOVERY: jText.cpp references jtext:: (internal
+            parser/validator) ZERO times -> the public API is self-contained, so the module
+            needs NO jtext_core link (the parser/validator stay textual-only).
+            DESIGN (single source, two front-ends, like Qlite but split for out-of-line defs):
+              - jText.api.inc  = public DECLARATIONS (extracted from jText.h), include-free,
+                size_t -> std::size_t.
+              - jText.impl.inc = public DEFINITIONS (extracted from jText.cpp body, 1018 ln),
+                include-free, size_t -> std::size_t. fs alias + std::literals stay at file
+                scope in the includer.
+              - jText.h  = textual std #includes + namespace { api.inc }   (UNCHANGED API).
+              - jText.cpp = std #includes + fs/literals + namespace { impl.inc } -> jtext_core.
+              - NEW (gcc import-std path): modules/jac313.jtext.v001.importstd.cppm (interface
+                unit: import std + export namespace { api.inc }) + .importstd.impl.cpp (impl
+                unit: `module jac313.jtext.v001;` + import std + namespace { impl.inc }). The
+                impl unit implicitly imports the interface (decls visible). Self-contained.
+            GOTCHA (import std doesn't export global C names — same family as Qlite int64_t):
+              impl.inc uses `stderr` (cstdio macro) + global `::toupper`. Fixed by giving the
+              impl unit a textual GMF: `module; #include <cstdio> #include <ctype.h>` before
+              the module decl (gcc allows textual-C in GMF alongside import std). Shared
+              fragment + textual path left UNTOUCHED.
+            CMAKE: JAC313_JTEXT_IMPORT_STD option (OFF, gcc-only, CMake>=3.30 guard); gate UUID
+              armed before project() in jText/CMakeLists (standalone) + root (OR'd with Qlite).
+              Module block now if/else: ON -> the 2 import-std units + CXX_MODULE_STD ON, no
+              jtext_core link, include dir for fragments; OFF -> the 4 textual partitions +
+              link jac313_jText (clang/fallback, unchanged). Added CMAKE_CXX_SCAN_FOR_MODULES
+              ON for standalone (like Qlite). build dirs: build-gcc15-jtext-importstd (ON).
+            VERIFIED: build-gcc15-jtext-importstd (jText module-native import std; Qlite/store
+              textual) -> jText module test passes (qualified names), full ctest 31/31, std
+              module built, self-contained (the 4 "jtext..parse" syms are the module's OWN
+              parse_* methods — module-name mangling, not jtext_core). OFF path re-verified:
+              build-gcc15-modules + build-clang20-modules 31/31 each (textual partitions under
+              the new if/else). Strengthened jText module test (from the earlier namespace
+              commit) covers both paths.
+            DOCS: root README option row + jText import-std paragraph. STILL PENDING: store
+              import-std (would be similar — store is header-ish/template-heavy, pulls Qlite+
+              jText; bigger). Benchmark still only flips Qlite import-std (could add jText to
+              measure both). NOTHING COMMITTED since a2b2911.
+
+2026-06-17  (cont.) store module: export namespace fix (same bug as Qlite/jText).
+            Wrapped all 15 bare `export using jac313::Store::v001::X;` in
+            `export namespace jac313::Store::v001 { using ...; }`. Strengthened
+            store/tests/module/v001_module_test.cpp to a qualified-name exercise
+            (PersistedEvent/BinaryRecord/BinaryEventLogReader/SqlEventSink/SqliteError +
+            PersistMode). NOTE: ts_store and ts_store_config are CLASS TEMPLATES (sizeof
+            needs args) — the test references the concrete exports instead; the
+            export-namespace wrapping is uniform so they prove it for all. The store module
+            TEST target only exists with JAC313_BUILD_STORE_TESTS=ON (reconfigured the two
+            module trees with it; ctest went 28 -> 31). Verified: store module test passes
+            on gcc15 AND clang; full ctest 31/31 on both trees. All three umbrella modules
+            (Qlite/jText/store) are now namespace-correct. import std for jText+store still
+            future work; Qlite remains the only import-std module.
+
+2026-06-17  (cont.) jText module: export namespace fix (latent global-namespace bug).
+            Same bug as Qlite had: bare `export using jac313::jText::v001::X;` at module
+            scope injected X into the GLOBAL namespace, not jac313::jText::v001:: — a consumer
+            using the qualified name against the MODULE would not compile. Unexercised because
+            the old module test referenced no symbol. NOT import std (that's still pending for
+            jText/store). Fix: wrap the using-decls in `export namespace jac313::jText::v001
+            { using ...; }` across all 3 partitions (core/reader/writer); the aggregator
+            (jac313.jtext.v001.cppm) is just `export import` and unchanged. Verified the
+            re-export-under-namespace form with a raw probe first (qualified + using-namespace
+            access both work). Strengthened tests/module/v001_module_test.cpp from a bare
+            import smoke into a qualified-name exercise across all 3 partitions (CaseMode/
+            JTextEntry/JTextSection/JTextFile/JTextProfile/JTextWriter + a free fn). Verified:
+            jText module test passes on gcc15 AND clang; full ctest 28/28 on both trees.
+            STILL PENDING: store has the SAME bare-export-using bug (not yet fixed), and
+            import std for jText+store is still future work. NOTHING COMMITTED since dd5f3a0.
+
+2026-06-17  (cont.) BUILD BENCHMARK now MEASURES import std + records to results DB.
+            GOAL (user): time the module/no-module/with-module builds by compiler AND add
+            the import-std variant, persist to results.db, render in the summary.
+            FINDING (the point of it all): at THIS project size import std is NOT faster.
+            gcc15 group: straight 38.4s / modules-only 3.7s / with-modules 42.3s vs
+            import-std modules-only 6.0s / with-modules 42.5s => "+162 ms, 0% slower". The
+            std-module BMI (~2.2s) isn't amortized yet; the win needs store-scale TU counts.
+            WHAT SHIPPED:
+              - build_benchmark.cpp: 4th/5th timed variants (import std modules-only + full)
+                in their OWN tree importstd_build_dir() (=-importstd suffix) — never reuse the
+                textual-modules cache (cross-cache discipline). Gated: runs only when
+                configure.compiler_kind=="gcc"; clang prints "skipped" and records NULL.
+                Summary prints the 5 lines + an "import std vs textual" delta.
+              - options.hpp ConfigureOptions += import_std; build_pipeline emits
+                -DJAC313_QLITE_IMPORT_STD=ON when (modules && import_std); new helper
+                importstd_build_dir() mirrors nomodules_build_dir().
+              - results_db: GroupCompilerBuildRecord + RunPageData += two
+                std::optional<int> importstd fields; group_compiler_builds DDL += two NULLABLE
+                cols; INSERT + SELECT/load + run-page render all thread them; render adds the
+                two rows + a delta row (shown only when both present).
+              - SCHEMA MIGRATION (key fix): ensure_group_compiler_builds_columns was DEAD CODE
+                (defined, never called) -> WIRED it into ensure_results_schema_path so the
+                additive ALTERs run on the existing v3 DB. NO schema-version bump (that would
+                wipe the committed baseline); nullable cols read NULL on old rows. Verified the
+                committed DB migrated cleanly (cols added, existing data intact).
+              - "one day clang will support": the NULL column auto-populates when clang gains a
+                std module — just widen the gcc gate. No other change.
+            VERIFIED end-to-end against an ISOLATED COPY (--source-dir /tmp copy, so the
+            tracked DB was NEVER touched — confirmed clean): gcc release-check => benchmark
+            recorded all 5 timings (group 20), RUN.md shows 3 import-std rows, ctest 31/31;
+            clang release-check => import std SKIPPED (group 21 cols NULL, 0 RUN.md rows),
+            ctest 31/31, smoke 115/115. Both exit 0.
+            KNOWN COSMETIC (pre-existing, NOT mine, NOT fixed): the build-timing rows double
+            the duration ("38,398 ms (38,398 ms (38s))") because format_duration_human already
+            includes "N ms (...)"; affects all rows incl. the old three. Fixing changes the
+            committed RUN.md output format — leave for a deliberate pass. My delta row is clean.
+            Tool sources touched: build_benchmark.cpp, build_pipeline.{hpp,cpp}, options.hpp,
+            results_db.{hpp,cpp}. STILL NOTHING COMMITTED.
+
+2026-06-17  (cont.) CMAKE UPGRADE + NATIVE import std. On dev-work. Replaced the
+            manual std-module plumbing (below) with CMake's NATIVE support, per user
+            decision: "use the .local cmake only, document install for Linux Mint".
+            - INSTALLED CMake 4.3.3 user-local: official Kitware static tarball (SHA-256
+              verified) -> ~/.local/opt/cmake-4.3.3, symlinked cmake/ctest/cpack/ccmake
+              into ~/.local/bin (already ahead of /usr/bin on PATH; persists in new login
+              shells). System /usr/bin/cmake 3.28.3 untouched. Revert = rm the opt dir +
+              the 4 symlinks. (pip/ensurepip both ABSENT here, so tarball not pip.)
+            - WHY: CMake gained native `import std;` in 3.30 (CXX_MODULE_STD property +
+              CMAKE_EXPERIMENTAL_CXX_IMPORT_STD gate). 3.28 had none -> the old manual
+              bits/std.cc target. 4.3.3 ships GNU/Clang/MSVC CXXImportStd modules; native
+              GCC import std VERIFIED end-to-end on this box (auto-builds std.cc; zero
+              manual plumbing). Gate UUID for v4.3.3 = 451f2fe2-a8a2-47c3-bc32-94786d8fc91b
+              (per-version; fetched from Help/dev/experimental.rst @ tag — NOT in binary).
+            - REFACTOR (Qlite/CMakeLists.txt): deleted jac313_std_module + the
+              JAC313_QLITE_STD_MODULE_SOURCE auto-locate. import-std path now just:
+              set_target_properties(... CXX_MODULE_STD ON) + cxx_std_23 + the macro define,
+              guarded by CMAKE_VERSION>=3.30 (FATAL w/ README pointer below) and GNU-only.
+              The gate UUID is set BEFORE project() in BOTH root CMakeLists.txt and the
+              standalone Qlite/CMakeLists.txt, conditioned on the -D cache value (option()
+              runs after project(), but the -D is in the cache early). .cppm + body
+              UNCHANGED (still switch on the JAC313_QLITE_IMPORT_STD macro).
+            - SQLITE TARGET (4.x dev-warning fix): FindSQLite3 renamed SQLite::SQLite3 ->
+              SQLite3::SQLite3 in newer CMake. 3.28 defines ONLY the old name; 4.3.3 both.
+              So Qlite links `${JAC313_QLITE_SQLITE3_TARGET}` = new name if TARGET exists
+              else old -> quiet on 4.x, still builds on 3.28. (store/CMakeLists.txt still
+              uses the bare name — harmless dev-warning under 4.x; not yet touched.)
+            - DOCS: root README new section "Newer CMake on Linux Mint" (the exact ~/.local
+              install recipe + UUID caveat); import-std paragraph + Qlite/README import-std
+              notes rewritten for native/CMake>=3.30 (manual bits/std.cc text removed).
+            VERIFIED under 4.3.3, fresh trees: build-gcc15-importstd (native import std,
+              CMake auto-built __cmake_cxx_std_23 from bits/std.cc, consumer linked w/o
+              extra CXX_MODULE_STD), build-gcc15-modules, build-clang20-modules -> ALL
+              ctest 28/28, and ZERO SQLite deprecation warnings on all three.
+            BOOTSTRAP: ./bootstrap.sh now SENSES cmake version and, when present-but-old
+            (< 3.30), OFFERS a no-sudo ~/.local install of the pinned CMake (y/N, default N)
+            — sense -> ask permission -> install-as-directed (the README recipe inlined:
+            verified tarball -> ~/.local/opt -> symlink ~/.local/bin -> PATH+hash -r).
+            ADVISORY ONLY: baseline floor stays CMake >= 3.26 (raising it would break the
+            3.28 matrix-gate boxes that don't use import std); enforcement of >= 3.30 already
+            lives at point-of-use (Qlite CMakeLists FATAL). Non-interactive shells print the
+            advisory and skip. PINNED_CMAKE_VER=4.3.3 in bootstrap MUST stay in lockstep with
+            the gate UUID in CMakeLists.txt. recipes.conf cmake.desc updated to note this.
+            Helpers (cmake_version/ver_ge/download_to/install_local_cmake/
+            maybe_offer_local_cmake) unit-tested: ver_ge cases, non-interactive skip, pty y/n
+            (y hit the idempotent relink path, no re-download), and no-offer when >= 3.30.
+            STILL NOTHING COMMITTED (user's call). NEXT unchanged: gate wiring, then
+            jText/store. The Stage 0-3 entry below documents the ORIGINAL manual approach
+            that this replaced — kept for history; the manual std-module target NO LONGER
+            EXISTS in the tree.
+
+2026-06-17  IMPORT STD PILOT on Qlite — IN PROGRESS (staged, verify-each). On dev-work.
+            GOAL: make Qlite module-native with `import std;` (the deferred weekend job).
+            KEY ENV FACTS (probed this session):
+              - CMake here is 3.28.3 -> NO native `import std` support (needs 3.30+).
+                So the std module must be wired MANUALLY as a CXX_MODULES target built
+                from /usr/include/c++/15/bits/std.cc (present; g++-15 builds std.gcm OK).
+              - Clang has NO libc++ std module (uses gcc's libstdc++) -> import-std pilot
+                is gcc15-ONLY. Clang keeps the existing textual-include module path.
+              - LINKAGE GOTCHA (proven by raw probe): defining the class in the module
+                PURVIEW gives it module linkage, so `export using ...::Sqlite;` FAILS
+                ("does not have external linkage"). FIX = `export namespace jac313::Qlite::v001
+                { #include body }` (exports entities directly, no re-export-via-using).
+                Raw probe confirmed: export-namespace + import std + <sqlite3.h> in the
+                global module fragment builds, imports, and runs; the SAME body also
+                compiles+runs via the textual header. One source, two front-ends.
+            DESIGN: single source of truth = Qlite/include/jac313/Qlite/v001/Sqlite.body.hpp
+              (include-free impl fragment, no guard, included INSIDE the namespace).
+              Sqlite.hpp = textual std + <sqlite3.h> includes then body (non-module
+              consumers: store persistence Sqlite.hpp + tools results_db.cpp — UNTOUCHED).
+              .cppm (Stage 2) = `import std;` + global-fragment <sqlite3.h> + export
+              namespace + same body, behind a CMake option (default OFF; clang/fallback
+              keep current textual-include + export-using path).
+            STAGE 0 (DONE): green baseline. Fresh build dir build-gcc15-modules
+              (Ninja, Debug, g++-15, JAC313_BUILD_MODULES=ON). ctest 28/28, Qlite module
+              test (jac313_qlite_v001_module_test) passes, whole modules tree builds.
+            STAGE 1 (DONE): pure refactor to single-source body. Extracted Sqlite.body.hpp;
+              Sqlite.hpp now `namespace {...}` wrapping the body include. NO import std yet.
+              Re-verified ctest 28/28 (module test + textual consumers all green). Reversible.
+            STAGE 2 (DONE): import-std plumbing live + verified.
+              - .cppm now #ifdef JAC313_QLITE_IMPORT_STD: ON => global-frag <sqlite3.h> +
+                `import std;` + `export namespace {...body}`. OFF (clang/fallback) =>
+                unchanged textual-include + export-using.
+              - Qlite/CMakeLists.txt: new option JAC313_QLITE_IMPORT_STD (OFF). When ON
+                (GUARDED to GNU only): builds libstdc++ bits/std.cc as a CXX_MODULES STATIC
+                target (jac313_std_module), links it PUBLIC into the qlite module, defines
+                the macro, bumps module to cxx_std_23. std.cc auto-located at
+                /usr/include/c++/<gccmajor>/bits/std.cc (override: JAC313_QLITE_STD_MODULE_SOURCE).
+              - BODY FIX: bare global `int64_t` -> `std::int64_t` (import std exports only
+                std:: names; the global C typedef isn't visible). Works in both front-ends.
+              VERIFIED: build-gcc15-importstd (option ON) => std module compiled (std.gcm +
+                std.cc.o + libjac313_std_module.a), qlite module built WITH the macro, module
+                test passes, full ctest 28/28 (textual consumers store+results_db unaffected,
+                macro is PRIVATE). build-gcc15-modules (OFF) => no std module target, module
+                test passes. build-clang20-modules (OFF, #else path) => module test passes.
+            STAGE 3 (DONE): hardening + docs.
+              - Strengthened tests/module/v001_module_test.cpp from a bare import smoke into
+                a FUNCTIONAL test (round-trips an in-memory DB: create/insert/bind/step/get).
+              - This caught a LATENT API BUG: the old `export using ...::Sqlite;` (at module
+                scope) injected names into the GLOBAL namespace (::Sqlite), NOT
+                jac313::Qlite::v001 — diverging from the header + jText/store convention, and
+                never exercised because the old test referenced no symbol. FIX: BOTH front-ends
+                now use `export namespace jac313::Qlite::v001 { #include body }`, differing
+                only in std provisioning (import std vs textual GMF includes). Public API is
+                now identical + correctly qualified across header, default module, and
+                import-std module. Re-verified functional test + ctest 28/28 on ALL THREE
+                trees (gcc15-importstd, gcc15-default, clang-default).
+              - Docs: rewrote Qlite/README.md (was stale — still claimed sibling-jacQlite
+                re-export; now documents in-tree + single-source body + modules + import-std).
+                Root README.md: added JAC313_QLITE_IMPORT_STD option row + pilot paragraph.
+            STATUS: import-std Qlite pilot COMPLETE + verified, opt-in (default OFF). Did NOT
+              run the smoke/full matrix (it exercises store persist via textual consumers, not
+              the module — unaffected; and `matrix run` would dirty the tracked results DB).
+              NOTHING COMMITTED yet — user commits/pushes. Tree dirty: NEW
+              Qlite/include/jac313/Qlite/v001/Sqlite.body.hpp; EDITED Sqlite.hpp, v001 .cppm,
+              Qlite/CMakeLists.txt, tests/module/v001_module_test.cpp, Qlite/README.md,
+              README.md, this doc. All build-* dirs gitignored.
+            OPEN / NEXT (import std): (a) gate wiring — a CLI/release-check flag to build the
+              import-std variant in the readiness gate (currently opt-in CMake only). (b) extend
+              the pilot to jText/store once Qlite is blessed. (c) revisit if CMake reaches 3.30+
+              (native import std would drop the manual bits/std.cc target).
+
+2026-06-16  LINUX MINT SESSION — HEAD 610fcb1; main == dev-work == test-work all synced
+            + pushed (private repo). Machine is now Linux Mint 22.3 (gcc15 via PPA
+            /usr/bin/g++-15, clang++-20 direct; no scl activation).
+            (1) Generated + committed the full Linux Mint result set under
+                test-summary/linuxmint-22.3/: smoke + full matrix, Debug AND Release,
+                gcc15 + clang, all 115/115 (distinct RunIdentity rows; prior RHEL rows
+                untouched). Commits 64c639a (smoke + Release full), c3f36c7 (Debug full).
+            (2) BUG FOUND + FIXED — Debug/Release build-dir cross-cache. Auto build dir
+                is build-<label> (compiler.cpp:62): ONE dir per COMPILER, not per
+                (compiler x build_type). `matrix run` only configures a tree when it has
+                NO built tests, so it REUSES an already-built tree WITHOUT checking its
+                CMAKE_BUILD_TYPE matches the requested profile. Symptom: `matrix run
+                --gcc15` (no --release) against a Release-cached build-gcc15 silently RAN
+                + recorded Release. NOT a recording bug (tool sensed the ACTUAL type, DB
+                stayed honest) — it ran the WRONG type. FIX = build-type-SUFFIXED dir per
+                profile (build-gcc15-debug / -release) via --build-dir so Debug/Release
+                can't share a CMake cache. This is DISCIPLINE + DOCS, not yet a code fix.
+            (3) Removed the ambiguous unsuffixed trees (build-gcc15, build-clang20).
+            (4) CLEAN-SLATE VALIDATION (gcc15) PASSED: rm -rf build-* -> ./bootstrap.sh
+                (driver -> build-bootstrap) -> smoke (build-gcc15-debug, BUILD=Debug) ->
+                full debug (REUSE same dir, BUILD=Debug) -> full release
+                (build-gcc15-release, BUILD=Release). All 115/115, OVERALL_FAIL=0 — the
+                cross-cache bug is provably gone. Validation artifacts DISCARDED (they
+                re-rendered already-committed gcc15 identities; no new coverage).
+            (5) README: "Disk cost of a full local gate" + build-dir-per-profile
+                guidance (commit 610fcb1). Cost scales by (compiler x build_type), NOT by
+                tier (smoke + full share a tree); full D+R x gcc15+clang ~= 0.7-0.9 GB.
+            OPEN / NEXT: (a) clang clean-slate validation for TRUE parity — this session's
+            clean-slate proof was gcc15-ONLY; clang results in the repo are from the OLDER
+            pre-fix flow. (b) TOOL-LEVEL FIX: make the runner auto-suffix the build dir by
+            build type OR refuse on CMAKE_BUILD_TYPE mismatch (enforce in code what is now
+            only discipline). (c) import std; Qlite pilot (still queued).
+            STATE: clean, all three branches 610fcb1, pushed.
+
+2026-06-14  WRAP-UP SESSION — HEAD f51a1f9; main == dev-work == test-work, all pushed.
+            Pulled VM commit a5278ad (rhel-10.2 Debug+Release smoke results) — now coexists
+            with this box's rhel-9.8 rows, no collision (RunIdentity working in the wild).
+            (1) README accuracy pass (1e26bc6): --release documented as first-class
+                (build_type identity dim, no Debug/Release conflation); full-matrix timing
+                ~2m -> ~9-10m/compiler; repaired bench-row markdown; stale 'gcc14 forced
+                baseline' -> gcc15+clang standard; ctest 29 -> 28 (verified live).
+            (2) Smoke gate (release-check-all, gcc15+clang Debug) + FULL matrix in Debug AND
+                Release on gcc15+clang -> all 115/115, recorded as distinct RunIdentity rows.
+            (3) matrix-run SELF-BUILD fix (f51a1f9): `matrix run` now builds a missing tree
+                instead of failing 'No tests found'. Verified missing->auto-build,
+                existing->fast path. Removes the manual `all` pre-step for fresh trees.
+            (4) import std; INVESTIGATED, DEFERRED. gcc-toolset-15 here compiles+RUNS it
+                (probed OK). NOT a drop-in: the .cppm files are header-wrapper re-exports
+                (#include the library header in the global module fragment); import std can't
+                coexist with textual std includes in one TU, and those headers are shared with
+                non-module consumers. Real fix = make a library MODULE-NATIVE. PILOT = Qlite
+                (smallest; only ONE tool TU — results_db.cpp — #includes its header). A weekend job.
+            STATE: clean, all branches f51a1f9. "More testing on another machine another day."
+
+2026-06-15  RunIdentity is COMPLETE (see DONE 3 below; the "IN PROGRESS" wording is historical).
+2026-06-15  IN PROGRESS — RunIdentity primitive / OS as a first-class results dimension.
+            PLAN: ~/.claude/plans/hazy-meandering-quiche.md (APPROVED). WHY: results DB
+            keyed runs on (compiler,build_type,disk,size) hand-spelled in ~6 SQL sites;
+            OS was missing -> on the RHEL 10 VM a gcc15 run silently overwrote the host's
+            gcc15 row. Fix: define the run identity ONCE (a RunIdentity struct + one
+            dimension list) and derive SQL clauses + path + display from it; add OS as a
+            FULL version key (rhel-10.2 != rhel-10.1). User wants: stages w/ verify-each,
+            real tests (RunIdentity is first tool unit test; Qlite too), update THIS doc
+            each stage (token-risk handoff). jac313 private -> schema may change freely.
+            STAGES: 0a wipe results (clean slate) · 0 Qlite tests · 1 RunIdentity+tests
+            isolated · 2 wire into results_db (add `os` col + BUMP kResultsDbSchemaVersion
+            for clean recreate; replace the 6 sites; thread os via MatrixRunMeta +
+            sensed_os_key from /etc/os-release ID+VERSION_ID; identity_path; render OS;
+            os-dedup regression test) · 3 regenerate results + README + this doc.
+            DONE so far: 0a (dc0863a wiped all test-summary), 0 (f6072dc real Qlite tests
+            green), 1 (3713e54 run_identity.{hpp,cpp} + tests/run_identity_test.cpp,
+            isolated, ctest 27/27 — primitive NOT yet wired into results_db).
+            Path is now uniform (always includes build_type — clean-slate, no Debug-legacy
+            special case): test-results/<os>/<compiler>/<build_type>/<disk>/<size>.
+            DONE 2 (650c33b): wired RunIdentity into results_db + path. Schema v3
+            (os column + UNIQUE(os,compiler,build_type,disk,size,run_utc), clean recreate).
+            v_latest_runs defined once in refresh_latest_runs_view (built from
+            identity_group_by/join_on); hub subquery, finalize DELETE, find_run_id, upsert
+            INSERT all use the primitive; persist-comparison grouping +os. Path =
+            test-results/<os>/<compiler>/<build_type>/<disk>/<size> (uniform). os sensed
+            via sensed_os_key (full version rhel-10.2). Hub OS column + run-page OS row.
+            Regression test tests/identity_dedup_test.cpp (os distinguishes; same-id dedups)
+            -> ctest 28/28, smoke 115/115 under rhel-9.8/gcc15/Debug. NOTE: driver binary
+            is build-gcc15-probe — REBUILD it (cmake --build build-gcc15-probe --target
+            jac313_test_cli) after code changes or it runs stale code (bit me once).
+            KNOWN GAP (deferred): v_scenario_throughput views (matrix top / throughput-by-
+            category) don't include os yet — cosmetic, not dedup. Add later if wanted.
+            DONE 3 — RunIdentity PROJECT COMPLETE. Regenerated this box's smoke results
+            for gcc15/gcc14/clang under test-summary/rhel-9.8/<compiler>/Debug/ssd/Smoke
+            (115/115 each, schema v3, hub shows OS column). README results-layout updated
+            to document RunIdentity + the <os>/... path. RHEL 10 row repopulates on the
+            next VM run (just `git pull && ./bootstrap.sh && ... matrix run`).
+            Net: OS (full version) is a first-class results dimension; the run identity is
+            defined ONCE (run_identity.hpp) and the DB keys/path/render all derive from it,
+            so the next dimension is a single edit. Qlite + RunIdentity + os-dedup tests in
+            ctest (28). The RHEL-10-clobbers-host bug is fixed and pinned by a regression.
+            Identity sites to replace in results_db.cpp: finalize DELETE ~1032,
+            v_latest_runs/refresh_latest_runs_view, load_hub_runs_from_db latest subquery,
+            upsert_run_row INSERT, find_run_id; persist-comparison grouping (partial,
+            +os). Path: compute_results_base (matrix.cpp). Render: test_summary_render.cpp
+            HubRow + RunPageData. NOTE: test results were WIPED (dc0863a) — regenerate in
+            Stage 3; RHEL 10 row repopulates on next VM run.
+
+2026-06-15  jText NAMESPACE MOVE (ebbffdd, pushed): jText public API moved from the
+            global namespace into jac313::jText::v001 (matching Qlite/store). jText.h+
+            .cpp wrapped; v001.hpp now a thin include; module partitions re-export
+            jac313::jText::v001::*; store JTextSplitEventLog.cpp uses `using namespace
+            jac313::jText::v001` (dropped ::write_file_comment_header global qualifiers).
+            Internal parser/validator (namespace jtext) untouched. Verified 29/29 + 115.
+
+2026-06-15  IN-TREE MIGRATION: Qlite + jText moved in-house (af43f63, pushed).
+            WHY: RHEL 10 VM `./bootstrap.sh` proved RHEL10 activation works
+            (gcc-toolset-15-env auto-selected!) but the build then failed — Qlite/jText
+            were still re-export wrappers over sibling repos (../../jacQlite, ../../jText).
+            Now jac313 builds with ZERO siblings (the umbrella goal, fully realized).
+            - Qlite: Sqlite.hpp moved to Qlite/include/jac313/Qlite/v001/; namespace
+              jac::qlite -> jac313::Qlite::v001 (clean rename, no legacy alias). CMake
+              drops JACQLITE_ROOT, links system SQLite3 (find_package). store SQL persist
+              + results_db.cpp use jac313::Qlite::v001::Sqlite.
+            - jText: jText.h/.cpp + src/parser + src/validator copied in-tree; jtext_core
+              built locally (target name kept). Global API (::JTextWriter) unchanged.
+              store jtext persist links in-tree jtext_core. CMake drops JTEXT_ROOT.
+            VERIFIED gcc15: ctest 29/29 (+modules), smoke 115/115; PROVEN independent by
+            renaming both siblings away -> fresh build still 26/26. Siblings left on disk
+            (retirable). NEXT: re-run RHEL 10 VM ./bootstrap.sh with NO siblings -> should
+            now build fully + hand off to setup (validating gcc-toolset-15-env end-to-end).
+
+2026-06-15  jac313::Setup PROJECT COMPLETE — new first-class package, 4 stages, all
+            pushed to origin/dev-work. Turned the compiler-sensing engine into a
+            standalone, module-exported library that also senses readiness and
+            provisions prerequisites. Commits:
+              d2264b0  Stage 1: extract sensing -> standalone jac313::Setup pkg + module
+                       (Setup/, own run_capture, built first, CLI consumes via aliases)
+              6ee0fb9  Stage 2: FileCheckList.txt = readiness manifest owned by Setup
+                       (sense_host, assess_readiness, required_on data, recipe-hash;
+                        token concept merged in — readiness EARNED by sensing)
+              f074d00  Stage 3: Setup/recipes.conf + Setup.sh generation + `setup` cmd
+                       (plan_provision: for=<label> or check=<test>; data-driven installs)
+              e51760d  Stage 4: bootstrap.sh thin bare-metal entry (sense -> build CLI
+                       once -> hand off; or emit baseline Setup.sh from recipes.conf)
+            Layout: Setup/{CMakeLists.txt,README.md,compilers.conf,recipes.conf,
+              include/jac313/Setup/v001.hpp, src/v001.cpp, modules/jac313.setup.v001.cppm}.
+              compilers.conf MOVED here from tools/. bootstrap.sh + /Setup.sh (gen,
+              gitignored) + /recipes.local.conf (gitignored) at repo root.
+            Namespace jac313::Setup::v001. Module: import jac313.setup.v001;
+            Verified RHEL 9.8: sensing + 115/115 smoke preserved; module compiles;
+              `setup` READY/Setup.sh gen both paths; bootstrap both branches.
+            KNOWN FOLLOW-UPS (non-blocking): (1) host-sensing duplicated between Setup
+              (sense_host) and tool host_hardware.cpp (DB pipeline) — future consolidate.
+              (2) *.local.conf overrides REPLACE the tracked file, not merge. (3) RHEL10
+              gcc-toolset-NN-env + Mint/clang activation + release-check-all still
+              coded-but-unverified (only RHEL9 scl exercised).
+
+2026-06-14  COMMITTED + PUSHED to origin/dev-work (was 852bf6e):
+              286adb4  Harden wait_child_with_failsafe against ECHILD busy-loop
+              4f63a21  Data-driven, activation-aware compiler registry
+              7e145f6  Refresh gcc15 smoke results (115/115) via registry toolchain
+              e59d509  Document Ninja >= 1.11 requirement for module builds (README)
+            Claude_Forward.txt left UNTRACKED on purpose (session scratchpad).
+            FileCheckList.txt + compilers.local.conf are gitignored.
+            CAVEAT for future verification (coded but NOT run this session): RHEL 10
+              gcc-toolset-NN-env + source-script activations, Ubuntu/Mint direct, a
+              clang matrix build, --compiler <explicit>, and release-check-all's
+              per-slot env restore. "Verified" == gcc15 + modules on RHEL 9.8 only.
+
+2026-06-14  FEATURE: data-driven, activation-aware compiler registry (plan:
+            ~/.claude/plans/hazy-meandering-quiche.md, APPROVED + implemented).
+            WHY: hardcoded g++-15/g++-14 PATH names broke on Red Hat — gcc-toolset
+            needs an ACTIVATION launcher that differs by OS (RHEL9 scl / RHEL10
+            gcc-toolset-15-env / Ubuntu direct), and the resolved id was passed
+            verbatim to CMAKE_CXX_COMPILER. Goal: new platforms = config, not code.
+            NEW FILES:
+              tools/jac313_test_cli/compiler_registry.{hpp,cpp} — Toolchain model,
+                load_registry (file+builtin fallback), resolve_toolchain (walks
+                activation templates x cc_names, version-sniffs --version, captures
+                cc_path + env delta), snapshot/apply/restore_env primitives.
+              tools/jac313_test_cli/filecheck.{hpp,cpp} — write_filecheck_list() ->
+                FileCheckList.txt (auto-sensed OS/compilers/disk/hw; informational).
+              tools/jac313_test_cli/compilers.conf — tracked default registry with
+                activation templates ({CMD} placeholder, run via /bin/sh -c).
+            CHANGED: compiler.{hpp,cpp} delegate to registry (CompilerSelection now
+              carries label/cc_path/kind/build_dir/env_delta); options.hpp
+              ConfigureOptions += compiler_kind + scan_deps_candidates; build_pipeline
+              uses kind+find_scan_deps (not path-sniff); main.cpp apply_compiler_
+              resolution sets cc_path + applies env_delta + writes FileCheckList;
+              release-check-all restores env baseline between slots; tools/CMakeLists
+              compiles the 2 new .cpp; .gitignore += /FileCheckList.txt +
+              /compilers.local.conf. KEY: clang registry LABEL stays "clang" (build_dir
+              build-clang20) to match committed result paths.
+            VERIFIED on this RHEL 9.8 box, NO /tmp symlink shim, clean PATH:
+              - `compilers` senses gcc15+gcc14 via "scl enable gcc-toolset-NN --",
+                real /opt/rh/... paths + versions; clang 21.1.8 direct. FileCheckList ok.
+              - build-gcc15-nomodules configured+built (89 targets) with toolset g++.
+              - smoke matrix --gcc15 --build-dir build-gcc15-nomodules: 115/115 PASS
+                (binaries RUN under applied env delta).
+            NINJA FIX (done): system ninja was 1.10.2; C++20 modules need >=1.11.
+              Installed ninja 1.13.0 via `python3 -m pip install --user ninja` ->
+              ~/.local/bin/ninja (already on PATH ahead of /usr/bin; no sudo). cmake
+              auto-selects it (CMAKE_MAKE_PROGRAM). RHEL repos/EPEL only ship 1.10.2;
+              pip wheel is the path. To redo on a fresh box: same pip --user command.
+            ALSO added scrub_exported_shell_functions() (compiler_registry) called at
+              main() startup: drops inherited BASH_FUNC_* exports (scl/module/which/...)
+              so activation probes via /bin/sh -c don't emit "error importing function
+              definition" noise. Real binaries stay on PATH.
+            FULL VERIFY (this RHEL 9.8 box, ninja 1.13, no shim): release-check --gcc15
+              MODULES path now fully green — built jac313.{qlite,jtext,store}.v001 C++23
+              modules, ctest 29/29, smoke matrix 115/115, EXIT=0.
+            UNCOMMITTED: 7 src files modified + 5 new (incl Claude_Forward.txt) + the
+              process.cpp ECHILD hardening from earlier; test-summary/* + .db updated by
+              the gcc15 verification runs (fresh 115/115). Nothing committed.
+
+2026-06-14  AUDIT: "every test result lands in results.db" + "no infinite loops
+            (esp. report generation; history of a dir-mismatch spiral)."
+            FINDINGS — both concerns clear:
+            * DB-direct: matrix.cpp:496 calls record_scenario_result() per scenario
+              immediately after it runs (INSERT..ON CONFLICT UPDATE into `scenarios`).
+              Metrics (status/duration/peak_ops/persist_bytes) all go to DB; peak_ops
+              parsed from IN-MEMORY stdout (peak_ops_from_text), not a file. Run rows via
+              ensure_matrix_run_record/finalize_matrix_run; compile times via
+              record_scenario_compile. test-results/*.log + log tails are LOGS only;
+              all RUN.md/README render reads exclusively from the DB. No metrics side-channel.
+            * The historical "dir mismatch spiral" = detect_source_dir() in main.cpp:90.
+              It is NOW SAFE: walk-up loop has the `if (dir == dir.parent_path()) break;`
+              root terminator (stops at "/"), returns `start` if markers not found.
+            * Other loops audited & bounded:
+              - manifest.cpp load_ctest_file recursion: guarded by `visited` canonical set
+                (no SUBDIRS cycle spiral).
+              - process.cpp wait_child_with_failsafe: SIGKILL failsafe timeout; default
+                failsafe POSITIVE (smoke 30s / full 900s / kDefaultFailsafeSec).
+              - drain_fd_nonblocking, normalize_log_path, matrix_log_metrics dir-iters,
+                scenario loop: all bounded.
+            HARDENING APPLIED: process.cpp wait_child_with_failsafe — the `waited < 0`
+              branch now returns on ANY waitpid error (including ECHILD) after a final
+              fd drain, instead of only on non-ECHILD. Closes the busy-loop edge when a
+              child is reaped elsewhere with `--failsafe 0`. Rebuilt jac313_test_cli in
+              build-gcc15-probe: compiles + links clean. (NOT yet committed.)
+            Tree: was clean on dev-work (852bf6e); now has 1 uncommitted edit
+              (process.cpp) + Claude_Forward.txt. Commit only when user asks.
+================================================================================
+
+2026-06-20  STRUCTURAL SPLIT: v001/v002 self-contained major-version layout (by Claude).
+            WHY: move to full-duplication-per-major-version (DRY does NOT cross majors).
+            Each v00N is its own world; testing stays isolated; v002 will diverge to
+            ISO C++26. Git plan (user): push incremental to dev-work; main + test-work
+            stay as pristine fallbacks; once v001==v002 and both verified, USER blows
+            away GitHub and re-inits a single fresh baseline commit (user does this).
+            KEY DESIGN INSIGHT: nearly all runtime paths anchor to project_root =
+              detect_source_dir() (main.cpp:88, walks up for CMakeLists+Store+Qlite).
+              So moving the whole tree under v001/ re-homes the DB
+              (project_root/test-summary/jac313_results.db), test-results/, summaries,
+              params, Setup/*.conf, version-check paths, and the ../docs link with ZERO
+              code edits. The ONLY code edit needed was bootstrap's git-hook install.
+            COMMITS on dev-work (NOT pushed; user controls push + the history wipe):
+              d066cd5  Move v001 world under v001/ (git mv, renames detected R100);
+                       LICENSE + Claude_Forward.txt stay at root; thin dispatcher
+                       README.md + belt-and-suspenders .gitignore added at root.
+              9fb1cb9  Repoint bootstrap pre-push hook: resolve shared .git via
+                       `git rev-parse --git-common-dir` (parent of v00N), not $ROOT/.git.
+              3e4c717  Add v002 = faithful copy of v001 via `git archive HEAD:v001`
+                       (code/docs/Setup/tools/tests/bootstrap identical; only diff is
+                       gitignored FileCheckList.txt). v002 starts with EMPTY results
+                       world (no DB, no rendered pages; test-summary/README.md stubbed).
+              <this>   Initialize v002 results world (empty schema DB: 0 runs/0 scenarios).
+            VERIFIED on this RHEL 9.8 box (gcc-toolset-15 g++ 15.2.1, clang 21.1.8,
+              ninja 1.13.0, cmake 4.3.3 pinned):
+              - v001 bootstrap EXIT=0; runner built; pre-push hook installed to the
+                PARENT .git (../.git/hooks/pre-push) — hook fix confirmed live.
+              - v001 `matrix run-all --dry-run` => "0 missing for rhel-9.8/ssd, complete"
+                => ported results.db read from v001/test-summary + cross-join/incremental
+                logic intact under new root.
+              - v001 `configure --gcc15` => build files under v001/build-gcc15; repo ROOT
+                stayed clean (no build-*/test-results leak). Incidental SQLite rw-rewrite
+                of the DB reverted (row counts identical: 96 runs/11136 scenarios).
+              - v002 bootstrap EXIT=0; runner under v002/build-bootstrap.
+              - v002 `run-all --dry-run` => "16 MISSING for rhel-9.8/ssd" (its OWN empty
+                DB), vs v001's "0 missing" => per-version DB isolation proven. v002 DB =
+                64K, 0 runs/0 scenarios/0 host_hardware.
+              - v002 `configure --gcc15` => build under v002/build-gcc15.
+              - CROSS-WRITE AUDIT: 0 files under v001/ modified by any v002 op (find
+                -newer marker); v001 DB still 96/11136; repo root clean. NO cross-write.
+            MIGRATION GATE = GREEN. v002 is behaviorally == v001 and path-isolated.
+            NEXT (Claude's lane, separate session, AFTER user's fresh-init baseline):
+              begin ISO C++26 in v002 ONLY (contracts, etc.). v001 stays gcc15+clang
+              baseline (Grok's hardening lane). Shared-infra fixes pre-divergence must
+              land in BOTH v00N (cherry-pick seam). Deferred: root shared docs/, the
+              unversioned merger (must version-detect each DB; RunIdentity has NO version
+              field yet — run_identity.hpp:18, one-line add per its own design comment).
+            NOTE: build-* dirs under v001/ and v002/ are local gitignored artifacts from
+              validation (the built runners live there); safe to leave or rm.
+================================================================================

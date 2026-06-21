@@ -1,0 +1,4 @@
+add_executable(jac313_jtext_v001_module_test v001_module_test.cpp)
+target_compile_features(jac313_jtext_v001_module_test PRIVATE cxx_std_23)
+target_link_libraries(jac313_jtext_v001_module_test PRIVATE jac313::jText_module)
+add_test(NAME jac313_jtext_v001_module_test COMMAND jac313_jtext_v001_module_test)

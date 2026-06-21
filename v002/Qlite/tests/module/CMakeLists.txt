@@ -1,0 +1,4 @@
+add_executable(jac313_qlite_v002_module_test v002_module_test.cpp)
+target_compile_features(jac313_qlite_v002_module_test PRIVATE cxx_std_20)
+target_link_libraries(jac313_qlite_v002_module_test PRIVATE jac313::Qlite_module)
+add_test(NAME jac313_qlite_v002_module_test COMMAND jac313_qlite_v002_module_test)

@@ -1,0 +1,147 @@
+# jac313
+
+A versioned C++ project built around one real program — **Store**, a configurable
+time-series logging tool — supported by a couple of small in-tree libraries and a
+complete, from-scratch testing framework. The repository is organized into
+**self-contained major versions**: each `v00N/` is a full, independent world with its
+own `bootstrap.sh`, `CMakeLists.txt`, libraries, `Setup/`, `tools/`, `tests/`, docs, and
+results.
+
+> It is deliberately **not a toy.** The whole point is to be a non-trivial but
+> comprehensible real-world C++ setup — modules, `import std`, multiple compilers and
+> standards, a real persistence story, and a real test matrix — so the parts actually
+> exercise each other.
+
+---
+
+## The headline: Store — a configurable logging tool
+
+**Store is a high-throughput, configurable event logger.** A consumer logs events that
+carry **integers and floats in the exact count they need** — the field widths are fixed
+at compile time to the record shape you specify, so there's no per-event allocation or
+wasted space. Events flow through a hot path and out to one or more **persistence
+backends**, and what gets persisted (and where) is **configurable** via flags and a
+routing model:
+
+- **binary** — a compact binary event log (+ a reader)
+- **jText** — self-describing, human-readable logs
+- **SQL** — queryable rows via SQLite
+- **in-memory / none** — for the hot path with no sink
+- **flag-routing** — flags + a persist mode decide which events go to which sink
+  (keeper vs database masks)
+
+Store is the largest part of the project and the thing the rest exists to serve.
+
+### The supporting sub-components
+
+| Component | What it is | Role |
+|-----------|------------|------|
+| **Store** | the time-series logging tool (`jac313::Store::vNNN`) | the headline program — the hot path + the configurable persist sinks |
+| **jText** | compiled structured-text library (`jac313::jText::vNNN`) | a self-describing text log format (light/full profiles) + a streaming `JTextWriter`; Store uses it for human-readable logs |
+| **Qlite** | header-only SQLite wrapper (`jac313::Qlite::vNNN`) | RAII connection + variadic bind/column over `sqlite3`; Store uses it for SQL persistence |
+| **Setup** | toolchain sensing (`jac313::Setup::vNNN`) | a data-driven, activation-aware compiler registry — new platforms are config, not code |
+
+Two small libraries compose into the headline feature, and the headline feature is
+validated by the testing framework below — the whole is bigger than the parts.
+
+---
+
+## The versions: a C++23 baseline and a C++26 frontier
+
+Major versions are **fully duplicated** — DRY is *not* applied across them. Each `v00N/`
+is a complete copy so that testing stays isolated (changing v001 only tests v001), there
+is no cross-version build/test explosion, and each version can move its toolchain and
+language standard independently.
+
+| Version | Standard | State |
+|---------|----------|-------|
+| [**v001/**](v001/README.md) | **C++23** | The proven baseline — builds and tests green on g++-15 and Clang across multiple Linux distros; the full persist × scale matrix is recorded. Modules + `import std` work (opt-in, gcc-only). |
+| [**v002/**](v002/README.md) | **C++26** *(not really started yet)* | Today a **faithful, isolation-verified copy of v001**, rebranded to `::v002` throughout. The C++26 work (contracts, etc.) has **not** begun — v002 is staged and clean, waiting to diverge. |
+
+The one coordination cost of full duplication: a shared-infra fix made *before* the two
+versions diverge must be applied to each `v00N/`. After they diverge, they are free to
+differ.
+
+---
+
+## The testing framework — and why it's a useful window for toolchains
+
+There is **no GitHub Actions and no shell-script CI.** The whole pipeline is a compiled
+C++ program, [`jac313_test_cli`](v001/tools/jac313_test_cli/): it probes the available
+compilers (via the data-driven registry), configures and builds the tree, runs `ctest`,
+and drives a **persist × scale matrix** (smoke → full stress), recording every metric to
+a tracked results DB keyed by a `(os, compiler, build_type, disk, size, modules)`
+**RunIdentity**. It also runs valgrind gates (memcheck + helgrind/DRD).
+
+Because this is a **non-trivial but real** codebase, it ends up being a genuinely useful
+**worked example for toolchain implementers** — a window onto how **CMake, GCC, and
+Clang** behave on real program setups, not on a hello-world:
+
+- **C++23 modules + `import std`** built module-native — exactly the kind of thing CMake's
+  module scanning, GCC's module BMIs, and Clang's module support need real targets to
+  harden against.
+- **Two standards in one realistic codebase** — a stable C++23 world *and* an evolving
+  C++26 world side by side, so a toolchain can be exercised against both without leaving
+  the same project.
+- **A real multi-axis matrix** — compilers × build types × modules-on/off × persistence
+  backends × scale × OS, on real hardware — surfacing behavior that single-config builds
+  never reach.
+
+If you implement or test a toolchain, this is a reproducible, self-contained project you
+can point it at.
+
+---
+
+## The setup philosophy (non-standard, but flexible — and emulatable)
+
+This layout is admittedly **not the conventional one.** But it has proven to be a
+flexible structure that others could emulate:
+
+- **A compiled runner instead of CI YAML.** All the intelligence — compiler sensing,
+  build orchestration, the matrix, the results DB, valgrind gates — lives in one C++ tool,
+  not in scattered shell or pipeline config. Shell is reduced to a thin `bootstrap.sh`
+  that exists only because you can't run a compiled tool before you have a compiler.
+- **A data-driven, activation-aware compiler registry** (`Setup/compilers.conf`) — handles
+  gcc-toolset activation (scl / env-launcher / source-script) so new platforms are config,
+  not code.
+- **Bootstrap → hand-off.** `bootstrap.sh` senses the host, builds the runner once, and
+  hands control to it.
+- **Self-contained major versions** with everything anchored to each version root, so the
+  worlds never cross-write — and results are *ported*, not re-run, when the structure
+  changes.
+
+You don't have to adopt all of it; the pieces are independent enough to borrow.
+
+---
+
+## Working in a version
+
+Each version is self-contained — `cd` into it and use its own entry points:
+
+```bash
+cd v001
+./bootstrap.sh                 # sense toolchain → build the test runner → hand off
+# then drive the matrix from inside v001/ (build dirs, results, summaries all stay here)
+```
+
+Always run from **inside** the version directory: build trees, `test-results/`, and the
+results DB are written relative to the version root, which is what keeps the worlds
+isolated.
+
+---
+
+## Repository layout
+
+```
+jac313/
+├── README.md         # this file
+├── LICENSE           # governs all versions
+├── AI_files/         # cross-version coordination notes (handoffs between collaborators)
+├── v001/             # complete C++23 world  (libraries, Setup, tools, tests, docs, results)
+└── v002/             # complete C++26 world  (faithful copy of v001; C++26 not yet started)
+```
+
+## License
+
+[LICENSE](LICENSE) governs all versions. This is reference/learning software, provided
+"AS IS" without warranty; see the license for the governing terms.

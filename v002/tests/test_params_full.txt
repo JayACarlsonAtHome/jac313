@@ -1,0 +1,16 @@
+# Full-intensity matrix run (per-test scaling from get_matrix_scaling)
+qlite=x
+jtext=x
+store=x
+001=x
+002=x
+003=x
+004=x
+005=x
+006=x
+007=x
+008=x
+flags=x
+metric_view=x
+DISK_TYPE=auto
+SIZE=full

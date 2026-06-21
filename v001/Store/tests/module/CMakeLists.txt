@@ -1,0 +1,3 @@
+add_executable(jac313_store_v001_module_test v001_module_test.cpp)
+target_link_libraries(jac313_store_v001_module_test PRIVATE jac313::store_module)
+add_test(NAME jac313_store_v001_module_test COMMAND jac313_store_v001_module_test)
