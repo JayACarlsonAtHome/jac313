@@ -63,6 +63,31 @@ int main() {
     CHECK(fs::exists(out.string() + ".jtext"));
 #endif
 
+    // Grow correctness: a record larger than a single capacity-doubling must still
+    // fit (tiny initial buffer + large payload exercises the multi-doubling grow;
+    // before the fix this over-doubled and wrote past the mmap).
+    {
+        const fs::path big = fs::temp_directory_path() / "jac313_store_binreader_biggrow";
+        fs::remove(big.string() + ".bin");
+        const std::string big_payload(20000, 'X');
+        {
+            auto bsink = std::make_unique<jac313::Store::v002::BinaryEventSink>(
+                big.string(), 0, 0, jac313::Store::v002::PersistMode::All, 64); // tiny initial buffer
+            jac313::Store::v002::DoubleBufferedWriter bwriter(std::move(bsink), 4);
+            jac313::Store::v002::PersistedEvent bev{};
+            bev.event_id = 1;
+            bev.category = "big";
+            bev.payload = big_payload;
+            bwriter.submit_event(std::move(bev));
+            bwriter.finalize();
+        }
+        jac313::Store::v002::BinaryEventLogReader breader(big.string() + ".bin");
+        jac313::Store::v002::BinaryRecord brec{};
+        CHECK(breader.next(brec));
+        CHECK(brec.payload == big_payload); // round-trips => grow fit the large record
+        fs::remove(big.string() + ".bin");
+    }
+
     // Hardening: a truncated/malformed record (record_len header claims a body too
     // short to even hold the fixed fields) must be REFUSED, not over-read.
     {

@@ -14,6 +14,7 @@
 #include <chrono>
 #include <format>
 #include <cstring>
+#include <numeric>  // std::add_sat / std::mul_sat (C++26): overflow-safe grow math
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -121,8 +122,15 @@ public:
 
         size_t needed = sizeof(uint32_t) + record_size;
 
-        if (write_pos_ + needed > file_size_) {
-            size_t new_size = file_size_ * 2;
+        if (std::add_sat(write_pos_, needed) > file_size_) {
+            // Grow until the record actually fits. A single doubling is NOT enough
+            // when one record is larger than the current file size (e.g. a small
+            // initial buffer + a large payload) — that would overflow the mapping.
+            // add_sat/mul_sat keep the growth math overflow-safe.
+            size_t new_size = file_size_ ? file_size_ : size_t{1};
+            while (std::add_sat(write_pos_, needed) > new_size) {
+                new_size = std::mul_sat<size_t>(new_size, 2);
+            }
             if (::ftruncate(fd_, static_cast<off_t>(new_size)) != 0) {
                 throw std::runtime_error("BinaryEventLog: ftruncate failed");
             }
