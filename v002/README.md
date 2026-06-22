@@ -86,8 +86,11 @@ C++23 required (`g++-15` / Clang 20 standard); full prerequisites and the test t
 **Status:** v002 is a **faithful copy of v001**, rebranded to `jac313::*::v002`. It builds clean
 (g++-15, modules + textual) and passed validation (smoke **116/116**; `matrix verify` **60/60**
 valgrind-clean), but has **not** recorded its own per-platform results matrix yet — see
-[docs/Results.md](docs/Results.md). The ISO **C++26** work (contracts, etc.) has **not started**;
-v002 is staged and isolation-verified, waiting to diverge. `import std;` carries over from v001
+[docs/Results.md](docs/Results.md). The ISO **C++26** baseline is now in: the build is on
+`cxx_std_26` (compiles clean on gcc-toolset-15 / GCC 15.2) and a `jac313::contracts`
+pre/post/assert shim has landed (runtime checks today; migrates to native P2900 contracts
+once `__cpp_contracts` is available — gcc-15/clang-21 don't define it yet). v002 is
+staged and isolation-verified, continuing to diverge. `import std;` carries over from v001
 (opt-in, gcc-only; needs the pinned CMake 4.3.3). The legacy repos (`jacQlite`, `jText`,
 `ts_store`) remain only as historical origin.
 

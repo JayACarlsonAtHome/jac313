@@ -46,3 +46,15 @@ if(TARGET jac313::Qlite)
     target_link_libraries(jac313_identity_dedup_test PRIVATE jac313::Qlite)
 endif()
 add_test(NAME jac313_identity_dedup_test COMMAND jac313_identity_dedup_test)
+
+# C++26 contracts-style shim (jac313::contracts) — runtime pre/post/assert today,
+# migrates to native P2900 contracts when __cpp_contracts lands. Header-only; the
+# test just needs the Setup include path.
+add_executable(jac313_contracts_test
+    jac313_test_cli/tests/contracts_test.cpp
+)
+target_compile_features(jac313_contracts_test PRIVATE cxx_std_26)
+if(TARGET jac313::Setup)
+    target_link_libraries(jac313_contracts_test PRIVATE jac313::Setup)
+endif()
+add_test(NAME jac313_contracts_test COMMAND jac313_contracts_test)
