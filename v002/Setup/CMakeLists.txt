@@ -18,7 +18,7 @@ target_include_directories(jac313_Setup PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_compile_features(jac313_Setup PUBLIC cxx_std_23)
+target_compile_features(jac313_Setup PUBLIC cxx_std_26)
 
 if(JAC313_SETUP_BUILD_MODULES)
     if(NOT CMAKE_GENERATOR MATCHES "Ninja")
@@ -36,7 +36,7 @@ if(JAC313_SETUP_BUILD_MODULES)
     target_include_directories(jac313_setup_module PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
-    target_compile_features(jac313_setup_module PUBLIC cxx_std_23)
+    target_compile_features(jac313_setup_module PUBLIC cxx_std_26)
     target_link_libraries(jac313_setup_module PUBLIC jac313_Setup)
 endif()
 

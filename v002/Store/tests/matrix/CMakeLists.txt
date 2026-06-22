@@ -26,7 +26,7 @@ function(jac313_store_link_matrix_target target)
 endfunction()
 
 add_executable(jac313_store_flags test_flags.cpp)
-target_compile_features(jac313_store_flags PRIVATE cxx_std_23)
+target_compile_features(jac313_store_flags PRIVATE cxx_std_26)
 jac313_store_link_matrix_target(jac313_store_flags)
 add_test(NAME jac313_store_flags
          COMMAND jac313_store_flags --no-interactive --test-size=smoke)
@@ -34,20 +34,20 @@ add_test(NAME jac313_store_flags
 # Named matrix item (like flags): per-event metric summary view at scale
 # (smoke = 100 records, full = 100,000 via --test-size).
 add_executable(jac313_store_metric_view test_metric_view.cpp)
-target_compile_features(jac313_store_metric_view PRIVATE cxx_std_23)
+target_compile_features(jac313_store_metric_view PRIVATE cxx_std_26)
 jac313_store_link_matrix_target(jac313_store_metric_view)
 add_test(NAME jac313_store_metric_view
          COMMAND jac313_store_metric_view --no-interactive --test-size=smoke)
 
 foreach(num IN LISTS _jac313_matrix_nums)
     add_executable(jac313_store_${num}_TS test_${num}_TS.cpp)
-    target_compile_features(jac313_store_${num}_TS PRIVATE cxx_std_23)
+    target_compile_features(jac313_store_${num}_TS PRIVATE cxx_std_26)
     jac313_store_link_matrix_target(jac313_store_${num}_TS)
     add_test(NAME jac313_store_${num}_TS
              COMMAND jac313_store_${num}_TS --no-interactive --test-size=smoke --persist=none)
 
     add_executable(jac313_store_${num}_XS test_${num}_XS.cpp)
-    target_compile_features(jac313_store_${num}_XS PRIVATE cxx_std_23)
+    target_compile_features(jac313_store_${num}_XS PRIVATE cxx_std_26)
     jac313_store_link_matrix_target(jac313_store_${num}_XS)
     add_test(NAME jac313_store_${num}_XS
              COMMAND jac313_store_${num}_XS --no-interactive --test-size=smoke --persist=none)

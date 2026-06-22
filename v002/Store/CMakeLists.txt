@@ -31,7 +31,7 @@ target_include_directories(jac313_Store INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_compile_features(jac313_Store INTERFACE cxx_std_23)
+target_compile_features(jac313_Store INTERFACE cxx_std_26)
 
 add_library(jac313_store_binary_read STATIC
     include/jac313/Store/v002/headers/persistence/BinaryEventLogReader.cpp
@@ -40,7 +40,7 @@ add_library(jac313::store_binary_read ALIAS jac313_store_binary_read)
 target_include_directories(jac313_store_binary_read
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-target_compile_features(jac313_store_binary_read PUBLIC cxx_std_23)
+target_compile_features(jac313_store_binary_read PUBLIC cxx_std_26)
 target_link_libraries(jac313_store_binary_read PUBLIC jac313_Store)
 
 if(JAC313_STORE_JTEXT_PERSIST)
@@ -61,7 +61,7 @@ if(JAC313_STORE_JTEXT_PERSIST)
     target_include_directories(jac313_store_jtext_persist
         PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
-    target_compile_features(jac313_store_jtext_persist PUBLIC cxx_std_23)
+    target_compile_features(jac313_store_jtext_persist PUBLIC cxx_std_26)
     # jtext_core (PUBLIC) brings jText.h on the include path transitively.
     target_link_libraries(jac313_store_jtext_persist PUBLIC
         jac313_Store
@@ -79,7 +79,7 @@ if(JAC313_STORE_SQL_PERSIST)
     target_include_directories(jac313_store_sql_persist
         PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
-    target_compile_features(jac313_store_sql_persist PUBLIC cxx_std_23)
+    target_compile_features(jac313_store_sql_persist PUBLIC cxx_std_26)
     target_link_libraries(jac313_store_sql_persist PUBLIC jac313_Store)
     # In-tree jac313::Qlite (built first in the monorepo) provides the header + SQLite3.
     # Standalone store build: fall back to the sibling Qlite include dir + system SQLite3.
@@ -102,7 +102,7 @@ if(JAC313_STORE_BUILD_MODULES)
     set(CMAKE_CXX_SCAN_FOR_MODULES ON)   # standalone-build safety (umbrella sets it too)
     add_library(jac313_store_module OBJECT)
     add_library(jac313::store_module ALIAS jac313_store_module)
-    target_compile_features(jac313_store_module PUBLIC cxx_std_23)
+    target_compile_features(jac313_store_module PUBLIC cxx_std_26)
 
     if(JAC313_STORE_IMPORT_STD)
         # Module-native `import std;` (gcc pilot). One interface unit over the guarded

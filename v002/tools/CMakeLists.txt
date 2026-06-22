@@ -17,7 +17,7 @@ add_executable(jac313_test_cli
     jac313_test_cli/build_benchmark.cpp
     jac313_test_cli/run_identity.cpp
 )
-target_compile_features(jac313_test_cli PRIVATE cxx_std_23)
+target_compile_features(jac313_test_cli PRIVATE cxx_std_26)
 if(TARGET jac313::Setup)
     target_link_libraries(jac313_test_cli PRIVATE jac313::Setup)
 endif()
@@ -32,7 +32,7 @@ add_executable(jac313_run_identity_test
     jac313_test_cli/tests/run_identity_test.cpp
 )
 target_include_directories(jac313_run_identity_test PRIVATE jac313_test_cli)
-target_compile_features(jac313_run_identity_test PRIVATE cxx_std_23)
+target_compile_features(jac313_run_identity_test PRIVATE cxx_std_26)
 add_test(NAME jac313_run_identity_test COMMAND jac313_run_identity_test)
 
 # Regression: the OS-dedup bug, driven against a real SQLite DB (needs Qlite).
@@ -41,7 +41,7 @@ add_executable(jac313_identity_dedup_test
     jac313_test_cli/tests/identity_dedup_test.cpp
 )
 target_include_directories(jac313_identity_dedup_test PRIVATE jac313_test_cli)
-target_compile_features(jac313_identity_dedup_test PRIVATE cxx_std_23)
+target_compile_features(jac313_identity_dedup_test PRIVATE cxx_std_26)
 if(TARGET jac313::Qlite)
     target_link_libraries(jac313_identity_dedup_test PRIVATE jac313::Qlite)
 endif()

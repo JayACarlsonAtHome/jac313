@@ -37,7 +37,7 @@ if(NOT TARGET jtext_core)
         ${CMAKE_CURRENT_SOURCE_DIR}        # jText.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src    # parser/, validator/
     )
-    target_compile_features(jtext_core PUBLIC cxx_std_23)
+    target_compile_features(jtext_core PUBLIC cxx_std_26)
     set_target_properties(jtext_core PROPERTIES
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
@@ -53,7 +53,7 @@ target_include_directories(jac313_jText INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:include>
 )
-target_compile_features(jac313_jText INTERFACE cxx_std_23)
+target_compile_features(jac313_jText INTERFACE cxx_std_26)
 target_link_libraries(jac313_jText INTERFACE jtext_core)
 
 if(JAC313_JTEXT_BUILD_MODULES)
@@ -109,7 +109,7 @@ if(JAC313_JTEXT_BUILD_MODULES)
         target_link_libraries(jac313_jtext_module PUBLIC jac313_jText)
     endif()
 
-    target_compile_features(jac313_jtext_module PUBLIC cxx_std_23)
+    target_compile_features(jac313_jtext_module PUBLIC cxx_std_26)
 endif()
 
 if(JAC313_JTEXT_BUILD_EXAMPLES)
