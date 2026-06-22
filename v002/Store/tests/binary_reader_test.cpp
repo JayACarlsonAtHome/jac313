@@ -2,8 +2,10 @@
 #include <jac313/Store/v002/headers/persistence/BinaryEventLogReader.hpp>
 #include <jac313/Store/v002/headers/persistence/BinaryEventSink.hpp>
 
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -61,6 +63,23 @@ int main() {
     CHECK(fs::exists(out.string() + ".jtext"));
 #endif
 
-    std::cout << "jac313::Store::v002 BinaryEventLogReader OK\n";
+    // Hardening: a truncated/malformed record (record_len header claims a body too
+    // short to even hold the fixed fields) must be REFUSED, not over-read.
+    {
+        const fs::path bad = fs::temp_directory_path() / "jac313_store_binreader_malformed.bin";
+        {
+            std::ofstream f(bad, std::ios::binary);
+            const std::uint32_t record_len = 4; // << the 5x uint64 fixed header
+            f.write(reinterpret_cast<const char*>(&record_len), sizeof(record_len));
+            const char body[4] = {1, 2, 3, 4};
+            f.write(body, sizeof(body));
+        }
+        jac313::Store::v002::BinaryEventLogReader bad_reader(bad.string());
+        jac313::Store::v002::BinaryRecord bad_rec{};
+        CHECK(!bad_reader.next(bad_rec)); // must refuse; must not crash / over-read
+        fs::remove(bad);
+    }
+
+    std::cout << "jac313::Store::v002 BinaryEventLogReader OK (incl. malformed-record refusal)\n";
     return EXIT_SUCCESS;
 }
