@@ -17,6 +17,11 @@ if(JAC313_STORE_BUILD_TESTS)
         target_link_libraries(jac313_store_binary_reader_test PRIVATE jac313::store_jtext_persist)
     endif()
     add_test(NAME jac313_store_binary_reader_test COMMAND jac313_store_binary_reader_test)
+
+    # C++26 saturating-arithmetic safety for ts_store capacity / memory guard.
+    add_executable(jac313_store_saturating_capacity_test saturating_capacity_test.cpp)
+    target_link_libraries(jac313_store_saturating_capacity_test PRIVATE jac313::Store)
+    add_test(NAME jac313_store_saturating_capacity_test COMMAND jac313_store_saturating_capacity_test)
 endif()
 
 if(JAC313_STORE_BUILD_MATRIX_TESTS)

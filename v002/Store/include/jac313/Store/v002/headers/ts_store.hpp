@@ -6,6 +6,8 @@
 
 #include "persistence/DoubleBufferedWriter.hpp"
 
+#include <numeric>  // std::mul_sat / std::add_sat (C++26): overflow-safe capacity math
+
 #ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
 #endif
@@ -69,7 +71,10 @@ public:
     }
 
     [[nodiscard]] size_t expected_size() const noexcept {
-        return size_t(max_threads_) * events_per_thread_;
+        // Saturating multiply (C++26): on overflow returns SIZE_MAX rather than
+        // wrapping, so the constructor's memory guard cannot be fooled into
+        // under-allocating for an impossibly large (threads x events) request.
+        return std::mul_sat(max_threads_, events_per_thread_);
     }
     void clear() {
         next_id_.store(0, std::memory_order_relaxed);
@@ -101,7 +106,9 @@ public:
         // The vector resize gives us the exact preallocated storage for all cat/payload buffers.
         const size_t N = expected_size();
         const size_t per_row = sizeof(row_data);
-        const size_t total_est = N * per_row + (16ULL << 20); // headroom
+        // Saturating math so an overflowing estimate can't wrap small and slip past
+        // the memory check below (which would then attempt a huge real allocation).
+        const size_t total_est = std::add_sat(std::mul_sat(N, per_row), size_t(16ULL << 20)); // headroom
 
         struct sysinfo info{};
         size_t avail = 0;
