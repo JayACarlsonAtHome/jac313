@@ -31,6 +31,15 @@ violation(const char* kind, const char* expr,
 //   ret f(args) pre(cond) post(r: cond);   and   contract_assert(cond);
 // Until then these runtime macros carry the same guarantees at call sites.
 
+// JAC313_CONTRACTS_ENABLED: 1 (default) = runtime fail-fast checks; define to 0
+// (e.g. -DJAC313_CONTRACTS_ENABLED=0 for a release/perf build) to compile the checks
+// out to zero cost. Default behaviour is unchanged unless explicitly disabled.
+#ifndef JAC313_CONTRACTS_ENABLED
+#  define JAC313_CONTRACTS_ENABLED 1
+#endif
+
+#if JAC313_CONTRACTS_ENABLED
+
 #define JAC313_ASSERT(expr) \
     ((expr) ? (void)0 : ::jac313::contracts::violation("assert", #expr))
 
@@ -42,3 +51,11 @@ violation(const char* kind, const char* expr,
 // or an explicit scope guard; this checks the condition at the point of use.
 #define JAC313_POST(expr) \
     ((expr) ? (void)0 : ::jac313::contracts::violation("postcondition", #expr))
+
+#else // contracts disabled — zero-cost no-ops (release/perf builds)
+
+#define JAC313_ASSERT(expr) ((void)0)
+#define JAC313_PRE(expr)    ((void)0)
+#define JAC313_POST(expr)   ((void)0)
+
+#endif

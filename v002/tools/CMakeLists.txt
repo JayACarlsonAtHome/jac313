@@ -58,3 +58,13 @@ if(TARGET jac313::Setup)
     target_link_libraries(jac313_contracts_test PRIVATE jac313::Setup)
 endif()
 add_test(NAME jac313_contracts_test COMMAND jac313_contracts_test)
+
+# Same shim with JAC313_CONTRACTS_ENABLED=0 — verifies the checks compile out to no-ops.
+add_executable(jac313_contracts_disabled_test
+    jac313_test_cli/tests/contracts_disabled_test.cpp
+)
+target_compile_features(jac313_contracts_disabled_test PRIVATE cxx_std_26)
+if(TARGET jac313::Setup)
+    target_link_libraries(jac313_contracts_disabled_test PRIVATE jac313::Setup)
+endif()
+add_test(NAME jac313_contracts_disabled_test COMMAND jac313_contracts_disabled_test)
