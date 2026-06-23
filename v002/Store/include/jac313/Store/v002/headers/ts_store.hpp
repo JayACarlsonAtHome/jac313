@@ -6,7 +6,10 @@
 
 #include "persistence/DoubleBufferedWriter.hpp"
 
+#ifndef JAC313_STORE_IMPORT_STD
 #include <numeric>  // std::mul_sat / std::add_sat (C++26): overflow-safe capacity math
+#endif               // under import std, <numeric> comes from the std module; a textual
+                     // include here lands inside the module's export namespace and breaks.
 
 #ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {

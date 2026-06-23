@@ -1,28 +1,49 @@
 # Results — what a build + test run actually produces
 
-> **v002 has not recorded a results matrix yet.** v002 begins as a *faithful copy of v001*
-> (rebranded to `::v002`) and has been **structurally and memory validated** — but it has
-> **not** run the full per-platform throughput battery that v001 has. It does **not** inherit
-> v001's recorded numbers; it produces its own.
+> **v002 recorded its first results matrix** — `rhel-9.8 / ssd`, 2026-06-23. The full
+> **17-combo** battery on **both gcc15 and clang** at C++26: **17/17 combos OK, 116/116
+> scenarios each, 0 failures, 0 valgrind errors.** These are v002's own numbers (it does not
+> inherit v001's).
 
 > **Before trusting any `ops/sec` figure, read [HowToReadResults.md](HowToReadResults.md).**
 > The headline "Peak ops/sec" is the in-memory hot path, *not* a persist backend's write
-> speed. That page explains which number is which (the methodology is version-independent;
-> its concrete figures are v001 reference numbers until v002 runs its own battery).
+> speed. That page explains which number is which (methodology is version-independent).
+
+## Headline numbers (rhel-9.8, ssd, full tier)
+
+Peak ops/sec is the in-memory hot path (see HowToReadResults.md); durable-to-disk is far lower.
+
+| Compiler | Build | Peak ops/sec (in-mem) | Avg |
+|---|---|---|---|
+| clang 21 | Release | **25.36M** | 17.5M |
+| gcc 15 | Release | 24.84M | 17.6M |
+| clang 21 | Debug | 14.8M | 10.8M |
+| gcc 15 | Debug | 17.3M | 12.1M |
+
+**C++26 v002 (~25M) matches C++23 v001 (~25M) — no throughput regression** from the standard
+bump, and clang Release edges out gcc even through the `std::print` workaround below.
+
+## Two toolchain findings from this run
+
+The two-standard design earned its keep — building v002 on both compilers surfaced two real bugs:
+
+1. **clang rejects valid C++26 `std::print`** (dynamic-width specs) that gcc accepts — a
+   genuine compiler defect. Worked around with `std::runtime_format`. See
+   [Cpp26_Adoption.md](Cpp26_Adoption.md#toolchain-finding-clang-rejects-dynamic-width-stdprint-in-c26)
+   and the [reproducer](findings/clang_cpp26_dynamic_format.cpp).
+2. **our `import std` + textual `#include <numeric>` bug** — a std header leaked into the
+   module's `export namespace`; gcc *correctly* rejected it. Fixed by guarding the include
+   under `JAC313_STORE_IMPORT_STD` like every other std header.
 
 ## Current state
 
 | Check | Status |
 |-------|--------|
-| Builds (g++-15, modules + textual) | ✅ clean |
-| Smoke matrix (116 scenarios, Debug) | ✅ 116/116 during validation |
-| `matrix verify` (valgrind memcheck + helgrind/DRD, ctest + smoke, all sinks) | ✅ 60/60 clean during validation |
-| Full per-platform throughput matrix (Debug + Release, multi-OS) | ⏳ **not yet run / not recorded** |
+| Builds — gcc15 **and clang21**, modules + textual + import-std | ✅ clean (both compilers, C++26) |
+| Full matrix (gcc15 + clang × Debug/Release × modules/textual × Smoke/xFull) | ✅ **17/17 combos, 116/116 each** |
+| `matrix verify-lite` (valgrind memcheck + helgrind/DRD, ctest) | ✅ 31/31 clean |
 
-The validation runs above were used only to prove the rebranded v002 builds and is clean;
-their results were intentionally **not** committed (v002 keeps an empty results world until a
-deliberate matrix run). For v001's full, measured per-platform numbers see
-[v001/docs/Results.md](../../v001/docs/Results.md).
+For v001's per-platform numbers see [v001/docs/Results.md](../../v001/docs/Results.md).
 
 ## Recording v002's own results
 

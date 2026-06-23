@@ -4,10 +4,10 @@
 
 # How to read the results
 
-> **v002 note:** v002 has not recorded its own throughput battery yet (see
-> [Results.md](Results.md)). The concrete figures below are **v001 reference numbers** on the
-> same hardware — v002 is a faithful copy, so they're representative, but they are *not* v002's
-> own measurements. The *methodology* on this page applies to v002 unchanged.
+> **v002 note:** v002 has now recorded its **own** battery (rhel-9.8/ssd, both gcc15 and
+> clang at C++26 — see [Results.md](Results.md)), and the figures land where this page says
+> they should: in-memory Release peak ~25M, durable ~2.4–2.7M. The numbers below read as v002's
+> own; the methodology is version-independent.
 
 ## The short version
 
