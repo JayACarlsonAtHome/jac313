@@ -43,7 +43,7 @@ ColumnWidths set_effective_widths() const
 }
 
 void print_table_separator_line(const ColumnWidths& w) const {
-        std::println("{}{:=>{}}{}", ansi::dim(), "", w.total(), ansi::reset());
+        std::println(std::runtime_format("{}{:=>{}}{}"), ansi::dim(), "", w.total(), ansi::reset());
 }
 
 void print_table_header(const ColumnWidths& w, std::string_view space_pad) const
@@ -52,13 +52,13 @@ void print_table_header(const ColumnWidths& w, std::string_view space_pad) const
     std::string h_cat      = "CATEGORY"; h_cat.resize(w.category,      '.');
     std::string h_payload  = "PAYLOAD";  h_payload.resize(w.payload,   '.');
 
-    std::print("{}{:>{}}{}", ansi::bold(),         "ID",          w.id,      space_pad);
-    std::print("{:>{}}{}",                       "TIME (µs)",   w.time,    space_pad);
-    std::print("{:>{}}{}",   h_severity,         w.severity,    space_pad);
-    std::print("{:>{}}{}",   h_cat,              w.category,    space_pad);
-    std::print("{:>{}}{}",   "Thread",           w.thread,      space_pad);
-    std::print("{:>{}}{}",   "Event",            w.event,       space_pad);
-    std::print("{:<{}}{}",   h_payload,          w.payload,     space_pad);
+    std::print(std::runtime_format("{}{:>{}}{}"), ansi::bold(),         "ID",          w.id,      space_pad);
+    std::print(std::runtime_format("{:>{}}{}"),                       "TIME (µs)",   w.time,    space_pad);
+    std::print(std::runtime_format("{:>{}}{}"),   h_severity,         w.severity,    space_pad);
+    std::print(std::runtime_format("{:>{}}{}"),   h_cat,              w.category,    space_pad);
+    std::print(std::runtime_format("{:>{}}{}"),   "Thread",           w.thread,      space_pad);
+    std::print(std::runtime_format("{:>{}}{}"),   "Event",            w.event,       space_pad);
+    std::print(std::runtime_format("{:<{}}{}"),   h_payload,          w.payload,     space_pad);
 
     std::println("");
 }
@@ -68,13 +68,13 @@ void print_single_row(size_t id, const row_data& r,
                       std::string_view space_pad ) const
 {
     // ID
-    std::print("{}{:>{}}{}", ansi::cyan(), id, widths.id, space_pad);
+    std::print(std::runtime_format("{}{:>{}}{}"), ansi::cyan(), id, widths.id, space_pad);
 
     // TIME
     if constexpr (Config::use_timestamps) {
-        std::print("{}{:>{}}{}", ansi::yellow(), r.ts_us, widths.time, space_pad);
+        std::print(std::runtime_format("{}{:>{}}{}"), ansi::yellow(), r.ts_us, widths.time, space_pad);
     } else {
-        std::print("{:>{}}{}", "-", widths.time, space_pad);
+        std::print(std::runtime_format("{:>{}}{}"), "-", widths.time, space_pad);
     }
 
     // TYPE (padded)
@@ -82,21 +82,21 @@ void print_single_row(size_t id, const row_data& r,
     std::string severity = row_flags.get_severity_string();
     std::string severity_padded = severity;
     severity_padded.resize(widths.severity, '.');
-    std::print("{}{:<{}}{}", ansi::bold_magenta(), severity_padded, widths.severity, space_pad);
+    std::print(std::runtime_format("{}{:<{}}{}"), ansi::bold_magenta(), severity_padded, widths.severity, space_pad);
 
     // CATEGORY (padded)
     std::string cat_padded{ r.category_storage.view() };
     cat_padded.resize(widths.category, '.');
-    std::print("{}{:<{}}{}", ansi::bold_yellow(), cat_padded, widths.category, space_pad);
+    std::print(std::runtime_format("{}{:<{}}{}"), ansi::bold_yellow(), cat_padded, widths.category, space_pad);
 
     // Thread & Event
-    std::print("{}{:>{}}{}", ansi::magenta(),      r.thread_id, widths.thread,  space_pad);
-    std::print("{}{:>{}}{}", ansi::bold_green(),   r.event_id,  widths.event,   space_pad);
+    std::print(std::runtime_format("{}{:>{}}{}"), ansi::magenta(),      r.thread_id, widths.thread,  space_pad);
+    std::print(std::runtime_format("{}{:>{}}{}"), ansi::bold_green(),   r.event_id,  widths.event,   space_pad);
 
     // PAYLOAD (padded)
     std::string payload_padded{ r.value_storage.view() };
     payload_padded.resize(widths.payload, '.');
-    std::print("{}{:<{}}", ansi::blue(), payload_padded, widths.payload);
+    std::print(std::runtime_format("{}{:<{}}"), ansi::blue(), payload_padded, widths.payload);
 
     std::print(" FLAGS: {} ", row_flags.to_string());
     std::println();

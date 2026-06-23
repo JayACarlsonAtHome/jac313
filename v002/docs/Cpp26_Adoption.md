@@ -17,7 +17,7 @@ compiles — **not** from memory.
 |---|---|---|
 | system g++ 11.5 | ❌ | C++20 max — not used for v002 |
 | **gcc-toolset-15 (GCC 15.2.1)** | ✅ | `__cplusplus = 202400`; the standard build compiler |
-| **clang 21.1.8** | ✅ | second gate |
+| **clang 21.1.8** | ⚠️ ✅ | second gate — builds **only after a workaround**; see [the dynamic-width `std::print` finding](#toolchain-finding-clang-rejects-dynamic-width-stdprint-in-c26) below |
 | gcc-toolset-16 / GCC 16 | n/a here | not packaged for RHEL 9 (Fedora-only); would add contracts/reflection |
 
 **Available now (feature-test macros present on GCC 15.2):** `__cpp_pack_indexing`,
@@ -29,6 +29,51 @@ compiles — **not** from memory.
 **NOT available yet:** ISO **contracts** (P2900) — no `__cpp_contracts`; the
 `pre()/post()/contract_assert()` syntax errors on GCC 15.2 and clang 21. Needs GCC 16
 or a contracts-enabled build.
+
+## Toolchain finding: clang rejects dynamic-width `std::print` in C++26
+
+Going to two standards in one real codebase is supposed to surface compiler differences
+that hello-world never reaches. It did. **The same `std::print` source that v001 (C++23)
+compiles under clang fails to compile in v002 (C++26) under clang** — gcc takes both.
+
+Minimal reproducer: [`findings/clang_cpp26_dynamic_format.cpp`](findings/clang_cpp26_dynamic_format.cpp)
+
+```cpp
+std::string msg = "hi";
+int width = 8;
+std::print("{:^{}}\n", msg, width);   // center 'msg' in a *runtime-width* field
+```
+
+| Compiler | `-std=c++23` | `-std=c++26` |
+|---|---|---|
+| gcc 15.2.1 | ✅ | ✅ |
+| clang 21.1.8 | ✅ | ❌ **error** |
+
+clang 21 + libstdc++ 15, `-std=c++26`:
+
+```
+error: call to consteval function 'basic_format_string<...>' is not a constant expression
+note:  undefined function '__check_dynamic_spec<int, unsigned, long long, unsigned long long>'
+       cannot be used in a constant expression
+```
+
+**Root cause.** libstdc++'s consteval format-string check calls a *declared-but-undefined*
+helper, `__check_dynamic_spec`, for dynamic-width/precision specs (`{:>{}}`, `{:^{}}`). gcc's
+constant evaluator handles it; clang's C++26 evaluator refuses to call an undefined function
+during constant evaluation. The C++23 path never reaches that helper — which is exactly why
+only the C++26 build breaks. A clang ↔ libstdc++ interaction defect, not invalid code.
+
+**Workaround (what v002 ships).** Wrap the dynamic-width format strings in
+`std::runtime_format(...)`, which opts those strings out of the consteval check:
+
+```cpp
+std::print(std::runtime_format("{:^{}}\n"), msg, width);   // builds on clang C++26
+```
+
+Applied to the ~21 dynamic-width call sites in `Store/.../impl_details/{printing,diagnostic}.hpp`.
+Trade-off: those strings lose compile-time format checking (they're now validated at runtime);
+they are fixed internal literals, so the risk is negligible. With the workaround, v002 builds
+**green on both gcc 15 and clang 21** at C++26, and the full matrix runs on both.
 
 ## Adopted in v002 (safety-first)
 

@@ -14,6 +14,30 @@ results.
 
 ---
 
+## 🔬 It found a real compiler bug
+
+The reason to build a non-trivial, **two-standard** codebase is to make real toolchains
+misbehave where hello-world never will. v002 (the C++26 world) did exactly that:
+
+> **clang 21 refuses to compile well-formed C++26 `std::print` with a *dynamic-width* spec
+> (`{:^{}}`) that gcc 15 accepts — and that clang itself accepts in C++23.**
+
+| Compiler | `-std=c++23` | `-std=c++26` |
+|---|---|---|
+| gcc 15.2.1 | ✅ | ✅ |
+| clang 21.1.8 | ✅ | ❌ **rejects valid code** |
+
+We isolated it to a [**10-line reproducer**](v002/docs/findings/clang_cpp26_dynamic_format.cpp),
+traced it to libstdc++'s declared-but-undefined consteval helper `__check_dynamic_spec`, and
+**worked around it** with `std::runtime_format` so v002 builds green on *both* compilers and the
+full matrix runs on both. Full writeup:
+[v002/docs/Cpp26_Adoption.md](v002/docs/Cpp26_Adoption.md#toolchain-finding-clang-rejects-dynamic-width-stdprint-in-c26).
+
+This is the project's purpose in one bug: only a real C++26 program — dynamic-width logging
+output, two compilers, a real build — hits it.
+
+---
+
 ## The headline: Store — a configurable logging tool
 
 **Store is a high-throughput, configurable event logger.** A consumer logs events that

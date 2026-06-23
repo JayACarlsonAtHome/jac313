@@ -48,8 +48,8 @@ inline void diagnose_failures(size_t max_report = std::numeric_limits<size_t>::m
     for (const auto& f : failures) {
 
         std::print(  "{}[DIAGNOSE] ID: {:>10}{}{} | {}",     ansi::bold_red(), f.id,           ansi::reset(), ansi::gray(), ansi::reset() );
-        std::print(  "{}[DIAGNOSE] Thread: {:>{}}{}{} | {}", ansi::magenta(),  f.thread_id, w, ansi::reset(), ansi::gray(), ansi::reset() );
-        std::print(  "{}[DIAGNOSE] Event:  {:>{}}{}{} | {}", ansi::magenta(),  f.event_id,  e, ansi::reset(), ansi::gray(), ansi::reset() );
+        std::print(std::runtime_format("{}[DIAGNOSE] Thread: {:>{}}{}{} | {}"), ansi::magenta(),  f.thread_id, w, ansi::reset(), ansi::gray(), ansi::reset() );
+        std::print(std::runtime_format("{}[DIAGNOSE] Event:  {:>{}}{}{} | {}"), ansi::magenta(),  f.event_id,  e, ansi::reset(), ansi::gray(), ansi::reset() );
         std::println("{}     Actual   (len {:>4} Payload: {}{})", ansi::yellow(),  f.payload.size(), f.payload,  ansi::reset() );
         std::println("{}     Expected (len {:>4} Payload: {}{})", ansi::yellow(),  f.payload.size(), f.expected, ansi::reset() );
         std::println("");
@@ -61,15 +61,15 @@ inline void diagnose_failures(size_t max_report = std::numeric_limits<size_t>::m
     if (failures.empty()) {
         std::string msg = std::format("ALL {} ENTRIES PASS DIAGNOSTICS", expected_size());
         std::print("{}╔═══════════════════════════════════════════════════════════════════════════════╗{}",ansi::bold_green(), ansi::reset());
-        std::print("{}{:^{}}{}",ansi::bold_green(), msg, box_width, ansi::reset());
+        std::print(std::runtime_format("{}{:^{}}{}"),ansi::bold_green(), msg, box_width, ansi::reset());
         std::print("{}╚═══════════════════════════════════════════════════════════════════════════════╝{}",ansi::bold_green(), ansi::reset());
 
     } else {
         std::string header = "CORRUPTED TEST PAYLOADS";
         std::string report = std::format("REPORTED {} TEST PAYLOAD FAILURE(S)", failures.size());
         std::print("{}╔═══════════════════════════════════════════════════════════════════════════════╗{}",ansi::bold_red(), ansi::reset());
-        std::print("{}{:^{}}{}",ansi::bold_red(), header, box_width, ansi::reset());
-        std::print("{}{:^{}}{}",ansi::bold_red(), report, box_width, ansi::reset());
+        std::print(std::runtime_format("{}{:^{}}{}"),ansi::bold_red(), header, box_width, ansi::reset());
+        std::print(std::runtime_format("{}{:^{}}{}"),ansi::bold_red(), report, box_width, ansi::reset());
         std::print("{}╚═══════════════════════════════════════════════════════════════════════════════╝{}",ansi::bold_red(), ansi::reset());
     }
 }
