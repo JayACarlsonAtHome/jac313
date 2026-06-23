@@ -11,7 +11,7 @@ _Rendered from [`jac313_results.db`](../../../../../../jac313_results.db)._
 | Disk | ssd |
 | Size | smoke (Smoke) |
 | Group ID | 16 |
-| Environment | j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label) |
+| Environment | jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label) |
 | Passed | 116 |
 | Failed | 0 |
 | Skipped | 0 |

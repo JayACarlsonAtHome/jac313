@@ -11,7 +11,7 @@ _Rendered from [`jac313_results.db`](../../../../../../jac313_results.db)._
 | Disk | x7k |
 | Size | full (xFull) |
 | Group ID | 76 |
-| Environment | localhost.localdomain · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label) |
+| Environment | jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label) |
 | Passed | 116 |
 | Failed | 0 |
 | Skipped | 0 |
