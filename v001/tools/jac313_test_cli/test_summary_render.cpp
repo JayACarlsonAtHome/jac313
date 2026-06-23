@@ -241,6 +241,9 @@ bool write_summary_hub(const ResultsDbContext& ctx, const bool include_throughpu
     }
 
     hub << "# jac313 test-summary hub\n\n";
+    hub << "> **Reading the numbers? Start with [How to read the results]"
+           "(../docs/HowToReadResults.md).** \"Peak ops/sec\" is the in-memory hot path, "
+           "*not* a persist backend's write speed (in-memory ~15–25M; durable ~2.4–2.7M).\n\n";
     const std::string db_href = ctx.db_href_from(hub_dir);
     hub << "Run index and per-run pages from [`jac313_results.db`](" << db_href << "); "
            "log tails (last " << kLogTailLineCount

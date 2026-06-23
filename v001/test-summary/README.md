@@ -1,5 +1,7 @@
 # jac313 test-summary hub
 
+> **Reading the numbers? Start with [How to read the results](../docs/HowToReadResults.md).** "Peak ops/sec" is the in-memory hot path, *not* a persist backend's write speed (in-memory ~15–25M; durable ~2.4–2.7M).
+
 Run index and per-run pages from [`jac313_results.db`](jac313_results.db); log tails (last 50 lines) published at matrix run from captured stdout.
 Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`, matrix runs, `--filter`).
 
