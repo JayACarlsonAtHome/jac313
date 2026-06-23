@@ -6,6 +6,11 @@ section follows (the same battery, on the RHEL boxes). Candid as ever: these are
 figures from real runs on real hardware, not aspirations. Live per-run detail — every
 `(OS × compiler × build-type)` row — lives in the [test-summary hub](../test-summary/).
 
+> **Before trusting any `ops/sec` figure, read [HowToReadResults.md](HowToReadResults.md).**
+> The headline "Peak ops/sec" is the in-memory hot path, *not* a persist backend's write
+> speed — in-memory runs ~15–25M, durable-to-disk runs ~2.4–2.7M. That page explains which
+> number is which and why.
+
 ---
 
 ## Linux Mint 22.3
