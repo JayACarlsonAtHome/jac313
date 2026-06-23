@@ -67,6 +67,7 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 | [docs/store/](docs/store/) | Store by feature — logging, categories, bitmaps, persistence, reporting |
 | [docs/Memory-And-Concurrency.md](docs/Memory-And-Concurrency.md) | valgrind memcheck + helgrind/DRD — method, the tail-reader data race found & fixed, results, and honest limits |
 | [docs/Maturity.md](docs/Maturity.md) | Honest self-assessment on a 12-level scale — where jac313 sits (~7), and why that's a deliberate ceiling |
+| [docs/HowToReadResults.md](docs/HowToReadResults.md) | **Read this before trusting any `ops/sec`** — what each number measures, in-memory ceiling (~15–25M) vs durable rate (~2.4–2.7M), why the leaderboard is noise-ranked, the smoke/test_006 caveats (v001 reference numbers; methodology applies to v002) |
 | [docs/Results.md](docs/Results.md) | v002 results — **pending its first matrix run** (faithful copy of v001; validated green, but no per-platform throughput recorded yet) |
 | Package READMEs | [Qlite](Qlite/README.md) · [jText](jText/README.md) · [Store](Store/README.md) |
 

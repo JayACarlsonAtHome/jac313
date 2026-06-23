@@ -5,6 +5,11 @@
 > **not** run the full per-platform throughput battery that v001 has. It does **not** inherit
 > v001's recorded numbers; it produces its own.
 
+> **Before trusting any `ops/sec` figure, read [HowToReadResults.md](HowToReadResults.md).**
+> The headline "Peak ops/sec" is the in-memory hot path, *not* a persist backend's write
+> speed. That page explains which number is which (the methodology is version-independent;
+> its concrete figures are v001 reference numbers until v002 runs its own battery).
+
 ## Current state
 
 | Check | Status |

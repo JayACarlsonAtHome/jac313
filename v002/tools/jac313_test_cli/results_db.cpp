@@ -518,6 +518,30 @@ bool is_benchmark_matrix_test(const std::string& test)
     return false;
 }
 
+// test_006 is a tail-reader concurrency/correctness stress test, not a throughput
+// benchmark: it measures writer/reader timing, hit/miss counts and verification, and
+// deliberately emits no "Fastest run → … ops/sec" line. It is grouped with the
+// benchmark matrix tests for the persist comparison, but has no peak ops/sec to report,
+// so its throughput cell renders "N/A" rather than the "-" used for missing data.
+bool is_correctness_only_matrix_test(const std::string& test)
+{
+    return test.find("_006_") != std::string::npos;
+}
+
+// Throughput cell shared by every results table: a measured value when present, "N/A"
+// for the correctness-only test that produces none by design, "-" otherwise (e.g. a
+// non-benchmark test, or a benchmark run that failed before printing its ops/sec line).
+std::string format_peak_ops_cell(const ScenarioPageRow& row)
+{
+    if (row.peak_ops_sec.has_value()) {
+        return format_count(*row.peak_ops_sec);
+    }
+    if (is_correctness_only_matrix_test(row.test)) {
+        return "N/A";
+    }
+    return "-";
+}
+
 std::string format_persist_log_size_cell(const ScenarioPageRow& row)
 {
     if (row.persist_log_bytes.has_value()) {
@@ -549,6 +573,9 @@ void write_persist_backend_comparison_table(
     out << heading << "\n\n";
     out << "Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), "
            "and on-disk **persist artifact size** per backend.\n\n";
+    out << "_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness "
+           "stress test (writer/reader timing + hit-miss verification), not a throughput "
+           "benchmark, so it emits no `Fastest run → … ops/sec` line._\n\n";
     out << "| Test | Output | Persist | run ms | Peak ops/sec | Log size |\n";
     out << "|------|--------|---------|--------|--------------|----------|\n";
 
@@ -562,8 +589,7 @@ void write_persist_backend_comparison_table(
         bool first = true;
         for (const ScenarioPageRow* prow : sorted) {
             const ScenarioPageRow& row = *prow;
-            const std::string peak =
-                row.peak_ops_sec.has_value() ? format_count(*row.peak_ops_sec) : "-";
+            const std::string peak = format_peak_ops_cell(row);
             out << "| " << (first ? row.test : "")
                 << " | " << (first ? row.output_mode : "")
                 << " | " << row.persist
@@ -819,8 +845,7 @@ bool render_run_results_page(std::ostream& out,
         } else if (row.compile_without_modules_ms.has_value()) {
             compile_ms = format_count(*row.compile_without_modules_ms) + " (no modules)";
         }
-        const std::string peak =
-            row.peak_ops_sec.has_value() ? format_count(*row.peak_ops_sec) : "-";
+        const std::string peak = format_peak_ops_cell(row);
         const std::string log_size = is_persist_backend(row.persist)
             ? format_persist_log_size_cell(row)
             : "-";
@@ -1724,6 +1749,8 @@ ORDER BY r.os, r.compiler, r.build_type
         out << "## Persist backend comparison (latest xFull per compiler & build type)\n\n";
         out << "Benchmark tests 005–008: **run ms**, **peak ops/sec**, and **persist log size** "
                "for binary vs jText vs SQL.\n\n";
+        out << "_test_006 reports peak ops/sec as **N/A** — it is a tail-reader "
+               "concurrency/correctness test, not a throughput benchmark, and emits no ops/sec line._\n\n";
         out << body.str();
         return true;
     } catch (const std::exception& ex) {
