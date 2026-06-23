@@ -13,14 +13,14 @@ No persistence attached — pure in-memory hot path
 Run 3 / 3
   sample metrics on event 42 (t=0): int=4200 dbl=0.42
 [VERIFY] ALL 100000 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
-PASS — 21,243 µs → 4,707,433 ops/sec
+PASS — 10,589 µs → 9,443,762 ops/sec
 
 
 ═══════════════════════════════════════════════════════════════
                FINAL RESULT — 3-RUN STATISTICS            
 ═══════════════════════════════════════════════════════════════
-  Fastest run        : 19,787 µs  → 5,053,823 ops/sec
-  Slowest run        : 21,243 µs  → 4,707,433 ops/sec
-  Average            : 20,633 µs  → 4,846,683 ops/sec
+  Fastest run        : 10,512 µs  → 9,512,938 ops/sec
+  Slowest run        : 10,789 µs  → 9,268,700 ops/sec
+  Average            : 10,630 µs  → 9,407,338 ops/sec
   (100,000 events per run, 100% verified, zero corruption)
 ═══════════════════════════════════════════════════════════════

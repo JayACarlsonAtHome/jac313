@@ -14,7 +14,7 @@ Flag routing persistence attaches only on the *last* run.
 
 Run 1 / 1
 [VERIFY] ALL 1000 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
-PASS — 3,046 µs → 328,299 ops/sec
+PASS — 631 µs → 1,584,786 ops/sec
 
 Persist verification:
   jText main rows:  10 (expected 10)
@@ -24,8 +24,8 @@ Persist verification:
 ═══════════════════════════════════════════════════════════════
                FINAL RESULT — 1-RUN STATISTICS            
 ═══════════════════════════════════════════════════════════════
-  Fastest run        : 3,046 µs  → 328,299 ops/sec
-  Slowest run        : 3,046 µs  → 328,299 ops/sec
-  Average            : 3,046 µs  → 328,299 ops/sec
+  Fastest run        : 631 µs  → 1,584,786 ops/sec
+  Slowest run        : 631 µs  → 1,584,786 ops/sec
+  Average            : 631 µs  → 1,584,786 ops/sec
   (1,000 events per run, flag routing verified on final run)
 ═══════════════════════════════════════════════════════════════

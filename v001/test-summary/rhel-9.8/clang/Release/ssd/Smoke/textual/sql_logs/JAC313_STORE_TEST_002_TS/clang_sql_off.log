@@ -1,8 +1,8 @@
 # jac313 log tail (last 50 lines)
 # captured at matrix run
 
-                  Actual   Len(25): Info processing request 😊
-                  Expected Len(25): Info processing request 😊
+                  Actual   Len(36): Warning in processing notification 😕
+                  Expected Len(36): Warning in processing notification 😕
 [TEST-VERIFY] TEST PAYLOADS VALID  ID:85  Thread_ID:4  Event_ID:5 
                   Actual   Len(34): Error in processing notification 😣
                   Expected Len(34): Error in processing notification 😣

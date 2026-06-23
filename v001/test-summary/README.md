@@ -222,12 +222,12 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>textual</td><td>Smoke</td><td>10k</td><td style="text-align:right">3</td><td>2026-06-20 04:35:43Z</td><td style="text-align:right">18,175 ms (18s)</td><td style="text-align:right">-</td><td style="text-align:right">654,450</td><td>jac313_store_007_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/10k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>modules</td><td>Smoke</td><td>ssd</td><td style="text-align:right">34</td><td>2026-06-20 08:28:24Z</td><td style="text-align:right">15,938 ms (15s)</td><td style="text-align:right">12,134 ms (12s)</td><td style="text-align:right">768,049</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/ssd/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>modules</td><td>Smoke</td><td>ssd</td><td style="text-align:right">99</td><td>2026-06-23 01:08:58Z</td><td style="text-align:right">16,232 ms (16s)</td><td style="text-align:right">4,708 ms (4s)</td><td style="text-align:right">2,544,529</td><td>jac313_store_005_TS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/ssd/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>textual</td><td>Smoke</td><td>ssd</td><td style="text-align:right">35</td><td>2026-06-20 08:29:27Z</td><td style="text-align:right">16,047 ms (16s)</td><td style="text-align:right">-</td><td style="text-align:right">703,730</td><td>jac313_store_007_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/ssd/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>textual</td><td>Smoke</td><td>ssd</td><td style="text-align:right">100</td><td>2026-06-23 01:09:32Z</td><td style="text-align:right">16,231 ms (16s)</td><td style="text-align:right">-</td><td style="text-align:right">2,873,563</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/ssd/Smoke/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 <tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">19</td><td>2026-06-20 06:32:57Z</td><td style="text-align:right">18,875 ms (18s)</td><td style="text-align:right">-</td><td style="text-align:right">685,401</td><td>jac313_store_005_TS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
@@ -248,12 +248,12 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>textual</td><td>xFull</td><td>10k</td><td style="text-align:right">11</td><td>2026-06-20 04:56:42Z</td><td style="text-align:right">601,308 ms (10m 1s)</td><td style="text-align:right">-</td><td style="text-align:right">5,538,049</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/10k/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>modules</td><td>xFull</td><td>ssd</td><td style="text-align:right">42</td><td>2026-06-20 08:36:01Z</td><td style="text-align:right">597,560 ms (9m 57s)</td><td style="text-align:right">10,623 ms (10s)</td><td style="text-align:right">5,335,325</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/ssd/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>modules</td><td>xFull</td><td>ssd</td><td style="text-align:right">107</td><td>2026-06-23 01:13:28Z</td><td style="text-align:right">597,940 ms (9m 57s)</td><td style="text-align:right">4,858 ms (4s)</td><td style="text-align:right">14,068,655</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/ssd/xFull/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>textual</td><td>xFull</td><td>ssd</td><td style="text-align:right">43</td><td>2026-06-20 08:46:29Z</td><td style="text-align:right">596,246 ms (9m 56s)</td><td style="text-align:right">-</td><td style="text-align:right">5,548,712</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/ssd/xFull/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>textual</td><td>xFull</td><td>ssd</td><td style="text-align:right">108</td><td>2026-06-23 01:23:39Z</td><td style="text-align:right">599,097 ms (9m 59s)</td><td style="text-align:right">-</td><td style="text-align:right">14,690,760</td><td>jac313_store_005_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/ssd/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 <tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>modules</td><td>xFull</td><td>x7k</td><td style="text-align:right">26</td><td>2026-06-20 06:42:46Z</td><td style="text-align:right">605,515 ms (10m 5s)</td><td style="text-align:right">10,371 ms (10s)</td><td style="text-align:right">5,367,398</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/x7k/xFull/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
@@ -274,12 +274,12 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>textual</td><td>Smoke</td><td>10k</td><td style="text-align:right">5</td><td>2026-06-20 04:38:12Z</td><td style="text-align:right">16,143 ms (16s)</td><td style="text-align:right">-</td><td style="text-align:right">1,118,568</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/10k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>modules</td><td>Smoke</td><td>ssd</td><td style="text-align:right">36</td><td>2026-06-20 08:29:47Z</td><td style="text-align:right">14,934 ms (14s)</td><td style="text-align:right">16,807 ms (16s)</td><td style="text-align:right">1,173,709</td><td>jac313_store_007_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/ssd/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>modules</td><td>Smoke</td><td>ssd</td><td style="text-align:right">101</td><td>2026-06-23 01:09:50Z</td><td style="text-align:right">15,883 ms (15s)</td><td style="text-align:right">7,115 ms (7s)</td><td style="text-align:right">4,716,981</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/ssd/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>textual</td><td>Smoke</td><td>ssd</td><td style="text-align:right">37</td><td>2026-06-20 08:31:03Z</td><td style="text-align:right">14,832 ms (14s)</td><td style="text-align:right">-</td><td style="text-align:right">1,210,654</td><td>jac313_store_005_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/ssd/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>textual</td><td>Smoke</td><td>ssd</td><td style="text-align:right">102</td><td>2026-06-23 01:10:31Z</td><td style="text-align:right">15,832 ms (15s)</td><td style="text-align:right">-</td><td style="text-align:right">4,329,004</td><td>jac313_store_007_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/ssd/Smoke/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 <tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">20</td><td>2026-06-20 06:33:46Z</td><td style="text-align:right">18,097 ms (18s)</td><td style="text-align:right">15,031 ms (15s)</td><td style="text-align:right">1,146,789</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
@@ -300,12 +300,12 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>modules</td><td>xFull</td><td>10k</td><td style="text-align:right">12</td><td>2026-06-20 05:07:16Z</td><td style="text-align:right">564,925 ms (9m 24s)</td><td style="text-align:right">15,080 ms (15s)</td><td style="text-align:right">10,887,316</td><td>jac313_store_007_XS (binary/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/10k/xFull/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>modules</td><td>xFull</td><td>ssd</td><td style="text-align:right">44</td><td>2026-06-20 08:56:29Z</td><td style="text-align:right">567,036 ms (9m 27s)</td><td style="text-align:right">14,780 ms (14s)</td><td style="text-align:right">13,027,619</td><td>jac313_store_007_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/ssd/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>modules</td><td>xFull</td><td>ssd</td><td style="text-align:right">109</td><td>2026-06-23 01:33:40Z</td><td style="text-align:right">590,968 ms (9m 50s)</td><td style="text-align:right">7,214 ms (7s)</td><td style="text-align:right">22,128,790</td><td>jac313_store_005_XS (binary/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/ssd/xFull/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>textual</td><td>xFull</td><td>ssd</td><td style="text-align:right">45</td><td>2026-06-20 09:06:36Z</td><td style="text-align:right">566,466 ms (9m 26s)</td><td style="text-align:right">-</td><td style="text-align:right">12,805,737</td><td>jac313_store_007_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/ssd/xFull/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>textual</td><td>xFull</td><td>ssd</td><td style="text-align:right">110</td><td>2026-06-23 01:43:49Z</td><td style="text-align:right">590,990 ms (9m 50s)</td><td style="text-align:right">-</td><td style="text-align:right">23,807,823</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/ssd/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 <tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>modules</td><td>xFull</td><td>x7k</td><td style="text-align:right">28</td><td>2026-06-20 07:04:19Z</td><td style="text-align:right">571,400 ms (9m 31s)</td><td style="text-align:right">14,828 ms (14s)</td><td style="text-align:right">11,043,866</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/x7k/xFull/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
@@ -326,12 +326,12 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>textual</td><td>Smoke</td><td>10k</td><td style="text-align:right">7</td><td>2026-06-20 04:41:07Z</td><td style="text-align:right">17,647 ms (17s)</td><td style="text-align:right">-</td><td style="text-align:right">803,213</td><td>jac313_store_007_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/10k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>Smoke</td><td>ssd</td><td style="text-align:right">38</td><td>2026-06-20 08:31:22Z</td><td style="text-align:right">16,388 ms (16s)</td><td style="text-align:right">14,377 ms (14s)</td><td style="text-align:right">884,956</td><td>jac313_store_005_TS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>Smoke</td><td>ssd</td><td style="text-align:right">103</td><td>2026-06-23 01:10:49Z</td><td style="text-align:right">16,232 ms (16s)</td><td style="text-align:right">6,862 ms (6s)</td><td style="text-align:right">3,676,471</td><td>jac313_store_005_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>textual</td><td>Smoke</td><td>ssd</td><td style="text-align:right">39</td><td>2026-06-20 08:32:58Z</td><td style="text-align:right">16,337 ms (16s)</td><td style="text-align:right">-</td><td style="text-align:right">824,402</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>textual</td><td>Smoke</td><td>ssd</td><td style="text-align:right">104</td><td>2026-06-23 01:11:40Z</td><td style="text-align:right">16,232 ms (16s)</td><td style="text-align:right">-</td><td style="text-align:right">3,225,806</td><td>jac313_store_007_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/Smoke/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">22</td><td>2026-06-20 06:36:08Z</td><td style="text-align:right">19,601 ms (19s)</td><td style="text-align:right">14,480 ms (14s)</td><td style="text-align:right">767,460</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
@@ -352,12 +352,12 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>textual</td><td>xFull</td><td>10k</td><td style="text-align:right">15</td><td>2026-06-20 05:39:42Z</td><td style="text-align:right">605,446 ms (10m 5s)</td><td style="text-align:right">-</td><td style="text-align:right">6,563,489</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/10k/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>xFull</td><td>ssd</td><td style="text-align:right">46</td><td>2026-06-20 09:16:06Z</td><td style="text-align:right">603,647 ms (10m 3s)</td><td style="text-align:right">14,478 ms (14s)</td><td style="text-align:right">6,276,479</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>xFull</td><td>ssd</td><td style="text-align:right">111</td><td>2026-06-23 01:53:42Z</td><td style="text-align:right">599,147 ms (9m 59s)</td><td style="text-align:right">6,762 ms (6s)</td><td style="text-align:right">15,172,205</td><td>jac313_store_005_XS (sql/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/xFull/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>textual</td><td>xFull</td><td>ssd</td><td style="text-align:right">47</td><td>2026-06-20 09:27:28Z</td><td style="text-align:right">605,486 ms (10m 5s)</td><td style="text-align:right">-</td><td style="text-align:right">6,264,094</td><td>jac313_store_005_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/xFull/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>textual</td><td>xFull</td><td>ssd</td><td style="text-align:right">112</td><td>2026-06-23 02:04:10Z</td><td style="text-align:right">599,451 ms (9m 59s)</td><td style="text-align:right">-</td><td style="text-align:right">17,803,415</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>xFull</td><td>x7k</td><td style="text-align:right">30</td><td>2026-06-20 07:24:50Z</td><td style="text-align:right">610,959 ms (10m 10s)</td><td style="text-align:right">14,278 ms (14s)</td><td style="text-align:right">6,744,908</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/x7k/xFull/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
@@ -378,12 +378,12 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>textual</td><td>Smoke</td><td>10k</td><td style="text-align:right">9</td><td>2026-06-20 04:44:52Z</td><td style="text-align:right">16,139 ms (16s)</td><td style="text-align:right">-</td><td style="text-align:right">1,230,012</td><td>jac313_store_007_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/10k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>Smoke</td><td>ssd</td><td style="text-align:right">40</td><td>2026-06-20 08:33:18Z</td><td style="text-align:right">14,882 ms (14s)</td><td style="text-align:right">25,647 ms (25s)</td><td style="text-align:right">1,182,033</td><td>jac313_store_007_TS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>Smoke</td><td>ssd</td><td style="text-align:right">105</td><td>2026-06-23 01:11:58Z</td><td style="text-align:right">15,932 ms (15s)</td><td style="text-align:right">11,472 ms (11s)</td><td style="text-align:right">4,444,444</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>textual</td><td>Smoke</td><td>ssd</td><td style="text-align:right">41</td><td>2026-06-20 08:35:42Z</td><td style="text-align:right">15,033 ms (15s)</td><td style="text-align:right">-</td><td style="text-align:right">1,349,528</td><td>jac313_store_005_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>textual</td><td>Smoke</td><td>ssd</td><td style="text-align:right">106</td><td>2026-06-23 01:13:10Z</td><td style="text-align:right">15,881 ms (15s)</td><td style="text-align:right">-</td><td style="text-align:right">5,050,505</td><td>jac313_store_005_TS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/Smoke/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">24</td><td>2026-06-20 06:39:05Z</td><td style="text-align:right">17,496 ms (17s)</td><td style="text-align:right">26,103 ms (26s)</td><td style="text-align:right">1,150,748</td><td>jac313_store_007_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
@@ -404,12 +404,12 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>textual</td><td>xFull</td><td>10k</td><td style="text-align:right">17</td><td>2026-06-20 06:02:01Z</td><td style="text-align:right">570,848 ms (9m 30s)</td><td style="text-align:right">-</td><td style="text-align:right">11,085,246</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/10k/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>xFull</td><td>ssd</td><td style="text-align:right">48</td><td>2026-06-20 09:37:36Z</td><td style="text-align:right">569,837 ms (9m 29s)</td><td style="text-align:right">25,751 ms (25s)</td><td style="text-align:right">10,736,526</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>xFull</td><td>ssd</td><td style="text-align:right">113</td><td>2026-06-23 02:14:11Z</td><td style="text-align:right">591,401 ms (9m 51s)</td><td style="text-align:right">11,873 ms (11s)</td><td style="text-align:right">25,001,250</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/xFull/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>textual</td><td>xFull</td><td>ssd</td><td style="text-align:right">49</td><td>2026-06-20 09:49:21Z</td><td style="text-align:right">567,021 ms (9m 27s)</td><td style="text-align:right">-</td><td style="text-align:right">11,087,704</td><td>jac313_store_007_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/xFull/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>textual</td><td>xFull</td><td>ssd</td><td style="text-align:right">114</td><td>2026-06-23 02:24:48Z</td><td style="text-align:right">591,447 ms (9m 51s)</td><td style="text-align:right">-</td><td style="text-align:right">24,281,274</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>xFull</td><td>x7k</td><td style="text-align:right">32</td><td>2026-06-20 07:47:19Z</td><td style="text-align:right">573,784 ms (9m 33s)</td><td style="text-align:right">25,898 ms (25s)</td><td style="text-align:right">10,598,385</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/x7k/xFull/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
@@ -423,9 +423,13 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 
 Benchmark tests 005–008: **run ms**, **peak ops/sec**, and **persist log size** for binary vs jText vs SQL.
 
+_test_006 reports peak ops/sec as **N/A** — it is a tail-reader concurrency/correctness test, not a throughput benchmark, and emits no ops/sec line._
+
 ### almalinux-10.2 · clang (xFull, Debug, run 92)
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
+
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
 
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
@@ -441,18 +445,18 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 | jac313_store_005_XS | on | binary | 774 | 1,730,044 | 8.38 MiB |
 |  |  | jtext | 1,403 | 1,731,692 | 7.44 MiB |
 |  |  | sql | 1,141 | 1,677,486 | 7.13 MiB |
-| jac313_store_006_TS | off | binary | 35,467 | - | 19.81 MiB |
-|  |  | jtext | 35,569 | - | 20.42 MiB |
-|  |  | sql | 34,885 | - | 23.51 MiB |
-| jac313_store_006_TS | on | binary | 39,388 | - | 19.81 MiB |
-|  |  | jtext | 39,934 | - | 20.42 MiB |
-|  |  | sql | 39,379 | - | 23.51 MiB |
-| jac313_store_006_XS | off | binary | 34,523 | - | 19.81 MiB |
-|  |  | jtext | 34,873 | - | 19.96 MiB |
-|  |  | sql | 34,618 | - | 22.64 MiB |
-| jac313_store_006_XS | on | binary | 38,176 | - | 19.81 MiB |
-|  |  | jtext | 38,588 | - | 19.96 MiB |
-|  |  | sql | 38,432 | - | 22.64 MiB |
+| jac313_store_006_TS | off | binary | 35,467 | N/A | 19.81 MiB |
+|  |  | jtext | 35,569 | N/A | 20.42 MiB |
+|  |  | sql | 34,885 | N/A | 23.51 MiB |
+| jac313_store_006_TS | on | binary | 39,388 | N/A | 19.81 MiB |
+|  |  | jtext | 39,934 | N/A | 20.42 MiB |
+|  |  | sql | 39,379 | N/A | 23.51 MiB |
+| jac313_store_006_XS | off | binary | 34,523 | N/A | 19.81 MiB |
+|  |  | jtext | 34,873 | N/A | 19.96 MiB |
+|  |  | sql | 34,618 | N/A | 22.64 MiB |
+| jac313_store_006_XS | on | binary | 38,176 | N/A | 19.81 MiB |
+|  |  | jtext | 38,588 | N/A | 19.96 MiB |
+|  |  | sql | 38,432 | N/A | 22.64 MiB |
 | jac313_store_007_TS | off | binary | 877 | 1,668,363 | 19.82 MiB |
 |  |  | jtext | 3,884 | 1,723,009 | 20.45 MiB |
 |  |  | sql | 1,097 | 1,583,707 | 23.51 MiB |
@@ -470,6 +474,8 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
 | jac313_store_005_TS | off | binary | 410 | 3,096,263 | 8.38 MiB |
@@ -484,18 +490,18 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 | jac313_store_005_XS | on | binary | 411 | 2,577,320 | 8.38 MiB |
 |  |  | jtext | 361 | 2,592,823 | 7.44 MiB |
 |  |  | sql | 827 | 2,588,461 | 7.13 MiB |
-| jac313_store_006_TS | off | binary | 34,731 | - | 19.81 MiB |
-|  |  | jtext | 34,971 | - | 20.41 MiB |
-|  |  | sql | 35,368 | - | 23.50 MiB |
-| jac313_store_006_TS | on | binary | 38,627 | - | 19.81 MiB |
-|  |  | jtext | 38,662 | - | 20.40 MiB |
-|  |  | sql | 39,258 | - | 23.50 MiB |
-| jac313_store_006_XS | off | binary | 34,643 | - | 19.81 MiB |
-|  |  | jtext | 34,588 | - | 19.96 MiB |
-|  |  | sql | 34,368 | - | 22.63 MiB |
-| jac313_store_006_XS | on | binary | 38,110 | - | 19.81 MiB |
-|  |  | jtext | 37,882 | - | 19.96 MiB |
-|  |  | sql | 38,437 | - | 22.63 MiB |
+| jac313_store_006_TS | off | binary | 34,731 | N/A | 19.81 MiB |
+|  |  | jtext | 34,971 | N/A | 20.41 MiB |
+|  |  | sql | 35,368 | N/A | 23.50 MiB |
+| jac313_store_006_TS | on | binary | 38,627 | N/A | 19.81 MiB |
+|  |  | jtext | 38,662 | N/A | 20.40 MiB |
+|  |  | sql | 39,258 | N/A | 23.50 MiB |
+| jac313_store_006_XS | off | binary | 34,643 | N/A | 19.81 MiB |
+|  |  | jtext | 34,588 | N/A | 19.96 MiB |
+|  |  | sql | 34,368 | N/A | 22.63 MiB |
+| jac313_store_006_XS | on | binary | 38,110 | N/A | 19.81 MiB |
+|  |  | jtext | 37,882 | N/A | 19.96 MiB |
+|  |  | sql | 38,437 | N/A | 22.63 MiB |
 | jac313_store_007_TS | off | binary | 504 | 2,942,475 | 19.82 MiB |
 |  |  | jtext | 897 | 2,884,921 | 20.45 MiB |
 |  |  | sql | 792 | 2,780,713 | 23.51 MiB |
@@ -513,6 +519,8 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
 | jac313_store_005_TS | off | binary | 717 | 1,978,866 | 8.38 MiB |
@@ -527,18 +535,18 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 | jac313_store_005_XS | on | binary | 673 | 2,021,264 | 8.38 MiB |
 |  |  | jtext | 1,557 | 2,206,775 | 7.44 MiB |
 |  |  | sql | 976 | 2,211,704 | 7.13 MiB |
-| jac313_store_006_TS | off | binary | 35,385 | - | 19.81 MiB |
-|  |  | jtext | 35,772 | - | 20.42 MiB |
-|  |  | sql | 35,209 | - | 23.50 MiB |
-| jac313_store_006_TS | on | binary | 38,979 | - | 19.81 MiB |
-|  |  | jtext | 39,853 | - | 20.42 MiB |
-|  |  | sql | 39,159 | - | 23.50 MiB |
-| jac313_store_006_XS | off | binary | 34,627 | - | 19.81 MiB |
-|  |  | jtext | 35,099 | - | 19.96 MiB |
-|  |  | sql | 34,582 | - | 22.64 MiB |
-| jac313_store_006_XS | on | binary | 38,116 | - | 19.81 MiB |
-|  |  | jtext | 38,844 | - | 19.96 MiB |
-|  |  | sql | 38,373 | - | 22.64 MiB |
+| jac313_store_006_TS | off | binary | 35,385 | N/A | 19.81 MiB |
+|  |  | jtext | 35,772 | N/A | 20.42 MiB |
+|  |  | sql | 35,209 | N/A | 23.50 MiB |
+| jac313_store_006_TS | on | binary | 38,979 | N/A | 19.81 MiB |
+|  |  | jtext | 39,853 | N/A | 20.42 MiB |
+|  |  | sql | 39,159 | N/A | 23.50 MiB |
+| jac313_store_006_XS | off | binary | 34,627 | N/A | 19.81 MiB |
+|  |  | jtext | 35,099 | N/A | 19.96 MiB |
+|  |  | sql | 34,582 | N/A | 22.64 MiB |
+| jac313_store_006_XS | on | binary | 38,116 | N/A | 19.81 MiB |
+|  |  | jtext | 38,844 | N/A | 19.96 MiB |
+|  |  | sql | 38,373 | N/A | 22.64 MiB |
 | jac313_store_007_TS | off | binary | 825 | 1,835,132 | 19.82 MiB |
 |  |  | jtext | 3,801 | 1,902,334 | 20.45 MiB |
 |  |  | sql | 1,031 | 1,747,122 | 23.52 MiB |
@@ -556,6 +564,8 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
 | jac313_store_005_TS | off | binary | 410 | 2,726,653 | 8.38 MiB |
@@ -570,18 +580,18 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 | jac313_store_005_XS | on | binary | 412 | 2,566,669 | 8.38 MiB |
 |  |  | jtext | 407 | 2,647,954 | 7.44 MiB |
 |  |  | sql | 779 | 3,197,953 | 7.13 MiB |
-| jac313_store_006_TS | off | binary | 35,144 | - | 19.81 MiB |
-|  |  | jtext | 35,337 | - | 20.40 MiB |
-|  |  | sql | 34,957 | - | 23.50 MiB |
-| jac313_store_006_TS | on | binary | 38,962 | - | 19.81 MiB |
-|  |  | jtext | 38,960 | - | 20.40 MiB |
-|  |  | sql | 39,253 | - | 23.50 MiB |
-| jac313_store_006_XS | off | binary | 34,353 | - | 19.81 MiB |
-|  |  | jtext | 34,179 | - | 19.96 MiB |
-|  |  | sql | 34,327 | - | 22.63 MiB |
-| jac313_store_006_XS | on | binary | 37,832 | - | 19.81 MiB |
-|  |  | jtext | 38,181 | - | 19.96 MiB |
-|  |  | sql | 38,212 | - | 22.63 MiB |
+| jac313_store_006_TS | off | binary | 35,144 | N/A | 19.81 MiB |
+|  |  | jtext | 35,337 | N/A | 20.40 MiB |
+|  |  | sql | 34,957 | N/A | 23.50 MiB |
+| jac313_store_006_TS | on | binary | 38,962 | N/A | 19.81 MiB |
+|  |  | jtext | 38,960 | N/A | 20.40 MiB |
+|  |  | sql | 39,253 | N/A | 23.50 MiB |
+| jac313_store_006_XS | off | binary | 34,353 | N/A | 19.81 MiB |
+|  |  | jtext | 34,179 | N/A | 19.96 MiB |
+|  |  | sql | 34,327 | N/A | 22.63 MiB |
+| jac313_store_006_XS | on | binary | 37,832 | N/A | 19.81 MiB |
+|  |  | jtext | 38,181 | N/A | 19.96 MiB |
+|  |  | sql | 38,212 | N/A | 22.63 MiB |
 | jac313_store_007_TS | off | binary | 514 | 3,066,168 | 19.82 MiB |
 |  |  | jtext | 841 | 3,103,470 | 20.44 MiB |
 |  |  | sql | 774 | 2,828,854 | 23.50 MiB |
@@ -599,6 +609,8 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
 | jac313_store_005_TS | off | binary | 804 | 2,029,797 | 8.38 MiB |
@@ -613,18 +625,18 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 | jac313_store_005_XS | on | binary | 755 | 2,126,302 | 8.38 MiB |
 |  |  | jtext | 1,221 | 2,378,970 | 7.44 MiB |
 |  |  | sql | 1,060 | 2,008,032 | 7.13 MiB |
-| jac313_store_006_TS | off | binary | 34,234 | - | 19.81 MiB |
-|  |  | jtext | 34,533 | - | 20.42 MiB |
-|  |  | sql | 34,286 | - | 23.50 MiB |
-| jac313_store_006_TS | on | binary | 38,061 | - | 19.81 MiB |
-|  |  | jtext | 38,356 | - | 20.42 MiB |
-|  |  | sql | 38,407 | - | 23.50 MiB |
-| jac313_store_006_XS | off | binary | 33,682 | - | 19.81 MiB |
-|  |  | jtext | 34,161 | - | 19.96 MiB |
-|  |  | sql | 33,633 | - | 22.64 MiB |
-| jac313_store_006_XS | on | binary | 37,052 | - | 19.81 MiB |
-|  |  | jtext | 37,424 | - | 19.96 MiB |
-|  |  | sql | 37,357 | - | 22.64 MiB |
+| jac313_store_006_TS | off | binary | 34,234 | N/A | 19.81 MiB |
+|  |  | jtext | 34,533 | N/A | 20.42 MiB |
+|  |  | sql | 34,286 | N/A | 23.50 MiB |
+| jac313_store_006_TS | on | binary | 38,061 | N/A | 19.81 MiB |
+|  |  | jtext | 38,356 | N/A | 20.42 MiB |
+|  |  | sql | 38,407 | N/A | 23.50 MiB |
+| jac313_store_006_XS | off | binary | 33,682 | N/A | 19.81 MiB |
+|  |  | jtext | 34,161 | N/A | 19.96 MiB |
+|  |  | sql | 33,633 | N/A | 22.64 MiB |
+| jac313_store_006_XS | on | binary | 37,052 | N/A | 19.81 MiB |
+|  |  | jtext | 37,424 | N/A | 19.96 MiB |
+|  |  | sql | 37,357 | N/A | 22.64 MiB |
 | jac313_store_007_TS | off | binary | 820 | 2,029,138 | 19.82 MiB |
 |  |  | jtext | 3,467 | 2,120,621 | 20.45 MiB |
 |  |  | sql | 962 | 1,994,654 | 23.51 MiB |
@@ -642,6 +654,8 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
 | jac313_store_005_TS | off | binary | 404 | 4,052,356 | 8.38 MiB |
@@ -656,18 +670,18 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 | jac313_store_005_XS | on | binary | 406 | 3,286,879 | 8.38 MiB |
 |  |  | jtext | 353 | 3,454,828 | 7.44 MiB |
 |  |  | sql | 806 | 3,449,346 | 7.13 MiB |
-| jac313_store_006_TS | off | binary | 34,091 | - | 19.81 MiB |
-|  |  | jtext | 33,938 | - | 20.40 MiB |
-|  |  | sql | 33,935 | - | 23.51 MiB |
-| jac313_store_006_TS | on | binary | 37,856 | - | 19.81 MiB |
-|  |  | jtext | 37,807 | - | 20.40 MiB |
-|  |  | sql | 38,161 | - | 23.51 MiB |
-| jac313_store_006_XS | off | binary | 33,425 | - | 19.81 MiB |
-|  |  | jtext | 33,278 | - | 19.96 MiB |
-|  |  | sql | 33,335 | - | 22.63 MiB |
-| jac313_store_006_XS | on | binary | 36,752 | - | 19.81 MiB |
-|  |  | jtext | 36,695 | - | 19.96 MiB |
-|  |  | sql | 37,100 | - | 22.63 MiB |
+| jac313_store_006_TS | off | binary | 34,091 | N/A | 19.81 MiB |
+|  |  | jtext | 33,938 | N/A | 20.40 MiB |
+|  |  | sql | 33,935 | N/A | 23.51 MiB |
+| jac313_store_006_TS | on | binary | 37,856 | N/A | 19.81 MiB |
+|  |  | jtext | 37,807 | N/A | 20.40 MiB |
+|  |  | sql | 38,161 | N/A | 23.51 MiB |
+| jac313_store_006_XS | off | binary | 33,425 | N/A | 19.81 MiB |
+|  |  | jtext | 33,278 | N/A | 19.96 MiB |
+|  |  | sql | 33,335 | N/A | 22.63 MiB |
+| jac313_store_006_XS | on | binary | 36,752 | N/A | 19.81 MiB |
+|  |  | jtext | 36,695 | N/A | 19.96 MiB |
+|  |  | sql | 37,100 | N/A | 22.63 MiB |
 | jac313_store_007_TS | off | binary | 552 | 3,630,159 | 19.82 MiB |
 |  |  | jtext | 706 | 3,566,970 | 20.44 MiB |
 |  |  | sql | 803 | 3,861,600 | 23.51 MiB |
@@ -685,6 +699,8 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
 | jac313_store_005_TS | off | binary | 656 | 2,651,324 | 8.38 MiB |
@@ -699,18 +715,18 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 | jac313_store_005_XS | on | binary | 602 | 2,767,094 | 8.38 MiB |
 |  |  | jtext | 1,455 | 2,912,310 | 7.44 MiB |
 |  |  | sql | 1,054 | 2,944,641 | 7.13 MiB |
-| jac313_store_006_TS | off | binary | 34,283 | - | 19.81 MiB |
-|  |  | jtext | 34,534 | - | 20.42 MiB |
-|  |  | sql | 34,138 | - | 23.50 MiB |
-| jac313_store_006_TS | on | binary | 37,757 | - | 19.81 MiB |
-|  |  | jtext | 38,357 | - | 20.42 MiB |
-|  |  | sql | 38,357 | - | 23.50 MiB |
-| jac313_store_006_XS | off | binary | 33,631 | - | 19.81 MiB |
-|  |  | jtext | 34,179 | - | 19.96 MiB |
-|  |  | sql | 33,633 | - | 22.64 MiB |
-| jac313_store_006_XS | on | binary | 37,055 | - | 19.81 MiB |
-|  |  | jtext | 37,360 | - | 19.96 MiB |
-|  |  | sql | 37,404 | - | 22.64 MiB |
+| jac313_store_006_TS | off | binary | 34,283 | N/A | 19.81 MiB |
+|  |  | jtext | 34,534 | N/A | 20.42 MiB |
+|  |  | sql | 34,138 | N/A | 23.50 MiB |
+| jac313_store_006_TS | on | binary | 37,757 | N/A | 19.81 MiB |
+|  |  | jtext | 38,357 | N/A | 20.42 MiB |
+|  |  | sql | 38,357 | N/A | 23.50 MiB |
+| jac313_store_006_XS | off | binary | 33,631 | N/A | 19.81 MiB |
+|  |  | jtext | 34,179 | N/A | 19.96 MiB |
+|  |  | sql | 33,633 | N/A | 22.64 MiB |
+| jac313_store_006_XS | on | binary | 37,055 | N/A | 19.81 MiB |
+|  |  | jtext | 37,360 | N/A | 19.96 MiB |
+|  |  | sql | 37,404 | N/A | 22.64 MiB |
 | jac313_store_007_TS | off | binary | 703 | 2,636,088 | 19.82 MiB |
 |  |  | jtext | 4,070 | 2,318,841 | 20.45 MiB |
 |  |  | sql | 957 | 2,359,381 | 23.51 MiB |
@@ -728,6 +744,8 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
 | jac313_store_005_TS | off | binary | 402 | 3,948,200 | 8.38 MiB |
@@ -742,18 +760,18 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 | jac313_store_005_XS | on | binary | 460 | 3,030,487 | 8.38 MiB |
 |  |  | jtext | 402 | 3,733,294 | 7.44 MiB |
 |  |  | sql | 758 | 4,332,380 | 7.13 MiB |
-| jac313_store_006_TS | off | binary | 34,045 | - | 19.81 MiB |
-|  |  | jtext | 33,891 | - | 20.40 MiB |
-|  |  | sql | 33,939 | - | 23.49 MiB |
-| jac313_store_006_TS | on | binary | 37,668 | - | 19.81 MiB |
-|  |  | jtext | 37,759 | - | 20.40 MiB |
-|  |  | sql | 38,060 | - | 23.49 MiB |
-| jac313_store_006_XS | off | binary | 33,385 | - | 19.81 MiB |
-|  |  | jtext | 33,344 | - | 19.96 MiB |
-|  |  | sql | 33,290 | - | 22.63 MiB |
-| jac313_store_006_XS | on | binary | 36,843 | - | 19.81 MiB |
-|  |  | jtext | 36,707 | - | 19.96 MiB |
-|  |  | sql | 36,962 | - | 22.63 MiB |
+| jac313_store_006_TS | off | binary | 34,045 | N/A | 19.81 MiB |
+|  |  | jtext | 33,891 | N/A | 20.40 MiB |
+|  |  | sql | 33,939 | N/A | 23.49 MiB |
+| jac313_store_006_TS | on | binary | 37,668 | N/A | 19.81 MiB |
+|  |  | jtext | 37,759 | N/A | 20.40 MiB |
+|  |  | sql | 38,060 | N/A | 23.49 MiB |
+| jac313_store_006_XS | off | binary | 33,385 | N/A | 19.81 MiB |
+|  |  | jtext | 33,344 | N/A | 19.96 MiB |
+|  |  | sql | 33,290 | N/A | 22.63 MiB |
+| jac313_store_006_XS | on | binary | 36,843 | N/A | 19.81 MiB |
+|  |  | jtext | 36,707 | N/A | 19.96 MiB |
+|  |  | sql | 36,962 | N/A | 22.63 MiB |
 | jac313_store_007_TS | off | binary | 502 | 4,349,150 | 19.82 MiB |
 |  |  | jtext | 753 | 3,700,825 | 20.44 MiB |
 |  |  | sql | 706 | 3,977,092 | 23.51 MiB |
@@ -771,6 +789,8 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
 | jac313_store_005_TS | off | binary | 943 | 838,019 | 8.38 MiB |
@@ -785,18 +805,18 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 | jac313_store_005_XS | on | binary | 932 | 810,104 | 8.38 MiB |
 |  |  | jtext | 1,545 | 931,263 | 7.44 MiB |
 |  |  | sql | 1,331 | 1,074,622 | 7.12 MiB |
-| jac313_store_006_TS | off | binary | 34,211 | - | 19.81 MiB |
-|  |  | jtext | 34,815 | - | 20.42 MiB |
-|  |  | sql | 34,276 | - | 23.46 MiB |
-| jac313_store_006_TS | on | binary | 38,078 | - | 19.81 MiB |
-|  |  | jtext | 38,440 | - | 20.42 MiB |
-|  |  | sql | 38,539 | - | 23.46 MiB |
-| jac313_store_006_XS | off | binary | 33,635 | - | 19.81 MiB |
-|  |  | jtext | 34,254 | - | 19.96 MiB |
-|  |  | sql | 33,632 | - | 22.61 MiB |
-| jac313_store_006_XS | on | binary | 37,139 | - | 19.81 MiB |
-|  |  | jtext | 37,361 | - | 19.96 MiB |
-|  |  | sql | 37,598 | - | 22.61 MiB |
+| jac313_store_006_TS | off | binary | 34,211 | N/A | 19.81 MiB |
+|  |  | jtext | 34,815 | N/A | 20.42 MiB |
+|  |  | sql | 34,276 | N/A | 23.46 MiB |
+| jac313_store_006_TS | on | binary | 38,078 | N/A | 19.81 MiB |
+|  |  | jtext | 38,440 | N/A | 20.42 MiB |
+|  |  | sql | 38,539 | N/A | 23.46 MiB |
+| jac313_store_006_XS | off | binary | 33,635 | N/A | 19.81 MiB |
+|  |  | jtext | 34,254 | N/A | 19.96 MiB |
+|  |  | sql | 33,632 | N/A | 22.61 MiB |
+| jac313_store_006_XS | on | binary | 37,139 | N/A | 19.81 MiB |
+|  |  | jtext | 37,361 | N/A | 19.96 MiB |
+|  |  | sql | 37,598 | N/A | 22.61 MiB |
 | jac313_store_007_TS | off | binary | 1,055 | 855,242 | 19.82 MiB |
 |  |  | jtext | 3,431 | 908,785 | 20.45 MiB |
 |  |  | sql | 1,132 | 878,464 | 23.48 MiB |
@@ -814,6 +834,8 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
 | jac313_store_005_TS | off | binary | 437 | 2,555,453 | 8.38 MiB |
@@ -828,18 +850,18 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 | jac313_store_005_XS | on | binary | 410 | 2,502,377 | 8.38 MiB |
 |  |  | jtext | 352 | 3,258,815 | 7.44 MiB |
 |  |  | sql | 870 | 2,477,210 | 7.12 MiB |
-| jac313_store_006_TS | off | binary | 33,935 | - | 19.81 MiB |
-|  |  | jtext | 33,963 | - | 20.40 MiB |
-|  |  | sql | 33,926 | - | 23.47 MiB |
-| jac313_store_006_TS | on | binary | 37,704 | - | 19.81 MiB |
-|  |  | jtext | 37,800 | - | 20.39 MiB |
-|  |  | sql | 38,290 | - | 23.47 MiB |
-| jac313_store_006_XS | off | binary | 33,314 | - | 19.81 MiB |
-|  |  | jtext | 33,403 | - | 19.96 MiB |
-|  |  | sql | 33,366 | - | 22.62 MiB |
-| jac313_store_006_XS | on | binary | 36,785 | - | 19.81 MiB |
-|  |  | jtext | 36,789 | - | 19.96 MiB |
-|  |  | sql | 37,246 | - | 22.62 MiB |
+| jac313_store_006_TS | off | binary | 33,935 | N/A | 19.81 MiB |
+|  |  | jtext | 33,963 | N/A | 20.40 MiB |
+|  |  | sql | 33,926 | N/A | 23.47 MiB |
+| jac313_store_006_TS | on | binary | 37,704 | N/A | 19.81 MiB |
+|  |  | jtext | 37,800 | N/A | 20.39 MiB |
+|  |  | sql | 38,290 | N/A | 23.47 MiB |
+| jac313_store_006_XS | off | binary | 33,314 | N/A | 19.81 MiB |
+|  |  | jtext | 33,403 | N/A | 19.96 MiB |
+|  |  | sql | 33,366 | N/A | 22.62 MiB |
+| jac313_store_006_XS | on | binary | 36,785 | N/A | 19.81 MiB |
+|  |  | jtext | 36,789 | N/A | 19.96 MiB |
+|  |  | sql | 37,246 | N/A | 22.62 MiB |
 | jac313_store_007_TS | off | binary | 615 | 2,079,564 | 19.82 MiB |
 |  |  | jtext | 889 | 2,383,790 | 20.45 MiB |
 |  |  | sql | 940 | 1,652,046 | 23.48 MiB |
@@ -857,6 +879,8 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
 | jac313_store_005_TS | off | binary | 830 | 1,281,312 | 8.38 MiB |
@@ -871,18 +895,18 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 | jac313_store_005_XS | on | binary | 793 | 1,133,144 | 8.38 MiB |
 |  |  | jtext | 1,746 | 1,070,469 | 7.44 MiB |
 |  |  | sql | 1,262 | 1,102,013 | 7.13 MiB |
-| jac313_store_006_TS | off | binary | 34,155 | - | 19.81 MiB |
-|  |  | jtext | 34,478 | - | 20.42 MiB |
-|  |  | sql | 34,268 | - | 23.48 MiB |
-| jac313_store_006_TS | on | binary | 37,986 | - | 19.81 MiB |
-|  |  | jtext | 38,435 | - | 20.41 MiB |
-|  |  | sql | 38,534 | - | 23.48 MiB |
-| jac313_store_006_XS | off | binary | 33,593 | - | 19.81 MiB |
-|  |  | jtext | 34,050 | - | 19.96 MiB |
-|  |  | sql | 33,509 | - | 22.62 MiB |
-| jac313_store_006_XS | on | binary | 37,245 | - | 19.81 MiB |
-|  |  | jtext | 37,338 | - | 19.96 MiB |
-|  |  | sql | 37,533 | - | 22.62 MiB |
+| jac313_store_006_TS | off | binary | 34,155 | N/A | 19.81 MiB |
+|  |  | jtext | 34,478 | N/A | 20.42 MiB |
+|  |  | sql | 34,268 | N/A | 23.48 MiB |
+| jac313_store_006_TS | on | binary | 37,986 | N/A | 19.81 MiB |
+|  |  | jtext | 38,435 | N/A | 20.41 MiB |
+|  |  | sql | 38,534 | N/A | 23.48 MiB |
+| jac313_store_006_XS | off | binary | 33,593 | N/A | 19.81 MiB |
+|  |  | jtext | 34,050 | N/A | 19.96 MiB |
+|  |  | sql | 33,509 | N/A | 22.62 MiB |
+| jac313_store_006_XS | on | binary | 37,245 | N/A | 19.81 MiB |
+|  |  | jtext | 37,338 | N/A | 19.96 MiB |
+|  |  | sql | 37,533 | N/A | 22.62 MiB |
 | jac313_store_007_TS | off | binary | 919 | 1,303,696 | 19.82 MiB |
 |  |  | jtext | 4,121 | 1,160,685 | 20.45 MiB |
 |  |  | sql | 1,222 | 1,016,291 | 23.49 MiB |
@@ -900,6 +924,8 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
 | jac313_store_005_TS | off | binary | 460 | 2,532,928 | 8.38 MiB |
@@ -914,18 +940,18 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 | jac313_store_005_XS | on | binary | 509 | 2,562,657 | 8.38 MiB |
 |  |  | jtext | 416 | 1,596,857 | 7.44 MiB |
 |  |  | sql | 870 | 2,702,995 | 7.12 MiB |
-| jac313_store_006_TS | off | binary | 33,924 | - | 19.81 MiB |
-|  |  | jtext | 34,021 | - | 20.38 MiB |
-|  |  | sql | 33,900 | - | 23.47 MiB |
-| jac313_store_006_TS | on | binary | 37,753 | - | 19.81 MiB |
-|  |  | jtext | 37,848 | - | 20.38 MiB |
-|  |  | sql | 38,164 | - | 23.47 MiB |
-| jac313_store_006_XS | off | binary | 33,226 | - | 19.81 MiB |
-|  |  | jtext | 33,377 | - | 19.96 MiB |
-|  |  | sql | 33,366 | - | 22.62 MiB |
-| jac313_store_006_XS | on | binary | 36,874 | - | 19.81 MiB |
-|  |  | jtext | 36,834 | - | 19.96 MiB |
-|  |  | sql | 37,267 | - | 22.62 MiB |
+| jac313_store_006_TS | off | binary | 33,924 | N/A | 19.81 MiB |
+|  |  | jtext | 34,021 | N/A | 20.38 MiB |
+|  |  | sql | 33,900 | N/A | 23.47 MiB |
+| jac313_store_006_TS | on | binary | 37,753 | N/A | 19.81 MiB |
+|  |  | jtext | 37,848 | N/A | 20.38 MiB |
+|  |  | sql | 38,164 | N/A | 23.47 MiB |
+| jac313_store_006_XS | off | binary | 33,226 | N/A | 19.81 MiB |
+|  |  | jtext | 33,377 | N/A | 19.96 MiB |
+|  |  | sql | 33,366 | N/A | 22.62 MiB |
+| jac313_store_006_XS | on | binary | 36,874 | N/A | 19.81 MiB |
+|  |  | jtext | 36,834 | N/A | 19.96 MiB |
+|  |  | sql | 37,267 | N/A | 22.62 MiB |
 | jac313_store_007_TS | off | binary | 557 | 2,205,655 | 19.82 MiB |
 |  |  | jtext | 821 | 2,214,251 | 20.45 MiB |
 |  |  | sql | 709 | 2,225,734 | 23.49 MiB |
@@ -939,177 +965,185 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 |  |  | jtext | 812 | 2,204,488 | 19.98 MiB |
 |  |  | sql | 1,720 | 3,006,615 | 22.61 MiB |
 
-### rhel-9.8 · clang (xFull, Debug, run 43)
+### rhel-9.8 · clang (xFull, Debug, run 108)
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
-| jac313_store_005_TS | off | binary | 451 | 4,448,399 | 8.38 MiB |
-|  |  | jtext | 1,503 | 4,535,970 | 7.91 MiB |
-|  |  | sql | 451 | 4,475,074 | 7.42 MiB |
-| jac313_store_005_TS | on | binary | 501 | 4,668,098 | 8.38 MiB |
-|  |  | jtext | 1,202 | 4,402,765 | 7.91 MiB |
-|  |  | sql | 551 | 4,397,924 | 7.42 MiB |
-| jac313_store_005_XS | off | binary | 451 | 5,120,590 | 8.38 MiB |
-|  |  | jtext | 1,302 | 4,593,477 | 7.44 MiB |
-|  |  | sql | 451 | 4,586,525 | 7.13 MiB |
-| jac313_store_005_XS | on | binary | 501 | 4,576,659 | 8.38 MiB |
-|  |  | jtext | 1,052 | 4,470,672 | 7.44 MiB |
-|  |  | sql | 551 | 4,511,414 | 7.13 MiB |
-| jac313_store_006_TS | off | binary | 32,084 | - | 19.81 MiB |
-|  |  | jtext | 32,686 | - | 20.40 MiB |
-|  |  | sql | 32,135 | - | 23.48 MiB |
-| jac313_store_006_TS | on | binary | 35,599 | - | 19.81 MiB |
-|  |  | jtext | 35,950 | - | 20.40 MiB |
-|  |  | sql | 35,749 | - | 23.48 MiB |
-| jac313_store_006_XS | off | binary | 31,429 | - | 19.81 MiB |
-|  |  | jtext | 31,731 | - | 19.96 MiB |
-|  |  | sql | 31,482 | - | 22.64 MiB |
-| jac313_store_006_XS | on | binary | 34,744 | - | 19.81 MiB |
-|  |  | jtext | 35,042 | - | 19.96 MiB |
-|  |  | sql | 34,797 | - | 22.64 MiB |
-| jac313_store_007_TS | off | binary | 501 | 4,518,549 | 19.82 MiB |
-|  |  | jtext | 3,357 | 4,379,434 | 20.45 MiB |
-|  |  | sql | 852 | 4,535,970 | 23.51 MiB |
-| jac313_store_007_TS | on | binary | 551 | 4,462,891 | 19.82 MiB |
-|  |  | jtext | 3,104 | 4,867,838 | 20.44 MiB |
-|  |  | sql | 1,152 | 4,342,728 | 23.51 MiB |
-| jac313_store_007_XS | off | binary | 451 | 4,767,580 | 19.82 MiB |
-|  |  | jtext | 3,006 | 4,419,890 | 19.98 MiB |
-|  |  | sql | 751 | 4,492,969 | 22.66 MiB |
-| jac313_store_007_XS | on | binary | 451 | 4,643,388 | 19.82 MiB |
-|  |  | jtext | 3,057 | 5,212,949 | 19.98 MiB |
-|  |  | sql | 952 | 4,643,388 | 22.66 MiB |
+| jac313_store_005_TS | off | binary | 150 | 11,625,203 | 8.38 MiB |
+|  |  | jtext | 350 | 10,765,421 | 7.82 MiB |
+|  |  | sql | 150 | 11,258,726 | 7.42 MiB |
+| jac313_store_005_TS | on | binary | 150 | 9,507,511 | 8.38 MiB |
+|  |  | jtext | 351 | 12,410,027 | 7.82 MiB |
+|  |  | sql | 150 | 9,844,458 | 7.42 MiB |
+| jac313_store_005_XS | off | binary | 150 | 10,566,357 | 8.38 MiB |
+|  |  | jtext | 351 | 12,059,817 | 7.44 MiB |
+|  |  | sql | 150 | 11,101,243 | 7.13 MiB |
+| jac313_store_005_XS | on | binary | 150 | 11,896,265 | 8.38 MiB |
+|  |  | jtext | 401 | 9,546,539 | 7.44 MiB |
+|  |  | sql | 150 | 10,548,523 | 7.13 MiB |
+| jac313_store_006_TS | off | binary | 33,654 | N/A | 19.81 MiB |
+|  |  | jtext | 33,812 | N/A | 20.34 MiB |
+|  |  | sql | 33,762 | N/A | 23.39 MiB |
+| jac313_store_006_TS | on | binary | 37,530 | N/A | 19.81 MiB |
+|  |  | jtext | 37,631 | N/A | 20.33 MiB |
+|  |  | sql | 37,561 | N/A | 23.39 MiB |
+| jac313_store_006_XS | off | binary | 33,107 | N/A | 19.81 MiB |
+|  |  | jtext | 33,212 | N/A | 19.96 MiB |
+|  |  | sql | 33,155 | N/A | 22.65 MiB |
+| jac313_store_006_XS | on | binary | 36,571 | N/A | 19.81 MiB |
+|  |  | jtext | 36,575 | N/A | 19.96 MiB |
+|  |  | sql | 36,626 | N/A | 22.65 MiB |
+| jac313_store_007_TS | off | binary | 150 | 12,716,175 | 19.82 MiB |
+|  |  | jtext | 1,002 | 9,742,790 | 20.37 MiB |
+|  |  | sql | 250 | 10,938,525 | 23.52 MiB |
+| jac313_store_007_TS | on | binary | 150 | 10,110,201 | 19.82 MiB |
+|  |  | jtext | 1,003 | 10,275,380 | 20.37 MiB |
+|  |  | sql | 351 | 9,011,445 | 23.52 MiB |
+| jac313_store_007_XS | off | binary | 150 | 11,104,942 | 19.82 MiB |
+|  |  | jtext | 1,002 | 10,772,380 | 19.98 MiB |
+|  |  | sql | 250 | 9,604,303 | 22.66 MiB |
+| jac313_store_007_XS | on | binary | 150 | 11,354,604 | 19.82 MiB |
+|  |  | jtext | 1,002 | 10,047,222 | 19.98 MiB |
+|  |  | sql | 351 | 11,432,491 | 22.66 MiB |
 
-### rhel-9.8 · clang (xFull, Release, run 45)
+### rhel-9.8 · clang (xFull, Release, run 110)
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
-| jac313_store_005_TS | off | binary | 200 | 8,648,275 | 8.38 MiB |
-|  |  | jtext | 300 | 7,107,321 | 7.86 MiB |
-|  |  | sql | 250 | 6,559,958 | 7.43 MiB |
-| jac313_store_005_TS | on | binary | 251 | 6,729,022 | 8.38 MiB |
-|  |  | jtext | 300 | 8,231,808 | 7.85 MiB |
-|  |  | sql | 401 | 8,522,969 | 7.43 MiB |
-| jac313_store_005_XS | off | binary | 200 | 7,728,573 | 8.38 MiB |
-|  |  | jtext | 300 | 10,167,768 | 7.44 MiB |
-|  |  | sql | 250 | 7,466,587 | 7.13 MiB |
-| jac313_store_005_XS | on | binary | 200 | 7,666,360 | 8.38 MiB |
-|  |  | jtext | 250 | 7,798,487 | 7.44 MiB |
-|  |  | sql | 351 | 7,918,283 | 7.13 MiB |
-| jac313_store_006_TS | off | binary | 31,788 | - | 19.81 MiB |
-|  |  | jtext | 31,835 | - | 20.36 MiB |
-|  |  | sql | 31,833 | - | 23.46 MiB |
-| jac313_store_006_TS | on | binary | 35,348 | - | 19.81 MiB |
-|  |  | jtext | 35,452 | - | 20.36 MiB |
-|  |  | sql | 35,449 | - | 23.46 MiB |
-| jac313_store_006_XS | off | binary | 31,231 | - | 19.81 MiB |
-|  |  | jtext | 31,280 | - | 19.96 MiB |
-|  |  | sql | 30,681 | - | 22.64 MiB |
-| jac313_store_006_XS | on | binary | 34,496 | - | 19.81 MiB |
-|  |  | jtext | 34,496 | - | 19.96 MiB |
-|  |  | sql | 34,054 | - | 22.64 MiB |
-| jac313_store_007_TS | off | binary | 250 | 9,328,358 | 19.82 MiB |
-|  |  | jtext | 802 | 9,379,983 | 20.39 MiB |
-|  |  | sql | 551 | 6,802,258 | 23.52 MiB |
-| jac313_store_007_TS | on | binary | 301 | 6,601,096 | 19.82 MiB |
-|  |  | jtext | 651 | 8,937,349 | 20.39 MiB |
-|  |  | sql | 902 | 6,766,358 | 23.52 MiB |
-| jac313_store_007_XS | off | binary | 250 | 8,210,181 | 19.82 MiB |
-|  |  | jtext | 752 | 7,802,747 | 19.98 MiB |
-|  |  | sql | 601 | 8,067,118 | 22.65 MiB |
-| jac313_store_007_XS | on | binary | 250 | 7,961,783 | 19.82 MiB |
-|  |  | jtext | 701 | 8,169,267 | 19.98 MiB |
-|  |  | sql | 802 | 7,221,259 | 22.65 MiB |
+| jac313_store_005_TS | off | binary | 100 | 19,238,169 | 8.38 MiB |
+|  |  | jtext | 100 | 19,700,552 | 7.82 MiB |
+|  |  | sql | 100 | 18,796,992 | 7.38 MiB |
+| jac313_store_005_TS | on | binary | 100 | 18,730,099 | 8.38 MiB |
+|  |  | jtext | 100 | 19,813,751 | 7.82 MiB |
+|  |  | sql | 150 | 15,842,839 | 7.38 MiB |
+| jac313_store_005_XS | off | binary | 101 | 19,252,984 | 8.38 MiB |
+|  |  | jtext | 100 | 14,384,350 | 7.44 MiB |
+|  |  | sql | 100 | 15,701,052 | 7.13 MiB |
+| jac313_store_005_XS | on | binary | 100 | 18,525,380 | 8.38 MiB |
+|  |  | jtext | 100 | 13,585,111 | 7.44 MiB |
+|  |  | sql | 150 | 15,681,355 | 7.13 MiB |
+| jac313_store_006_TS | off | binary | 33,613 | N/A | 19.81 MiB |
+|  |  | jtext | 33,708 | N/A | 20.32 MiB |
+|  |  | sql | 33,711 | N/A | 23.29 MiB |
+| jac313_store_006_TS | on | binary | 37,424 | N/A | 19.81 MiB |
+|  |  | jtext | 37,524 | N/A | 20.32 MiB |
+|  |  | sql | 37,522 | N/A | 23.29 MiB |
+| jac313_store_006_XS | off | binary | 33,009 | N/A | 19.81 MiB |
+|  |  | jtext | 33,107 | N/A | 19.96 MiB |
+|  |  | sql | 33,113 | N/A | 22.63 MiB |
+| jac313_store_006_XS | on | binary | 36,527 | N/A | 19.81 MiB |
+|  |  | jtext | 36,524 | N/A | 19.96 MiB |
+|  |  | sql | 36,419 | N/A | 22.63 MiB |
+| jac313_store_007_TS | off | binary | 100 | 14,731,880 | 19.82 MiB |
+|  |  | jtext | 200 | 20,408,163 | 20.36 MiB |
+|  |  | sql | 200 | 20,296,326 | 23.44 MiB |
+| jac313_store_007_TS | on | binary | 100 | 17,905,103 | 19.82 MiB |
+|  |  | jtext | 200 | 21,819,769 | 20.36 MiB |
+|  |  | sql | 250 | 15,076,134 | 23.44 MiB |
+| jac313_store_007_XS | off | binary | 100 | 21,724,962 | 19.82 MiB |
+|  |  | jtext | 200 | 14,518,002 | 19.98 MiB |
+|  |  | sql | 200 | 20,907,380 | 22.64 MiB |
+| jac313_store_007_XS | on | binary | 100 | 21,953,897 | 19.82 MiB |
+|  |  | jtext | 200 | 16,307,893 | 19.98 MiB |
+|  |  | sql | 250 | 19,758,941 | 22.64 MiB |
 
-### rhel-9.8 · gcc15 (xFull, Debug, run 47)
+### rhel-9.8 · gcc15 (xFull, Debug, run 112)
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
-| jac313_store_005_TS | off | binary | 451 | 5,064,573 | 8.38 MiB |
-|  |  | jtext | 1,403 | 5,443,066 | 7.91 MiB |
-|  |  | sql | 451 | 5,601,927 | 7.42 MiB |
-| jac313_store_005_TS | on | binary | 451 | 5,652,592 | 8.38 MiB |
-|  |  | jtext | 1,403 | 5,307,011 | 7.91 MiB |
-|  |  | sql | 501 | 4,345,370 | 7.42 MiB |
-| jac313_store_005_XS | off | binary | 501 | 5,006,508 | 8.38 MiB |
-|  |  | jtext | 1,252 | 5,288,487 | 7.44 MiB |
-|  |  | sql | 451 | 5,564,211 | 7.13 MiB |
-| jac313_store_005_XS | on | binary | 451 | 5,242,189 | 8.38 MiB |
-|  |  | jtext | 1,454 | 5,928,034 | 7.44 MiB |
-|  |  | sql | 501 | 5,402,485 | 7.13 MiB |
-| jac313_store_006_TS | off | binary | 32,065 | - | 19.81 MiB |
-|  |  | jtext | 32,334 | - | 20.41 MiB |
-|  |  | sql | 32,187 | - | 23.47 MiB |
-| jac313_store_006_TS | on | binary | 35,701 | - | 19.81 MiB |
-|  |  | jtext | 36,275 | - | 20.41 MiB |
-|  |  | sql | 35,851 | - | 23.47 MiB |
-| jac313_store_006_XS | off | binary | 31,481 | - | 19.81 MiB |
-|  |  | jtext | 32,083 | - | 19.96 MiB |
-|  |  | sql | 31,482 | - | 22.64 MiB |
-| jac313_store_006_XS | on | binary | 34,694 | - | 19.81 MiB |
-|  |  | jtext | 34,997 | - | 19.96 MiB |
-|  |  | sql | 34,899 | - | 22.64 MiB |
-| jac313_store_007_TS | off | binary | 551 | 4,471,472 | 19.82 MiB |
-|  |  | jtext | 3,959 | 5,130,047 | 20.44 MiB |
-|  |  | sql | 801 | 4,812,783 | 23.51 MiB |
-| jac313_store_007_TS | on | binary | 551 | 5,550,930 | 19.82 MiB |
-|  |  | jtext | 3,859 | 4,480,688 | 20.44 MiB |
-|  |  | sql | 1,252 | 5,112,213 | 23.51 MiB |
-| jac313_store_007_XS | off | binary | 501 | 4,877,811 | 19.82 MiB |
-|  |  | jtext | 4,408 | 5,182,690 | 19.98 MiB |
-|  |  | sql | 852 | 5,669,256 | 22.66 MiB |
-| jac313_store_007_XS | on | binary | 451 | 5,141,388 | 19.82 MiB |
-|  |  | jtext | 5,061 | 5,400,734 | 19.98 MiB |
-|  |  | sql | 1,503 | 5,232,589 | 22.66 MiB |
+| jac313_store_005_TS | off | binary | 150 | 14,417,532 | 8.38 MiB |
+|  |  | jtext | 400 | 11,761,938 | 7.83 MiB |
+|  |  | sql | 150 | 11,592,859 | 7.42 MiB |
+| jac313_store_005_TS | on | binary | 150 | 9,544,717 | 8.38 MiB |
+|  |  | jtext | 401 | 14,064,698 | 7.82 MiB |
+|  |  | sql | 200 | 12,825,446 | 7.42 MiB |
+| jac313_store_005_XS | off | binary | 150 | 15,728,216 | 8.38 MiB |
+|  |  | jtext | 401 | 11,270,145 | 7.44 MiB |
+|  |  | sql | 150 | 14,889,815 | 7.13 MiB |
+| jac313_store_005_XS | on | binary | 150 | 15,236,934 | 8.38 MiB |
+|  |  | jtext | 401 | 12,987,013 | 7.44 MiB |
+|  |  | sql | 200 | 15,316,281 | 7.13 MiB |
+| jac313_store_006_TS | off | binary | 33,701 | N/A | 19.81 MiB |
+|  |  | jtext | 33,809 | N/A | 20.34 MiB |
+|  |  | sql | 33,738 | N/A | 23.38 MiB |
+| jac313_store_006_TS | on | binary | 37,531 | N/A | 19.81 MiB |
+|  |  | jtext | 37,577 | N/A | 20.33 MiB |
+|  |  | sql | 37,579 | N/A | 23.38 MiB |
+| jac313_store_006_XS | off | binary | 33,087 | N/A | 19.81 MiB |
+|  |  | jtext | 33,190 | N/A | 19.96 MiB |
+|  |  | sql | 33,162 | N/A | 22.64 MiB |
+| jac313_store_006_XS | on | binary | 36,551 | N/A | 19.81 MiB |
+|  |  | jtext | 36,649 | N/A | 19.96 MiB |
+|  |  | sql | 36,574 | N/A | 22.64 MiB |
+| jac313_store_007_TS | off | binary | 150 | 12,068,549 | 19.82 MiB |
+|  |  | jtext | 1,103 | 11,732,958 | 20.37 MiB |
+|  |  | sql | 250 | 11,457,379 | 23.51 MiB |
+| jac313_store_007_TS | on | binary | 150 | 11,448,197 | 19.82 MiB |
+|  |  | jtext | 1,103 | 11,186,934 | 20.37 MiB |
+|  |  | sql | 300 | 10,688,328 | 23.51 MiB |
+| jac313_store_007_XS | off | binary | 150 | 12,846,865 | 19.82 MiB |
+|  |  | jtext | 1,103 | 13,238,020 | 19.98 MiB |
+|  |  | sql | 250 | 10,671,220 | 22.66 MiB |
+| jac313_store_007_XS | on | binary | 150 | 13,789,300 | 19.82 MiB |
+|  |  | jtext | 1,103 | 14,202,528 | 19.98 MiB |
+|  |  | sql | 300 | 10,525,208 | 22.66 MiB |
 
-### rhel-9.8 · gcc15 (xFull, Release, run 49)
+### rhel-9.8 · gcc15 (xFull, Release, run 114)
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
-| jac313_store_005_TS | off | binary | 201 | 6,659,563 | 8.38 MiB |
-|  |  | jtext | 300 | 10,030,090 | 7.85 MiB |
-|  |  | sql | 300 | 7,488,954 | 7.42 MiB |
-| jac313_store_005_TS | on | binary | 250 | 5,547,542 | 8.38 MiB |
-|  |  | jtext | 250 | 7,898,894 | 7.85 MiB |
-|  |  | sql | 401 | 7,039,775 | 7.42 MiB |
-| jac313_store_005_XS | off | binary | 200 | 7,760,962 | 8.38 MiB |
-|  |  | jtext | 300 | 7,810,669 | 7.44 MiB |
-|  |  | sql | 300 | 7,574,036 | 7.13 MiB |
-| jac313_store_005_XS | on | binary | 200 | 7,930,843 | 8.38 MiB |
-|  |  | jtext | 250 | 8,320,852 | 7.44 MiB |
-|  |  | sql | 351 | 8,044,405 | 7.13 MiB |
-| jac313_store_006_TS | off | binary | 31,737 | - | 19.81 MiB |
-|  |  | jtext | 31,785 | - | 20.36 MiB |
-|  |  | sql | 31,836 | - | 23.46 MiB |
-| jac313_store_006_TS | on | binary | 35,353 | - | 19.81 MiB |
-|  |  | jtext | 35,451 | - | 20.36 MiB |
-|  |  | sql | 35,501 | - | 23.46 MiB |
-| jac313_store_006_XS | off | binary | 31,229 | - | 19.81 MiB |
-|  |  | jtext | 31,279 | - | 19.96 MiB |
-|  |  | sql | 31,234 | - | 22.64 MiB |
-| jac313_store_006_XS | on | binary | 34,497 | - | 19.81 MiB |
-|  |  | jtext | 34,493 | - | 19.96 MiB |
-|  |  | sql | 34,544 | - | 22.64 MiB |
-| jac313_store_007_TS | off | binary | 250 | 8,634,833 | 19.82 MiB |
-|  |  | jtext | 752 | 8,664,010 | 20.39 MiB |
-|  |  | sql | 601 | 10,217,636 | 23.51 MiB |
-| jac313_store_007_TS | on | binary | 250 | 6,077,550 | 19.82 MiB |
-|  |  | jtext | 601 | 11,068,069 | 20.38 MiB |
-|  |  | sql | 751 | 6,664,001 | 23.51 MiB |
-| jac313_store_007_XS | off | binary | 250 | 8,781,173 | 19.82 MiB |
-|  |  | jtext | 652 | 9,018,759 | 19.98 MiB |
-|  |  | sql | 651 | 8,458,806 | 22.66 MiB |
-| jac313_store_007_XS | on | binary | 250 | 7,982,757 | 19.82 MiB |
-|  |  | jtext | 651 | 8,213,552 | 19.98 MiB |
-|  |  | sql | 752 | 8,557,248 | 22.66 MiB |
+| jac313_store_005_TS | off | binary | 100 | 17,793,594 | 8.38 MiB |
+|  |  | jtext | 100 | 14,742,739 | 7.82 MiB |
+|  |  | sql | 100 | 13,092,433 | 7.38 MiB |
+| jac313_store_005_TS | on | binary | 100 | 19,829,467 | 8.38 MiB |
+|  |  | jtext | 100 | 15,339,776 | 7.82 MiB |
+|  |  | sql | 150 | 14,300,014 | 7.38 MiB |
+| jac313_store_005_XS | off | binary | 100 | 22,182,786 | 8.38 MiB |
+|  |  | jtext | 100 | 14,283,674 | 7.44 MiB |
+|  |  | sql | 100 | 15,432,099 | 7.13 MiB |
+| jac313_store_005_XS | on | binary | 100 | 14,017,382 | 8.38 MiB |
+|  |  | jtext | 100 | 24,148,756 | 7.44 MiB |
+|  |  | sql | 150 | 14,457,135 | 7.13 MiB |
+| jac313_store_006_TS | off | binary | 33,711 | N/A | 19.81 MiB |
+|  |  | jtext | 33,716 | N/A | 20.33 MiB |
+|  |  | sql | 33,711 | N/A | 23.27 MiB |
+| jac313_store_006_TS | on | binary | 37,523 | N/A | 19.81 MiB |
+|  |  | jtext | 37,535 | N/A | 20.32 MiB |
+|  |  | sql | 37,533 | N/A | 23.27 MiB |
+| jac313_store_006_XS | off | binary | 33,107 | N/A | 19.81 MiB |
+|  |  | jtext | 33,090 | N/A | 19.96 MiB |
+|  |  | sql | 33,086 | N/A | 22.63 MiB |
+| jac313_store_006_XS | on | binary | 36,518 | N/A | 19.81 MiB |
+|  |  | jtext | 36,573 | N/A | 19.96 MiB |
+|  |  | sql | 36,547 | N/A | 22.63 MiB |
+| jac313_store_007_TS | off | binary | 100 | 15,363,343 | 19.82 MiB |
+|  |  | jtext | 200 | 20,933,640 | 20.36 MiB |
+|  |  | sql | 200 | 19,190,175 | 23.43 MiB |
+| jac313_store_007_TS | on | binary | 100 | 13,795,006 | 19.82 MiB |
+|  |  | jtext | 200 | 15,382,249 | 20.36 MiB |
+|  |  | sql | 250 | 14,590,020 | 23.43 MiB |
+| jac313_store_007_XS | off | binary | 100 | 14,072,615 | 19.82 MiB |
+|  |  | jtext | 200 | 14,751,438 | 19.98 MiB |
+|  |  | sql | 200 | 13,478,906 | 22.65 MiB |
+| jac313_store_007_XS | on | binary | 100 | 14,092,446 | 19.82 MiB |
+|  |  | jtext | 200 | 13,147,515 | 19.98 MiB |
+|  |  | sql | 250 | 14,392,631 | 22.65 MiB |
 
 
 ## Top throughput by log category
@@ -1123,26 +1157,26 @@ Peak ops/sec from benchmark tests 005–008 (`Fastest run` in each log). xFull m
 <tr><th>#</th><th>Peak ops/sec</th><th>Test</th><th>Persist</th><th>ms</th><th>Log</th></tr>
 </thead>
 <tbody>
-<tr><td>1</td><td style="text-align:right">12,716,175</td><td>jac313_store_007_XS</td><td>binary/on</td><td style="text-align:right">250</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/binary_logs/JAC313_STORE_TEST_007_XS/clang_binary_on.log">clang_binary_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>2</td><td style="text-align:right">10,887,316</td><td>jac313_store_007_XS</td><td>binary/on</td><td style="text-align:right">360</td><td><a href="rhel-9.8/clang/Release/10k/xFull/modules/binary_logs/JAC313_STORE_TEST_007_XS/clang_binary_on.log">clang_binary_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>3</td><td style="text-align:right">9,328,358</td><td>jac313_store_007_TS</td><td>binary/off</td><td style="text-align:right">250</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_007_TS/clang_binary_off.log">clang_binary_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>4</td><td style="text-align:right">9,143,275</td><td>jac313_store_007_TS</td><td>binary/off</td><td style="text-align:right">250</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/binary_logs/JAC313_STORE_TEST_007_TS/clang_binary_off.log">clang_binary_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>5</td><td style="text-align:right">9,103,323</td><td>jac313_store_007_TS</td><td>binary/off</td><td style="text-align:right">351</td><td><a href="rhel-9.8/gcc15/Release/x7k/xFull/textual/binary_logs/JAC313_STORE_TEST_007_TS/gcc15_binary_off.log">gcc15_binary_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-<tr><td>6</td><td style="text-align:right">8,999,280</td><td>jac313_store_007_XS</td><td>binary/on</td><td style="text-align:right">351</td><td><a href="rhel-9.8/gcc15/Release/10k/xFull/textual/binary_logs/JAC313_STORE_TEST_007_XS/gcc15_binary_on.log">gcc15_binary_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>7</td><td style="text-align:right">8,937,349</td><td>jac313_store_007_XS</td><td>binary/off</td><td style="text-align:right">351</td><td><a href="rhel-9.8/gcc15/Release/x7k/xFull/textual/binary_logs/JAC313_STORE_TEST_007_XS/gcc15_binary_off.log">gcc15_binary_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-<tr><td>8</td><td style="text-align:right">8,906,306</td><td>jac313_store_007_XS</td><td>binary/on</td><td style="text-align:right">301</td><td><a href="rhel-9.8/gcc15/Release/10k/xFull/modules/binary_logs/JAC313_STORE_TEST_007_XS/gcc15_binary_on.log">gcc15_binary_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>9</td><td style="text-align:right">8,837,826</td><td>jac313_store_007_TS</td><td>binary/on</td><td style="text-align:right">351</td><td><a href="rhel-9.8/gcc15/Release/x7k/xFull/textual/binary_logs/JAC313_STORE_TEST_007_TS/gcc15_binary_on.log">gcc15_binary_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-<tr><td>10</td><td style="text-align:right">8,781,173</td><td>jac313_store_007_XS</td><td>binary/off</td><td style="text-align:right">250</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_007_XS/gcc15_binary_off.log">gcc15_binary_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
+<tr><td>1</td><td style="text-align:right">22,517,451</td><td>jac313_store_007_XS</td><td>binary/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/binary_logs/JAC313_STORE_TEST_007_XS/gcc15_binary_off.log">gcc15_binary_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>2</td><td style="text-align:right">22,182,786</td><td>jac313_store_005_XS</td><td>binary/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_005_XS/gcc15_binary_off.log">gcc15_binary_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>3</td><td style="text-align:right">22,128,790</td><td>jac313_store_005_XS</td><td>binary/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/binary_logs/JAC313_STORE_TEST_005_XS/clang_binary_on.log">clang_binary_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>4</td><td style="text-align:right">21,953,897</td><td>jac313_store_007_XS</td><td>binary/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_007_XS/clang_binary_on.log">clang_binary_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>5</td><td style="text-align:right">21,724,962</td><td>jac313_store_007_XS</td><td>binary/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_007_XS/clang_binary_off.log">clang_binary_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>6</td><td style="text-align:right">21,190,930</td><td>jac313_store_007_XS</td><td>binary/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/binary_logs/JAC313_STORE_TEST_007_XS/clang_binary_on.log">clang_binary_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>7</td><td style="text-align:right">20,275,750</td><td>jac313_store_007_XS</td><td>binary/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/binary_logs/JAC313_STORE_TEST_007_XS/clang_binary_off.log">clang_binary_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>8</td><td style="text-align:right">19,829,467</td><td>jac313_store_005_TS</td><td>binary/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_005_TS/gcc15_binary_on.log">gcc15_binary_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>9</td><td style="text-align:right">19,252,984</td><td>jac313_store_005_XS</td><td>binary/off</td><td style="text-align:right">101</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_005_XS/clang_binary_off.log">clang_binary_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>10</td><td style="text-align:right">19,238,169</td><td>jac313_store_005_TS</td><td>binary/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_005_TS/clang_binary_off.log">clang_binary_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 </tbody>
 </table>
 
@@ -1153,26 +1187,26 @@ Peak ops/sec from benchmark tests 005–008 (`Fastest run` in each log). xFull m
 <tr><th>#</th><th>Peak ops/sec</th><th>Test</th><th>Persist</th><th>ms</th><th>Log</th></tr>
 </thead>
 <tbody>
-<tr><td>1</td><td style="text-align:right">13,027,619</td><td>jac313_store_007_XS</td><td>none/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/inmem_logs/JAC313_STORE_TEST_007_XS/clang_none_off.log">clang_none_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>2</td><td style="text-align:right">12,805,737</td><td>jac313_store_007_XS</td><td>none/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_007_XS/clang_none_off.log">clang_none_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>3</td><td style="text-align:right">12,161,012</td><td>jac313_store_007_TS</td><td>none/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/inmem_logs/JAC313_STORE_TEST_007_TS/clang_none_on.log">clang_none_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>4</td><td style="text-align:right">11,087,704</td><td>jac313_store_007_XS</td><td>none/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_007_XS/gcc15_none_off.log">gcc15_none_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>5</td><td style="text-align:right">10,463,535</td><td>jac313_store_007_XS</td><td>none/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/inmem_logs/JAC313_STORE_TEST_007_XS/gcc15_none_off.log">gcc15_none_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>6</td><td style="text-align:right">10,214,505</td><td>jac313_store_007_XS</td><td>none/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/x7k/xFull/modules/inmem_logs/JAC313_STORE_TEST_007_XS/clang_none_on.log">clang_none_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-<tr><td>7</td><td style="text-align:right">10,027,073</td><td>jac313_store_005_XS</td><td>none/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_XS/clang_none_on.log">clang_none_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>8</td><td style="text-align:right">9,802,960</td><td>jac313_store_005_TS</td><td>none/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_TS/clang_none_off.log">clang_none_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>9</td><td style="text-align:right">9,531,980</td><td>jac313_store_007_XS</td><td>none/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/gcc15/Release/x7k/xFull/modules/inmem_logs/JAC313_STORE_TEST_007_XS/gcc15_none_off.log">gcc15_none_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-<tr><td>10</td><td style="text-align:right">9,374,707</td><td>jac313_store_007_XS</td><td>none/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/gcc15/Release/x7k/xFull/modules/inmem_logs/JAC313_STORE_TEST_007_XS/gcc15_none_on.log">gcc15_none_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
+<tr><td>1</td><td style="text-align:right">23,052,098</td><td>jac313_store_005_XS</td><td>none/on</td><td style="text-align:right">50</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/inmem_logs/JAC313_STORE_TEST_005_XS/gcc15_none_on.log">gcc15_none_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>2</td><td style="text-align:right">22,261,799</td><td>jac313_store_005_XS</td><td>none/on</td><td style="text-align:right">50</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_XS/gcc15_none_on.log">gcc15_none_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>3</td><td style="text-align:right">22,237,047</td><td>jac313_store_005_XS</td><td>none/off</td><td style="text-align:right">50</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_XS/clang_none_off.log">clang_none_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>4</td><td style="text-align:right">22,128,790</td><td>jac313_store_005_TS</td><td>none/on</td><td style="text-align:right">50</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_TS/gcc15_none_on.log">gcc15_none_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>5</td><td style="text-align:right">21,687,270</td><td>jac313_store_007_TS</td><td>none/off</td><td style="text-align:right">50</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_007_TS/clang_none_off.log">clang_none_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>6</td><td style="text-align:right">21,547,080</td><td>jac313_store_007_TS</td><td>none/on</td><td style="text-align:right">50</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_007_TS/clang_none_on.log">clang_none_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>7</td><td style="text-align:right">21,482,277</td><td>jac313_store_007_XS</td><td>none/on</td><td style="text-align:right">50</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/inmem_logs/JAC313_STORE_TEST_007_XS/gcc15_none_on.log">gcc15_none_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>8</td><td style="text-align:right">21,376,657</td><td>jac313_store_005_TS</td><td>none/off</td><td style="text-align:right">50</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/inmem_logs/JAC313_STORE_TEST_005_TS/clang_none_off.log">clang_none_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>9</td><td style="text-align:right">21,235,931</td><td>jac313_store_005_XS</td><td>none/off</td><td style="text-align:right">50</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_XS/gcc15_none_off.log">gcc15_none_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>10</td><td style="text-align:right">21,021,652</td><td>jac313_store_005_TS</td><td>none/off</td><td style="text-align:right">50</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/inmem_logs/JAC313_STORE_TEST_005_TS/gcc15_none_off.log">gcc15_none_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 </tbody>
 </table>
 
@@ -1183,26 +1217,26 @@ Peak ops/sec from benchmark tests 005–008 (`Fastest run` in each log). xFull m
 <tr><th>#</th><th>Peak ops/sec</th><th>Test</th><th>Persist</th><th>ms</th><th>Log</th></tr>
 </thead>
 <tbody>
-<tr><td>1</td><td style="text-align:right">12,459,507</td><td>jac313_store_007_XS</td><td>sql/on</td><td style="text-align:right">701</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/sql_logs/JAC313_STORE_TEST_007_XS/clang_sql_on.log">clang_sql_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>2</td><td style="text-align:right">12,158,055</td><td>jac313_store_007_XS</td><td>sql/off</td><td style="text-align:right">551</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/sql_logs/JAC313_STORE_TEST_007_XS/clang_sql_off.log">clang_sql_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>3</td><td style="text-align:right">10,410,160</td><td>jac313_store_007_XS</td><td>sql/off</td><td style="text-align:right">852</td><td><a href="rhel-9.8/clang/Release/x7k/xFull/textual/sql_logs/JAC313_STORE_TEST_007_XS/clang_sql_off.log">clang_sql_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-<tr><td>4</td><td style="text-align:right">10,299,722</td><td>jac313_store_007_TS</td><td>sql/off</td><td style="text-align:right">551</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/sql_logs/JAC313_STORE_TEST_007_TS/clang_sql_off.log">clang_sql_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>5</td><td style="text-align:right">10,288,066</td><td>jac313_store_007_TS</td><td>sql/off</td><td style="text-align:right">601</td><td><a href="rhel-9.8/clang/Release/x7k/xFull/modules/sql_logs/JAC313_STORE_TEST_007_TS/clang_sql_off.log">clang_sql_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-<tr><td>6</td><td style="text-align:right">10,217,636</td><td>jac313_store_007_TS</td><td>sql/off</td><td style="text-align:right">601</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_007_TS/gcc15_sql_off.log">gcc15_sql_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>7</td><td style="text-align:right">9,955,202</td><td>jac313_store_005_TS</td><td>sql/off</td><td style="text-align:right">250</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/sql_logs/JAC313_STORE_TEST_005_TS/clang_sql_off.log">clang_sql_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>8</td><td style="text-align:right">9,242,144</td><td>jac313_store_005_TS</td><td>sql/on</td><td style="text-align:right">351</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/sql_logs/JAC313_STORE_TEST_005_TS/clang_sql_on.log">clang_sql_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>9</td><td style="text-align:right">8,866,820</td><td>jac313_store_007_TS</td><td>sql/off</td><td style="text-align:right">551</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/sql_logs/JAC313_STORE_TEST_007_TS/gcc15_sql_off.log">gcc15_sql_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>10</td><td style="text-align:right">8,837,045</td><td>jac313_store_007_TS</td><td>sql/on</td><td style="text-align:right">1,253</td><td><a href="rhel-9.8/gcc15/Release/10k/xFull/textual/sql_logs/JAC313_STORE_TEST_007_TS/gcc15_sql_on.log">gcc15_sql_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
+<tr><td>1</td><td style="text-align:right">21,696,680</td><td>jac313_store_005_XS</td><td>sql/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/sql_logs/JAC313_STORE_TEST_005_XS/clang_sql_off.log">clang_sql_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>2</td><td style="text-align:right">21,445,421</td><td>jac313_store_005_TS</td><td>sql/on</td><td style="text-align:right">150</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/sql_logs/JAC313_STORE_TEST_005_TS/gcc15_sql_on.log">gcc15_sql_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>3</td><td style="text-align:right">20,907,380</td><td>jac313_store_007_XS</td><td>sql/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_007_XS/clang_sql_off.log">clang_sql_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>4</td><td style="text-align:right">20,296,326</td><td>jac313_store_007_TS</td><td>sql/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_007_TS/clang_sql_off.log">clang_sql_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>5</td><td style="text-align:right">19,758,941</td><td>jac313_store_007_XS</td><td>sql/on</td><td style="text-align:right">250</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_007_XS/clang_sql_on.log">clang_sql_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>6</td><td style="text-align:right">19,455,253</td><td>jac313_store_007_TS</td><td>sql/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/sql_logs/JAC313_STORE_TEST_007_TS/gcc15_sql_off.log">gcc15_sql_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>7</td><td style="text-align:right">19,190,175</td><td>jac313_store_007_TS</td><td>sql/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_007_TS/gcc15_sql_off.log">gcc15_sql_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>8</td><td style="text-align:right">18,796,992</td><td>jac313_store_005_TS</td><td>sql/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_005_TS/clang_sql_off.log">clang_sql_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>9</td><td style="text-align:right">17,470,300</td><td>jac313_store_007_XS</td><td>sql/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/sql_logs/JAC313_STORE_TEST_007_XS/gcc15_sql_off.log">gcc15_sql_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>10</td><td style="text-align:right">15,842,839</td><td>jac313_store_005_TS</td><td>sql/on</td><td style="text-align:right">150</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_005_TS/clang_sql_on.log">clang_sql_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 </tbody>
 </table>
 
@@ -1213,26 +1247,26 @@ Peak ops/sec from benchmark tests 005–008 (`Fastest run` in each log). xFull m
 <tr><th>#</th><th>Peak ops/sec</th><th>Test</th><th>Persist</th><th>ms</th><th>Log</th></tr>
 </thead>
 <tbody>
-<tr><td>1</td><td style="text-align:right">11,880,718</td><td>jac313_store_007_TS</td><td>jtext/on</td><td style="text-align:right">651</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_007_TS/clang_jtext_on.log">clang_jtext_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>2</td><td style="text-align:right">11,068,069</td><td>jac313_store_007_TS</td><td>jtext/on</td><td style="text-align:right">601</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/jText_logs/JAC313_STORE_TEST_007_TS/gcc15_jtext_on.log">gcc15_jtext_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>3</td><td style="text-align:right">10,167,768</td><td>jac313_store_005_XS</td><td>jtext/off</td><td style="text-align:right">300</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/jText_logs/JAC313_STORE_TEST_005_XS/clang_jtext_off.log">clang_jtext_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>4</td><td style="text-align:right">10,030,090</td><td>jac313_store_005_TS</td><td>jtext/off</td><td style="text-align:right">300</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/jText_logs/JAC313_STORE_TEST_005_TS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>5</td><td style="text-align:right">10,005,003</td><td>jac313_store_005_XS</td><td>jtext/off</td><td style="text-align:right">300</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_005_XS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>6</td><td style="text-align:right">9,885,330</td><td>jac313_store_007_TS</td><td>jtext/on</td><td style="text-align:right">952</td><td><a href="rhel-9.8/clang/Release/10k/xFull/textual/jText_logs/JAC313_STORE_TEST_007_TS/clang_jtext_on.log">clang_jtext_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>7</td><td style="text-align:right">9,600,614</td><td>jac313_store_005_TS</td><td>jtext/off</td><td style="text-align:right">250</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_005_TS/clang_jtext_off.log">clang_jtext_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>8</td><td style="text-align:right">9,430,404</td><td>jac313_store_007_XS</td><td>jtext/off</td><td style="text-align:right">651</td><td><a href="rhel-9.8/gcc15/Release/x7k/xFull/modules/jText_logs/JAC313_STORE_TEST_007_XS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-<tr><td>9</td><td style="text-align:right">9,379,983</td><td>jac313_store_007_TS</td><td>jtext/off</td><td style="text-align:right">802</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/jText_logs/JAC313_STORE_TEST_007_TS/clang_jtext_off.log">clang_jtext_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>10</td><td style="text-align:right">9,311,854</td><td>jac313_store_007_TS</td><td>jtext/off</td><td style="text-align:right">651</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_007_TS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
+<tr><td>1</td><td style="text-align:right">24,148,756</td><td>jac313_store_005_XS</td><td>jtext/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/jText_logs/JAC313_STORE_TEST_005_XS/gcc15_jtext_on.log">gcc15_jtext_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>2</td><td style="text-align:right">23,364,486</td><td>jac313_store_005_XS</td><td>jtext/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_005_XS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>3</td><td style="text-align:right">21,819,769</td><td>jac313_store_007_TS</td><td>jtext/on</td><td style="text-align:right">200</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/jText_logs/JAC313_STORE_TEST_007_TS/clang_jtext_on.log">clang_jtext_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>4</td><td style="text-align:right">21,635,656</td><td>jac313_store_007_TS</td><td>jtext/on</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_007_TS/gcc15_jtext_on.log">gcc15_jtext_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>5</td><td style="text-align:right">21,602,938</td><td>jac313_store_007_TS</td><td>jtext/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_007_TS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>6</td><td style="text-align:right">20,933,640</td><td>jac313_store_007_TS</td><td>jtext/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/jText_logs/JAC313_STORE_TEST_007_TS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>7</td><td style="text-align:right">20,487,605</td><td>jac313_store_007_XS</td><td>jtext/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_007_XS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>8</td><td style="text-align:right">20,408,163</td><td>jac313_store_007_TS</td><td>jtext/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/jText_logs/JAC313_STORE_TEST_007_TS/clang_jtext_off.log">clang_jtext_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>9</td><td style="text-align:right">19,884,669</td><td>jac313_store_005_XS</td><td>jtext/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_005_XS/clang_jtext_off.log">clang_jtext_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>10</td><td style="text-align:right">19,813,751</td><td>jac313_store_005_TS</td><td>jtext/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/jText_logs/JAC313_STORE_TEST_005_TS/clang_jtext_on.log">clang_jtext_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 </tbody>
 </table>
 
@@ -1243,26 +1277,26 @@ Peak ops/sec from benchmark tests 005–008 (`Fastest run` in each log). xFull m
 <tr><th>#</th><th>Peak ops/sec</th><th>Test</th><th>Persist</th><th>ms</th><th>Log</th></tr>
 </thead>
 <tbody>
-<tr><td>1</td><td style="text-align:right">12,743,074</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">1,757</td><td><a href="rhel-9.8/clang/Release/x7k/xFull/textual/flags_logs/JAC313_STORE_TEST_008_TS/clang_flags_off.log">clang_flags_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-<tr><td>2</td><td style="text-align:right">11,534,824</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">2,254</td><td><a href="rhel-9.8/gcc15/Release/x7k/xFull/textual/flags_logs/JAC313_STORE_TEST_008_XS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-<tr><td>3</td><td style="text-align:right">11,085,246</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">1,904</td><td><a href="rhel-9.8/gcc15/Release/10k/xFull/textual/flags_logs/JAC313_STORE_TEST_008_TS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>4</td><td style="text-align:right">11,071,867</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">1,553</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/flags_logs/JAC313_STORE_TEST_008_XS/clang_flags_off.log">clang_flags_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>5</td><td style="text-align:right">11,043,866</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">1,861</td><td><a href="rhel-9.8/clang/Release/x7k/xFull/modules/flags_logs/JAC313_STORE_TEST_008_XS/clang_flags_off.log">clang_flags_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-<tr><td>6</td><td style="text-align:right">10,736,526</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">1,503</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/flags_logs/JAC313_STORE_TEST_008_TS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
-<tr><td>7</td><td style="text-align:right">10,598,385</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">2,304</td><td><a href="rhel-9.8/gcc15/Release/x7k/xFull/modules/flags_logs/JAC313_STORE_TEST_008_XS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-<tr><td>8</td><td style="text-align:right">10,577,533</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">1,954</td><td><a href="rhel-9.8/gcc15/Release/10k/xFull/modules/flags_logs/JAC313_STORE_TEST_008_XS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>9</td><td style="text-align:right">10,458,610</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">1,954</td><td><a href="rhel-9.8/clang/Release/10k/xFull/textual/flags_logs/JAC313_STORE_TEST_008_XS/clang_flags_off.log">clang_flags_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>10</td><td style="text-align:right">10,419,923</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">1,653</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/flags_logs/JAC313_STORE_TEST_008_TS/clang_flags_off.log">clang_flags_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · CT1000BX500SSD1 (ssd label)</td></tr>
+<tr><td>1</td><td style="text-align:right">25,001,250</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">651</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/flags_logs/JAC313_STORE_TEST_008_TS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>2</td><td style="text-align:right">24,287,761</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">651</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/flags_logs/JAC313_STORE_TEST_008_XS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>3</td><td style="text-align:right">24,281,274</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">651</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/flags_logs/JAC313_STORE_TEST_008_XS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>4</td><td style="text-align:right">23,807,823</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">651</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/flags_logs/JAC313_STORE_TEST_008_XS/clang_flags_off.log">clang_flags_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>5</td><td style="text-align:right">17,803,415</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">1,102</td><td><a href="rhel-9.8/gcc15/Debug/ssd/xFull/textual/flags_logs/JAC313_STORE_TEST_008_XS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>6</td><td style="text-align:right">17,154,130</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">752</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/flags_logs/JAC313_STORE_TEST_008_TS/clang_flags_off.log">clang_flags_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>7</td><td style="text-align:right">17,152,659</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">651</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/flags_logs/JAC313_STORE_TEST_008_TS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>8</td><td style="text-align:right">17,146,188</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">701</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/flags_logs/JAC313_STORE_TEST_008_TS/clang_flags_off.log">clang_flags_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>9</td><td style="text-align:right">16,632,847</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">1,102</td><td><a href="rhel-9.8/gcc15/Debug/ssd/xFull/textual/flags_logs/JAC313_STORE_TEST_008_TS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>10</td><td style="text-align:right">16,444,393</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">701</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/flags_logs/JAC313_STORE_TEST_008_XS/clang_flags_off.log">clang_flags_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> j5c-base-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 </tbody>
 </table>
 

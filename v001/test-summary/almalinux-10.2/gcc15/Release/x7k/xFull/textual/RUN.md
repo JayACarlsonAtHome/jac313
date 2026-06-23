@@ -24,6 +24,8 @@ _Rendered from [`jac313_results.db`](../../../../../../jac313_results.db)._
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
 
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
 | jac313_store_005_TS | off | binary | 410 | 2,726,653 | 8.38 MiB |
@@ -38,18 +40,18 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 | jac313_store_005_XS | on | binary | 412 | 2,566,669 | 8.38 MiB |
 |  |  | jtext | 407 | 2,647,954 | 7.44 MiB |
 |  |  | sql | 779 | 3,197,953 | 7.13 MiB |
-| jac313_store_006_TS | off | binary | 35,144 | - | 19.81 MiB |
-|  |  | jtext | 35,337 | - | 20.40 MiB |
-|  |  | sql | 34,957 | - | 23.50 MiB |
-| jac313_store_006_TS | on | binary | 38,962 | - | 19.81 MiB |
-|  |  | jtext | 38,960 | - | 20.40 MiB |
-|  |  | sql | 39,253 | - | 23.50 MiB |
-| jac313_store_006_XS | off | binary | 34,353 | - | 19.81 MiB |
-|  |  | jtext | 34,179 | - | 19.96 MiB |
-|  |  | sql | 34,327 | - | 22.63 MiB |
-| jac313_store_006_XS | on | binary | 37,832 | - | 19.81 MiB |
-|  |  | jtext | 38,181 | - | 19.96 MiB |
-|  |  | sql | 38,212 | - | 22.63 MiB |
+| jac313_store_006_TS | off | binary | 35,144 | N/A | 19.81 MiB |
+|  |  | jtext | 35,337 | N/A | 20.40 MiB |
+|  |  | sql | 34,957 | N/A | 23.50 MiB |
+| jac313_store_006_TS | on | binary | 38,962 | N/A | 19.81 MiB |
+|  |  | jtext | 38,960 | N/A | 20.40 MiB |
+|  |  | sql | 39,253 | N/A | 23.50 MiB |
+| jac313_store_006_XS | off | binary | 34,353 | N/A | 19.81 MiB |
+|  |  | jtext | 34,179 | N/A | 19.96 MiB |
+|  |  | sql | 34,327 | N/A | 22.63 MiB |
+| jac313_store_006_XS | on | binary | 37,832 | N/A | 19.81 MiB |
+|  |  | jtext | 38,181 | N/A | 19.96 MiB |
+|  |  | sql | 38,212 | N/A | 22.63 MiB |
 | jac313_store_007_TS | off | binary | 514 | 3,066,168 | 19.82 MiB |
 |  |  | jtext | 841 | 3,103,470 | 20.44 MiB |
 |  |  | sql | 774 | 2,828,854 | 23.50 MiB |
@@ -66,6 +68,8 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 ## Persist backend comparison (all matrix tests)
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
+
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
 
 | Test | Output | Persist | run ms | Peak ops/sec | Log size |
 |------|--------|---------|--------|--------------|----------|
@@ -129,18 +133,18 @@ Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only),
 | jac313_store_005_XS | on | binary | 412 | 2,566,669 | 8.38 MiB |
 |  |  | jtext | 407 | 2,647,954 | 7.44 MiB |
 |  |  | sql | 779 | 3,197,953 | 7.13 MiB |
-| jac313_store_006_TS | off | binary | 35,144 | - | 19.81 MiB |
-|  |  | jtext | 35,337 | - | 20.40 MiB |
-|  |  | sql | 34,957 | - | 23.50 MiB |
-| jac313_store_006_TS | on | binary | 38,962 | - | 19.81 MiB |
-|  |  | jtext | 38,960 | - | 20.40 MiB |
-|  |  | sql | 39,253 | - | 23.50 MiB |
-| jac313_store_006_XS | off | binary | 34,353 | - | 19.81 MiB |
-|  |  | jtext | 34,179 | - | 19.96 MiB |
-|  |  | sql | 34,327 | - | 22.63 MiB |
-| jac313_store_006_XS | on | binary | 37,832 | - | 19.81 MiB |
-|  |  | jtext | 38,181 | - | 19.96 MiB |
-|  |  | sql | 38,212 | - | 22.63 MiB |
+| jac313_store_006_TS | off | binary | 35,144 | N/A | 19.81 MiB |
+|  |  | jtext | 35,337 | N/A | 20.40 MiB |
+|  |  | sql | 34,957 | N/A | 23.50 MiB |
+| jac313_store_006_TS | on | binary | 38,962 | N/A | 19.81 MiB |
+|  |  | jtext | 38,960 | N/A | 20.40 MiB |
+|  |  | sql | 39,253 | N/A | 23.50 MiB |
+| jac313_store_006_XS | off | binary | 34,353 | N/A | 19.81 MiB |
+|  |  | jtext | 34,179 | N/A | 19.96 MiB |
+|  |  | sql | 34,327 | N/A | 22.63 MiB |
+| jac313_store_006_XS | on | binary | 37,832 | N/A | 19.81 MiB |
+|  |  | jtext | 38,181 | N/A | 19.96 MiB |
+|  |  | sql | 38,212 | N/A | 22.63 MiB |
 | jac313_store_007_TS | off | binary | 514 | 3,066,168 | 19.82 MiB |
 |  |  | jtext | 841 | 3,103,470 | 20.44 MiB |
 |  |  | sql | 774 | 2,828,854 | 23.50 MiB |
@@ -240,22 +244,22 @@ _Per-test compile times are stored in the results database (not log files)._
 | jac313_store_005_XS | store | matrix | none | on | pass | 157 | 2,945,768 | - | - | [gcc15_none_on.log](inmem_logs/JAC313_STORE_TEST_005_XS/gcc15_none_on.log) |
 | jac313_store_005_XS | store | matrix | sql | off | pass | 356 | 2,391,544 | 7.13 MiB | - | [gcc15_sql_off.log](sql_logs/JAC313_STORE_TEST_005_XS/gcc15_sql_off.log) |
 | jac313_store_005_XS | store | matrix | sql | on | pass | 779 | 3,197,953 | 7.13 MiB | - | [gcc15_sql_on.log](sql_logs/JAC313_STORE_TEST_005_XS/gcc15_sql_on.log) |
-| jac313_store_006_TS | store | matrix | binary | off | pass | 35,144 | - | 19.81 MiB | - | [gcc15_binary_off.log](binary_logs/JAC313_STORE_TEST_006_TS/gcc15_binary_off.log) |
-| jac313_store_006_TS | store | matrix | binary | on | pass | 38,962 | - | 19.81 MiB | - | [gcc15_binary_on.log](binary_logs/JAC313_STORE_TEST_006_TS/gcc15_binary_on.log) |
-| jac313_store_006_TS | store | matrix | jtext | off | pass | 35,337 | - | 20.40 MiB | - | [gcc15_jtext_off.log](jText_logs/JAC313_STORE_TEST_006_TS/gcc15_jtext_off.log) |
-| jac313_store_006_TS | store | matrix | jtext | on | pass | 38,960 | - | 20.40 MiB | - | [gcc15_jtext_on.log](jText_logs/JAC313_STORE_TEST_006_TS/gcc15_jtext_on.log) |
-| jac313_store_006_TS | store | matrix | none | off | pass | 34,883 | - | - | - | [gcc15_none_off.log](inmem_logs/JAC313_STORE_TEST_006_TS/gcc15_none_off.log) |
-| jac313_store_006_TS | store | matrix | none | on | pass | 38,776 | - | - | - | [gcc15_none_on.log](inmem_logs/JAC313_STORE_TEST_006_TS/gcc15_none_on.log) |
-| jac313_store_006_TS | store | matrix | sql | off | pass | 34,957 | - | 23.50 MiB | - | [gcc15_sql_off.log](sql_logs/JAC313_STORE_TEST_006_TS/gcc15_sql_off.log) |
-| jac313_store_006_TS | store | matrix | sql | on | pass | 39,253 | - | 23.50 MiB | - | [gcc15_sql_on.log](sql_logs/JAC313_STORE_TEST_006_TS/gcc15_sql_on.log) |
-| jac313_store_006_XS | store | matrix | binary | off | pass | 34,353 | - | 19.81 MiB | - | [gcc15_binary_off.log](binary_logs/JAC313_STORE_TEST_006_XS/gcc15_binary_off.log) |
-| jac313_store_006_XS | store | matrix | binary | on | pass | 37,832 | - | 19.81 MiB | - | [gcc15_binary_on.log](binary_logs/JAC313_STORE_TEST_006_XS/gcc15_binary_on.log) |
-| jac313_store_006_XS | store | matrix | jtext | off | pass | 34,179 | - | 19.96 MiB | - | [gcc15_jtext_off.log](jText_logs/JAC313_STORE_TEST_006_XS/gcc15_jtext_off.log) |
-| jac313_store_006_XS | store | matrix | jtext | on | pass | 38,181 | - | 19.96 MiB | - | [gcc15_jtext_on.log](jText_logs/JAC313_STORE_TEST_006_XS/gcc15_jtext_on.log) |
-| jac313_store_006_XS | store | matrix | none | off | pass | 34,303 | - | - | - | [gcc15_none_off.log](inmem_logs/JAC313_STORE_TEST_006_XS/gcc15_none_off.log) |
-| jac313_store_006_XS | store | matrix | none | on | pass | 37,861 | - | - | - | [gcc15_none_on.log](inmem_logs/JAC313_STORE_TEST_006_XS/gcc15_none_on.log) |
-| jac313_store_006_XS | store | matrix | sql | off | pass | 34,327 | - | 22.63 MiB | - | [gcc15_sql_off.log](sql_logs/JAC313_STORE_TEST_006_XS/gcc15_sql_off.log) |
-| jac313_store_006_XS | store | matrix | sql | on | pass | 38,212 | - | 22.63 MiB | - | [gcc15_sql_on.log](sql_logs/JAC313_STORE_TEST_006_XS/gcc15_sql_on.log) |
+| jac313_store_006_TS | store | matrix | binary | off | pass | 35,144 | N/A | 19.81 MiB | - | [gcc15_binary_off.log](binary_logs/JAC313_STORE_TEST_006_TS/gcc15_binary_off.log) |
+| jac313_store_006_TS | store | matrix | binary | on | pass | 38,962 | N/A | 19.81 MiB | - | [gcc15_binary_on.log](binary_logs/JAC313_STORE_TEST_006_TS/gcc15_binary_on.log) |
+| jac313_store_006_TS | store | matrix | jtext | off | pass | 35,337 | N/A | 20.40 MiB | - | [gcc15_jtext_off.log](jText_logs/JAC313_STORE_TEST_006_TS/gcc15_jtext_off.log) |
+| jac313_store_006_TS | store | matrix | jtext | on | pass | 38,960 | N/A | 20.40 MiB | - | [gcc15_jtext_on.log](jText_logs/JAC313_STORE_TEST_006_TS/gcc15_jtext_on.log) |
+| jac313_store_006_TS | store | matrix | none | off | pass | 34,883 | N/A | - | - | [gcc15_none_off.log](inmem_logs/JAC313_STORE_TEST_006_TS/gcc15_none_off.log) |
+| jac313_store_006_TS | store | matrix | none | on | pass | 38,776 | N/A | - | - | [gcc15_none_on.log](inmem_logs/JAC313_STORE_TEST_006_TS/gcc15_none_on.log) |
+| jac313_store_006_TS | store | matrix | sql | off | pass | 34,957 | N/A | 23.50 MiB | - | [gcc15_sql_off.log](sql_logs/JAC313_STORE_TEST_006_TS/gcc15_sql_off.log) |
+| jac313_store_006_TS | store | matrix | sql | on | pass | 39,253 | N/A | 23.50 MiB | - | [gcc15_sql_on.log](sql_logs/JAC313_STORE_TEST_006_TS/gcc15_sql_on.log) |
+| jac313_store_006_XS | store | matrix | binary | off | pass | 34,353 | N/A | 19.81 MiB | - | [gcc15_binary_off.log](binary_logs/JAC313_STORE_TEST_006_XS/gcc15_binary_off.log) |
+| jac313_store_006_XS | store | matrix | binary | on | pass | 37,832 | N/A | 19.81 MiB | - | [gcc15_binary_on.log](binary_logs/JAC313_STORE_TEST_006_XS/gcc15_binary_on.log) |
+| jac313_store_006_XS | store | matrix | jtext | off | pass | 34,179 | N/A | 19.96 MiB | - | [gcc15_jtext_off.log](jText_logs/JAC313_STORE_TEST_006_XS/gcc15_jtext_off.log) |
+| jac313_store_006_XS | store | matrix | jtext | on | pass | 38,181 | N/A | 19.96 MiB | - | [gcc15_jtext_on.log](jText_logs/JAC313_STORE_TEST_006_XS/gcc15_jtext_on.log) |
+| jac313_store_006_XS | store | matrix | none | off | pass | 34,303 | N/A | - | - | [gcc15_none_off.log](inmem_logs/JAC313_STORE_TEST_006_XS/gcc15_none_off.log) |
+| jac313_store_006_XS | store | matrix | none | on | pass | 37,861 | N/A | - | - | [gcc15_none_on.log](inmem_logs/JAC313_STORE_TEST_006_XS/gcc15_none_on.log) |
+| jac313_store_006_XS | store | matrix | sql | off | pass | 34,327 | N/A | 22.63 MiB | - | [gcc15_sql_off.log](sql_logs/JAC313_STORE_TEST_006_XS/gcc15_sql_off.log) |
+| jac313_store_006_XS | store | matrix | sql | on | pass | 38,212 | N/A | 22.63 MiB | - | [gcc15_sql_on.log](sql_logs/JAC313_STORE_TEST_006_XS/gcc15_sql_on.log) |
 | jac313_store_007_TS | store | matrix | binary | off | pass | 514 | 3,066,168 | 19.82 MiB | - | [gcc15_binary_off.log](binary_logs/JAC313_STORE_TEST_007_TS/gcc15_binary_off.log) |
 | jac313_store_007_TS | store | matrix | binary | on | pass | 559 | 2,791,503 | 19.82 MiB | - | [gcc15_binary_on.log](binary_logs/JAC313_STORE_TEST_007_TS/gcc15_binary_on.log) |
 | jac313_store_007_TS | store | matrix | jtext | off | pass | 841 | 3,103,470 | 20.44 MiB | - | [gcc15_jtext_off.log](jText_logs/JAC313_STORE_TEST_007_TS/gcc15_jtext_off.log) |
