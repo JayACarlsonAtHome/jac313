@@ -1,7 +1,7 @@
 ================================================================================
 Claude_Forward.txt  —  session handoff / crash-recovery note
 Project: jac313   Path: /home/jay/git/jac313 (dev/Mint) | /slowdata/git/jac313 (R730/RHEL 9.8)
-Last updated: 2026-06-20  (by Claude, R730 — fresh-history wipe + 48-run multi-disk matrix; GitHub @ fd0bc2d, default dev-work)
+Last updated: 2026-06-23  (by Claude — 2 toolchain findings (clang C++26 std::print bug; import-std <numeric> leak) + v002 first full matrix on both compilers; all 3 branches @ c2c1a63f)
 ================================================================================
 
 PURPOSE OF THIS FILE
@@ -201,6 +201,34 @@ render from DB views.
 --------------------------------------------------------------------------------
 7. SESSION LOG  (append newest at top; keep it short and factual)
 --------------------------------------------------------------------------------
+2026-06-23  TWO TOOLCHAIN FINDINGS + v002 FIRST FULL MATRIX (both compilers) — all 3 branches @ c2c1a63f (Claude).
+            FINDING 1 (compiler bug): clang 21 rejects valid C++26 std::print with dynamic-width specs
+              ("{:^{}}") that gcc 15 accepts (and clang accepts in C++23). Root: libstdc++ consteval
+              __check_dynamic_spec is declared-but-undefined; clang's C++26 evaluator refuses to call it
+              in a constant expression. Reproducer: v002/docs/findings/clang_cpp26_dynamic_format.cpp;
+              featured on the root README; full writeup docs/Cpp26_Adoption.md. WORKAROUND: wrap the ~21
+              dynamic-width sites in v002 impl_details/{printing,diagnostic}.hpp with std::runtime_format().
+              => v002 now builds on BOTH gcc15 + clang at C++26 (clang never built v002 before this).
+            FINDING 2 (OUR bug — gcc was right): v002 import-std module build failed. ts_store.hpp:9
+              #include <numeric> sat OUTSIDE the #ifndef JAC313_STORE_IMPORT_STD guard, so it got pasted
+              inside the module's `export namespace jac313::Store::v002 {}` -> <numeric>'s own namespace std
+              nested as jac313::Store::v002::std -> std::move vanished. gcc correctly rejected it. FIXED by
+              guarding the include (under import std, <numeric> comes from the std module). Every other std
+              header was already guarded (includes.hpp pattern); this one addition skipped it.
+            v002 FIRST FULL MATRIX: run-all --force = 17/17 combos, 116/116 each, 0 fail/0 err, gcc15+clang.
+              In-mem Release peak: clang 25.36M / gcc 24.84M ops/sec. C++26 v002 ~= C++23 v001 (~25M) — no
+              regression. Validated smoke (116/116) + ctest verify-lite (31/31 clean) BEFORE the full run.
+            v001: test_006 throughput now renders "N/A" (it's a tail-reader CORRECTNESS test, emits no
+              ops/sec) instead of "-". New docs/HowToReadResults.md decoder: "Peak ops/sec" = in-memory hot
+              path, NOT a persist backend's write speed (persist run is the log's Slowest line ~2.4-2.7M);
+              smoke numbers are misleadingly low (setup-dominated); numbers are hardware-bound (~3M..25M
+              across the fleet). Linked from the generated hub README + READMEs. Mirrored into v002.
+            VERSION BUMPS: v002 v002.001 -> .002 -> .003 (shipped Store headers changed: runtime_format +
+              the <numeric> guard); v001 v001.001 -> .002 (DELIBERATE marker — the N/A change was in the
+              test CLI, not shipped Store code, so the gate did NOT require it). The version-check pre-push
+              gate caught both v002 shipped-code changes and blocked the push until bumped — worked as designed.
+            BRANCHES: dev-work / test-work / main all fast-forwarded in lockstep @ c2c1a63f. Pushes go to all 3.
+
 2026-06-20  FRESH-HISTORY WIPE + MULTI-DISK MATRIX (48 runs) — DONE, on GitHub @ fd0bc2d (Claude, R730).
             >>> GITHUB HISTORY WAS WIPED. The old 146-commit history (real hostnames) is GONE; GitHub
             now has ONE clean commit. Full backup of the old history: /slowdata/git/jac314 (4.7G,
