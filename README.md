@@ -62,7 +62,7 @@ Store is the largest part of the project and the thing the rest exists to serve.
 |-----------|------------|------|
 | **Store** | the time-series logging tool (`jac313::Store::vNNN`) | the headline program — the hot path + the configurable persist sinks |
 | **jText** | compiled structured-text library (`jac313::jText::vNNN`) | a self-describing text log format (light/full profiles) + a streaming `JTextWriter`; Store uses it for human-readable logs |
-| **Qlite** | header-only SQLite wrapper (`jac313::Qlite::vNNN`) | RAII connection + variadic bind/column over `sqlite3`; Store uses it for SQL persistence |
+| **Qlite** | header-only SQLite wrapper (`jac313::Qlite::vNNN`) | RAII connection + variadic bind/column over `sqlite3` — plus a RAII transaction guard, a prepared-statement cache, `string_view`/blob binds, column-by-name, and a non-throwing `std::expected` path; Store uses it for SQL persistence |
 | **Setup** | toolchain sensing (`jac313::Setup::vNNN`) | a data-driven, activation-aware compiler registry — new platforms are config, not code |
 
 Two small libraries compose into the headline feature, and the headline feature is
@@ -80,7 +80,7 @@ language standard independently.
 | Version | Standard | State |
 |---------|----------|-------|
 | [**v001/**](v001/README.md) | **C++23** | The proven baseline — builds and tests green on g++-15 and Clang across multiple Linux distros; the full persist × scale matrix is recorded. Modules + `import std` work (opt-in, gcc-only). |
-| [**v002/**](v002/README.md) | **C++26** *(not really started yet)* | Today a **faithful, isolation-verified copy of v001**, rebranded to `::v002` throughout. The C++26 work (contracts, etc.) has **not** begun — v002 is staged and clean, waiting to diverge. |
+| [**v002/**](v002/README.md) | **C++26** | The evolving frontier — diverging from v001 into real C++26. Native ISO **contracts (P2900)** are in via the `jac313::contracts` pre/post/assert shim: first-class `contract_assert` on **gcc 16** (`-std=c++26 -fcontracts`), with a runtime-checked fallback on compilers that don't yet define `__cpp_contracts`. **gcc 16 is now in the matrix**, which runs green (1,856/1,856). The Qlite wrapper has also gained its expanded surface (transaction guard, statement cache, `std::expected` path). |
 
 The one coordination cost of full duplication: a shared-infra fix made *before* the two
 versions diverge must be applied to each `v00N/`. After they diverge, they are free to
@@ -162,7 +162,7 @@ jac313/
 ├── LICENSE           # governs all versions
 ├── AI_files/         # cross-version coordination notes (handoffs between collaborators)
 ├── v001/             # complete C++23 world  (libraries, Setup, tools, tests, docs, results)
-└── v002/             # complete C++26 world  (faithful copy of v001; C++26 not yet started)
+└── v002/             # complete C++26 world  (diverging from v001: native C++26 contracts; gcc 16 in the matrix)
 ```
 
 ## License
