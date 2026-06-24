@@ -74,4 +74,14 @@ struct MatrixOptions {
     int combo_count{0};
 };
 
+// Per-combo result tally, reported back from a matrix run so run-all can
+// aggregate a pass/fail verdict across the whole sweep.
+struct MatrixComboTally {
+    int scenarios = 0;   // scenarios this combo would run (set even on build failure)
+    int passed    = 0;
+    int failed    = 0;
+    int skipped   = 0;
+    int errors    = 0;
+};
+
 } // namespace jac313::test_cli

@@ -292,7 +292,7 @@ int run_matrix_run_command(const GlobalOptions& global,
                            MatrixOptions matrix_opts,
                            const RunOptions& run_opts,
                            const int build_jobs = 0,
-                           int* out_per_combo = nullptr)
+                           MatrixComboTally* out_tally = nullptr)
 {
     const auto tests = discover_tests(global.build_dir);
     if (tests.empty()) {
@@ -346,8 +346,8 @@ int run_matrix_run_command(const GlobalOptions& global,
     const int grand_total   = (matrix_opts.combo_count > 0) ? matrix_opts.combo_count * per_combo : 0;
     const int global_before = (matrix_opts.combo_count > 0 && matrix_opts.combo_index > 0)
                                   ? (matrix_opts.combo_index - 1) * per_combo : 0;
-    if (out_per_combo != nullptr) {
-        *out_per_combo = per_combo;
+    if (out_tally != nullptr) {
+        out_tally->scenarios = per_combo;
     }
     std::cout << "Scenarios: " << format_count(per_combo);
     if (grand_total > 0) {
@@ -406,6 +406,12 @@ int run_matrix_run_command(const GlobalOptions& global,
 
     const auto results = run_matrix(scenarios, params, results_base, run_opts_matrix);
     accumulate_matrix_results(meta, results);
+    if (out_tally != nullptr) {
+        out_tally->passed  = static_cast<int>(meta.passed);
+        out_tally->failed  = static_cast<int>(meta.failed);
+        out_tally->skipped = static_cast<int>(meta.skipped);
+        out_tally->errors  = static_cast<int>(meta.errors);
+    }
 
     std::cout << "\n=== matrix summary ===\n";
     std::cout << "Passed:  " << format_count(meta.passed) << '\n';
@@ -678,7 +684,7 @@ int run_version_check_command(const GlobalOptions& global) {
 // then run the matrix. The two front-ends differ only in how they fill the options.
 int execute_matrix_run(GlobalOptions& global, ConfigureOptions& configure_opts,
                        MatrixOptions& matrix_opts, RunOptions& run_opts, BuildOptions& build_opts,
-                       int* out_per_combo = nullptr)
+                       MatrixComboTally* out_tally = nullptr)
 {
     if (!apply_compiler_resolution(global, configure_opts, matrix_opts)) {
         return 1;
@@ -715,7 +721,7 @@ int execute_matrix_run(GlobalOptions& global, ConfigureOptions& configure_opts,
             return kBuildPhaseFailed;   // build failed -> tests skipped
         }
     }
-    return run_matrix_run_command(global, matrix_opts, run_opts, build_opts.jobs, out_per_combo);
+    return run_matrix_run_command(global, matrix_opts, run_opts, build_opts.jobs, out_tally);
 }
 
 } // namespace
@@ -1093,6 +1099,7 @@ int main(int argc, char** argv) {
             std::vector<FailedCombo> failed;
             int idx = 0;
             int seen_per_combo = 0;   // scenarios per combo (constant across combos)
+            MatrixComboTally agg;     // aggregate pass/fail across all combos that ran
             for (const auto& c : combos) {
                 ++idx;
                 std::cout << "\n=== run-all [" << idx << '/' << combos.size() << "]  "
@@ -1118,9 +1125,11 @@ int main(int argc, char** argv) {
                 go.build_dir = "build-" + c.compiler + "-" + bt + "-" + md;
                 mo.combo_index = idx;
                 mo.combo_count = static_cast<int>(combos.size());
-                int per_combo = 0;
-                const int rc = execute_matrix_run(go, co, mo, run_opts, build_opts, &per_combo);
-                if (per_combo > 0) seen_per_combo = per_combo;
+                MatrixComboTally tally;
+                const int rc = execute_matrix_run(go, co, mo, run_opts, build_opts, &tally);
+                if (tally.scenarios > 0) seen_per_combo = tally.scenarios;
+                agg.passed  += tally.passed;  agg.failed += tally.failed;
+                agg.skipped += tally.skipped; agg.errors += tally.errors;
                 if (rc != 0) {
                     const bool build_failed = (rc == kBuildPhaseFailed);
                     const std::string desc = c.compiler + ' ' + c.build_type + ' '
@@ -1153,6 +1162,17 @@ int main(int argc, char** argv) {
                           << (total - attempted) << " not run — --fail-fast)";
             }
             std::cout << '\n';
+
+            // Aggregate pass/fail verdict across every scenario that ran.
+            const bool all_passed =
+                (agg.failed == 0 && agg.errors == 0 && failed.empty());
+            std::cout << "             "
+                      << format_count(agg.passed)  << " passed, "
+                      << format_count(agg.failed)  << " failed, "
+                      << format_count(agg.skipped) << " skipped, "
+                      << format_count(agg.errors)  << " errors    "
+                      << (all_passed ? "*** ALL PASSED ***" : "*** FAILURES ***")
+                      << '\n';
 
             if (!failed.empty()) {
                 bool any_build_fail = false;
