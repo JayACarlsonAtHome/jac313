@@ -18,12 +18,20 @@ module;
 
 #ifndef JAC313_QLITE_IMPORT_STD
 #  include <string>
+#  include <string_view>
 #  include <stdexcept>
 #  include <utility>
 #  include <type_traits>
+#  include <cstddef>
 #  include <cstdint>
 #  include <optional>
 #  include <tuple>
+#  include <vector>
+#  include <span>
+#  include <unordered_map>
+#  if __has_include(<expected>)
+#    include <expected>
+#  endif
 #endif
 
 export module jac313.qlite.v001;
