@@ -36,27 +36,28 @@ int failures = 0;
 
 void test_columns_order() {
     const std::vector<std::string> expected = {
-        "os", "compiler", "build_type", "disk_type", "size_label"};
+        "os", "compiler", "build_type", "disk_type", "size_label", "modules"};
     CHECK(run_identity_columns() == expected);
 }
 
 void test_sql_clauses() {
     CHECK_EQ(identity_select_list(),
-             std::string("os, compiler, build_type, disk_type, size_label"));
+             std::string("os, compiler, build_type, disk_type, size_label, modules"));
     CHECK_EQ(identity_select_list("r"),
-             std::string("r.os, r.compiler, r.build_type, r.disk_type, r.size_label"));
+             std::string("r.os, r.compiler, r.build_type, r.disk_type, r.size_label, r.modules"));
     CHECK_EQ(identity_group_by("r"), identity_select_list("r"));
     CHECK_EQ(identity_where_eq(),
-             std::string("os=? AND compiler=? AND build_type=? AND disk_type=? AND size_label=?"));
+             std::string("os=? AND compiler=? AND build_type=? AND disk_type=? AND size_label=? AND modules=?"));
     CHECK_EQ(identity_join_on("r", "latest"),
              std::string("r.os = latest.os AND r.compiler = latest.compiler"
                          " AND r.build_type = latest.build_type"
                          " AND r.disk_type = latest.disk_type"
-                         " AND r.size_label = latest.size_label"));
+                         " AND r.size_label = latest.size_label"
+                         " AND r.modules = latest.modules"));
 }
 
 void test_values_order_matches_columns() {
-    RunIdentity id{"rhel-10.2", "gcc15", "Release", "ssd", "Smoke"};
+    RunIdentity id{"rhel-10.2", "gcc15", "Release", "ssd", "Smoke", "textual"};
     const auto vals = identity_values(id);
     CHECK(vals.size() == run_identity_columns().size());
     CHECK_EQ(vals[0], std::string("rhel-10.2"));   // os
@@ -64,12 +65,13 @@ void test_values_order_matches_columns() {
     CHECK_EQ(vals[2], std::string("Release"));      // build_type
     CHECK_EQ(vals[3], std::string("ssd"));          // disk_type
     CHECK_EQ(vals[4], std::string("Smoke"));        // size_label
+    CHECK_EQ(vals[5], std::string("textual"));      // modules
 }
 
 void test_path() {
-    RunIdentity id{"rhel-10.2", "gcc15", "Release", "ssd", "Smoke"};
+    RunIdentity id{"rhel-10.2", "gcc15", "Release", "ssd", "Smoke", "textual"};
     CHECK_EQ(identity_path("/proj", id).generic_string(),
-             std::string("/proj/test-results/rhel-10.2/gcc15/Release/ssd/Smoke"));
+             std::string("/proj/test-results/rhel-10.2/gcc15/Release/ssd/Smoke/textual"));
 }
 
 void test_os_key_parsing() {

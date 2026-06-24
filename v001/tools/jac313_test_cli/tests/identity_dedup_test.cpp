@@ -43,14 +43,14 @@ void dedup_for(Sqlite& db, std::int64_t keep_id) {
     sel.bind(keep_id);
     sel.step();
     RunIdentity id;
-    sel.get(id.os, id.compiler, id.build_type, id.disk_type, id.size_label);
+    sel.get(id.os, id.compiler, id.build_type, id.disk_type, id.size_label, id.modules);
     db.exec("DELETE FROM runs WHERE " + identity_where_eq() + " AND id != ?",
-            id.os, id.compiler, id.build_type, id.disk_type, id.size_label, keep_id);
+            id.os, id.compiler, id.build_type, id.disk_type, id.size_label, id.modules, keep_id);
 }
 
 void insert(Sqlite& db, std::int64_t row_id, const RunIdentity& id) {
-    db.exec("INSERT INTO runs (id, " + identity_select_list() + ") VALUES (?, ?, ?, ?, ?, ?)",
-            row_id, id.os, id.compiler, id.build_type, id.disk_type, id.size_label);
+    db.exec("INSERT INTO runs (id, " + identity_select_list() + ") VALUES (?, ?, ?, ?, ?, ?, ?)",
+            row_id, id.os, id.compiler, id.build_type, id.disk_type, id.size_label, id.modules);
 }
 
 } // namespace
@@ -58,17 +58,17 @@ void insert(Sqlite& db, std::int64_t row_id, const RunIdentity& id) {
 int main() {
     Sqlite db(":memory:");
     db.exec("CREATE TABLE runs (id INTEGER PRIMARY KEY, os TEXT, compiler TEXT, "
-            "build_type TEXT, disk_type TEXT, size_label TEXT)");
+            "build_type TEXT, disk_type TEXT, size_label TEXT, modules TEXT)");
 
     // Two runs identical except os -> the original collision case.
-    insert(db, 1, {"rhel-9.8",  "gcc15", "Debug", "ssd", "Smoke"});
-    insert(db, 2, {"rhel-10.2", "gcc15", "Debug", "ssd", "Smoke"});
+    insert(db, 1, {"rhel-9.8",  "gcc15", "Debug", "ssd", "Smoke", "textual"});
+    insert(db, 2, {"rhel-10.2", "gcc15", "Debug", "ssd", "Smoke", "textual"});
 
     dedup_for(db, 1);                 // finalize the rhel-9.8 run
     CHECK(count_rows(db) == 2);       // rhel-10.2 must NOT be clobbered (the bug)
 
     // A second rhel-9.8 run with the SAME identity must replace the first.
-    insert(db, 3, {"rhel-9.8", "gcc15", "Debug", "ssd", "Smoke"});
+    insert(db, 3, {"rhel-9.8", "gcc15", "Debug", "ssd", "Smoke", "textual"});
     dedup_for(db, 3);
     CHECK(count_rows(db) == 2);       // row 1 gone, rows 2 (10.2) and 3 (9.8) remain
 
