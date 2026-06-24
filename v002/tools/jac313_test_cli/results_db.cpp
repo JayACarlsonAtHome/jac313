@@ -1143,6 +1143,18 @@ bool anonymize_hosts(const ResultsDbContext& ctx, bool dry_run) {
     }
 }
 
+// Canonical desired-matrix OS family for a host os key ("<id>-<version>", lowercased
+// by os_key_from_release). Fedora ships gcc16; RHEL and its clones (rocky/almalinux/
+// centos/ol/scientific/sl) and Mint use gcc15. Keep these families in sync with the
+// v_desired_matrix os_family literals (and platform.cpp's rhel-family list).
+static std::string desired_os_family(const std::string& os) {
+    const std::string id = os.substr(0, os.find('-'));
+    if (id == "fedora") return "fedora";
+    if (id == "linuxmint" || id == "mint" || id == "ubuntu" || id == "debian")
+        return "linuxmint";
+    return "rhel";  // rhel, rocky, almalinux, centos, ol, scientific, sl, redhat, ...
+}
+
 std::vector<MatrixCombo> missing_matrix_combos(const ResultsDbContext& ctx,
                                                const std::string& os,
                                                const std::string& disk,
@@ -1167,12 +1179,12 @@ std::vector<MatrixCombo> missing_matrix_combos(const ResultsDbContext& ctx,
             "  AND r.modules=d.modules AND r.size_label=d.size_label "
             "WHERE (? OR r.id IS NULL) "
             "  AND (? OR d.size_label<>'xFull') "
-            "  AND ? LIKE d.os_family || '%' "
+            "  AND d.os_family = ? "
             "ORDER BY (d.size_label='xFull'), d.compiler, d.build_type, d.modules");
         stmt.bind(os, disk,
                   static_cast<std::int64_t>(force ? 1 : 0),
                   static_cast<std::int64_t>(include_full ? 1 : 0),
-                  os);
+                  desired_os_family(os));
         while (stmt.step()) {
             MatrixCombo c;
             stmt.get(c.compiler, c.build_type, c.modules, c.size_label);

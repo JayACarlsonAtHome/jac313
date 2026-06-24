@@ -36,6 +36,7 @@ template <class Fn>
 static bool child_terminates(Fn fn) {
     std::fflush(nullptr);
     const pid_t pid = fork();
+    if (pid < 0) { std::perror("fork"); std::_Exit(2); }  // fork failed -> test error
     if (pid == 0) {          // child
         fn();
         std::_Exit(0);       // reached only if NO contract fired
