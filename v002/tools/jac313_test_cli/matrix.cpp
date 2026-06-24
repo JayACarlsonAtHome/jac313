@@ -292,12 +292,32 @@ ScenarioIdentity scenario_identity(const MatrixScenario& scen) {
 void print_matrix_scenario_line(const MatrixScenario& scen,
                                 const int index,
                                 const int total,
-                                const bool in_progress)
+                                const bool in_progress,
+                                const int global_index,
+                                const int global_total,
+                                const int name_width)
 {
-    std::cout << "[" << format_count(index) << "/" << format_count(total) << "] "
-              << scen.entry.name;
+    // Right-justify the numeric counters to the width of their maximum, and
+    // left-justify the variable text columns to fixed widths, so NOTHING shifts:
+    //   name    -> widest scenario name in the run (name_width)
+    //   persist -> width of "binary" (6, the longest sink)
+    //   mode    -> width of "off"    (3, the longest mode)
+    const auto rjust = [](const std::string& s, std::size_t w) {
+        return s.size() < w ? std::string(w - s.size(), ' ') + s : s;
+    };
+    const auto ljust = [](const std::string& s, std::size_t w) {
+        return s.size() < w ? s + std::string(w - s.size(), ' ') : s;
+    };
+    const std::string total_s = format_count(total);
+    std::cout << "[" << rjust(format_count(index), total_s.size()) << "/" << total_s;
+    if (global_total > 0) {
+        const std::string gtot_s = format_count(global_total);
+        std::cout << " · " << rjust(format_count(global_index), gtot_s.size())
+                  << " of " << gtot_s;
+    }
+    std::cout << "] " << ljust(scen.entry.name, static_cast<std::size_t>(name_width));
     if (scen.category == "matrix") {
-        std::cout << " | " << scen.persist << " | " << scen.output_mode;
+        std::cout << " | " << ljust(scen.persist, 6) << " | " << ljust(scen.output_mode, 3);
         if (scen.threads > 0) {
             std::cout << " (t=" << format_count(scen.threads)
                       << ", e=" << format_count(scen.events_per_thread)
@@ -450,6 +470,12 @@ std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scena
     results.reserve(scenarios.size());
 
     const int total = static_cast<int>(scenarios.size());
+    int name_width = 0;   // widest scenario name in this run (for column alignment)
+    for (const auto& s : scenarios) {
+        if (static_cast<int>(s.entry.name.size()) > name_width) {
+            name_width = static_cast<int>(s.entry.name.size());
+        }
+    }
     int index = 0;
     std::optional<std::string> results_rel;
     if (opts.db.active()) {
@@ -465,7 +491,8 @@ std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scena
         const fs::path persist_base = scenario_persist_base(log_dir);
         const auto args = build_scenario_args(scen, params, persist_base);
 
-        print_matrix_scenario_line(scen, index, total, true);
+        print_matrix_scenario_line(scen, index, total, true,
+                                   opts.global_done_before + index, opts.global_total, name_width);
 
         MatrixRunResult run;
         run.scenario = scen;

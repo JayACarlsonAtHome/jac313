@@ -291,7 +291,8 @@ constexpr int kBuildPhaseFailed = 2;
 int run_matrix_run_command(const GlobalOptions& global,
                            MatrixOptions matrix_opts,
                            const RunOptions& run_opts,
-                           const int build_jobs = 0)
+                           const int build_jobs = 0,
+                           int* out_per_combo = nullptr)
 {
     const auto tests = discover_tests(global.build_dir);
     if (tests.empty()) {
@@ -337,7 +338,25 @@ int run_matrix_run_command(const GlobalOptions& global,
         std::cout << "Failsafe: " << format_count(failsafe_sec) << "s per scenario\n";
     }
     std::cout << "Results: " << results_base.string() << '\n';
-    std::cout << "Scenarios: " << format_count(scenarios.size()) << "\n\n";
+
+    // Global scenario accounting for a run-all sweep: TOTAL = combo_count * this
+    // combo's scenario count (constant across combos). Surfaced so every line and
+    // header shows ".. of TOTAL" and an inflated combo count is obvious at a glance.
+    const int per_combo     = static_cast<int>(scenarios.size());
+    const int grand_total   = (matrix_opts.combo_count > 0) ? matrix_opts.combo_count * per_combo : 0;
+    const int global_before = (matrix_opts.combo_count > 0 && matrix_opts.combo_index > 0)
+                                  ? (matrix_opts.combo_index - 1) * per_combo : 0;
+    if (out_per_combo != nullptr) {
+        *out_per_combo = per_combo;
+    }
+    std::cout << "Scenarios: " << format_count(per_combo);
+    if (grand_total > 0) {
+        std::cout << "  (combo " << matrix_opts.combo_index << '/' << matrix_opts.combo_count
+                  << "  -  " << format_count(global_before + 1) << ".."
+                  << format_count(global_before + per_combo) << " of "
+                  << format_count(grand_total) << " scenarios)";
+    }
+    std::cout << "\n\n";
 
     const ResultsDbContext db{global.source_dir};
     MatrixRunMeta meta = matrix_run_meta_for(params, matrix_opts.compiler_label);
@@ -351,10 +370,16 @@ int run_matrix_run_command(const GlobalOptions& global,
 
     if (matrix_opts.dry_run) {
         const int total = static_cast<int>(scenarios.size());
+        int name_width = 0;
+        for (const auto& s : scenarios) {
+            if (static_cast<int>(s.entry.name.size()) > name_width) {
+                name_width = static_cast<int>(s.entry.name.size());
+            }
+        }
         int index = 0;
         for (const auto& scen : scenarios) {
             std::cout << "  ";
-            print_matrix_scenario_line(scen, ++index, total);
+            print_matrix_scenario_line(scen, ++index, total, false, 0, 0, name_width);
         }
         return 0;
     }
@@ -369,6 +394,8 @@ int run_matrix_run_command(const GlobalOptions& global,
     run_opts_matrix.fail_fast = run_opts.fail_fast;
     run_opts_matrix.failsafe_sec = failsafe_sec;
     run_opts_matrix.db.db = db;
+    run_opts_matrix.global_done_before = global_before;
+    run_opts_matrix.global_total = grand_total;
     std::optional<std::int64_t> run_id;
     if (!matrix_opts.dry_run) {
         run_id = ensure_matrix_run_record(db, meta, results_base);
@@ -650,7 +677,8 @@ int run_version_check_command(const GlobalOptions& global) {
 // tree (benchmarked module path when modules are on, plain configure+build otherwise),
 // then run the matrix. The two front-ends differ only in how they fill the options.
 int execute_matrix_run(GlobalOptions& global, ConfigureOptions& configure_opts,
-                       MatrixOptions& matrix_opts, RunOptions& run_opts, BuildOptions& build_opts)
+                       MatrixOptions& matrix_opts, RunOptions& run_opts, BuildOptions& build_opts,
+                       int* out_per_combo = nullptr)
 {
     if (!apply_compiler_resolution(global, configure_opts, matrix_opts)) {
         return 1;
@@ -687,7 +715,7 @@ int execute_matrix_run(GlobalOptions& global, ConfigureOptions& configure_opts,
             return kBuildPhaseFailed;   // build failed -> tests skipped
         }
     }
-    return run_matrix_run_command(global, matrix_opts, run_opts, build_opts.jobs);
+    return run_matrix_run_command(global, matrix_opts, run_opts, build_opts.jobs, out_per_combo);
 }
 
 } // namespace
@@ -1036,12 +1064,35 @@ int main(int argc, char** argv) {
                 return 0;
             }
             if (dry_run) {
+                // Preview the expected scenario grand total = combos x per-combo
+                // (per-combo count is constant). Counted from the first combo's
+                // already-built tree if present — no configure, build, or DB writes.
+                const auto& c0 = combos.front();
+                const std::string bt0 = (c0.build_type == "Release") ? "release" : "debug";
+                const std::string md0 = (c0.modules == "modules") ? "modules" : "textual";
+                const fs::path bdir0 = std::string("build-") + c0.compiler + "-" + bt0 + "-" + md0;
+                const auto tests0 = discover_tests(bdir0);
+                if (!tests0.empty()) {
+                    const std::string params_file =
+                        (c0.size_label == "xFull") ? "tests/test_params_full.txt"
+                                                    : "tests/test_params.txt";
+                    const auto params0 = load_matrix_params(global.source_dir / params_file);
+                    const int per_combo = static_cast<int>(
+                        build_matrix_scenarios(tests0, params0, c0.compiler, bdir0, run_opts.filter).size());
+                    std::cout << "expected: " << combos.size() << " combos x " << per_combo
+                              << " = " << (static_cast<int>(combos.size()) * per_combo)
+                              << " scenarios\n";
+                } else {
+                    std::cout << "(expected scenario total: build a combo first to count; "
+                                 "= " << combos.size() << " combos x ~116)\n";
+                }
                 std::cout << "(dry-run: nothing executed)\n";
                 return 0;
             }
             struct FailedCombo { std::string desc; bool build_failed; };
             std::vector<FailedCombo> failed;
             int idx = 0;
+            int seen_per_combo = 0;   // scenarios per combo (constant across combos)
             for (const auto& c : combos) {
                 ++idx;
                 std::cout << "\n=== run-all [" << idx << '/' << combos.size() << "]  "
@@ -1065,7 +1116,11 @@ int main(int argc, char** argv) {
                 const std::string bt = (c.build_type == "Release") ? "release" : "debug";
                 const std::string md = co.modules ? "modules" : "textual";
                 go.build_dir = "build-" + c.compiler + "-" + bt + "-" + md;
-                const int rc = execute_matrix_run(go, co, mo, run_opts, build_opts);
+                mo.combo_index = idx;
+                mo.combo_count = static_cast<int>(combos.size());
+                int per_combo = 0;
+                const int rc = execute_matrix_run(go, co, mo, run_opts, build_opts, &per_combo);
+                if (per_combo > 0) seen_per_combo = per_combo;
                 if (rc != 0) {
                     const bool build_failed = (rc == kBuildPhaseFailed);
                     const std::string desc = c.compiler + ' ' + c.build_type + ' '
@@ -1088,6 +1143,11 @@ int main(int argc, char** argv) {
             const int total     = static_cast<int>(combos.size());
             const int ok        = attempted - static_cast<int>(failed.size());
             std::cout << "\nrun-all done: " << ok << '/' << total << " combo(s) ok";
+            if (seen_per_combo > 0) {
+                std::cout << "  ·  " << format_count(ok * seen_per_combo) << " of "
+                          << format_count(total * seen_per_combo) << " scenarios ("
+                          << total << " combos x " << seen_per_combo << ")";
+            }
             if (attempted < total) {
                 std::cout << "  (stopped after " << attempted << "; "
                           << (total - attempted) << " not run — --fail-fast)";

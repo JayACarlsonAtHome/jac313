@@ -68,6 +68,10 @@ struct MatrixOptions {
     std::optional<std::int64_t> group_id;
     std::optional<std::string> group_run_utc;
     std::optional<std::string> run_utc;
+    // run-all sweep position (1-based). combo_count>0 enables the global
+    // "G of TOTAL" scenario counter (TOTAL = combo_count * scenarios-per-combo).
+    int combo_index{0};
+    int combo_count{0};
 };
 
 } // namespace jac313::test_cli
