@@ -1,7 +1,7 @@
 ================================================================================
 Claude_Forward.txt  —  session handoff / crash-recovery note
 Project: jac313   Path: /home/jay/git/jac313 (dev/Mint) | /slowdata/git/jac313 (R730/RHEL 9.8)
-Last updated: 2026-06-24  (by Claude — overnight: run-all guardrail counter + padded columns + pass/fail verdict; jText hardened both versions; --force combo-explosion bug FIXED + both DBs deduped; v001 brought to v001.002 PARITY (stays C++23, NOT C++26); FULL MATRIX both versions = 1,856/1,856 ALL PASSED; all 3 branches @ a03c5d86. NEXT: a Fedora/gcc16 VM for NATIVE C++26 contracts — full mission in the top SESSION LOG entry.)
+Last updated: 2026-06-24  (by Claude — Fedora/gcc16 twin DONE: native C++26 contracts lit up + gcc16 added to v002 matrix; full matrix 1,856/1,856 on jac313-008; see TOP SESSION LOG entry. PRIOR overnight: run-all guardrail counter + padded columns + pass/fail verdict; jText hardened both versions; --force combo-explosion bug FIXED + both DBs deduped; v001 brought to v001.002 PARITY (stays C++23, NOT C++26); FULL MATRIX both versions = 1,856/1,856 ALL PASSED; all 3 branches @ a03c5d86. NEXT: a Fedora/gcc16 VM for NATIVE C++26 contracts — full mission in the top SESSION LOG entry.)
 ================================================================================
 
 PURPOSE OF THIS FILE
@@ -201,6 +201,79 @@ render from DB views.
 --------------------------------------------------------------------------------
 7. SESSION LOG  (append newest at top; keep it short and factual)
 --------------------------------------------------------------------------------
+2026-06-24  FEDORA/gcc16 TWIN — NATIVE C++26 CONTRACTS LIT UP + gcc16 ADDED TO v002 MATRIX (Claude, on jac313-008).
+
+            >>> Mission from the 2026-06-24 handoff DONE on the Fedora box. <<<
+            Box: jac313-008 = Fedora 44, gcc 16.1.1 (Red Hat 16.1.1-2), clang 22.1.8,
+            ninja 1.13.2, cmake 4.3.0, valgrind 3.27.1. host_label.local = jac313-008
+            in BOTH v001/ and v002/ (gitignored; no hostname leak). I work over SSH as
+            user 'claude'; the GUI user is 'jay'. v002 ONLY this session (Jay's rule).
+
+            WHAT LANDED (v002 only; v001 untouched — still C++23):
+            1. CONTRACTS shim now tri-modal (Setup/include/jac313/Setup/contracts.hpp):
+               (A) NATIVE when __cpp_contracts (gcc16 -fcontracts): JAC313_PRE/POST/ASSERT
+                   -> contract_assert; (B) RUNTIME fail-fast (clang, no native contracts);
+                   (C) DISABLED zero-cost no-ops. Exposes JAC313_CONTRACTS_NATIVE.
+                   WHY macro->contract_assert (not declarator pre()/post()): a macro can't
+                   inject text onto a function declarator. True native pre() is exercised
+                   directly in the new death-test.
+            2. NEW death-test tools/jac313_test_cli/tests/contracts_enforce_test.cpp: forks
+               a child that VIOLATES a contract and asserts it terminates. Carries a real
+               native `int must_be_positive(const int n) pre(n>0)` under __cpp_contracts
+               (macro fallback otherwise). Covers the enforce/abort path the happy-path
+               test omitted. Proven: violation prints
+               "[assertion_kind: pre, semantic: enforce, ... terminating: yes]" then aborts.
+            3. CMake (tools/CMakeLists.txt): on the gcc16 axis only
+               (CMAKE_CXX_COMPILER_ID==GNU && VERSION>=16) the 3 contracts tests compile
+               AND LINK with -fcontracts -fcontract-evaluation-semantic=enforce. LINK flag
+               is required — gcc16 only pulls in the default handle_contract_violation when
+               -fcontracts is on the link line (else: undefined reference).
+            4. gcc16 ADDED TO THE MATRIX, platform-aware (results_db.cpp):
+               v_desired_matrix now maps os_family->compiler (fedora->gcc16, rhel/mint->
+               gcc15; clang universal) and is DROP+CREATE'd each schema-ensure. The missing-
+               combos query filters desired rows by host os family (LIKE os_family||'%').
+               main.cpp run-all loop routes 'gcc16' (and any registry label) via
+               configure_opts.compiler instead of the old else->clang fallthrough.
+               => RHEL hosts still want gcc15 (existing 006/007 runs not orphaned); Fedora
+               wants gcc16+clang.
+            5. TWO gcc16 libstdc++ regressions fixed with portable jac313 shims (gcc15/
+               gcc16/clang) — see docs/findings/gcc16_libstdcxx_regressions.md:
+               - std::runtime_format (P2918) GONE -> jac313_rt_print/rt_println
+                 (vprint_unicode path) in Store includes.hpp; 21 sites in
+                 impl_details/{diagnostic,printing}.hpp. Also dodges clang's std::print
+                 consteval defect on dynamic specs {:>{}} (the reason runtime_format was
+                 there originally) -> both compilers now happy without it.
+               - std::add_sat/mul_sat (P0543) ABSENT (header has only saturating_add/mul;
+                 __cpp_lib_saturation_arithmetic advertised anyway) -> jac313::add_sat/
+                 mul_sat (Store/.../headers/sat_compat.hpp, __builtin_*_overflow); 8 sites
+                 in ts_store.hpp + binary-log persistence + saturating_capacity_test.
+
+            RESULTS on jac313-008 (Fedora 44 / x7k):
+            - ctest: 30/30 (added jac313_contracts_enforce_test; native contracts active).
+            - matrix run-all: gcc16 + clang x Debug/Release x modules/textual x Smoke+xFull
+              = 16 combos x 116 = 1,856/1,856  *** ALL PASSED ***  (smoke 928 + xFull 928).
+            - valgrind verify-lite pre-push gate: 31/31 clean (memcheck+helgrind+DRD),
+              0 valgrind-errors, 0 test-failures — PASS.
+
+            NOTHING in v001/ changed. Shared-infra note for the cherry-pick seam: the
+            contracts shim + the matrix platform-awareness + the two libstdc++ shims are
+            v002-only by design (v001 is C++23, stays gcc15/clang). If v001 ever moves to
+            gcc16 it will need the same two libstdc++ shims (NOT the contracts/-fcontracts
+            bits). Did NOT use C++26 reflection (P2996) — not needed for contracts; flagged
+            to Jay as agreed.
+
+            COMMIT: c7f1c87f (v002 code/tests/matrix/findings + results + Store version
+            bump v002.003->.004) on dev-work, authored AND pushed from the VM
+            (jac313-008). The VM was cloned over HTTPS (no push creds), so the push used
+            SSH AGENT FORWARDING from the host (jay's GitHub key) — the VM's OWN pre-push
+            gate RAN and PASSED (version-check + build + valgrind verify-lite 31/31 clean),
+            NO bypass. The version-bump gate required bumping Store v002.003->.004 (and the
+            matching static_assert in Store/tests/v002_test.cpp). This handoff is a
+            follow-up commit. FOLLOW-UP for direct VM pushes: add an SSH key for 'claude'
+            on jac313-008 to GitHub and switch the VM remote to git@github.com (already set
+            to the SSH URL; just needs the key registered). main/test-work left as-is (Jay
+            realigns the backup branches via delete+recreate per the branch convention).
+
 2026-06-24  GUARDRAIL + PASS/FAIL VERDICT + v001 PARITY + FULL MATRICES (both) + FEDORA/gcc16 MISSION — all 3 branches @ a03c5d86 (Claude).
 
             >>> TO MY TWIN ON THE FEDORA BOX — your mission. <<<
