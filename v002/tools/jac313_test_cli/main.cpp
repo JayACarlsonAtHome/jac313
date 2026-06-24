@@ -1110,9 +1110,13 @@ int main(int argc, char** argv) {
                 if (c.compiler == "gcc15") {
                     co.prefer_gcc15 = true;
                     mo.compiler_label = "gcc15";
-                } else {
+                } else if (c.compiler == "clang") {
                     co.prefer_clang = true;
                     mo.compiler_label = "clang";
+                } else {
+                    // gcc16 or any registry label: resolved by label via compilers.conf
+                    co.compiler = c.compiler;
+                    mo.compiler_label = c.compiler;
                 }
                 co.build_type = c.build_type;
                 co.modules = (c.modules == "modules");

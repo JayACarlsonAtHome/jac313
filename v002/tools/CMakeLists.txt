@@ -68,3 +68,29 @@ if(TARGET jac313::Setup)
     target_link_libraries(jac313_contracts_disabled_test PRIVATE jac313::Setup)
 endif()
 add_test(NAME jac313_contracts_disabled_test COMMAND jac313_contracts_disabled_test)
+
+# Death-test: a VIOLATED contract must terminate the program (covers the enforce/
+# abort path the happy-path test omits). Forks a child that violates a contract.
+add_executable(jac313_contracts_enforce_test
+    jac313_test_cli/tests/contracts_enforce_test.cpp)
+target_compile_features(jac313_contracts_enforce_test PRIVATE cxx_std_26)
+if(TARGET jac313::Setup)
+    target_link_libraries(jac313_contracts_enforce_test PRIVATE jac313::Setup)
+endif()
+add_test(NAME jac313_contracts_enforce_test COMMAND jac313_contracts_enforce_test)
+
+# On the gcc16 axis, build the contracts tests with NATIVE ISO C++26 contracts
+# (P2900): -fcontracts defines __cpp_contracts (so the shim maps to contract_assert
+# and the death-test's native pre() lights up), under the 'enforce' evaluation
+# semantic so a violated contract terminates. clang/gcc15 keep the runtime fallback.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+    set(_jac313_contract_flags -fcontracts -fcontract-evaluation-semantic=enforce)
+    target_compile_options(jac313_contracts_test          PRIVATE ${_jac313_contract_flags})
+    target_compile_options(jac313_contracts_disabled_test PRIVATE ${_jac313_contract_flags})
+    target_compile_options(jac313_contracts_enforce_test  PRIVATE ${_jac313_contract_flags})
+    # gcc16 links in the default contract-violation handler only when -fcontracts
+    # is on the LINK line too (otherwise: undefined reference handle_contract_violation).
+    target_link_options(jac313_contracts_test          PRIVATE -fcontracts)
+    target_link_options(jac313_contracts_disabled_test PRIVATE -fcontracts)
+    target_link_options(jac313_contracts_enforce_test  PRIVATE -fcontracts)
+endif()

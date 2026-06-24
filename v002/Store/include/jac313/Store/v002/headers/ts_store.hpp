@@ -3,11 +3,12 @@
 #pragma once
 
 #include "includes.hpp"
+#include "sat_compat.hpp"
 
 #include "persistence/DoubleBufferedWriter.hpp"
 
 #ifndef JAC313_STORE_IMPORT_STD
-#include <numeric>  // std::mul_sat / std::add_sat (C++26): overflow-safe capacity math
+#include <numeric>  // jac313::mul_sat / jac313::add_sat (C++26): overflow-safe capacity math
 #endif               // under import std, <numeric> comes from the std module; a textual
                      // include here lands inside the module's export namespace and breaks.
 
@@ -77,7 +78,7 @@ public:
         // Saturating multiply (C++26): on overflow returns SIZE_MAX rather than
         // wrapping, so the constructor's memory guard cannot be fooled into
         // under-allocating for an impossibly large (threads x events) request.
-        return std::mul_sat(max_threads_, events_per_thread_);
+        return jac313::mul_sat(max_threads_, events_per_thread_);
     }
     void clear() {
         next_id_.store(0, std::memory_order_relaxed);
@@ -111,7 +112,7 @@ public:
         const size_t per_row = sizeof(row_data);
         // Saturating math so an overflowing estimate can't wrap small and slip past
         // the memory check below (which would then attempt a huge real allocation).
-        const size_t total_est = std::add_sat(std::mul_sat(N, per_row), size_t(16ULL << 20)); // headroom
+        const size_t total_est = jac313::add_sat(jac313::mul_sat(N, per_row), size_t(16ULL << 20)); // headroom
 
         struct sysinfo info{};
         size_t avail = 0;

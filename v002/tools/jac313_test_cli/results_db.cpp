@@ -199,12 +199,19 @@ CREATE TABLE IF NOT EXISTS scenarios (
     UNIQUE(run_id, test, persist, output_mode)
 );
 
-CREATE VIEW IF NOT EXISTS v_desired_matrix AS
-WITH compilers(compiler)     AS (VALUES ('gcc15'),('clang')),
+DROP VIEW IF EXISTS v_desired_matrix;
+-- Platform-aware desired matrix: the release compiler depends on the host OS family
+-- (Fedora ships gcc16, RHEL/Mint ship gcc15); clang is universal. Recreated every
+-- schema-ensure (DROP+CREATE) so the definition stays current without a version bump.
+CREATE VIEW v_desired_matrix AS
+WITH compilers(os_family, compiler) AS (
+                              VALUES ('fedora','gcc16'),('fedora','clang'),
+                                     ('rhel','gcc15'),  ('rhel','clang'),
+                                     ('linuxmint','gcc15'),('linuxmint','clang')),
      build_types(build_type) AS (VALUES ('Debug'),('Release')),
      modes(modules)          AS (VALUES ('modules'),('textual')),
      sizes(size_label)       AS (VALUES ('Smoke'),('xFull'))
-SELECT compiler, build_type, modules, size_label
+SELECT os_family, compiler, build_type, modules, size_label
 FROM compilers, build_types, modes, sizes;
 
 -- v_latest_runs is defined in refresh_latest_runs_view() (built from the RunIdentity
@@ -1160,10 +1167,12 @@ std::vector<MatrixCombo> missing_matrix_combos(const ResultsDbContext& ctx,
             "  AND r.modules=d.modules AND r.size_label=d.size_label "
             "WHERE (? OR r.id IS NULL) "
             "  AND (? OR d.size_label<>'xFull') "
+            "  AND ? LIKE d.os_family || '%' "
             "ORDER BY (d.size_label='xFull'), d.compiler, d.build_type, d.modules");
         stmt.bind(os, disk,
                   static_cast<std::int64_t>(force ? 1 : 0),
-                  static_cast<std::int64_t>(include_full ? 1 : 0));
+                  static_cast<std::int64_t>(include_full ? 1 : 0),
+                  os);
         while (stmt.step()) {
             MatrixCombo c;
             stmt.get(c.compiler, c.build_type, c.modules, c.size_label);

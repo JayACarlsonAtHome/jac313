@@ -1,10 +1,11 @@
 #include "BinaryEventLogReader.hpp"
+#include "../sat_compat.hpp"
 
 #ifndef JAC313_STORE_IMPORT_STD
 #include <cstring>
 #include <stdexcept>
 #include <span>
-#include <numeric>  // std::add_sat / std::mul_sat (C++26): overflow-safe offset math
+#include <numeric>  // jac313::add_sat / jac313::mul_sat (C++26): overflow-safe offset math
 #endif
 
 #ifndef JAC313_STORE_IMPORT_STD
@@ -76,7 +77,7 @@ bool BinaryEventLogReader::read_next_record(BinaryRecord& out) {
     // past the buffer (over-read hardening). add_sat/mul_sat keep the offset math
     // overflow-safe even for attacker-chosen lengths. (span::at-style checking,
     // generalized to the bulk memcpy reads.)
-    auto have = [&](size_t n) noexcept { return std::add_sat(pos, n) <= buf.size(); };
+    auto have = [&](size_t n) noexcept { return jac313::add_sat(pos, n) <= buf.size(); };
 
     auto read_u64 = [&](uint64_t& dst) noexcept -> bool {
         if (!have(sizeof(uint64_t))) return false;
@@ -108,7 +109,7 @@ bool BinaryEventLogReader::read_next_record(BinaryRecord& out) {
 
     uint16_t i_count = 0;
     if (!read_u16(i_count) ||
-        !have(std::mul_sat<size_t>(i_count, sizeof(int64_t)))) { eof_reached_ = true; return false; }
+        !have(jac313::mul_sat<size_t>(i_count, sizeof(int64_t)))) { eof_reached_ = true; return false; }
     out.int_metrics.resize(i_count);
     if (i_count > 0) {
         std::memcpy(out.int_metrics.data(), buf.data() + pos, i_count * sizeof(int64_t));
@@ -117,7 +118,7 @@ bool BinaryEventLogReader::read_next_record(BinaryRecord& out) {
 
     uint16_t d_count = 0;
     if (!read_u16(d_count) ||
-        !have(std::mul_sat<size_t>(d_count, sizeof(double)))) { eof_reached_ = true; return false; }
+        !have(jac313::mul_sat<size_t>(d_count, sizeof(double)))) { eof_reached_ = true; return false; }
     out.dbl_metrics.resize(d_count);
     if (d_count > 0) {
         std::memcpy(out.dbl_metrics.data(), buf.data() + pos, d_count * sizeof(double));
