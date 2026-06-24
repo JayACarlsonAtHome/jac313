@@ -1147,8 +1147,12 @@ std::vector<MatrixCombo> missing_matrix_combos(const ResultsDbContext& ctx,
             return out;
         }
         Sqlite db(ctx.db_path().string());
+        // DISTINCT: with --force the LEFT JOIN matches every historical run for a
+        // desired combo, so without DISTINCT each combo would be scheduled once per
+        // recorded run (8 desired combos × inflated run history -> hundreds of dupes).
+        // We want each distinct desired combo exactly once.
         auto stmt = db.prepare(
-            "SELECT d.compiler, d.build_type, d.modules, d.size_label "
+            "SELECT DISTINCT d.compiler, d.build_type, d.modules, d.size_label "
             "FROM v_desired_matrix d "
             "LEFT JOIN runs r "
             "  ON r.os=? AND r.disk_type=? "
