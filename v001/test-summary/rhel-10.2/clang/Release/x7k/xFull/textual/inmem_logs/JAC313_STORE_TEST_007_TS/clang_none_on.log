@@ -1,0 +1,26 @@
+# jac313 log tail (last 50 lines)
+# captured at matrix run
+
+=== FINAL MASSIVE TEST — 100,000 entries × 3 runs ===
+Using store.clear() — fastest, most realistic reuse
+
+No persistence attached — pure in-memory hot path
+
+  sample metrics on event 42 (t=0): int=4200 dbl=0.42
+[32m[VERIFY] ALL 100000 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
+[0m  sample metrics on event 42 (t=0): int=4200 dbl=0.42
+[32m[VERIFY] ALL 100000 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
+[0mRun 3 / 3
+  sample metrics on event 42 (t=0): int=4200 dbl=0.42
+[32m[VERIFY] ALL 100000 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
+[0mPASS — 5,268 µs → 18,982,536 ops/sec
+
+
+═══════════════════════════════════════════════════════════════
+               FINAL RESULT — 3-RUN STATISTICS            
+═══════════════════════════════════════════════════════════════
+  Fastest run        : 5,015 µs  → 19,940,179 ops/sec
+  Slowest run        : 6,490 µs  → 15,408,320 ops/sec
+  Average            : 5,591 µs  → 17,885,888 ops/sec
+  (100,000 events per run, 100% verified, zero corruption)
+═══════════════════════════════════════════════════════════════

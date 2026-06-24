@@ -114,10 +114,10 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
 </thead>
 <tbody>
-<tr><td>fedora-44</td><td>gcc16</td><td>Debug</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">61</td><td>2026-06-20 18:38:12Z</td><td style="text-align:right">18,397 ms (18s)</td><td style="text-align:right">-</td><td style="text-align:right">520,833</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/fedora-44/gcc16/Debug/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td>fedora-44</td><td>gcc16</td><td>Debug</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">59</td><td>2026-06-20 18:22:36Z</td><td style="text-align:right">21,167 ms (21s)</td><td style="text-align:right">23,589 ms (23s)</td><td style="text-align:right">511,247</td><td>jac313_store_005_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/fedora-44/gcc16/Debug/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-005 · Fedora Linux 44 (Server Edition) (6.19.10-300.fc44.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 98 GB RAM · vda (x7k label)</td></tr>
-<tr><td>fedora-44</td><td>gcc16</td><td>Debug</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">59</td><td>2026-06-20 18:22:36Z</td><td style="text-align:right">21,167 ms (21s)</td><td style="text-align:right">23,589 ms (23s)</td><td style="text-align:right">511,247</td><td>jac313_store_005_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/fedora-44/gcc16/Debug/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>fedora-44</td><td>gcc16</td><td>Debug</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">61</td><td>2026-06-20 18:38:12Z</td><td style="text-align:right">18,397 ms (18s)</td><td style="text-align:right">-</td><td style="text-align:right">520,833</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/fedora-44/gcc16/Debug/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-005 · Fedora Linux 44 (Server Edition) (6.19.10-300.fc44.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 98 GB RAM · vda (x7k label)</td></tr>
 <tr><td>fedora-44</td><td>gcc16</td><td>Debug</td><td>modules</td><td>xFull</td><td>x7k</td><td style="text-align:right">60</td><td>2026-06-20 18:25:12Z</td><td style="text-align:right">645,369 ms (10m 45s)</td><td style="text-align:right">22,569 ms (22s)</td><td style="text-align:right">4,437,384</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/fedora-44/gcc16/Debug/x7k/xFull/modules/RUN.md">RUN.md</a></td></tr>
@@ -126,10 +126,10 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><td>fedora-44</td><td>gcc16</td><td>Debug</td><td>textual</td><td>xFull</td><td>x7k</td><td style="text-align:right">62</td><td>2026-06-20 18:39:10Z</td><td style="text-align:right">646,756 ms (10m 46s)</td><td style="text-align:right">-</td><td style="text-align:right">4,514,836</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/fedora-44/gcc16/Debug/x7k/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-005 · Fedora Linux 44 (Server Edition) (6.19.10-300.fc44.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 98 GB RAM · vda (x7k label)</td></tr>
-<tr><td>fedora-44</td><td>gcc16</td><td>Release</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">63</td><td>2026-06-20 18:50:36Z</td><td style="text-align:right">19,399 ms (19s)</td><td style="text-align:right">36,512 ms (36s)</td><td style="text-align:right">687,758</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/fedora-44/gcc16/Release/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>fedora-44</td><td>gcc16</td><td>Release</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">65</td><td>2026-06-20 19:07:41Z</td><td style="text-align:right">19,599 ms (19s)</td><td style="text-align:right">-</td><td style="text-align:right">778,816</td><td>jac313_store_005_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/fedora-44/gcc16/Release/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-005 · Fedora Linux 44 (Server Edition) (6.19.10-300.fc44.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 98 GB RAM · vda (x7k label)</td></tr>
-<tr><td>fedora-44</td><td>gcc16</td><td>Release</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">65</td><td>2026-06-20 19:07:41Z</td><td style="text-align:right">19,599 ms (19s)</td><td style="text-align:right">-</td><td style="text-align:right">778,816</td><td>jac313_store_005_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/fedora-44/gcc16/Release/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td>fedora-44</td><td>gcc16</td><td>Release</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">63</td><td>2026-06-20 18:50:36Z</td><td style="text-align:right">19,399 ms (19s)</td><td style="text-align:right">36,512 ms (36s)</td><td style="text-align:right">687,758</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/fedora-44/gcc16/Release/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-005 · Fedora Linux 44 (Server Edition) (6.19.10-300.fc44.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 98 GB RAM · vda (x7k label)</td></tr>
 </tbody>
@@ -166,10 +166,10 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
 </thead>
 <tbody>
-<tr><td>linuxmint-22.3</td><td>clang</td><td>Release</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">70</td><td>2026-06-20 23:06:43Z</td><td style="text-align:right">21,644 ms (21s)</td><td style="text-align:right">-</td><td style="text-align:right">600,240</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/linuxmint-22.3/clang/Release/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td>linuxmint-22.3</td><td>clang</td><td>Release</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">69</td><td>2026-06-20 23:00:30Z</td><td style="text-align:right">21,635 ms (21s)</td><td style="text-align:right">101,634 ms (1m 41s)</td><td style="text-align:right">571,429</td><td>jac313_store_007_TS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/linuxmint-22.3/clang/Release/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-004 · Linux Mint 22.3 (6.17.0-35-generic) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 31 GB RAM · vda (x7k label)</td></tr>
-<tr><td>linuxmint-22.3</td><td>clang</td><td>Release</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">69</td><td>2026-06-20 23:00:30Z</td><td style="text-align:right">21,635 ms (21s)</td><td style="text-align:right">101,634 ms (1m 41s)</td><td style="text-align:right">571,429</td><td>jac313_store_007_TS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/linuxmint-22.3/clang/Release/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>linuxmint-22.3</td><td>clang</td><td>Release</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">70</td><td>2026-06-20 23:06:43Z</td><td style="text-align:right">21,644 ms (21s)</td><td style="text-align:right">-</td><td style="text-align:right">600,240</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/linuxmint-22.3/clang/Release/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-004 · Linux Mint 22.3 (6.17.0-35-generic) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 31 GB RAM · vda (x7k label)</td></tr>
 <tr><td>linuxmint-22.3</td><td>clang</td><td>Release</td><td>modules</td><td>xFull</td><td>x7k</td><td style="text-align:right">77</td><td>2026-06-20 23:48:56Z</td><td style="text-align:right">618,980 ms (10m 18s)</td><td style="text-align:right">97,025 ms (1m 37s)</td><td style="text-align:right">3,122,073</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/linuxmint-22.3/clang/Release/x7k/xFull/modules/RUN.md">RUN.md</a></td></tr>
@@ -192,10 +192,10 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
 </thead>
 <tbody>
-<tr><td>linuxmint-22.3</td><td>gcc15</td><td>Debug</td><td>modules</td><td>xFull</td><td>x7k</td><td style="text-align:right">79</td><td>2026-06-21 00:14:36Z</td><td style="text-align:right">658,831 ms (10m 58s)</td><td style="text-align:right">68,630 ms (1m 8s)</td><td style="text-align:right">1,414,547</td><td>jac313_store_007_XS (binary/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/linuxmint-22.3/gcc15/Debug/x7k/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>linuxmint-22.3</td><td>gcc15</td><td>Debug</td><td>textual</td><td>xFull</td><td>x7k</td><td style="text-align:right">80</td><td>2026-06-21 00:28:45Z</td><td style="text-align:right">657,796 ms (10m 57s)</td><td style="text-align:right">-</td><td style="text-align:right">1,488,472</td><td>jac313_store_005_XS (jtext/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/linuxmint-22.3/gcc15/Debug/x7k/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-004 · Linux Mint 22.3 (6.17.0-35-generic) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 31 GB RAM · vda (x7k label)</td></tr>
-<tr><td>linuxmint-22.3</td><td>gcc15</td><td>Debug</td><td>textual</td><td>xFull</td><td>x7k</td><td style="text-align:right">80</td><td>2026-06-21 00:28:45Z</td><td style="text-align:right">657,796 ms (10m 57s)</td><td style="text-align:right">-</td><td style="text-align:right">1,488,472</td><td>jac313_store_005_XS (jtext/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/linuxmint-22.3/gcc15/Debug/x7k/xFull/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td>linuxmint-22.3</td><td>gcc15</td><td>Debug</td><td>modules</td><td>xFull</td><td>x7k</td><td style="text-align:right">79</td><td>2026-06-21 00:14:36Z</td><td style="text-align:right">658,831 ms (10m 58s)</td><td style="text-align:right">68,630 ms (1m 8s)</td><td style="text-align:right">1,414,547</td><td>jac313_store_007_XS (binary/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/linuxmint-22.3/gcc15/Debug/x7k/xFull/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-004 · Linux Mint 22.3 (6.17.0-35-generic) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 31 GB RAM · vda (x7k label)</td></tr>
 <tr><td>linuxmint-22.3</td><td>gcc15</td><td>Release</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">73</td><td>2026-06-20 23:14:12Z</td><td style="text-align:right">22,406 ms (22s)</td><td style="text-align:right">115,876 ms (1m 55s)</td><td style="text-align:right">644,745</td><td>jac313_store_005_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/linuxmint-22.3/gcc15/Release/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
@@ -218,24 +218,24 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
 </thead>
 <tbody>
-<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>modules</td><td>Smoke</td><td>10k</td><td style="text-align:right">2</td><td>2026-06-20 04:34:11Z</td><td style="text-align:right">17,955 ms (17s)</td><td style="text-align:right">10,819 ms (10s)</td><td style="text-align:right">641,026</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/10k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>textual</td><td>Smoke</td><td>10k</td><td style="text-align:right">3</td><td>2026-06-20 04:35:43Z</td><td style="text-align:right">18,175 ms (18s)</td><td style="text-align:right">-</td><td style="text-align:right">654,450</td><td>jac313_store_007_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/10k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>modules</td><td>Smoke</td><td>ssd</td><td style="text-align:right">99</td><td>2026-06-23 01:08:58Z</td><td style="text-align:right">16,232 ms (16s)</td><td style="text-align:right">4,708 ms (4s)</td><td style="text-align:right">2,544,529</td><td>jac313_store_005_TS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/ssd/Smoke/modules/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>textual</td><td>Smoke</td><td>ssd</td><td style="text-align:right">100</td><td>2026-06-23 01:09:32Z</td><td style="text-align:right">16,231 ms (16s)</td><td style="text-align:right">-</td><td style="text-align:right">2,873,563</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/ssd/Smoke/textual/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">19</td><td>2026-06-20 06:32:57Z</td><td style="text-align:right">18,875 ms (18s)</td><td style="text-align:right">-</td><td style="text-align:right">685,401</td><td>jac313_store_005_TS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">18</td><td>2026-06-20 06:31:21Z</td><td style="text-align:right">19,639 ms (19s)</td><td style="text-align:right">11,071 ms (11s)</td><td style="text-align:right">692,042</td><td>jac313_store_007_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
+<tr><td>rhel-10.2</td><td>clang</td><td>Debug</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">115</td><td>2026-06-24 07:37:05Z</td><td style="text-align:right">17,786 ms (17s)</td><td style="text-align:right">10,884 ms (10s)</td><td style="text-align:right">1,956,947</td><td>jac313_store_007_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/clang/Debug/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>rhel-10.2</td><td>clang</td><td>Debug</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">116</td><td>2026-06-24 07:39:16Z</td><td style="text-align:right">17,838 ms (17s)</td><td style="text-align:right">-</td><td style="text-align:right">1,886,792</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/clang/Debug/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>rhel-10.2</td><td>clang</td><td>Debug</td><td>modules</td><td>xFull</td><td>x7k</td><td style="text-align:right">123</td><td>2026-06-24 07:53:05Z</td><td style="text-align:right">604,824 ms (10m 4s)</td><td style="text-align:right">10,330 ms (10s)</td><td style="text-align:right">11,341,469</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/clang/Debug/x7k/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>rhel-10.2</td><td>clang</td><td>Debug</td><td>textual</td><td>xFull</td><td>x7k</td><td style="text-align:right">124</td><td>2026-06-24 08:04:57Z</td><td style="text-align:right">608,592 ms (10m 8s)</td><td style="text-align:right">-</td><td style="text-align:right">11,382,391</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/clang/Debug/x7k/xFull/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>rhel-10.2</td><td>clang</td><td>Release</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">117</td><td>2026-06-24 07:40:52Z</td><td style="text-align:right">17,686 ms (17s)</td><td style="text-align:right">16,193 ms (16s)</td><td style="text-align:right">2,192,982</td><td>jac313_store_005_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/clang/Release/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>rhel-10.2</td><td>clang</td><td>Release</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">118</td><td>2026-06-24 07:43:06Z</td><td style="text-align:right">17,634 ms (17s)</td><td style="text-align:right">-</td><td style="text-align:right">2,105,263</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/clang/Release/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
 </tbody>
 </table>
 
@@ -244,12 +244,84 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
 </thead>
 <tbody>
-<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>modules</td><td>xFull</td><td>10k</td><td style="text-align:right">10</td><td>2026-06-20 04:45:40Z</td><td style="text-align:right">602,212 ms (10m 2s)</td><td style="text-align:right">10,521 ms (10s)</td><td style="text-align:right">5,387,321</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/10k/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-10.2</td><td>clang</td><td>Release</td><td>modules</td><td>xFull</td><td>x7k</td><td style="text-align:right">125</td><td>2026-06-24 08:16:18Z</td><td style="text-align:right">600,566 ms (10m)</td><td style="text-align:right">14,745 ms (14s)</td><td style="text-align:right">22,888,533</td><td>jac313_store_005_XS (binary/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/clang/Release/x7k/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>rhel-10.2</td><td>clang</td><td>Release</td><td>textual</td><td>xFull</td><td>x7k</td><td style="text-align:right">126</td><td>2026-06-24 08:28:14Z</td><td style="text-align:right">601,255 ms (10m 1s)</td><td style="text-align:right">-</td><td style="text-align:right">22,271,715</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/clang/Release/x7k/xFull/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>rhel-10.2</td><td>gcc15</td><td>Debug</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">119</td><td>2026-06-24 07:44:41Z</td><td style="text-align:right">18,039 ms (18s)</td><td style="text-align:right">10,226 ms (10s)</td><td style="text-align:right">1,862,197</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/gcc15/Debug/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>rhel-10.2</td><td>gcc15</td><td>Debug</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">120</td><td>2026-06-24 07:47:17Z</td><td style="text-align:right">19,043 ms (19s)</td><td style="text-align:right">-</td><td style="text-align:right">2,012,072</td><td>jac313_store_007_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/gcc15/Debug/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>rhel-10.2</td><td>gcc15</td><td>Debug</td><td>modules</td><td>xFull</td><td>x7k</td><td style="text-align:right">127</td><td>2026-06-24 08:39:29Z</td><td style="text-align:right">610,139 ms (10m 10s)</td><td style="text-align:right">9,226 ms (9s)</td><td style="text-align:right">12,577,034</td><td>jac313_store_005_XS (jtext/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/gcc15/Debug/x7k/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>rhel-10.2</td><td>gcc15</td><td>Debug</td><td>textual</td><td>xFull</td><td>x7k</td><td style="text-align:right">128</td><td>2026-06-24 08:51:52Z</td><td style="text-align:right">608,555 ms (10m 8s)</td><td style="text-align:right">-</td><td style="text-align:right">12,634,079</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/gcc15/Debug/x7k/xFull/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+</tbody>
+</table>
+
+<table>
+<thead>
+<tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
+</thead>
+<tbody>
+<tr><td>rhel-10.2</td><td>gcc15</td><td>Release</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">121</td><td>2026-06-24 07:48:54Z</td><td style="text-align:right">17,534 ms (17s)</td><td style="text-align:right">17,151 ms (17s)</td><td style="text-align:right">2,277,904</td><td>jac313_store_007_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/gcc15/Release/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>rhel-10.2</td><td>gcc15</td><td>Release</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">122</td><td>2026-06-24 07:51:32Z</td><td style="text-align:right">17,590 ms (17s)</td><td style="text-align:right">-</td><td style="text-align:right">1,941,748</td><td>jac313_store_007_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/gcc15/Release/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>rhel-10.2</td><td>gcc15</td><td>Release</td><td>modules</td><td>xFull</td><td>x7k</td><td style="text-align:right">129</td><td>2026-06-24 09:03:15Z</td><td style="text-align:right">601,589 ms (10m 1s)</td><td style="text-align:right">15,241 ms (15s)</td><td style="text-align:right">22,494,152</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/gcc15/Release/x7k/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>rhel-10.2</td><td>gcc15</td><td>Release</td><td>textual</td><td>xFull</td><td>x7k</td><td style="text-align:right">130</td><td>2026-06-24 09:15:37Z</td><td style="text-align:right">602,764 ms (10m 2s)</td><td style="text-align:right">-</td><td style="text-align:right">23,255,814</td><td>jac313_store_007_XS (binary/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-10.2/gcc15/Release/x7k/xFull/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.002 · Store v001.002</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>modules</td><td>Smoke</td><td>10k</td><td style="text-align:right">2</td><td>2026-06-20 04:34:11Z</td><td style="text-align:right">17,955 ms (17s)</td><td style="text-align:right">10,819 ms (10s)</td><td style="text-align:right">641,026</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/10k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>textual</td><td>Smoke</td><td>10k</td><td style="text-align:right">3</td><td>2026-06-20 04:35:43Z</td><td style="text-align:right">18,175 ms (18s)</td><td style="text-align:right">-</td><td style="text-align:right">654,450</td><td>jac313_store_007_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/10k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
+</tbody>
+</table>
+
+<table>
+<thead>
+<tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
+</thead>
+<tbody>
+<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>textual</td><td>Smoke</td><td>ssd</td><td style="text-align:right">100</td><td>2026-06-23 01:09:32Z</td><td style="text-align:right">16,231 ms (16s)</td><td style="text-align:right">-</td><td style="text-align:right">2,873,563</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/ssd/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>modules</td><td>Smoke</td><td>ssd</td><td style="text-align:right">99</td><td>2026-06-23 01:08:58Z</td><td style="text-align:right">16,232 ms (16s)</td><td style="text-align:right">4,708 ms (4s)</td><td style="text-align:right">2,544,529</td><td>jac313_store_005_TS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/ssd/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">18</td><td>2026-06-20 06:31:21Z</td><td style="text-align:right">19,639 ms (19s)</td><td style="text-align:right">11,071 ms (11s)</td><td style="text-align:right">692,042</td><td>jac313_store_007_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">19</td><td>2026-06-20 06:32:57Z</td><td style="text-align:right">18,875 ms (18s)</td><td style="text-align:right">-</td><td style="text-align:right">685,401</td><td>jac313_store_005_TS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
 <tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>textual</td><td>xFull</td><td>10k</td><td style="text-align:right">11</td><td>2026-06-20 04:56:42Z</td><td style="text-align:right">601,308 ms (10m 1s)</td><td style="text-align:right">-</td><td style="text-align:right">5,538,049</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/10k/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>modules</td><td>xFull</td><td>10k</td><td style="text-align:right">10</td><td>2026-06-20 04:45:40Z</td><td style="text-align:right">602,212 ms (10m 2s)</td><td style="text-align:right">10,521 ms (10s)</td><td style="text-align:right">5,387,321</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/10k/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
+</tbody>
+</table>
+
+<table>
+<thead>
+<tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
+</thead>
+<tbody>
 <tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>modules</td><td>xFull</td><td>ssd</td><td style="text-align:right">107</td><td>2026-06-23 01:13:28Z</td><td style="text-align:right">597,940 ms (9m 57s)</td><td style="text-align:right">4,858 ms (4s)</td><td style="text-align:right">14,068,655</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/ssd/xFull/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
@@ -262,6 +334,12 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><td>rhel-9.8</td><td>clang</td><td>Debug</td><td>textual</td><td>xFull</td><td>x7k</td><td style="text-align:right">27</td><td>2026-06-20 06:53:46Z</td><td style="text-align:right">605,352 ms (10m 5s)</td><td style="text-align:right">-</td><td style="text-align:right">5,177,591</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Debug/x7k/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>modules</td><td>Smoke</td><td>10k</td><td style="text-align:right">4</td><td>2026-06-20 04:36:34Z</td><td style="text-align:right">16,791 ms (16s)</td><td style="text-align:right">14,779 ms (14s)</td><td style="text-align:right">1,218,027</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/10k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>textual</td><td>Smoke</td><td>10k</td><td style="text-align:right">5</td><td>2026-06-20 04:38:12Z</td><td style="text-align:right">16,143 ms (16s)</td><td style="text-align:right">-</td><td style="text-align:right">1,118,568</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/10k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
 </tbody>
 </table>
 
@@ -270,12 +348,6 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
 </thead>
 <tbody>
-<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>modules</td><td>Smoke</td><td>10k</td><td style="text-align:right">4</td><td>2026-06-20 04:36:34Z</td><td style="text-align:right">16,791 ms (16s)</td><td style="text-align:right">14,779 ms (14s)</td><td style="text-align:right">1,218,027</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/10k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>textual</td><td>Smoke</td><td>10k</td><td style="text-align:right">5</td><td>2026-06-20 04:38:12Z</td><td style="text-align:right">16,143 ms (16s)</td><td style="text-align:right">-</td><td style="text-align:right">1,118,568</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/10k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
 <tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>modules</td><td>Smoke</td><td>ssd</td><td style="text-align:right">101</td><td>2026-06-23 01:09:50Z</td><td style="text-align:right">15,883 ms (15s)</td><td style="text-align:right">7,115 ms (7s)</td><td style="text-align:right">4,716,981</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/ssd/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
@@ -288,6 +360,12 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">21</td><td>2026-06-20 06:35:26Z</td><td style="text-align:right">17,593 ms (17s)</td><td style="text-align:right">-</td><td style="text-align:right">1,084,599</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>textual</td><td>xFull</td><td>10k</td><td style="text-align:right">13</td><td>2026-06-20 05:17:51Z</td><td style="text-align:right">571,604 ms (9m 31s)</td><td style="text-align:right">-</td><td style="text-align:right">10,458,610</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/10k/xFull/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>modules</td><td>xFull</td><td>10k</td><td style="text-align:right">12</td><td>2026-06-20 05:07:16Z</td><td style="text-align:right">564,925 ms (9m 24s)</td><td style="text-align:right">15,080 ms (15s)</td><td style="text-align:right">10,887,316</td><td>jac313_store_007_XS (binary/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/10k/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
 </tbody>
 </table>
 
@@ -296,16 +374,10 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
 </thead>
 <tbody>
-<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>textual</td><td>xFull</td><td>10k</td><td style="text-align:right">13</td><td>2026-06-20 05:17:51Z</td><td style="text-align:right">571,604 ms (9m 31s)</td><td style="text-align:right">-</td><td style="text-align:right">10,458,610</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/10k/xFull/textual/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>modules</td><td>xFull</td><td>10k</td><td style="text-align:right">12</td><td>2026-06-20 05:07:16Z</td><td style="text-align:right">564,925 ms (9m 24s)</td><td style="text-align:right">15,080 ms (15s)</td><td style="text-align:right">10,887,316</td><td>jac313_store_007_XS (binary/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/10k/xFull/modules/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>modules</td><td>xFull</td><td>ssd</td><td style="text-align:right">109</td><td>2026-06-23 01:33:40Z</td><td style="text-align:right">590,968 ms (9m 50s)</td><td style="text-align:right">7,214 ms (7s)</td><td style="text-align:right">22,128,790</td><td>jac313_store_005_XS (binary/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/ssd/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>textual</td><td>xFull</td><td>ssd</td><td style="text-align:right">110</td><td>2026-06-23 01:43:49Z</td><td style="text-align:right">590,990 ms (9m 50s)</td><td style="text-align:right">-</td><td style="text-align:right">23,807,823</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/ssd/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>textual</td><td>xFull</td><td>ssd</td><td style="text-align:right">110</td><td>2026-06-23 01:43:49Z</td><td style="text-align:right">590,990 ms (9m 50s)</td><td style="text-align:right">-</td><td style="text-align:right">23,807,823</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/ssd/xFull/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>modules</td><td>xFull</td><td>ssd</td><td style="text-align:right">109</td><td>2026-06-23 01:33:40Z</td><td style="text-align:right">590,968 ms (9m 50s)</td><td style="text-align:right">7,214 ms (7s)</td><td style="text-align:right">22,128,790</td><td>jac313_store_005_XS (binary/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/ssd/xFull/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 <tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>modules</td><td>xFull</td><td>x7k</td><td style="text-align:right">28</td><td>2026-06-20 07:04:19Z</td><td style="text-align:right">571,400 ms (9m 31s)</td><td style="text-align:right">14,828 ms (14s)</td><td style="text-align:right">11,043,866</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/x7k/xFull/modules/RUN.md">RUN.md</a></td></tr>
@@ -314,32 +386,12 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><td>rhel-9.8</td><td>clang</td><td>Release</td><td>textual</td><td>xFull</td><td>x7k</td><td style="text-align:right">29</td><td>2026-06-20 07:14:52Z</td><td style="text-align:right">573,077 ms (9m 33s)</td><td style="text-align:right">-</td><td style="text-align:right">12,743,074</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/clang/Release/x7k/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-</tbody>
-</table>
-
-<table>
-<thead>
-<tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
-</thead>
-<tbody>
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>Smoke</td><td>10k</td><td style="text-align:right">6</td><td>2026-06-20 04:38:59Z</td><td style="text-align:right">18,260 ms (18s)</td><td style="text-align:right">14,275 ms (14s)</td><td style="text-align:right">814,996</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/10k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>textual</td><td>Smoke</td><td>10k</td><td style="text-align:right">7</td><td>2026-06-20 04:41:07Z</td><td style="text-align:right">17,647 ms (17s)</td><td style="text-align:right">-</td><td style="text-align:right">803,213</td><td>jac313_store_007_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/10k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>Smoke</td><td>ssd</td><td style="text-align:right">103</td><td>2026-06-23 01:10:49Z</td><td style="text-align:right">16,232 ms (16s)</td><td style="text-align:right">6,862 ms (6s)</td><td style="text-align:right">3,676,471</td><td>jac313_store_005_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/Smoke/modules/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>textual</td><td>Smoke</td><td>ssd</td><td style="text-align:right">104</td><td>2026-06-23 01:11:40Z</td><td style="text-align:right">16,232 ms (16s)</td><td style="text-align:right">-</td><td style="text-align:right">3,225,806</td><td>jac313_store_007_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/Smoke/textual/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">22</td><td>2026-06-20 06:36:08Z</td><td style="text-align:right">19,601 ms (19s)</td><td style="text-align:right">14,480 ms (14s)</td><td style="text-align:right">767,460</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">23</td><td>2026-06-20 06:38:16Z</td><td style="text-align:right">20,314 ms (20s)</td><td style="text-align:right">-</td><td style="text-align:right">807,103</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
 </tbody>
 </table>
 
@@ -348,16 +400,36 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
 </thead>
 <tbody>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>xFull</td><td>10k</td><td style="text-align:right">14</td><td>2026-06-20 05:27:57Z</td><td style="text-align:right">607,537 ms (10m 7s)</td><td style="text-align:right">14,529 ms (14s)</td><td style="text-align:right">6,045,584</td><td>jac313_store_005_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/10k/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>Smoke</td><td>ssd</td><td style="text-align:right">103</td><td>2026-06-23 01:10:49Z</td><td style="text-align:right">16,232 ms (16s)</td><td style="text-align:right">6,862 ms (6s)</td><td style="text-align:right">3,676,471</td><td>jac313_store_005_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>textual</td><td>Smoke</td><td>ssd</td><td style="text-align:right">104</td><td>2026-06-23 01:11:40Z</td><td style="text-align:right">16,232 ms (16s)</td><td style="text-align:right">-</td><td style="text-align:right">3,225,806</td><td>jac313_store_007_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">23</td><td>2026-06-20 06:38:16Z</td><td style="text-align:right">20,314 ms (20s)</td><td style="text-align:right">-</td><td style="text-align:right">807,103</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">22</td><td>2026-06-20 06:36:08Z</td><td style="text-align:right">19,601 ms (19s)</td><td style="text-align:right">14,480 ms (14s)</td><td style="text-align:right">767,460</td><td>jac313_store_005_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>textual</td><td>xFull</td><td>10k</td><td style="text-align:right">15</td><td>2026-06-20 05:39:42Z</td><td style="text-align:right">605,446 ms (10m 5s)</td><td style="text-align:right">-</td><td style="text-align:right">6,563,489</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/10k/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>xFull</td><td>ssd</td><td style="text-align:right">111</td><td>2026-06-23 01:53:42Z</td><td style="text-align:right">599,147 ms (9m 59s)</td><td style="text-align:right">6,762 ms (6s)</td><td style="text-align:right">15,172,205</td><td>jac313_store_005_XS (sql/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>xFull</td><td>10k</td><td style="text-align:right">14</td><td>2026-06-20 05:27:57Z</td><td style="text-align:right">607,537 ms (10m 7s)</td><td style="text-align:right">14,529 ms (14s)</td><td style="text-align:right">6,045,584</td><td>jac313_store_005_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/10k/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
+</tbody>
+</table>
+
+<table>
+<thead>
+<tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
+</thead>
+<tbody>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>textual</td><td>xFull</td><td>ssd</td><td style="text-align:right">112</td><td>2026-06-23 02:04:10Z</td><td style="text-align:right">599,451 ms (9m 59s)</td><td style="text-align:right">-</td><td style="text-align:right">17,803,415</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>textual</td><td>xFull</td><td>ssd</td><td style="text-align:right">112</td><td>2026-06-23 02:04:10Z</td><td style="text-align:right">599,451 ms (9m 59s)</td><td style="text-align:right">-</td><td style="text-align:right">17,803,415</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/xFull/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>xFull</td><td>ssd</td><td style="text-align:right">111</td><td>2026-06-23 01:53:42Z</td><td style="text-align:right">599,147 ms (9m 59s)</td><td style="text-align:right">6,762 ms (6s)</td><td style="text-align:right">15,172,205</td><td>jac313_store_005_XS (sql/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/ssd/xFull/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>modules</td><td>xFull</td><td>x7k</td><td style="text-align:right">30</td><td>2026-06-20 07:24:50Z</td><td style="text-align:right">610,959 ms (10m 10s)</td><td style="text-align:right">14,278 ms (14s)</td><td style="text-align:right">6,744,908</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/x7k/xFull/modules/RUN.md">RUN.md</a></td></tr>
@@ -366,32 +438,12 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Debug</td><td>textual</td><td>xFull</td><td>x7k</td><td style="text-align:right">31</td><td>2026-06-20 07:36:38Z</td><td style="text-align:right">608,847 ms (10m 8s)</td><td style="text-align:right">-</td><td style="text-align:right">6,572,418</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Debug/x7k/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-</tbody>
-</table>
-
-<table>
-<thead>
-<tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
-</thead>
-<tbody>
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>Smoke</td><td>10k</td><td style="text-align:right">8</td><td>2026-06-20 04:41:58Z</td><td style="text-align:right">15,992 ms (15s)</td><td style="text-align:right">25,999 ms (25s)</td><td style="text-align:right">1,210,654</td><td>jac313_store_007_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/10k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>textual</td><td>Smoke</td><td>10k</td><td style="text-align:right">9</td><td>2026-06-20 04:44:52Z</td><td style="text-align:right">16,139 ms (16s)</td><td style="text-align:right">-</td><td style="text-align:right">1,230,012</td><td>jac313_store_007_XS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/10k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>Smoke</td><td>ssd</td><td style="text-align:right">105</td><td>2026-06-23 01:11:58Z</td><td style="text-align:right">15,932 ms (15s)</td><td style="text-align:right">11,472 ms (11s)</td><td style="text-align:right">4,444,444</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/Smoke/modules/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>textual</td><td>Smoke</td><td>ssd</td><td style="text-align:right">106</td><td>2026-06-23 01:13:10Z</td><td style="text-align:right">15,881 ms (15s)</td><td style="text-align:right">-</td><td style="text-align:right">5,050,505</td><td>jac313_store_005_TS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/Smoke/textual/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">24</td><td>2026-06-20 06:39:05Z</td><td style="text-align:right">17,496 ms (17s)</td><td style="text-align:right">26,103 ms (26s)</td><td style="text-align:right">1,150,748</td><td>jac313_store_007_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">25</td><td>2026-06-20 06:42:00Z</td><td style="text-align:right">17,497 ms (17s)</td><td style="text-align:right">-</td><td style="text-align:right">1,170,960</td><td>jac313_store_007_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
-<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
 </tbody>
 </table>
 
@@ -400,16 +452,36 @@ Pipeline docs: [SETUP → Testing](../docs/Setup.md#4-testing) (`release-check`,
 <tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
 </thead>
 <tbody>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>xFull</td><td>10k</td><td style="text-align:right">16</td><td>2026-06-20 05:50:18Z</td><td style="text-align:right">571,491 ms (9m 31s)</td><td style="text-align:right">25,700 ms (25s)</td><td style="text-align:right">10,577,533</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/10k/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>Smoke</td><td>ssd</td><td style="text-align:right">105</td><td>2026-06-23 01:11:58Z</td><td style="text-align:right">15,932 ms (15s)</td><td style="text-align:right">11,472 ms (11s)</td><td style="text-align:right">4,444,444</td><td>jac313_store_005_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/Smoke/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
-<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>textual</td><td>Smoke</td><td>ssd</td><td style="text-align:right">106</td><td>2026-06-23 01:13:10Z</td><td style="text-align:right">15,881 ms (15s)</td><td style="text-align:right">-</td><td style="text-align:right">5,050,505</td><td>jac313_store_005_TS (none/on)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>textual</td><td>Smoke</td><td>x7k</td><td style="text-align:right">25</td><td>2026-06-20 06:42:00Z</td><td style="text-align:right">17,497 ms (17s)</td><td style="text-align:right">-</td><td style="text-align:right">1,170,960</td><td>jac313_store_007_XS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/x7k/Smoke/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>Smoke</td><td>x7k</td><td style="text-align:right">24</td><td>2026-06-20 06:39:05Z</td><td style="text-align:right">17,496 ms (17s)</td><td style="text-align:right">26,103 ms (26s)</td><td style="text-align:right">1,150,748</td><td>jac313_store_007_TS (none/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/x7k/Smoke/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-002 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · ST6000NM0095 (x7k label)</td></tr>
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>textual</td><td>xFull</td><td>10k</td><td style="text-align:right">17</td><td>2026-06-20 06:02:01Z</td><td style="text-align:right">570,848 ms (9m 30s)</td><td style="text-align:right">-</td><td style="text-align:right">11,085,246</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/10k/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>xFull</td><td>ssd</td><td style="text-align:right">113</td><td>2026-06-23 02:14:11Z</td><td style="text-align:right">591,401 ms (9m 51s)</td><td style="text-align:right">11,873 ms (11s)</td><td style="text-align:right">25,001,250</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>xFull</td><td>10k</td><td style="text-align:right">16</td><td>2026-06-20 05:50:18Z</td><td style="text-align:right">571,491 ms (9m 31s)</td><td style="text-align:right">25,700 ms (25s)</td><td style="text-align:right">10,577,533</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/10k/xFull/modules/RUN.md">RUN.md</a></td></tr>
+<tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
+<tr><td colspan="15"><strong>Hardware:</strong> jac313-001 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz · 251 GB RAM · HUC101812CSS200 (10k label)</td></tr>
+</tbody>
+</table>
+
+<table>
+<thead>
+<tr><th>OS</th><th>Compiler</th><th>Build</th><th>Modules</th><th>Size</th><th>Disk</th><th>Group</th><th>Run UTC</th><th>Duration</th><th>Build (modules)</th><th>Peak ops/sec</th><th>Peak scenario</th><th>Passed</th><th>Failed</th><th>Run</th></tr>
+</thead>
+<tbody>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>textual</td><td>xFull</td><td>ssd</td><td style="text-align:right">114</td><td>2026-06-23 02:24:48Z</td><td style="text-align:right">591,447 ms (9m 51s)</td><td style="text-align:right">-</td><td style="text-align:right">24,281,274</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/xFull/textual/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>textual</td><td>xFull</td><td>ssd</td><td style="text-align:right">114</td><td>2026-06-23 02:24:48Z</td><td style="text-align:right">591,447 ms (9m 51s)</td><td style="text-align:right">-</td><td style="text-align:right">24,281,274</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/xFull/textual/RUN.md">RUN.md</a></td></tr>
+<tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>xFull</td><td>ssd</td><td style="text-align:right">113</td><td>2026-06-23 02:14:11Z</td><td style="text-align:right">591,401 ms (9m 51s)</td><td style="text-align:right">11,873 ms (11s)</td><td style="text-align:right">25,001,250</td><td>jac313_store_008_TS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/ssd/xFull/modules/RUN.md">RUN.md</a></td></tr>
 <tr><td colspan="15"><strong>Versions:</strong> Qlite v001.001 · jText v001.001 · Store v001.001</td></tr>
 <tr><td colspan="15"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 <tr><td>rhel-9.8</td><td>gcc15</td><td>Release</td><td>modules</td><td>xFull</td><td>x7k</td><td style="text-align:right">32</td><td>2026-06-20 07:47:19Z</td><td style="text-align:right">573,784 ms (9m 33s)</td><td style="text-align:right">25,898 ms (25s)</td><td style="text-align:right">10,598,385</td><td>jac313_store_008_XS (flags/off)</td><td style="text-align:right">116</td><td style="text-align:right">0</td><td><a href="test-summary/rhel-9.8/gcc15/Release/x7k/xFull/modules/RUN.md">RUN.md</a></td></tr>
@@ -967,6 +1039,186 @@ _Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctne
 |  |  | jtext | 812 | 2,204,488 | 19.98 MiB |
 |  |  | sql | 1,720 | 3,006,615 | 22.61 MiB |
 
+### rhel-10.2 · clang (xFull, Debug, run 124)
+
+Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
+
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
+| Test | Output | Persist | run ms | Peak ops/sec | Log size |
+|------|--------|---------|--------|--------------|----------|
+| jac313_store_005_TS | off | binary | 251 | 8,256,956 | 8.38 MiB |
+|  |  | jtext | 351 | 8,080,155 | 7.84 MiB |
+|  |  | sql | 150 | 7,471,050 | 7.42 MiB |
+| jac313_store_005_TS | on | binary | 301 | 9,101,666 | 8.38 MiB |
+|  |  | jtext | 351 | 7,956,715 | 7.83 MiB |
+|  |  | sql | 552 | 7,985,945 | 7.42 MiB |
+| jac313_store_005_XS | off | binary | 301 | 8,722,959 | 8.38 MiB |
+|  |  | jtext | 351 | 8,777,319 | 7.44 MiB |
+|  |  | sql | 150 | 9,264,406 | 7.13 MiB |
+| jac313_store_005_XS | on | binary | 302 | 4,942,665 | 8.38 MiB |
+|  |  | jtext | 301 | 9,113,278 | 7.44 MiB |
+|  |  | sql | 602 | 6,681,812 | 7.13 MiB |
+| jac313_store_006_TS | off | binary | 33,909 | N/A | 19.81 MiB |
+|  |  | jtext | 33,862 | N/A | 20.33 MiB |
+|  |  | sql | 33,760 | N/A | 23.50 MiB |
+| jac313_store_006_TS | on | binary | 37,929 | N/A | 19.81 MiB |
+|  |  | jtext | 37,677 | N/A | 20.33 MiB |
+|  |  | sql | 38,027 | N/A | 23.50 MiB |
+| jac313_store_006_XS | off | binary | 33,409 | N/A | 19.81 MiB |
+|  |  | jtext | 33,196 | N/A | 19.96 MiB |
+|  |  | sql | 33,148 | N/A | 22.64 MiB |
+| jac313_store_006_XS | on | binary | 36,627 | N/A | 19.81 MiB |
+|  |  | jtext | 36,714 | N/A | 19.96 MiB |
+|  |  | sql | 36,965 | N/A | 22.64 MiB |
+| jac313_store_007_TS | off | binary | 404 | 9,550,186 | 19.82 MiB |
+|  |  | jtext | 903 | 7,062,147 | 20.38 MiB |
+|  |  | sql | 251 | 8,157,272 | 23.51 MiB |
+| jac313_store_007_TS | on | binary | 401 | 7,892,037 | 19.82 MiB |
+|  |  | jtext | 904 | 8,023,750 | 20.39 MiB |
+|  |  | sql | 1,004 | 8,749,672 | 23.51 MiB |
+| jac313_store_007_XS | off | binary | 402 | 8,785,030 | 19.82 MiB |
+|  |  | jtext | 904 | 9,490,367 | 19.98 MiB |
+|  |  | sql | 250 | 8,716,876 | 22.66 MiB |
+| jac313_store_007_XS | on | binary | 354 | 7,217,090 | 19.82 MiB |
+|  |  | jtext | 953 | 6,193,101 | 19.98 MiB |
+|  |  | sql | 1,004 | 5,645,252 | 22.66 MiB |
+
+### rhel-10.2 · clang (xFull, Release, run 126)
+
+Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
+
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
+| Test | Output | Persist | run ms | Peak ops/sec | Log size |
+|------|--------|---------|--------|--------------|----------|
+| jac313_store_005_TS | off | binary | 200 | 18,385,733 | 8.38 MiB |
+|  |  | jtext | 100 | 17,686,594 | 7.82 MiB |
+|  |  | sql | 100 | 15,511,090 | 7.42 MiB |
+| jac313_store_005_TS | on | binary | 200 | 13,042,911 | 8.38 MiB |
+|  |  | jtext | 101 | 15,227,653 | 7.82 MiB |
+|  |  | sql | 602 | 15,062,509 | 7.42 MiB |
+| jac313_store_005_XS | off | binary | 200 | 14,365,752 | 8.38 MiB |
+|  |  | jtext | 100 | 16,108,247 | 7.44 MiB |
+|  |  | sql | 100 | 14,912,019 | 7.13 MiB |
+| jac313_store_005_XS | on | binary | 251 | 14,892,033 | 8.38 MiB |
+|  |  | jtext | 100 | 16,038,492 | 7.44 MiB |
+|  |  | sql | 552 | 14,916,468 | 7.13 MiB |
+| jac313_store_006_TS | off | binary | 33,809 | N/A | 19.81 MiB |
+|  |  | jtext | 33,654 | N/A | 20.33 MiB |
+|  |  | sql | 33,709 | N/A | 23.47 MiB |
+| jac313_store_006_TS | on | binary | 37,717 | N/A | 19.81 MiB |
+|  |  | jtext | 37,522 | N/A | 20.32 MiB |
+|  |  | sql | 37,961 | N/A | 23.47 MiB |
+| jac313_store_006_XS | off | binary | 33,204 | N/A | 19.81 MiB |
+|  |  | jtext | 33,109 | N/A | 19.96 MiB |
+|  |  | sql | 33,086 | N/A | 22.62 MiB |
+| jac313_store_006_XS | on | binary | 36,621 | N/A | 19.81 MiB |
+|  |  | jtext | 36,577 | N/A | 19.96 MiB |
+|  |  | sql | 36,972 | N/A | 22.62 MiB |
+| jac313_store_007_TS | off | binary | 351 | 14,907,573 | 19.82 MiB |
+|  |  | jtext | 200 | 13,308,491 | 20.36 MiB |
+|  |  | sql | 200 | 14,734,050 | 23.49 MiB |
+| jac313_store_007_TS | on | binary | 301 | 15,535,187 | 19.82 MiB |
+|  |  | jtext | 200 | 16,960,651 | 20.36 MiB |
+|  |  | sql | 1,004 | 13,929,517 | 23.49 MiB |
+| jac313_store_007_XS | off | binary | 351 | 13,269,639 | 19.82 MiB |
+|  |  | jtext | 250 | 14,896,470 | 19.98 MiB |
+|  |  | sql | 201 | 13,144,059 | 22.65 MiB |
+| jac313_store_007_XS | on | binary | 351 | 15,951,507 | 19.82 MiB |
+|  |  | jtext | 200 | 15,232,292 | 19.98 MiB |
+|  |  | sql | 1,253 | 14,744,913 | 22.65 MiB |
+
+### rhel-10.2 · gcc15 (xFull, Debug, run 128)
+
+Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
+
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
+| Test | Output | Persist | run ms | Peak ops/sec | Log size |
+|------|--------|---------|--------|--------------|----------|
+| jac313_store_005_TS | off | binary | 300 | 9,349,289 | 8.38 MiB |
+|  |  | jtext | 401 | 9,607,071 | 7.84 MiB |
+|  |  | sql | 150 | 9,277,298 | 7.42 MiB |
+| jac313_store_005_TS | on | binary | 301 | 8,847,209 | 8.38 MiB |
+|  |  | jtext | 400 | 9,098,353 | 7.84 MiB |
+|  |  | sql | 502 | 9,039,957 | 7.42 MiB |
+| jac313_store_005_XS | off | binary | 300 | 10,679,197 | 8.38 MiB |
+|  |  | jtext | 401 | 8,278,146 | 7.44 MiB |
+|  |  | sql | 200 | 9,293,680 | 7.13 MiB |
+| jac313_store_005_XS | on | binary | 301 | 9,900,990 | 8.38 MiB |
+|  |  | jtext | 401 | 11,555,350 | 7.44 MiB |
+|  |  | sql | 652 | 8,631,852 | 7.13 MiB |
+| jac313_store_006_TS | off | binary | 33,898 | N/A | 19.81 MiB |
+|  |  | jtext | 33,805 | N/A | 20.34 MiB |
+|  |  | sql | 33,760 | N/A | 23.50 MiB |
+| jac313_store_006_TS | on | binary | 37,700 | N/A | 19.81 MiB |
+|  |  | jtext | 37,607 | N/A | 20.33 MiB |
+|  |  | sql | 38,031 | N/A | 23.50 MiB |
+| jac313_store_006_XS | off | binary | 33,260 | N/A | 19.81 MiB |
+|  |  | jtext | 33,255 | N/A | 19.96 MiB |
+|  |  | sql | 33,157 | N/A | 22.64 MiB |
+| jac313_store_006_XS | on | binary | 36,675 | N/A | 19.81 MiB |
+|  |  | jtext | 36,673 | N/A | 19.96 MiB |
+|  |  | sql | 37,123 | N/A | 22.64 MiB |
+| jac313_store_007_TS | off | binary | 401 | 8,907,892 | 19.82 MiB |
+|  |  | jtext | 1,103 | 8,430,282 | 20.38 MiB |
+|  |  | sql | 251 | 9,246,417 | 23.52 MiB |
+| jac313_store_007_TS | on | binary | 401 | 8,634,833 | 19.82 MiB |
+|  |  | jtext | 1,053 | 9,124,088 | 20.38 MiB |
+|  |  | sql | 1,054 | 9,972,078 | 23.52 MiB |
+| jac313_store_007_XS | off | binary | 354 | 11,655,012 | 19.82 MiB |
+|  |  | jtext | 1,053 | 8,382,230 | 19.98 MiB |
+|  |  | sql | 250 | 8,795,075 | 22.66 MiB |
+| jac313_store_007_XS | on | binary | 401 | 8,433,837 | 19.82 MiB |
+|  |  | jtext | 1,053 | 9,001,710 | 19.98 MiB |
+|  |  | sql | 1,103 | 9,013,069 | 22.66 MiB |
+
+### rhel-10.2 · gcc15 (xFull, Release, run 130)
+
+Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
+
+_Peak ops/sec is **N/A** for test_006: it is a tail-reader concurrency/correctness stress test (writer/reader timing + hit-miss verification), not a throughput benchmark, so it emits no `Fastest run → … ops/sec` line._
+
+| Test | Output | Persist | run ms | Peak ops/sec | Log size |
+|------|--------|---------|--------|--------------|----------|
+| jac313_store_005_TS | off | binary | 251 | 15,255,530 | 8.38 MiB |
+|  |  | jtext | 100 | 18,946,571 | 7.82 MiB |
+|  |  | sql | 100 | 13,412,017 | 7.42 MiB |
+| jac313_store_005_TS | on | binary | 200 | 19,782,394 | 8.38 MiB |
+|  |  | jtext | 101 | 21,026,072 | 7.82 MiB |
+|  |  | sql | 451 | 20,238,818 | 7.42 MiB |
+| jac313_store_005_XS | off | binary | 251 | 18,528,812 | 8.38 MiB |
+|  |  | jtext | 100 | 17,683,466 | 7.44 MiB |
+|  |  | sql | 100 | 13,950,893 | 7.12 MiB |
+| jac313_store_005_XS | on | binary | 251 | 13,196,094 | 8.38 MiB |
+|  |  | jtext | 100 | 19,083,969 | 7.44 MiB |
+|  |  | sql | 1,655 | 18,429,783 | 7.12 MiB |
+| jac313_store_006_TS | off | binary | 33,710 | N/A | 19.81 MiB |
+|  |  | jtext | 33,706 | N/A | 20.32 MiB |
+|  |  | sql | 33,701 | N/A | 23.48 MiB |
+| jac313_store_006_TS | on | binary | 37,777 | N/A | 19.81 MiB |
+|  |  | jtext | 37,469 | N/A | 20.32 MiB |
+|  |  | sql | 37,972 | N/A | 23.48 MiB |
+| jac313_store_006_XS | off | binary | 33,200 | N/A | 19.81 MiB |
+|  |  | jtext | 33,103 | N/A | 19.96 MiB |
+|  |  | sql | 33,092 | N/A | 22.62 MiB |
+| jac313_store_006_XS | on | binary | 36,619 | N/A | 19.81 MiB |
+|  |  | jtext | 36,572 | N/A | 19.96 MiB |
+|  |  | sql | 37,068 | N/A | 22.62 MiB |
+| jac313_store_007_TS | off | binary | 351 | 15,865,461 | 19.82 MiB |
+|  |  | jtext | 250 | 14,238,929 | 20.36 MiB |
+|  |  | sql | 201 | 16,100,467 | 23.50 MiB |
+| jac313_store_007_TS | on | binary | 351 | 14,656,310 | 19.82 MiB |
+|  |  | jtext | 250 | 15,112,589 | 20.36 MiB |
+|  |  | sql | 1,004 | 20,981,956 | 23.50 MiB |
+| jac313_store_007_XS | off | binary | 351 | 15,323,322 | 19.82 MiB |
+|  |  | jtext | 200 | 19,036,741 | 19.98 MiB |
+|  |  | sql | 200 | 18,635,855 | 22.64 MiB |
+| jac313_store_007_XS | on | binary | 301 | 23,255,814 | 19.82 MiB |
+|  |  | jtext | 200 | 14,499,058 | 19.98 MiB |
+|  |  | sql | 1,202 | 15,311,591 | 22.64 MiB |
+
 ### rhel-9.8 · clang (xFull, Debug, run 108)
 
 Wall-clock **run ms** (matrix scenario), **peak ops/sec** (005–008 logs only), and on-disk **persist artifact size** per backend.
@@ -1159,25 +1411,25 @@ Peak ops/sec from benchmark tests 005–008 (`Fastest run` in each log). xFull m
 <tr><th>#</th><th>Peak ops/sec</th><th>Test</th><th>Persist</th><th>ms</th><th>Log</th></tr>
 </thead>
 <tbody>
-<tr><td>1</td><td style="text-align:right">22,517,451</td><td>jac313_store_007_XS</td><td>binary/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/binary_logs/JAC313_STORE_TEST_007_XS/gcc15_binary_off.log">gcc15_binary_off.log</a></td></tr>
+<tr><td>1</td><td style="text-align:right">23,255,814</td><td>jac313_store_007_XS</td><td>binary/on</td><td style="text-align:right">301</td><td><a href="rhel-10.2/gcc15/Release/x7k/xFull/textual/binary_logs/JAC313_STORE_TEST_007_XS/gcc15_binary_on.log">gcc15_binary_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>2</td><td style="text-align:right">22,888,533</td><td>jac313_store_005_XS</td><td>binary/off</td><td style="text-align:right">201</td><td><a href="rhel-10.2/clang/Release/x7k/xFull/modules/binary_logs/JAC313_STORE_TEST_005_XS/clang_binary_off.log">clang_binary_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>3</td><td style="text-align:right">22,517,451</td><td>jac313_store_007_XS</td><td>binary/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/binary_logs/JAC313_STORE_TEST_007_XS/gcc15_binary_off.log">gcc15_binary_off.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>2</td><td style="text-align:right">22,182,786</td><td>jac313_store_005_XS</td><td>binary/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_005_XS/gcc15_binary_off.log">gcc15_binary_off.log</a></td></tr>
+<tr><td>4</td><td style="text-align:right">22,182,786</td><td>jac313_store_005_XS</td><td>binary/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_005_XS/gcc15_binary_off.log">gcc15_binary_off.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>3</td><td style="text-align:right">22,128,790</td><td>jac313_store_005_XS</td><td>binary/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/binary_logs/JAC313_STORE_TEST_005_XS/clang_binary_on.log">clang_binary_on.log</a></td></tr>
+<tr><td>5</td><td style="text-align:right">22,128,790</td><td>jac313_store_005_XS</td><td>binary/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/binary_logs/JAC313_STORE_TEST_005_XS/clang_binary_on.log">clang_binary_on.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>4</td><td style="text-align:right">21,953,897</td><td>jac313_store_007_XS</td><td>binary/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_007_XS/clang_binary_on.log">clang_binary_on.log</a></td></tr>
+<tr><td>6</td><td style="text-align:right">21,953,897</td><td>jac313_store_007_XS</td><td>binary/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_007_XS/clang_binary_on.log">clang_binary_on.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>5</td><td style="text-align:right">21,724,962</td><td>jac313_store_007_XS</td><td>binary/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_007_XS/clang_binary_off.log">clang_binary_off.log</a></td></tr>
+<tr><td>7</td><td style="text-align:right">21,724,962</td><td>jac313_store_007_XS</td><td>binary/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_007_XS/clang_binary_off.log">clang_binary_off.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>6</td><td style="text-align:right">21,190,930</td><td>jac313_store_007_XS</td><td>binary/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/binary_logs/JAC313_STORE_TEST_007_XS/clang_binary_on.log">clang_binary_on.log</a></td></tr>
+<tr><td>8</td><td style="text-align:right">21,190,930</td><td>jac313_store_007_XS</td><td>binary/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/binary_logs/JAC313_STORE_TEST_007_XS/clang_binary_on.log">clang_binary_on.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>7</td><td style="text-align:right">20,275,750</td><td>jac313_store_007_XS</td><td>binary/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/binary_logs/JAC313_STORE_TEST_007_XS/clang_binary_off.log">clang_binary_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>8</td><td style="text-align:right">19,829,467</td><td>jac313_store_005_TS</td><td>binary/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_005_TS/gcc15_binary_on.log">gcc15_binary_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>9</td><td style="text-align:right">19,252,984</td><td>jac313_store_005_XS</td><td>binary/off</td><td style="text-align:right">101</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_005_XS/clang_binary_off.log">clang_binary_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>10</td><td style="text-align:right">19,238,169</td><td>jac313_store_005_TS</td><td>binary/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/binary_logs/JAC313_STORE_TEST_005_TS/clang_binary_off.log">clang_binary_off.log</a></td></tr>
+<tr><td>9</td><td style="text-align:right">20,420,666</td><td>jac313_store_005_TS</td><td>binary/on</td><td style="text-align:right">200</td><td><a href="rhel-10.2/clang/Release/x7k/xFull/modules/binary_logs/JAC313_STORE_TEST_005_TS/clang_binary_on.log">clang_binary_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>10</td><td style="text-align:right">20,275,750</td><td>jac313_store_007_XS</td><td>binary/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/binary_logs/JAC313_STORE_TEST_007_XS/clang_binary_off.log">clang_binary_off.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 </tbody>
 </table>
@@ -1191,23 +1443,23 @@ Peak ops/sec from benchmark tests 005–008 (`Fastest run` in each log). xFull m
 <tbody>
 <tr><td>1</td><td style="text-align:right">23,052,098</td><td>jac313_store_005_XS</td><td>none/on</td><td style="text-align:right">50</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/inmem_logs/JAC313_STORE_TEST_005_XS/gcc15_none_on.log">gcc15_none_on.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>2</td><td style="text-align:right">22,261,799</td><td>jac313_store_005_XS</td><td>none/on</td><td style="text-align:right">50</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_XS/gcc15_none_on.log">gcc15_none_on.log</a></td></tr>
+<tr><td>2</td><td style="text-align:right">22,426,553</td><td>jac313_store_005_TS</td><td>none/on</td><td style="text-align:right">50</td><td><a href="rhel-10.2/gcc15/Release/x7k/xFull/modules/inmem_logs/JAC313_STORE_TEST_005_TS/gcc15_none_on.log">gcc15_none_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>3</td><td style="text-align:right">22,386,389</td><td>jac313_store_005_TS</td><td>none/on</td><td style="text-align:right">50</td><td><a href="rhel-10.2/clang/Release/x7k/xFull/modules/inmem_logs/JAC313_STORE_TEST_005_TS/clang_none_on.log">clang_none_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>4</td><td style="text-align:right">22,271,715</td><td>jac313_store_005_TS</td><td>none/off</td><td style="text-align:right">50</td><td><a href="rhel-10.2/clang/Release/x7k/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_TS/clang_none_off.log">clang_none_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>5</td><td style="text-align:right">22,261,799</td><td>jac313_store_005_XS</td><td>none/on</td><td style="text-align:right">50</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_XS/gcc15_none_on.log">gcc15_none_on.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>3</td><td style="text-align:right">22,237,047</td><td>jac313_store_005_XS</td><td>none/off</td><td style="text-align:right">50</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_XS/clang_none_off.log">clang_none_off.log</a></td></tr>
+<tr><td>6</td><td style="text-align:right">22,237,047</td><td>jac313_store_005_XS</td><td>none/off</td><td style="text-align:right">50</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_XS/clang_none_off.log">clang_none_off.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>4</td><td style="text-align:right">22,128,790</td><td>jac313_store_005_TS</td><td>none/on</td><td style="text-align:right">50</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_TS/gcc15_none_on.log">gcc15_none_on.log</a></td></tr>
+<tr><td>7</td><td style="text-align:right">22,128,790</td><td>jac313_store_005_TS</td><td>none/on</td><td style="text-align:right">50</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_TS/gcc15_none_on.log">gcc15_none_on.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>5</td><td style="text-align:right">21,687,270</td><td>jac313_store_007_TS</td><td>none/off</td><td style="text-align:right">50</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_007_TS/clang_none_off.log">clang_none_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>6</td><td style="text-align:right">21,547,080</td><td>jac313_store_007_TS</td><td>none/on</td><td style="text-align:right">50</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_007_TS/clang_none_on.log">clang_none_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>7</td><td style="text-align:right">21,482,277</td><td>jac313_store_007_XS</td><td>none/on</td><td style="text-align:right">50</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/inmem_logs/JAC313_STORE_TEST_007_XS/gcc15_none_on.log">gcc15_none_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>8</td><td style="text-align:right">21,376,657</td><td>jac313_store_005_TS</td><td>none/off</td><td style="text-align:right">50</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/inmem_logs/JAC313_STORE_TEST_005_TS/clang_none_off.log">clang_none_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>9</td><td style="text-align:right">21,235,931</td><td>jac313_store_005_XS</td><td>none/off</td><td style="text-align:right">50</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_XS/gcc15_none_off.log">gcc15_none_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>10</td><td style="text-align:right">21,021,652</td><td>jac313_store_005_TS</td><td>none/off</td><td style="text-align:right">50</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/inmem_logs/JAC313_STORE_TEST_005_TS/gcc15_none_off.log">gcc15_none_off.log</a></td></tr>
+<tr><td>8</td><td style="text-align:right">22,016,733</td><td>jac313_store_005_XS</td><td>none/off</td><td style="text-align:right">50</td><td><a href="rhel-10.2/clang/Release/x7k/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_XS/clang_none_off.log">clang_none_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>9</td><td style="text-align:right">21,743,857</td><td>jac313_store_005_TS</td><td>none/on</td><td style="text-align:right">50</td><td><a href="rhel-10.2/gcc15/Release/x7k/xFull/textual/inmem_logs/JAC313_STORE_TEST_005_TS/gcc15_none_on.log">gcc15_none_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>10</td><td style="text-align:right">21,687,270</td><td>jac313_store_007_TS</td><td>none/off</td><td style="text-align:right">50</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/inmem_logs/JAC313_STORE_TEST_007_TS/clang_none_off.log">clang_none_off.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 </tbody>
 </table>
@@ -1223,21 +1475,21 @@ Peak ops/sec from benchmark tests 005–008 (`Fastest run` in each log). xFull m
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 <tr><td>2</td><td style="text-align:right">21,445,421</td><td>jac313_store_005_TS</td><td>sql/on</td><td style="text-align:right">150</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/sql_logs/JAC313_STORE_TEST_005_TS/gcc15_sql_on.log">gcc15_sql_on.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>3</td><td style="text-align:right">20,907,380</td><td>jac313_store_007_XS</td><td>sql/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_007_XS/clang_sql_off.log">clang_sql_off.log</a></td></tr>
+<tr><td>3</td><td style="text-align:right">20,981,956</td><td>jac313_store_007_TS</td><td>sql/on</td><td style="text-align:right">1,004</td><td><a href="rhel-10.2/gcc15/Release/x7k/xFull/textual/sql_logs/JAC313_STORE_TEST_007_TS/gcc15_sql_on.log">gcc15_sql_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>4</td><td style="text-align:right">20,907,380</td><td>jac313_store_007_XS</td><td>sql/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_007_XS/clang_sql_off.log">clang_sql_off.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>4</td><td style="text-align:right">20,296,326</td><td>jac313_store_007_TS</td><td>sql/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_007_TS/clang_sql_off.log">clang_sql_off.log</a></td></tr>
+<tr><td>5</td><td style="text-align:right">20,296,326</td><td>jac313_store_007_TS</td><td>sql/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_007_TS/clang_sql_off.log">clang_sql_off.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>5</td><td style="text-align:right">19,758,941</td><td>jac313_store_007_XS</td><td>sql/on</td><td style="text-align:right">250</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_007_XS/clang_sql_on.log">clang_sql_on.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>6</td><td style="text-align:right">19,455,253</td><td>jac313_store_007_TS</td><td>sql/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/sql_logs/JAC313_STORE_TEST_007_TS/gcc15_sql_off.log">gcc15_sql_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>7</td><td style="text-align:right">19,190,175</td><td>jac313_store_007_TS</td><td>sql/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_007_TS/gcc15_sql_off.log">gcc15_sql_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>8</td><td style="text-align:right">18,796,992</td><td>jac313_store_005_TS</td><td>sql/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_005_TS/clang_sql_off.log">clang_sql_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>9</td><td style="text-align:right">17,470,300</td><td>jac313_store_007_XS</td><td>sql/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/sql_logs/JAC313_STORE_TEST_007_XS/gcc15_sql_off.log">gcc15_sql_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>10</td><td style="text-align:right">15,842,839</td><td>jac313_store_005_TS</td><td>sql/on</td><td style="text-align:right">150</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_005_TS/clang_sql_on.log">clang_sql_on.log</a></td></tr>
+<tr><td>6</td><td style="text-align:right">20,238,818</td><td>jac313_store_005_TS</td><td>sql/on</td><td style="text-align:right">451</td><td><a href="rhel-10.2/gcc15/Release/x7k/xFull/textual/sql_logs/JAC313_STORE_TEST_005_TS/gcc15_sql_on.log">gcc15_sql_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>7</td><td style="text-align:right">20,060,181</td><td>jac313_store_007_TS</td><td>sql/off</td><td style="text-align:right">201</td><td><a href="rhel-10.2/gcc15/Release/x7k/xFull/modules/sql_logs/JAC313_STORE_TEST_007_TS/gcc15_sql_off.log">gcc15_sql_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>8</td><td style="text-align:right">19,976,029</td><td>jac313_store_005_XS</td><td>sql/off</td><td style="text-align:right">100</td><td><a href="rhel-10.2/gcc15/Release/x7k/xFull/modules/sql_logs/JAC313_STORE_TEST_005_XS/gcc15_sql_off.log">gcc15_sql_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>9</td><td style="text-align:right">19,916,351</td><td>jac313_store_005_TS</td><td>sql/on</td><td style="text-align:right">552</td><td><a href="rhel-10.2/clang/Release/x7k/xFull/modules/sql_logs/JAC313_STORE_TEST_005_TS/clang_sql_on.log">clang_sql_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>10</td><td style="text-align:right">19,758,941</td><td>jac313_store_007_XS</td><td>sql/on</td><td style="text-align:right">250</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/sql_logs/JAC313_STORE_TEST_007_XS/clang_sql_on.log">clang_sql_on.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 </tbody>
 </table>
@@ -1253,21 +1505,21 @@ Peak ops/sec from benchmark tests 005–008 (`Fastest run` in each log). xFull m
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 <tr><td>2</td><td style="text-align:right">23,364,486</td><td>jac313_store_005_XS</td><td>jtext/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_005_XS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>3</td><td style="text-align:right">21,819,769</td><td>jac313_store_007_TS</td><td>jtext/on</td><td style="text-align:right">200</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/jText_logs/JAC313_STORE_TEST_007_TS/clang_jtext_on.log">clang_jtext_on.log</a></td></tr>
+<tr><td>3</td><td style="text-align:right">21,877,051</td><td>jac313_store_005_TS</td><td>jtext/off</td><td style="text-align:right">100</td><td><a href="rhel-10.2/gcc15/Release/x7k/xFull/modules/jText_logs/JAC313_STORE_TEST_005_TS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>4</td><td style="text-align:right">21,819,769</td><td>jac313_store_007_TS</td><td>jtext/on</td><td style="text-align:right">200</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/jText_logs/JAC313_STORE_TEST_007_TS/clang_jtext_on.log">clang_jtext_on.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>4</td><td style="text-align:right">21,635,656</td><td>jac313_store_007_TS</td><td>jtext/on</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_007_TS/gcc15_jtext_on.log">gcc15_jtext_on.log</a></td></tr>
+<tr><td>5</td><td style="text-align:right">21,635,656</td><td>jac313_store_007_TS</td><td>jtext/on</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_007_TS/gcc15_jtext_on.log">gcc15_jtext_on.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>5</td><td style="text-align:right">21,602,938</td><td>jac313_store_007_TS</td><td>jtext/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_007_TS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
+<tr><td>6</td><td style="text-align:right">21,602,938</td><td>jac313_store_007_TS</td><td>jtext/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_007_TS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>6</td><td style="text-align:right">20,933,640</td><td>jac313_store_007_TS</td><td>jtext/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/jText_logs/JAC313_STORE_TEST_007_TS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
+<tr><td>7</td><td style="text-align:right">21,463,833</td><td>jac313_store_005_XS</td><td>jtext/on</td><td style="text-align:right">100</td><td><a href="rhel-10.2/gcc15/Release/x7k/xFull/modules/jText_logs/JAC313_STORE_TEST_005_XS/gcc15_jtext_on.log">gcc15_jtext_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>8</td><td style="text-align:right">21,026,072</td><td>jac313_store_005_TS</td><td>jtext/on</td><td style="text-align:right">101</td><td><a href="rhel-10.2/gcc15/Release/x7k/xFull/textual/jText_logs/JAC313_STORE_TEST_005_TS/gcc15_jtext_on.log">gcc15_jtext_on.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>9</td><td style="text-align:right">20,933,640</td><td>jac313_store_007_TS</td><td>jtext/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/jText_logs/JAC313_STORE_TEST_007_TS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>7</td><td style="text-align:right">20,487,605</td><td>jac313_store_007_XS</td><td>jtext/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_007_XS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>8</td><td style="text-align:right">20,408,163</td><td>jac313_store_007_TS</td><td>jtext/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/jText_logs/JAC313_STORE_TEST_007_TS/clang_jtext_off.log">clang_jtext_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>9</td><td style="text-align:right">19,884,669</td><td>jac313_store_005_XS</td><td>jtext/off</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_005_XS/clang_jtext_off.log">clang_jtext_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>10</td><td style="text-align:right">19,813,751</td><td>jac313_store_005_TS</td><td>jtext/on</td><td style="text-align:right">100</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/jText_logs/JAC313_STORE_TEST_005_TS/clang_jtext_on.log">clang_jtext_on.log</a></td></tr>
+<tr><td>10</td><td style="text-align:right">20,487,605</td><td>jac313_store_007_XS</td><td>jtext/off</td><td style="text-align:right">200</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/modules/jText_logs/JAC313_STORE_TEST_007_XS/gcc15_jtext_off.log">gcc15_jtext_off.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 </tbody>
 </table>
@@ -1287,17 +1539,17 @@ Peak ops/sec from benchmark tests 005–008 (`Fastest run` in each log). xFull m
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 <tr><td>4</td><td style="text-align:right">23,807,823</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">651</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/flags_logs/JAC313_STORE_TEST_008_XS/clang_flags_off.log">clang_flags_off.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>5</td><td style="text-align:right">17,803,415</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">1,102</td><td><a href="rhel-9.8/gcc15/Debug/ssd/xFull/textual/flags_logs/JAC313_STORE_TEST_008_XS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
+<tr><td>5</td><td style="text-align:right">22,657,241</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">1,005</td><td><a href="rhel-10.2/gcc15/Release/x7k/xFull/textual/flags_logs/JAC313_STORE_TEST_008_TS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>6</td><td style="text-align:right">22,494,152</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">1,103</td><td><a href="rhel-10.2/gcc15/Release/x7k/xFull/modules/flags_logs/JAC313_STORE_TEST_008_TS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>7</td><td style="text-align:right">20,940,216</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">1,158</td><td><a href="rhel-10.2/gcc15/Release/x7k/xFull/modules/flags_logs/JAC313_STORE_TEST_008_XS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>8</td><td style="text-align:right">19,530,487</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">1,104</td><td><a href="rhel-10.2/clang/Release/x7k/xFull/modules/flags_logs/JAC313_STORE_TEST_008_XS/clang_flags_off.log">clang_flags_off.log</a></td></tr>
+<tr><td colspan="6"><strong>Hardware:</strong> jac313-007 · Red Hat Enterprise Linux 10.2 (Coughlan) (6.12.0-211.22.1.el10_2.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 38 GB RAM · vda (x7k label)</td></tr>
+<tr><td>9</td><td style="text-align:right">17,803,415</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">1,102</td><td><a href="rhel-9.8/gcc15/Debug/ssd/xFull/textual/flags_logs/JAC313_STORE_TEST_008_XS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>6</td><td style="text-align:right">17,154,130</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">752</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/flags_logs/JAC313_STORE_TEST_008_TS/clang_flags_off.log">clang_flags_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>7</td><td style="text-align:right">17,152,659</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">651</td><td><a href="rhel-9.8/gcc15/Release/ssd/xFull/textual/flags_logs/JAC313_STORE_TEST_008_TS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>8</td><td style="text-align:right">17,146,188</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">701</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/textual/flags_logs/JAC313_STORE_TEST_008_TS/clang_flags_off.log">clang_flags_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>9</td><td style="text-align:right">16,632,847</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">1,102</td><td><a href="rhel-9.8/gcc15/Debug/ssd/xFull/textual/flags_logs/JAC313_STORE_TEST_008_TS/gcc15_flags_off.log">gcc15_flags_off.log</a></td></tr>
-<tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
-<tr><td>10</td><td style="text-align:right">16,444,393</td><td>jac313_store_008_XS</td><td>flags/off</td><td style="text-align:right">701</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/flags_logs/JAC313_STORE_TEST_008_XS/clang_flags_off.log">clang_flags_off.log</a></td></tr>
+<tr><td>10</td><td style="text-align:right">17,154,130</td><td>jac313_store_008_TS</td><td>flags/off</td><td style="text-align:right">752</td><td><a href="rhel-9.8/clang/Release/ssd/xFull/modules/flags_logs/JAC313_STORE_TEST_008_TS/clang_flags_off.log">clang_flags_off.log</a></td></tr>
 <tr><td colspan="6"><strong>Hardware:</strong> jac313-006 · Red Hat Enterprise Linux 9.8 (Plow) (5.14.0-687.15.1.el9_8.x86_64) · Intel(R) Core(TM) Ultra 7 265 · 62 GB RAM · WD\x20PC\x20SN740\x20SDDQNQD-1T00-1201 (ssd label)</td></tr>
 </tbody>
 </table>
