@@ -1,7 +1,7 @@
 ================================================================================
 Claude_Forward.txt  —  session handoff / crash-recovery note
 Project: jac313   Path: /home/jay/git/jac313 (dev/Mint) | /slowdata/git/jac313 (R730/RHEL 9.8)
-Last updated: 2026-06-23  (by Claude — 2 toolchain findings (clang C++26 std::print bug; import-std <numeric> leak) + v002 first full matrix on both compilers; all 3 branches @ c2c1a63f)
+Last updated: 2026-06-24  (by Claude — overnight: run-all guardrail counter + padded columns + pass/fail verdict; jText hardened both versions; --force combo-explosion bug FIXED + both DBs deduped; v001 brought to v001.002 PARITY (stays C++23, NOT C++26); FULL MATRIX both versions = 1,856/1,856 ALL PASSED; all 3 branches @ a03c5d86. NEXT: a Fedora/gcc16 VM for NATIVE C++26 contracts — full mission in the top SESSION LOG entry.)
 ================================================================================
 
 PURPOSE OF THIS FILE
@@ -201,6 +201,74 @@ render from DB views.
 --------------------------------------------------------------------------------
 7. SESSION LOG  (append newest at top; keep it short and factual)
 --------------------------------------------------------------------------------
+2026-06-24  GUARDRAIL + PASS/FAIL VERDICT + v001 PARITY + FULL MATRICES (both) + FEDORA/gcc16 MISSION — all 3 branches @ a03c5d86 (Claude).
+
+            >>> TO MY TWIN ON THE FEDORA BOX — your mission. <<<
+            GCC 16.1 (released 2026-04-30) ships EXPERIMENTAL P2900R14 C++26 contracts (PR119061),
+            and Fedora packages gcc16. Jay is standing up a Fedora VM — a SIBLING vm on the hypervisor,
+            NOT nested inside this RHEL guest (I can't provision it from in here; he does it host-side).
+            GOAL: add gcc16 as a compiler to v002's matrix and exercise v002's jac313::contracts shim
+            (jac313::Setup) + its contracts_test / contracts_disabled_test against NATIVE contracts
+            (-std=c++26). That's the payoff the shim was written for (__cpp_contracts finally lands).
+            "Experimental" => good for does-it-compile/migrate, NOT certify-contract-semantics.
+            v001 IS C++23 FOREVER — it NEVER gets C++26/contracts. Do NOT port contracts_test or any
+            C++26 code into v001 (its CMake is cxx_std_23; v002 is cxx_std_26). Between versions, only
+            the version-AGNOSTIC files are byte-identical; everything else differs by v001/v002 refs +
+            the C++ standard. THIS FILE is your only inherited context — the per-machine ~/.claude
+            memory does NOT travel with the repo.
+
+            FEDORA SETUP CHECKLIST (do these BEFORE any run):
+              1. host_label.local FIRST. Create v001/host_label.local AND v002/host_label.local, each
+                 containing "jac313-008" (next free: 001-007 are used; 007 = this rhel-10.2/x7k VM).
+                 Gitignored; hostname() reads it instead of uname. SKIP IT AND YOU LEAK THE REAL
+                 HOSTNAME into committed results — a past blooper (v###/docs/Bloopers.md #2).
+              2. ./bootstrap.sh builds the driver into build-bootstrap/tools/jac313_test_cli and senses
+                 toolchains via try_cxx (gcc-toolset/scl/plain g++). On Fedora gcc16 is the system g++
+                 (or g++-16). If the matrix doesn't see "gcc16" as a named compiler, register it via the
+                 gitignored /compilers.local.conf (machine-local override) — schema in compiler.cpp +
+                 FileCheckList.txt. Adding gcc16 as a new compiler-axis VALUE is the data-driven edit
+                 (run_identity + v_desired_matrix already key on compiler).
+              3. ONE VERSION AT A TIME for matrix runs (Jay's HARD rule — concurrent runs pollute the
+                 xFull throughput numbers). v001 fully done THEN v002. Background each run so the harness
+                 tracks it (do NOT launch with a trailing `&` inside a backgrounded command — it orphans
+                 the run and you lose the completion notification; bit me this session).
+              4. run-all is idempotent gap-fill (kill+rerun = the remainder); --force re-runs all + APPENDS
+                 duplicate rows -> dedup with v_latest_runs after (cascade delete across scenarios/
+                 group_specs/host_hardware/group_compiler_builds/package_versions, then VACUUM + render).
+                 Summary now ends: "N passed, M failed, S skipped, E errors    *** ALL PASSED ***"
+                 (or *** FAILURES ***). Full = 16 combos x 116 = 1,856/host; smoke = 8 x 116 = 928.
+              5. ctest: run SERIAL (no -j). The store matrix tests collide on the results DB under
+                 parallel ctest (SQLite locks) -> spurious "Subprocess aborted"; serial is clean.
+              6. clang-scan-deps heisenbug: a flaky LLVM module-scanner assert crash under parallel load.
+                 RETRY the combo — it's the tool, not the code (Bloopers #3).
+              7. pkill: use `pkill -x jac313_test_cli` (exact name), never `pkill -f "...run-all..."` —
+                 the -f pattern matches its own command line and SIGTERMs your shell (Bloopers #5).
+
+            WHAT THIS SESSION DID (the state you inherit):
+              - run-all GUARDRAIL: every line reads "[ 84/116 · 199 of 928] name | sink | mode ..." with a
+                live global counter so the expected total is always visible; --dry-run prints
+                "N combos x 116 = TOTAL". Columns PADDED (right-justified counters; persist->"binary"=6,
+                mode->"off"=3, name->widest) so nothing shifts as numbers roll 9->10->100.
+              - PASS/FAIL VERDICT added to the run-all summary (Jay's feature request): aggregates
+                passed/failed/skipped/errors across combos via a new MatrixComboTally out-param.
+              - FIXED the headline bug: a missing SELECT DISTINCT in missing_matrix_combos made --force
+                fan out one row per HISTORICAL run (8 smoke combos -> 158). Both DBs DEDUPED to
+                one-run-per-identity. Full story: docs/Bloopers.md #1.
+              - jText HARDENED both versions (APIs unchanged): printable-ASCII multiline sentinel, strict
+                YYYY-MM-DD dates, template {N} range check, layered validation_level
+                {minimal,standard,strict} (default strict). v001.001->.002; v002 -> .003.
+              - v001 brought to FULL PARITY with v002 (same improvements, distinct identity), INCLUDING
+                two tool unit tests (identity_dedup_test, run_identity_test) that predated the 6th identity
+                axis (modules) and were missed in the first port — they failed ctest until synced to v002.
+              - FULL MATRIX both versions: 16/16 combos, 1,856/1,856 scenarios, *** ALL PASSED ***, 0 leaks.
+                v001 = 112 runs / 7 hosts (007 = this VM's first full v001 run). v002 = 32 / 2 hosts (006,
+                007); v002's run was verification-only (restored, not re-committed — didn't churn valid numbers).
+              - NEW docs both versions: docs/Bloopers.md (mistakes, owned) + docs/UserEnhancements.md (the
+                optimization-flag matrix idea + a sanitizer axis — your gcc16/contracts work and a future
+                -O3-differential/UBSan axis are the natural growth there).
+              - All 3 branches fast-forwarded in lockstep @ a03c5d86; working tree clean; version-check +
+                verify-lite (valgrind) pre-push gate green on every push.
+
 2026-06-23  TWO TOOLCHAIN FINDINGS + v002 FIRST FULL MATRIX (both compilers) — all 3 branches @ c2c1a63f (Claude).
             FINDING 1 (compiler bug): clang 21 rejects valid C++26 std::print with dynamic-width specs
               ("{:^{}}") that gcc 15 accepts (and clang accepts in C++23). Root: libstdc++ consteval
