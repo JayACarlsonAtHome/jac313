@@ -69,6 +69,7 @@ auto to_string(issue_kind k) -> std::string_view
         case issue_kind::record_hierarchical_value:    return "record_hierarchical_value";
         case issue_kind::header_unknown_field:         return "header_unknown_field";
         case issue_kind::header_invalid_jtext_version: return "header_invalid_jtext_version";
+        case issue_kind::template_placeholder_out_of_range: return "template_placeholder_out_of_range";
         case issue_kind::section_empty:                return "section_empty";
         case issue_kind::section_duplicate_name:       return "section_duplicate_name";
     }
@@ -205,33 +206,36 @@ auto looks_like_number(std::string_view s) -> bool
     return has_digit;
 }
 
-// Date: ISO 8601 format. Accept either:
-//   YYYY-MM-DD
-//   YYYY-MM-DDTHH:MM:SS  (with optional .frac and timezone Z or ±HH:MM)
-// We do not validate that the date is a real calendar date (Feb 30
-// would pass here); structural shape is sufficient for now. A future
-// pass can tighten if needed.
+// Date: STRICT calendar date, exactly YYYY-MM-DD — nothing else.
+//
+// Date interpretation is notoriously locale/country-dependent (is 03-04-05 in
+// March or April? which is the year?), so jText deliberately requires the one
+// unambiguous ISO form and rejects everything else: no datetimes, no times, no
+// alternate separators, no 2-digit years. The value is also checked as a real
+// calendar date (month 1-12, day valid for the month, leap-year-aware), so
+// Feb 30 / 2026-13-45 are rejected too.
 auto looks_like_date(std::string_view s) -> bool
 {
-    if (s.size() < 10) return false;
-    // YYYY-MM-DD prefix
+    if (s.size() != 10) return false;
     auto is_digit = [](char c) { return c >= '0' && c <= '9'; };
     if (!is_digit(s[0]) || !is_digit(s[1]) || !is_digit(s[2]) || !is_digit(s[3])) return false;
     if (s[4] != '-') return false;
     if (!is_digit(s[5]) || !is_digit(s[6])) return false;
     if (s[7] != '-') return false;
     if (!is_digit(s[8]) || !is_digit(s[9])) return false;
-    if (s.size() == 10) return true;
-    // Datetime: 'T' then HH:MM:SS plus optional fragments
-    if (s[10] != 'T' && s[10] != ' ') return false;
-    if (s.size() < 19) return false;
-    if (!is_digit(s[11]) || !is_digit(s[12])) return false;
-    if (s[13] != ':') return false;
-    if (!is_digit(s[14]) || !is_digit(s[15])) return false;
-    if (s[16] != ':') return false;
-    if (!is_digit(s[17]) || !is_digit(s[18])) return false;
-    // We don't strictly validate the rest (fractional, timezone).
-    return true;
+
+    const int year  = (s[0] - '0') * 1000 + (s[1] - '0') * 100 + (s[2] - '0') * 10 + (s[3] - '0');
+    const int month = (s[5] - '0') * 10 + (s[6] - '0');
+    const int day   = (s[8] - '0') * 10 + (s[9] - '0');
+
+    if (month < 1 || month > 12) return false;
+
+    static constexpr int days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    int max_day = days_in_month[month - 1];
+    const bool leap = (year % 4 == 0) && (year % 100 != 0 || year % 400 == 0);
+    if (month == 2 && leap) max_day = 29;
+
+    return day >= 1 && day <= max_day;
 }
 
 }  // anonymous namespace
@@ -621,11 +625,58 @@ auto assemble_records(
 //  Record value validation
 // ──────────────────────────────────────────────────────────────
 
+// True when `level` is at least as thorough as `floor` (levels are ordered
+// minimal < standard < strict).
+constexpr bool level_at_least(validation_level level, validation_level floor) {
+    return static_cast<std::uint8_t>(level) >= static_cast<std::uint8_t>(floor);
+}
+
+// Validate that every {N} placeholder in a section's template bodies refers to
+// a declared field position (1..field_count). {0} and {N>field_count} are
+// errors. Non-numeric braces (e.g. {foo}) are literal text, not placeholders,
+// and are ignored. Callers skip this for sections whose fields come from an
+// include (the resolved field count is unknown there).
+auto validate_template_placeholders(
+    const std::vector<parsed_template>& templates,
+    std::size_t                         field_count,
+    std::string_view                    section_name,
+    validation_report&                  report) -> void
+{
+    for (const auto& tpl : templates) {
+        const std::string& body = tpl.body;
+        for (std::size_t i = 0; i + 1 < body.size(); ++i) {
+            if (body[i] != '{') continue;
+            std::size_t j = i + 1;
+            unsigned long long n = 0;
+            while (j < body.size() && body[j] >= '0' && body[j] <= '9') {
+                if (n <= field_count + 1) {            // enough to decide range
+                    n = n * 10 + static_cast<unsigned>(body[j] - '0');
+                }
+                ++j;
+            }
+            // A placeholder is exactly {<digits>}; anything else is literal text.
+            if (j == i + 1 || j >= body.size() || body[j] != '}') continue;
+            if (n == 0 || n > field_count) {
+                report_issue(report, issue_severity::error,
+                             issue_kind::template_placeholder_out_of_range,
+                             0,
+                             std::format("section '{}', template '{}'",
+                                         section_name, tpl.name),
+                             std::format("placeholder {{{}}} is out of range "
+                                         "(section declares {} field(s))",
+                                         n, field_count));
+            }
+            i = j;  // skip past this placeholder
+        }
+    }
+}
+
 auto validate_record_values(
     const std::vector<field>& fields,
     const std::vector<record>& records,
     std::string_view           section_name,
-    validation_report&         report) -> void
+    validation_report&         report,
+    validation_level           level) -> void
 {
     for (std::size_t ri = 0; ri < records.size(); ++ri) {
         const auto& rec = records[ri];
@@ -636,6 +687,7 @@ auto validate_record_values(
             const bool present = v.has_value();
             const bool empty   = present && v->empty();
 
+            // Required (Not Null) presence is checked at every level (incl. minimal).
             if (fld.required) {
                 if (!present || empty) {
                     report_issue(report, issue_severity::error,
@@ -649,6 +701,9 @@ auto validate_record_values(
             }
 
             if (!present || empty) continue;  // Nullable + absent/empty: NULL per spec
+
+            // Per-value type/format/length checks are Standard+ (skipped at minimal).
+            if (!level_at_least(level, validation_level::standard)) continue;
 
             // Type checks (only when there's a value to check).
             switch (fld.type) {
@@ -682,8 +737,8 @@ auto validate_record_values(
                                  std::format("section '{}', record {}, field {} ({})",
                                              section_name, ri + 1, fld.position, fld.name),
                                  std::format("value '{}' is not a valid Date "
-                                             "(expected YYYY-MM-DD or "
-                                             "YYYY-MM-DDTHH:MM:SS)", *v));
+                                             "(required format is exactly "
+                                             "YYYY-MM-DD)", *v));
                 }
                 break;
             }
@@ -773,7 +828,7 @@ auto interpret_header(
 //  validate entry point
 // ──────────────────────────────────────────────────────────────
 
-auto validate(const parsed_file& pf) -> validate_result
+auto validate(const parsed_file& pf, validation_level level) -> validate_result
 {
     validate_result vr;
 
@@ -802,7 +857,13 @@ auto validate(const parsed_file& pf) -> validate_result
         const auto fc = vs.fields.size();
         vs.records   = assemble_records(sec, fc, vr.report);
 
-        validate_record_values(vs.fields, vs.records, vs.name, vr.report);
+        validate_record_values(vs.fields, vs.records, vs.name, vr.report, level);
+
+        // Template {N} placeholder range is a strict-level check. Skip when the
+        // section's fields come from an include — the resolved count is unknown.
+        if (level_at_least(level, validation_level::strict) && sec.includes.empty()) {
+            validate_template_placeholders(vs.templates, fc, vs.name, vr.report);
+        }
 
         vr.file.sections.push_back(std::move(vs));
     }
