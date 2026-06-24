@@ -31,6 +31,11 @@ struct MatrixRunOptions {
     bool fail_fast{false};
     int failsafe_sec{kDefaultFailsafeSec};
     MatrixDbSession db;
+    // Global scenario progress across a whole run-all sweep (0 total = don't show).
+    // Lets each line read "[i/116 · G of TOTAL]" so the expected grand total is
+    // always visible and an inflated combo count is impossible to miss.
+    int global_done_before{0};
+    int global_total{0};
 };
 
 struct MatrixRunResult {
@@ -45,7 +50,10 @@ ScenarioIdentity scenario_identity(const MatrixScenario& scen);
 void print_matrix_scenario_line(const MatrixScenario& scen,
                                 int index,
                                 int total,
-                                bool in_progress = false);
+                                bool in_progress = false,
+                                int global_index = 0,
+                                int global_total = 0,
+                                int name_width = 0);
 
 void prepare_matrix_run_session(MatrixRunMeta& meta,
                               MatrixOptions& opts,
