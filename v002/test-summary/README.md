@@ -1,6 +1,8 @@
 # Store benchmark results
 
-_Generated from `bench_results.db` by `store_bench --report` — the curated suite (median + low–high band over N runs; durable rates count the flush). Latest run per config per host._
+_Generated from `bench_results.db` by `store_bench --report` — the curated suite_<br>
+_(median + low–high band over N runs; durable rates count the flush)._<br>
+_Latest run per config per host._
 
 ## fedora
 

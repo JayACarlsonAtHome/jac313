@@ -364,9 +364,9 @@ int report_from_db(const std::string& db_path) {
         { auto st = db.prepare("SELECT DISTINCT host FROM bench_run ORDER BY host");
           while (st.step()) { std::string h; st.get(h); hosts.push_back(h); } }
         std::cout << "# Store benchmark results\n\n"
-                     "_Generated from `bench_results.db` by `store_bench --report` — the curated "
-                     "suite (median + low–high band over N runs; durable rates count the flush). "
-                     "Latest run per config per host._\n\n";
+                     "_Generated from `bench_results.db` by `store_bench --report` — the curated suite_<br>\n"
+                     "_(median + low–high band over N runs; durable rates count the flush)._<br>\n"
+                     "_Latest run per config per host._\n\n";
         if (hosts.empty()) { std::cout << "_No runs recorded yet._\n"; return 0; }
         for (const auto& host : hosts) {
             const std::string hq = "'" + host + "'";   // trusted (our own gethostname)
