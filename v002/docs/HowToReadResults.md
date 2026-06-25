@@ -50,10 +50,11 @@ Throughput is now measured by a dedicated instrument, **`store_bench`**, driven 
 ./jac313_store_bench --suite
 ```
 
-It is a **curated 7-config suite**, not a giant matrix:
+It is a **curated 10-config suite**, not a giant matrix:
 
-- a **non-durable flag sweep** — 0 / 2 / 4 / 6 flags, 10M events × 10 runs, and
-- the **durable backends** — jText / SQL / binary, 1M events × 3 runs.
+- a **non-durable flag sweep** — 0 / 2 / 4 / 6 flags, 10M events × 10 runs,
+- the **durable backends** — jText / SQL / binary, 1M events × 3 runs, and
+- the **durable backends again at 10M** — the scaling grid (jText / SQL / binary, 10M × 3 runs).
 
 Each config's headline is the **median ops/sec** with a **low–high band** across its runs.
 Verify runs **last-run-only** — correctness is not throughput, so it stays out of the hot loop.

@@ -8,7 +8,7 @@
 
 Throughput is measured by the `store_bench` instrument (in
 `Store/tests/matrix/`); the curated suite is its own built-in `--suite` mode —
-no driver script. It is a *curated* 7-config suite — deliberately small and
+no driver script. It is a *curated* 10-config suite — deliberately small and
 trustworthy, not the big functional test matrix. Its job is to give numbers
 you can stand behind, not coverage.
 
@@ -28,7 +28,8 @@ It is honest by construction:
 
 ```bash
 ./jac313_store_bench --suite --dry-run         # print the copy-paste command list
-./jac313_store_bench --suite --db results.db   # run the curated 7 and record each (~90 s)
+./jac313_store_bench --suite --db results.db   # run the curated 10 and record each
+./jac313_store_bench --clear  --db results.db  # wipe THIS host+OS's rows (re-measure clean); other machines/OSes untouched
 ./jac313_store_bench --report --db results.db  # render the results page from the DB
 ```
 
@@ -40,9 +41,10 @@ Qlite) — host, versions, config, and the full distribution — so re-running
 is also a standalone `store_bench` command (see below) for running one in
 isolation.
 
-## The 7 configs
+## The 10 configs
 
-This is the `--dry-run` output (build dir shown as a placeholder):
+This is the `--dry-run` output (build dir shown as a placeholder): 4 non-durable flag
+steps, then the durable backends at **1M** and again at **10M** (the scaling grid).
 
 ```bash
 cd <your-build-dir>/Store/tests/matrix          # where jac313_store_bench was built
@@ -50,9 +52,12 @@ cd <your-build-dir>/Store/tests/matrix          # where jac313_store_bench was b
 ./jac313_store_bench --threads 50 --events-per-thread 200000 --runs 10 --persist none --flag-count 2  # 2 flags, non-durable
 ./jac313_store_bench --threads 50 --events-per-thread 200000 --runs 10 --persist none --flag-count 4  # 4 flags, non-durable
 ./jac313_store_bench --threads 50 --events-per-thread 200000 --runs 10 --persist none --flag-count 6  # 6 flags, non-durable
-./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist jtext                 # durable jtext
-./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist sql                   # durable sql
-./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist binary                # durable binary
+./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist jtext                 # durable jtext  (1M)
+./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist sql                   # durable sql    (1M)
+./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist binary                # durable binary (1M)
+./jac313_store_bench --threads 50 --events-per-thread 200000 --runs  3 --persist jtext                 # durable jtext  @10M
+./jac313_store_bench --threads 50 --events-per-thread 200000 --runs  3 --persist sql                   # durable sql    @10M
+./jac313_store_bench --threads 50 --events-per-thread 200000 --runs  3 --persist binary                # durable binary @10M
 ```
 
 ## Sample report

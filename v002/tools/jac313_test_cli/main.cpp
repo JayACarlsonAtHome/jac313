@@ -363,7 +363,7 @@ int run_matrix_run_command(const GlobalOptions& global,
     meta.build_type = build_type;
     meta.modules = modules_label;
 
-    if (!matrix_opts.dry_run) {
+    if (!matrix_opts.dry_run && matrix_opts.legacy_results) {
         prepare_matrix_run_session(meta, matrix_opts, global.source_dir);
         std::cout << "Group ID: " << format_count(meta.group_id) << '\n';
     }
@@ -397,7 +397,7 @@ int run_matrix_run_command(const GlobalOptions& global,
     run_opts_matrix.global_done_before = global_before;
     run_opts_matrix.global_total = grand_total;
     std::optional<std::int64_t> run_id;
-    if (!matrix_opts.dry_run) {
+    if (!matrix_opts.dry_run && matrix_opts.legacy_results) {
         run_id = ensure_matrix_run_record(db, meta, results_base);
         if (run_id.has_value()) {
             run_opts_matrix.db.run_id = *run_id;
@@ -780,6 +780,8 @@ int main(int argc, char** argv) {
                 matrix_opts.dry_run = true;
             } else if (arg == "--no-summary") {
                 matrix_opts.no_summary = true;
+            } else if (arg == "--legacy-results") {
+                matrix_opts.legacy_results = true;
             } else if (arg == "--compiler" && i + 1 < argc) {
                 configure_opts.compiler = argv[++i];
             } else if (arg == "--gcc15") {
@@ -815,13 +817,16 @@ int main(int argc, char** argv) {
                 "  run-all        Run every MISSING combo for this host (gap-filling, idempotent)\n"
                 "  verify-lite    valgrind gate: ctest under memcheck + helgrind/DRD\n"
                 "  verify         valgrind gate: ctest + smoke matrix (full sink coverage)\n"
-                "  render         Render test-summary from results DB (no matrix run)\n"
-                "  top            Query top N peak ops/sec scenarios (v_top_throughput)\n"
-                "  runs           List latest run per compiler/size/disk (v_latest_runs)\n\n"
+                "  render         [legacy] Render old test-summary hub from results DB (needs --legacy-results data)\n"
+                "  top            [legacy] Query top N peak ops/sec scenarios (v_top_throughput)\n"
+                "  runs           [legacy] List latest run per compiler/size/disk (v_latest_runs)\n\n"
+                "Throughput + the committed report now come from store_bench (--db bench_results.db / --report);\n"
+                "a matrix run is a correctness gate only and no longer writes test-summary/ by default.\n\n"
                 "matrix options:\n"
                 "  --params <file>   Params file (default: tests/test_params.txt)\n"
                 "  --dry-run         List scenarios only\n"
-                "  --no-summary      Skip auto test-summary render after run\n"
+                "  --no-summary      Skip auto test-summary render after run (legacy path only)\n"
+                "  --legacy-results  Re-enable the retired matrix results DB + hub render (jac313_results.db)\n"
                 "  --modules         Configure+build with modules before run\n"
                 "  --filter <regex>  Match test name, persist, or name|persist|mode\n"
                 "  --failsafe <sec>  Kill stuck scenario after N seconds (smoke: "

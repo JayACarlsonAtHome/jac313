@@ -370,7 +370,7 @@ std::string commafy(std::uint64_t n) {
 std::string milstr(std::uint64_t n) { char b[32]; std::snprintf(b, sizeof b, "%.2fM", n / 1e6); return b; }
 std::string milint(std::uint64_t n) { return std::to_string(n / 1000000) + "M"; }   // clean "10M" for headers
 
-// ---- the curated 7-config suite (replaces the old bench_suite.sh driver) ----
+// ---- the curated suite (replaces the old bench_suite.sh driver) ----
 int run_suite(Params base, bool dry) {
     base.threads = 50;                                 // curated suite is opinionated about threads
     struct Cfg { std::string persist; int flags; std::string label; std::size_t evt, runs; };
@@ -383,7 +383,7 @@ int run_suite(Params base, bool dry) {
         cfgs.push_back({std::string(pn), 0, std::string("durable ") + pn + " @10M", 200000, 3}); // 10M × 3 (scaling)
 
     if (dry) {
-        std::cout << "# Store benchmark suite — 7 configs (run from the build dir)\n\n";
+        std::cout << "# Store benchmark suite — " << cfgs.size() << " configs (run from the build dir)\n\n";
         for (const auto& cf : cfgs) {
             std::cout << "./jac313_store_bench --threads 50 --events-per-thread " << cf.evt
                       << " --runs " << cf.runs << " --persist " << cf.persist;
@@ -534,13 +534,41 @@ int report_from_db(const std::string& db_path) {
 int report_from_db(const std::string&) { std::cerr << "built without SQL persist -> no report\n"; return 1; }
 #endif
 
+#ifdef JAC313_STORE_HAS_SQL_PERSIST
+// ---- clear recorded runs so a re-run starts clean ----
+// Scope is always THIS host AND THIS OS: it never touches another machine's numbers,
+// and — crucially — a re-image / dual-boot (SAME hostname, different OS, e.g.
+// Fedora -> RHEL on one box) keeps the other OS's rows. There is deliberately no
+// "clear everything" flag; a full wipe is a manual, intentional act. A missing table
+// is a no-op, not an error.
+int clear_db(const std::string& db_path) {
+    try {
+        jac313::Qlite::v002::Sqlite db(db_path);
+        { auto st = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='bench_run'");
+          if (!st.step()) { std::cerr << "[clear] no bench_run table in " << db_path << " — nothing to clear\n"; return 0; } }
+        const HostInfo h = sense_host();
+        std::int64_t n = 0;
+        { auto st = db.prepare("SELECT COUNT(*) FROM bench_run WHERE host=? AND os=?");
+          st.bind(h.host, h.os); if (st.step()) st.get(n); }
+        db.exec("DELETE FROM bench_run WHERE host=? AND os=?", h.host, h.os);
+        std::cerr << "[clear] removed " << n << " row(s) for host '" << h.host
+                  << "' / os '" << h.os << "' from " << db_path << "\n";
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "clear failed: " << e.what() << "\n"; return 1;
+    }
+}
+#else
+int clear_db(const std::string&) { std::cerr << "built without SQL persist -> no clear\n"; return 1; }
+#endif
+
 } // namespace
 
 int main(int argc, char** argv) {
     Params p;
     p.flags = default_flags();
     std::optional<Sweep> sweep;
-    bool do_suite = false, do_report = false, dry = false;
+    bool do_suite = false, do_report = false, dry = false, do_clear = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -558,13 +586,24 @@ int main(int argc, char** argv) {
         else if (a == "--jtext-ver") p.jtext_ver = next();
         else if (a == "--suite") do_suite = true;
         else if (a == "--report") do_report = true;
+        else if (a == "--clear") do_clear = true;
         else if (a == "--dry-run") dry = true;
         else if (a == "--sweep") { sweep = parse_sweep(next()); if (!sweep) { std::cerr << "bad --sweep (want AXIS=LO..HI:STEP)\n"; return 2; } }
         else if (!arg_value(a, "--sweep").empty()) { sweep = parse_sweep(arg_value(a, "--sweep")); }
+        else if (a.rfind("--", 0) == 0) {
+            // Reject unknown flags instead of silently falling through to the default
+            // single run (which would record a junk row to --db, e.g. on a typo or a
+            // retired flag like the old --clear-all).
+            std::cerr << "unknown option: " << a << "\n"; return 2;
+        }
     }
 
     if (do_report) return report_from_db(p.db_path.empty() ? "bench_results.db" : p.db_path);
+    if (do_clear && !dry) {   // wipe THIS host+OS first so a following --suite re-measures clean
+        if (int rc = clear_db(p.db_path.empty() ? "bench_results.db" : p.db_path); rc != 0) return rc;
+    }
     if (do_suite)  return run_suite(p, dry);
+    if (do_clear)  return 0;  // clear-only (no suite/single requested)
 
     if (!sweep) {
         // single config — one measurement set

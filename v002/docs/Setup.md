@@ -147,11 +147,11 @@ Throughput now has its own runner — it has moved **out** of the functional mat
 root:
 
 ```bash
-./jac313_store_bench --suite            # curated 7-config suite (~90 s)
+./jac313_store_bench --suite            # curated 10-config suite
 ./jac313_store_bench --suite --dry-run  # print the copy-paste command list
 ```
 
-A curated 7-config suite (non-durable flag sweep + durable jText/SQL/binary). The headline is the
+A curated 10-config suite (non-durable flag sweep + durable jText/SQL/binary at 1M and 10M). The headline is the
 **median + low–high band** over N runs, not a single "peak". See [Benchmarks.md](Benchmarks.md).
 
 ```bash
