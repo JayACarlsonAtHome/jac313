@@ -92,8 +92,9 @@ layout, and the legacy-matrix removal in `tools/jac313_test_cli`. Swap `Store::v
 `cxx_std_26`→`23`, add the CMake target; the instrument is C++20-clean.
 
 ### Stale docs / leftovers to fix
-- **`docs/RunAllTests.md`** (dated 2026-06-19) documents the **removed** `matrix run-all` +
-  the old DB/render — now wrong. Rewrite as the store_bench smoke/full runbook, or delete it.
+- ~~**`docs/RunAllTests.md`** documents the removed `matrix run-all` + old DB/render.~~
+  **Done (this session):** rewritten as the three-gate runbook — functional `matrix
+  run/runner`, `store_bench` throughput, valgrind `verify-lite` — matching the live CLI.
 - **`time_util.hpp`** is orphaned (not in CMakeLists, referenced by nothing) — safe to delete.
 
 ### Nice-to-haves
