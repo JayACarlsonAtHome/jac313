@@ -263,6 +263,21 @@ std::string compiler_id() {
 #endif
 }
 
+// Full compiler identity for the results.db compiler dimension: name + EXACT version (with patch, to
+// tie a result to its precise toolchain) + major (for clean grouping even when version strings differ).
+struct CompilerInfo { std::string name; std::string version; std::int64_t major; };
+CompilerInfo this_compiler() {
+#if defined(__clang__)
+    return {"clang", std::to_string(__clang_major__) + "." + std::to_string(__clang_minor__) + "." +
+            std::to_string(__clang_patchlevel__), __clang_major__};
+#elif defined(__GNUC__)
+    return {"gcc", std::to_string(__GNUC__) + "." + std::to_string(__GNUC_MINOR__) + "." +
+            std::to_string(__GNUC_PATCHLEVEL__), __GNUC__};
+#else
+    return {"unknown", "0", 0};
+#endif
+}
+
 // total bytes of the persisted output (every file starting with base_name) — the on-disk
 // footprint of jtext / binary / sql for this config.
 std::uint64_t measure_output_bytes(const std::string& base) {
@@ -447,11 +462,13 @@ void ensure_results_schema(jac313::Qlite::v002::Sqlite& db) {
     db.exec("INSERT OR IGNORE INTO testList(name) VALUES"
             " ('0 flags, non-durable'),('2 flags, non-durable'),('4 flags, non-durable'),"
             " ('6 flags, non-durable'),('durable jtext'),('durable sql'),('durable binary')");
+    db.exec("CREATE TABLE IF NOT EXISTS compiler ("
+            "id INTEGER PRIMARY KEY, name TEXT, version TEXT, major INTEGER, UNIQUE(name, version))");
     db.exec("CREATE TABLE IF NOT EXISTS parameter ("
-            "id INTEGER PRIMARY KEY, compiler TEXT, build_type TEXT, modules TEXT, size TEXT, "
+            "id INTEGER PRIMARY KEY, compiler_id INTEGER, build_type TEXT, modules TEXT, size TEXT, "
             "persist TEXT, output_mode TEXT, threads INTEGER, events_per_thread INTEGER, runs INTEGER, "
             "batch INTEGER, flag_count INTEGER, "
-            "UNIQUE(compiler,build_type,modules,size,persist,output_mode,threads,events_per_thread,runs,batch,flag_count))");
+            "UNIQUE(compiler_id,build_type,modules,size,persist,output_mode,threads,events_per_thread,runs,batch,flag_count))");
     db.exec("CREATE TABLE IF NOT EXISTS run ("
             "run_id INTEGER PRIMARY KEY, ts_utc TEXT, group_id INTEGER, host TEXT, cpu TEXT, cores INTEGER, "
             "ram_gb INTEGER, os TEXT, store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
@@ -490,24 +507,33 @@ std::int64_t results_lookup_id(jac313::Qlite::v002::Sqlite& db, const char* sql,
     std::int64_t id = 0; auto st = db.prepare(sql); st.bind(name); if (st.step()) st.get(id); return id;
 }
 
+// Insert-or-find the compiler dimension row (name, exact version, major); UNIQUE(name,version) dedupes.
+std::int64_t compiler_id_for(jac313::Qlite::v002::Sqlite& db, const CompilerInfo& c) {
+    db.exec("INSERT OR IGNORE INTO compiler(name, version, major) VALUES(?,?,?)", c.name, c.version, c.major);
+    std::int64_t id = 0;
+    { auto st = db.prepare("SELECT id FROM compiler WHERE name=? AND version=?");
+      st.bind(c.name, c.version); if (st.step()) st.get(id); }
+    return id;
+}
+
 // Insert-or-find a bench parameter combo (build_type Release, modules off; size/output_mode/batch
 // N/A => NULL). SELECT-then-INSERT, because a UNIQUE over NULL-bearing columns won't dedupe in SQLite.
-std::int64_t parameter_id_bench(jac313::Qlite::v002::Sqlite& db, const std::string& compiler,
+std::int64_t parameter_id_bench(jac313::Qlite::v002::Sqlite& db, std::int64_t compiler_id,
                                 const std::string& persist, std::int64_t threads, std::int64_t events,
                                 std::int64_t runs, std::int64_t flags) {
     const char* where =
-        "SELECT id FROM parameter WHERE compiler=? AND build_type='Release' AND modules='off' AND size IS NULL "
+        "SELECT id FROM parameter WHERE compiler_id=? AND build_type='Release' AND modules='off' AND size IS NULL "
         "AND persist=? AND output_mode IS NULL AND threads=? AND events_per_thread=? AND runs=? AND batch IS NULL "
         "AND flag_count=?";
     auto find = [&]() -> std::int64_t {
         std::int64_t id = 0; auto st = db.prepare(where);
-        st.bind(compiler, persist, threads, events, runs, flags); if (st.step()) st.get(id); return id;
+        st.bind(compiler_id, persist, threads, events, runs, flags); if (st.step()) st.get(id); return id;
     };
     std::int64_t id = find();
     if (id == 0) {
-        db.exec("INSERT INTO parameter(compiler,build_type,modules,size,persist,output_mode,threads,"
+        db.exec("INSERT INTO parameter(compiler_id,build_type,modules,size,persist,output_mode,threads,"
                 "events_per_thread,runs,batch,flag_count) VALUES(?, 'Release','off', NULL, ?, NULL, ?, ?, ?, NULL, ?)",
-                compiler, persist, threads, events, runs, flags);
+                compiler_id, persist, threads, events, runs, flags);
         id = find();
     }
     return id;
@@ -532,7 +558,8 @@ void record_to_results_db(const Params& p, const BenchSummary& s) {
         const std::int64_t test_list_id = results_lookup_id(db, "SELECT id FROM testList WHERE name=?", base);
         const std::int64_t test_type_id = results_lookup_id(db, "SELECT id FROM testType WHERE name=?", std::string("bench"));
         const std::int64_t flags = set_flag_count(p.flags);
-        const std::int64_t param_id = parameter_id_bench(db, compiler_id(), p.persist,
+        const std::int64_t comp_id = compiler_id_for(db, this_compiler());
+        const std::int64_t param_id = parameter_id_bench(db, comp_id, p.persist,
             static_cast<std::int64_t>(p.threads), static_cast<std::int64_t>(p.events_per_thread),
             static_cast<std::int64_t>(p.runs), flags);
         const std::int64_t bytes = (p.persist == "none") ? 0

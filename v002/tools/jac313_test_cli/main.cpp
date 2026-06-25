@@ -329,10 +329,12 @@ void cli_ensure_results_schema(jac313::Qlite::v002::Sqlite& db) {
             " ('bench','throughput benchmark suite'),('verify-lite','valgrind memcheck gate'),"
             " ('verify','valgrind memcheck + helgrind + DRD')");
     db.exec("CREATE TABLE IF NOT EXISTS testList (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL)");
-    db.exec("CREATE TABLE IF NOT EXISTS parameter (id INTEGER PRIMARY KEY, compiler TEXT, build_type TEXT, "
+    db.exec("CREATE TABLE IF NOT EXISTS compiler ("
+            "id INTEGER PRIMARY KEY, name TEXT, version TEXT, major INTEGER, UNIQUE(name, version))");
+    db.exec("CREATE TABLE IF NOT EXISTS parameter (id INTEGER PRIMARY KEY, compiler_id INTEGER, build_type TEXT, "
             "modules TEXT, size TEXT, persist TEXT, output_mode TEXT, threads INTEGER, events_per_thread INTEGER, "
             "runs INTEGER, batch INTEGER, flag_count INTEGER, "
-            "UNIQUE(compiler,build_type,modules,size,persist,output_mode,threads,events_per_thread,runs,batch,flag_count))");
+            "UNIQUE(compiler_id,build_type,modules,size,persist,output_mode,threads,events_per_thread,runs,batch,flag_count))");
     db.exec("CREATE TABLE IF NOT EXISTS run (run_id INTEGER PRIMARY KEY, ts_utc TEXT, group_id INTEGER, host TEXT, "
             "cpu TEXT, cores INTEGER, ram_gb INTEGER, os TEXT, store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
     db.exec("CREATE TABLE IF NOT EXISTS testRun (id INTEGER PRIMARY KEY, run_id INTEGER, test_type_id INTEGER, "
@@ -346,23 +348,23 @@ std::int64_t cli_results_id(jac313::Qlite::v002::Sqlite& db, const char* sql, co
 
 // insert-or-find a functional parameter combo (batch/flag_count N/A => NULL); SELECT-then-INSERT.
 std::int64_t cli_parameter_id(jac313::Qlite::v002::Sqlite& db,
-        const std::string& compiler, const std::string& build_type, const std::string& modules,
+        std::int64_t compiler_id, const std::string& build_type, const std::string& modules,
         const std::string& size, const std::string& persist, const std::string& output_mode,
         std::int64_t threads, std::int64_t events, std::int64_t runs) {
     const char* where =
-        "SELECT id FROM parameter WHERE compiler=? AND build_type=? AND modules=? AND size=? "
+        "SELECT id FROM parameter WHERE compiler_id=? AND build_type=? AND modules=? AND size=? "
         "AND persist=? AND output_mode=? AND threads=? AND events_per_thread=? AND runs=? "
         "AND batch IS NULL AND flag_count IS NULL";
     auto find = [&]() -> std::int64_t {
         std::int64_t id = 0; auto st = db.prepare(where);
-        st.bind(compiler, build_type, modules, size, persist, output_mode, threads, events, runs);
+        st.bind(compiler_id, build_type, modules, size, persist, output_mode, threads, events, runs);
         if (st.step()) st.get(id); return id;
     };
     std::int64_t id = find();
     if (id == 0) {
-        db.exec("INSERT INTO parameter(compiler,build_type,modules,size,persist,output_mode,threads,"
+        db.exec("INSERT INTO parameter(compiler_id,build_type,modules,size,persist,output_mode,threads,"
                 "events_per_thread,runs,batch,flag_count) VALUES(?,?,?,?,?,?,?,?,?,NULL,NULL)",
-                compiler, build_type, modules, size, persist, output_mode, threads, events, runs);
+                compiler_id, build_type, modules, size, persist, output_mode, threads, events, runs);
         id = find();
     }
     return id;
@@ -398,38 +400,55 @@ std::int64_t cli_begin_run(jac313::Qlite::v002::Sqlite& db) {
     return run_id;
 }
 
-// Best-effort compiler label (gcc15 / gcc16 / clang) from the tree's CMAKE_CXX_COMPILER cache line.
-std::string read_compiler_label(const fs::path& build_dir) {
-    std::ifstream in(build_dir / "CMakeCache.txt");
-    std::string line;
-    while (std::getline(in, line)) {
-        if (line.rfind("CMAKE_CXX_COMPILER:", 0) == 0) {
-            const std::string path = line.substr(line.find('=') + 1);
-            if (path.find("clang") != std::string::npos) return "clang";
-            if (path.find("toolset-16") != std::string::npos || path.find("g++-16") != std::string::npos) return "gcc16";
-            if (path.find("toolset-15") != std::string::npos || path.find("g++-15") != std::string::npos) return "gcc15";
-            return "gcc";
+// Read the tree's CMAKE_CXX_COMPILER and run it for its EXACT version (name + X.Y.Z + major), so a
+// functional result ties to the precise toolchain — same granularity store_bench records.
+struct CliCompiler { std::string name; std::string version; std::int64_t major; };
+CliCompiler read_compiler_info(const fs::path& build_dir) {
+    CliCompiler c{"gcc", "0", 0};
+    std::string cxx;
+    { std::ifstream in(build_dir / "CMakeCache.txt"); std::string line;
+      while (std::getline(in, line))
+          if (line.rfind("CMAKE_CXX_COMPILER:", 0) == 0) { cxx = line.substr(line.find('=') + 1); break; } }
+    if (cxx.empty()) return c;
+    const auto r = run_process({cxx, "--version"});
+    const std::string out = r.stdout_text + r.stderr_text;
+    c.name = (out.find("clang") != std::string::npos) ? "clang" : "gcc";
+    for (std::size_t i = 0; i < out.size(); ++i) {     // first X.Y[.Z] token = the version
+        if (out[i] >= '0' && out[i] <= '9' && (i == 0 || out[i - 1] < '0' || out[i - 1] > '9')) {
+            std::size_t j = i;
+            while (j < out.size() && ((out[j] >= '0' && out[j] <= '9') || out[j] == '.')) ++j;
+            const std::string tok = out.substr(i, j - i);
+            if (tok.find('.') != std::string::npos) { c.version = tok; break; }
         }
     }
-    return "gcc15";
+    c.major = std::atoi(c.version.c_str());
+    return c;
+}
+
+std::int64_t cli_compiler_id(jac313::Qlite::v002::Sqlite& db, const CliCompiler& c) {
+    db.exec("INSERT OR IGNORE INTO compiler(name, version, major) VALUES(?,?,?)", c.name, c.version, c.major);
+    std::int64_t id = 0;
+    { auto st = db.prepare("SELECT id FROM compiler WHERE name=? AND version=?");
+      st.bind(c.name, c.version); if (st.step()) st.get(id); }
+    return id;
 }
 
 // ctest parameter combo: just the build axes; persist/output_mode/scaling/batch/flag_count are N/A.
-std::int64_t cli_parameter_id_ctest(jac313::Qlite::v002::Sqlite& db, const std::string& compiler,
+std::int64_t cli_parameter_id_ctest(jac313::Qlite::v002::Sqlite& db, std::int64_t compiler_id,
                                     const std::string& build_type, const std::string& modules) {
     const char* where =
-        "SELECT id FROM parameter WHERE compiler=? AND build_type=? AND modules=? AND size IS NULL "
+        "SELECT id FROM parameter WHERE compiler_id=? AND build_type=? AND modules=? AND size IS NULL "
         "AND persist IS NULL AND output_mode IS NULL AND threads IS NULL AND events_per_thread IS NULL "
         "AND runs IS NULL AND batch IS NULL AND flag_count IS NULL";
     auto find = [&]() -> std::int64_t {
         std::int64_t id = 0; auto st = db.prepare(where);
-        st.bind(compiler, build_type, modules); if (st.step()) st.get(id); return id;
+        st.bind(compiler_id, build_type, modules); if (st.step()) st.get(id); return id;
     };
     std::int64_t id = find();
     if (id == 0) {
-        db.exec("INSERT INTO parameter(compiler,build_type,modules,size,persist,output_mode,threads,"
+        db.exec("INSERT INTO parameter(compiler_id,build_type,modules,size,persist,output_mode,threads,"
                 "events_per_thread,runs,batch,flag_count) VALUES(?,?,?,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL)",
-                compiler, build_type, modules);
+                compiler_id, build_type, modules);
         id = find();
     }
     return id;
@@ -449,9 +468,9 @@ void record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
             db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", r.entry.name);
         }
         const BuildFeatures bf = read_build_features(build_dir);
-        const std::string compiler = read_compiler_label(build_dir);
+        const std::int64_t comp_id = cli_compiler_id(db, read_compiler_info(build_dir));
         const std::int64_t type_id = cli_results_id(db, "SELECT id FROM testType WHERE name=?", std::string("ctest"));
-        const std::int64_t param_id = cli_parameter_id_ctest(db, compiler, bf.build_type,
+        const std::int64_t param_id = cli_parameter_id_ctest(db, comp_id, bf.build_type,
                                                              bf.modules ? "on" : "off");
         for (const auto& r : results) {
             const std::int64_t list_id = cli_results_id(db, "SELECT id FROM testList WHERE name=?", r.entry.name);
@@ -468,8 +487,8 @@ void record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
 }
 
 // Record one testRun row per scenario of a matrix (smoke) run into results.db.
-void record_matrix_results(const fs::path& source_dir, const std::vector<MatrixRunResult>& results,
-                           const std::string& compiler, const std::string& build_type,
+void record_matrix_results(const fs::path& source_dir, const fs::path& build_dir,
+                           const std::vector<MatrixRunResult>& results, const std::string& build_type,
                            const std::string& modules, const std::string& size) {
     if (results.empty()) return;
     const fs::path db_path = source_dir / "test-summary" / "results.db";
@@ -482,9 +501,10 @@ void record_matrix_results(const fs::path& source_dir, const std::vector<MatrixR
             db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", r.scenario.entry.name);
         }
         const std::int64_t type_id = cli_results_id(db, "SELECT id FROM testType WHERE name=?", std::string("smoke"));
+        const std::int64_t comp_id = cli_compiler_id(db, read_compiler_info(build_dir));
         for (const auto& r : results) {
             const std::int64_t list_id = cli_results_id(db, "SELECT id FROM testList WHERE name=?", r.scenario.entry.name);
-            const std::int64_t param_id = cli_parameter_id(db, compiler, build_type, modules, size,
+            const std::int64_t param_id = cli_parameter_id(db, comp_id, build_type, modules, size,
                 r.scenario.persist, r.scenario.output_mode,
                 static_cast<std::int64_t>(r.scenario.threads), static_cast<std::int64_t>(r.scenario.events_per_thread),
                 static_cast<std::int64_t>(r.scenario.runs));
@@ -614,7 +634,7 @@ int run_matrix_run_command(const GlobalOptions& global,
     std::cout << "Errors:  " << format_count(tally.errors) << '\n';
 
     // Capture this smoke run into results.db (one testRun row per scenario).
-    record_matrix_results(global.source_dir, results, matrix_opts.compiler_label, build_type,
+    record_matrix_results(global.source_dir, global.build_dir, results, build_type,
                           features.modules ? "on" : "off", params.size);
 
     return (tally.failed > 0 || tally.errors > 0) ? 1 : 0;
