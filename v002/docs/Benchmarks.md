@@ -86,7 +86,7 @@ Durable — 1M Events × 3 Runs = 3M Events per config (median | low–high band
 even trend — it's pure noise. Setting flags has no measurable hot-path cost.
 
 **The honest durable ranking is jText ≈ SQL (~2.1M) > binary (~0.64M).**
-Binary's old buffered number (~2.7M) was a lie: the ops/sec used to stop
+Binary's old buffered number (~2.7M) was hiding the truth: the ops/sec used to stop
 *before* the `msync`, so the flush wasn't counted. Moving the flush inside the
 clock exposed binary as actually the slowest. Note the SQL row's low of ~0.34M —
 a real fsync stall. The median (1.99M) ignores it while the band still reports

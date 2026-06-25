@@ -31,12 +31,12 @@ reporting a figure quietly engineered to flatter.
 honestly*. The 1,856-combo matrix collapsed to a curated **7-config suite** (`store_bench` +
 `bench_suite.sh`). The headline became the **median** with a low–high band over N runs — an
 fsync stall now shows up in the band instead of being hidden or cherry-picked. Durable
-timing moved the flush **inside** the clock, which is what finally caught binary's 4× lie.
+timing moved the flush **inside** the clock, which is what finally caught the 4× gap binary had been hiding.
 Verify left the hot loop. Total runtime: **~90 seconds**, not an afternoon.
 
 **Moral:** a test suite's job is *trustworthy numbers*, not *many numbers*. If you can't say
 what a figure means in one sentence — "median throughput, flush included, over 10 runs" —
-more scenarios won't save you, they'll bury the lie deeper. Measure less, measure honestly.
+more scenarios won't save you, they'll bury the problem deeper. Measure less, measure honestly.
 
 ---
 
