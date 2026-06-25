@@ -320,6 +320,7 @@ std::string commafy(std::uint64_t n) {
     return out;
 }
 std::string milstr(std::uint64_t n) { char b[32]; std::snprintf(b, sizeof b, "%.2fM", n / 1e6); return b; }
+std::string milint(std::uint64_t n) { return std::to_string(n / 1000000) + "M"; }   // clean "10M" for headers
 
 // ---- the curated 7-config suite (replaces the old bench_suite.sh driver) ----
 int run_suite(Params base, bool dry) {
@@ -390,8 +391,8 @@ int report_from_db(const std::string& db_path) {
                   std::int64_t fc, med, low, high, thr, evt, runs; st.get(fc, med, low, high, thr, evt, runs);
                   if (first) {
                       std::uint64_t total = static_cast<std::uint64_t>(thr) * evt;
-                      std::cout << "### Flag-overhead (non-durable) — " << milstr(total) << " Events × " << runs
-                                << " Runs = " << milstr(total * static_cast<std::uint64_t>(runs)) << " Events per config\n\n"
+                      std::cout << "### Flag-overhead (non-durable) — " << milint(total) << " Events × " << runs
+                                << " Runs<br>That's " << milint(total * static_cast<std::uint64_t>(runs)) << " Events per config\n\n"
                                 << "| Flags | Median Ops/Sec | Band — Low–High (Ops/Sec) |\n"
                                 << "|-------|----------------|---------------------------|\n";
                       first = false;
@@ -411,8 +412,8 @@ int report_from_db(const std::string& db_path) {
                   st.get(persist, med, low, high, thr, evt, runs);
                   if (first) {
                       std::uint64_t total = static_cast<std::uint64_t>(thr) * evt;
-                      std::cout << "### Durable — " << milstr(total) << " Events × " << runs
-                                << " Runs = " << milstr(total * static_cast<std::uint64_t>(runs)) << " Events per config\n\n"
+                      std::cout << "### Durable — " << milint(total) << " Events × " << runs
+                                << " Runs<br>That's " << milint(total * static_cast<std::uint64_t>(runs)) << " Events per config\n\n"
                                 << "| Backend | Median Ops/Sec | Band — Low–High (Ops/Sec) |\n"
                                 << "|---------|----------------|---------------------------|\n";
                       first = false;

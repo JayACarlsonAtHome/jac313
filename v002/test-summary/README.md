@@ -12,7 +12,7 @@ _Latest run per config per host._
 | **Versions** | Store v002.004 · Qlite v002.002 · jText v002.002 |
 | **Latest run (UTC)** | 2026-06-25T05:16:45Z |
 
-### Flag-overhead (non-durable) — 10.00M Events × 10 Runs = 100.00M Events per config
+### Flag-overhead (non-durable) — 10M Events × 10 Runs<br>That's 100M Events per config
 
 | Flags | Median Ops/Sec | Band — Low–High (Ops/Sec) |
 |-------|----------------|---------------------------|
@@ -21,7 +21,7 @@ _Latest run per config per host._
 | 4 | 21,767,960 | 21.26M – 22.13M |
 | 6 | 22,201,619 | 21.42M – 22.65M |
 
-### Durable — 1.00M Events × 3 Runs = 3.00M Events per config
+### Durable — 1M Events × 3 Runs<br>That's 3M Events per config
 
 | Backend | Median Ops/Sec | Band — Low–High (Ops/Sec) |
 |---------|----------------|---------------------------|
