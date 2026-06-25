@@ -1,5 +1,9 @@
 # Process — where Qlite and jText changes happen
 
+> **Mirrored doc.** This file is kept identical in the **jac313**, **Qlite**, and **jText**
+> repositories so the process is discoverable from whichever repo you're standing in. If you
+> change it, change all three copies.
+
 **The rule (effective now):** all changes to **Qlite** and **jText** happen in their own
 **independent repositories**, never inside jac313. jac313 carries *vendored snapshots* of
 these libraries; it consumes them, it does not author them.
