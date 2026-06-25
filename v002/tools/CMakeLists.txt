@@ -13,6 +13,7 @@ add_executable(jac313_test_cli
     jac313_test_cli/run_identity.cpp
 )
 target_compile_features(jac313_test_cli PRIVATE cxx_std_26)
+target_include_directories(jac313_test_cli PRIVATE ${CMAKE_SOURCE_DIR}/shared)   # jac313_results_db.hpp
 if(TARGET jac313::Setup)
     target_link_libraries(jac313_test_cli PRIVATE jac313::Setup)
 endif()

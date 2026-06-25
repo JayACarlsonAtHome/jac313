@@ -41,6 +41,7 @@
 #ifdef JAC313_STORE_HAS_SQL_PERSIST
 #include <unistd.h>     // gethostname
 #include "jac313/Qlite/v002/Sqlite.hpp"   // jac313::Qlite::v002::Sqlite — the results DB receiver
+#include "jac313_results_db.hpp"           // jac313::results — shared schema + dimension helpers
 #endif
 
 using namespace jac313::Store::v002;
@@ -263,8 +264,8 @@ std::string compiler_id() {
 
 // Full compiler identity for the results.db compiler dimension: name + EXACT version (with patch, to
 // tie a result to its precise toolchain) + major (for clean grouping even when version strings differ).
-struct CompilerInfo { std::string name; std::string version; std::int64_t major; };
-CompilerInfo this_compiler() {
+// CompilerInfo now lives in jac313_results_db.hpp (jac313::results::CompilerInfo).
+jac313::results::CompilerInfo this_compiler() {
 #if defined(__clang__)
     return {"clang", std::to_string(__clang_major__) + "." + std::to_string(__clang_minor__) + "." +
             std::to_string(__clang_patchlevel__), __clang_major__};
@@ -438,67 +439,34 @@ std::int64_t group_id_for(jac313::Qlite::v002::Sqlite& db, const HostInfo& h) {
     return gid;
 }
 
-// External label for a group: jac313-<group_id> (zero-padded 3), matching --anonymize.
-std::string host_label_for(std::int64_t gid) {
-    char b[24]; std::snprintf(b, sizeof b, "jac313-%03lld", static_cast<long long>(gid)); return b;
-}
+// ============================================================================
+// results.db — the unified, normalized results database. The schema and the compiler/lookup/run
+// helpers live in jac313_results_db.hpp (jac313::results — shared with the test CLI, single source
+// of truth). The wrappers below just adapt store_bench's HostInfo to that shared API. store_bench
+// writes here IN ADDITION to the legacy bench_run table during the port-over.
+// ============================================================================
+std::string host_label_for(std::int64_t gid) { return jac313::results::host_label(gid); }
 
-// ============================================================================
-// results.db — the unified, normalized results database (run / parameter / testRun + the
-// testType / testList catalogs). store_bench writes here IN ADDITION to the legacy bench_run
-// table during the port-over. It's a sibling file next to the bench DB (results.db).
-// ============================================================================
 std::filesystem::path results_db_path(const std::string& bench_db_path) {
     namespace fs = std::filesystem;
     const fs::path p(bench_db_path);
     return (p.has_parent_path() ? p.parent_path() : fs::path(".")) / "results.db";
 }
 
+// Shared schema + the 7 bench-suite testList names (store_bench owns those; the CLI seeds its own).
 void ensure_results_schema(jac313::Qlite::v002::Sqlite& db) {
-    db.exec("CREATE TABLE IF NOT EXISTS testType (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, description TEXT)");
-    db.exec("INSERT OR IGNORE INTO testType(name, description) VALUES"
-            " ('ctest','ctest unit suite'),('smoke','persist x output smoke matrix'),"
-            " ('bench','throughput benchmark suite'),('verify-lite','valgrind memcheck gate'),"
-            " ('verify','valgrind memcheck + helgrind + DRD')");
-    db.exec("CREATE TABLE IF NOT EXISTS testList (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL)");
+    jac313::results::ensure_schema(db);
     db.exec("INSERT OR IGNORE INTO testList(name) VALUES"
             " ('0 flags, non-durable'),('2 flags, non-durable'),('4 flags, non-durable'),"
             " ('6 flags, non-durable'),('durable jtext'),('durable sql'),('durable binary')");
-    db.exec("CREATE TABLE IF NOT EXISTS compiler ("
-            "id INTEGER PRIMARY KEY, name TEXT, version TEXT, major INTEGER, UNIQUE(name, version))");
-    db.exec("CREATE TABLE IF NOT EXISTS parameter ("
-            "id INTEGER PRIMARY KEY, compiler_id INTEGER, build_type TEXT, modules TEXT, size TEXT, "
-            "persist TEXT, output_mode TEXT, threads INTEGER, events_per_thread INTEGER, runs INTEGER, "
-            "batch INTEGER, flag_count INTEGER, valgrind_tool TEXT)");
-    // Real uniqueness: a table-level UNIQUE over these nullable columns is a no-op (SQLite treats
-    // NULLs as distinct). Enforce the combo with a COALESCE'd unique index covering all 12 columns.
-    db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_parameter ON parameter("
-            "COALESCE(compiler_id,-1), COALESCE(build_type,''), COALESCE(modules,''), COALESCE(size,''), "
-            "COALESCE(persist,''), COALESCE(output_mode,''), COALESCE(threads,-1), COALESCE(events_per_thread,-1), "
-            "COALESCE(runs,-1), COALESCE(batch,-1), COALESCE(flag_count,-1), COALESCE(valgrind_tool,''))");
-    db.exec("CREATE TABLE IF NOT EXISTS run ("
-            "run_id INTEGER PRIMARY KEY, ts_utc TEXT, group_id INTEGER, host TEXT, cpu TEXT, cores INTEGER, "
-            "ram_gb INTEGER, os TEXT, store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
-    db.exec("CREATE TABLE IF NOT EXISTS testRun ("
-            "id INTEGER PRIMARY KEY, run_id INTEGER, test_type_id INTEGER, test_list_id INTEGER, parameter_id INTEGER, "
-            "status TEXT, duration_ms INTEGER, median_ops INTEGER, low_ops INTEGER, high_ops INTEGER, "
-            "avg_ops INTEGER, stddev_ops INTEGER, bytes INTEGER)");
 }
 
-// group_id in results.db is resolved from the run table by hardware+os identity (same rule as
-// bench_run's group_id_for), so a machine keeps its number across the two databases.
 std::int64_t results_group_id(jac313::Qlite::v002::Sqlite& db, const HostInfo& h) {
-    std::int64_t gid = 0;
-    { auto st = db.prepare("SELECT group_id FROM run WHERE cpu=? AND cores=? AND ram_gb=? AND os=? LIMIT 1");
-      st.bind(h.cpu, h.cores, h.ram_gb, h.os); if (st.step()) st.get(gid); }
-    if (gid == 0) { auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM run"); if (st.step()) st.get(gid); }
-    return gid;
+    return jac313::results::group_id(db, {h.cpu, h.cores, h.ram_gb, h.os});
 }
 
 std::int64_t results_next_run_id(jac313::Qlite::v002::Sqlite& db) {
-    std::int64_t n = 1;
-    { auto st = db.prepare("SELECT COALESCE(MAX(run_id),0)+1 FROM run"); if (st.step()) st.get(n); }
-    return n;
+    return jac313::results::next_run_id(db);
 }
 
 // Allocate the next results.db run_id up front (one per --suite run, shared by all its configs).
@@ -511,16 +479,11 @@ std::int64_t next_results_run_id(const std::string& bench_db_path) {
 }
 
 std::int64_t results_lookup_id(jac313::Qlite::v002::Sqlite& db, const char* sql, const std::string& name) {
-    std::int64_t id = 0; auto st = db.prepare(sql); st.bind(name); if (st.step()) st.get(id); return id;
+    return jac313::results::lookup_id(db, sql, name);
 }
 
-// Insert-or-find the compiler dimension row (name, exact version, major); UNIQUE(name,version) dedupes.
-std::int64_t compiler_id_for(jac313::Qlite::v002::Sqlite& db, const CompilerInfo& c) {
-    db.exec("INSERT OR IGNORE INTO compiler(name, version, major) VALUES(?,?,?)", c.name, c.version, c.major);
-    std::int64_t id = 0;
-    { auto st = db.prepare("SELECT id FROM compiler WHERE name=? AND version=?");
-      st.bind(c.name, c.version); if (st.step()) st.get(id); }
-    return id;
+std::int64_t compiler_id_for(jac313::Qlite::v002::Sqlite& db, const jac313::results::CompilerInfo& c) {
+    return jac313::results::compiler_id(db, c);
 }
 
 // Insert-or-find a bench parameter combo (build_type Release, modules off; size/output_mode/batch
@@ -556,10 +519,9 @@ void record_to_results_db(const Params& p, const BenchSummary& s) {
         const std::int64_t group_id = results_group_id(db, h);
         if (host_label_override().empty()) h.host = host_label_for(group_id);
         const std::int64_t run_id = (p.run_id != 0) ? p.run_id : results_next_run_id(db);
-        db.exec("INSERT OR IGNORE INTO run(run_id, ts_utc, group_id, host, cpu, cores, ram_gb, os, "
-                "store_ver, qlite_ver, jtext_ver) VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?,?, ?,?,?)",
-                run_id, group_id, h.host, h.cpu, h.cores, h.ram_gb, h.os,
-                std::string(jac313::Store::v002::version()), std::string(jac313::Qlite::v002::version()), p.jtext_ver);
+        jac313::results::insert_run(db, run_id, group_id, h.host, {h.cpu, h.cores, h.ram_gb, h.os},
+                                    std::string(jac313::Store::v002::version()),
+                                    std::string(jac313::Qlite::v002::version()), p.jtext_ver);
         std::string base = p.label;
         if (const auto pos = base.find(" @10M"); pos != std::string::npos) base.erase(pos, 5);
         const std::int64_t test_list_id = results_lookup_id(db, "SELECT id FROM testList WHERE name=?", base);

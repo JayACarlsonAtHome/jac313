@@ -17,6 +17,7 @@
 #include "runner.hpp"
 
 #include <jac313/Qlite/v002.hpp>   // shared testList catalog in the bench results DB
+#include "jac313_results_db.hpp"   // jac313::results — shared schema + dimension helpers
 
 #include <cstdlib>
 #include <filesystem>
@@ -322,33 +323,11 @@ constexpr int kBuildPhaseFailed = 2;
 // ---- results.db (CLI side): capture functional smoke results as testRun rows ----
 // NOTE: this schema MUST match store_bench's ensure_results_schema (two writers, one DB).
 // TODO: factor the shared schema/resolution into a common header to remove the duplication.
-void cli_ensure_results_schema(jac313::Qlite::v002::Sqlite& db) {
-    db.exec("CREATE TABLE IF NOT EXISTS testType (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, description TEXT)");
-    db.exec("INSERT OR IGNORE INTO testType(name, description) VALUES"
-            " ('ctest','ctest unit suite'),('smoke','persist x output smoke matrix'),"
-            " ('bench','throughput benchmark suite'),('verify-lite','valgrind memcheck gate'),"
-            " ('verify','valgrind memcheck + helgrind + DRD')");
-    db.exec("CREATE TABLE IF NOT EXISTS testList (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL)");
-    db.exec("CREATE TABLE IF NOT EXISTS compiler ("
-            "id INTEGER PRIMARY KEY, name TEXT, version TEXT, major INTEGER, UNIQUE(name, version))");
-    db.exec("CREATE TABLE IF NOT EXISTS parameter (id INTEGER PRIMARY KEY, compiler_id INTEGER, build_type TEXT, "
-            "modules TEXT, size TEXT, persist TEXT, output_mode TEXT, threads INTEGER, events_per_thread INTEGER, "
-            "runs INTEGER, batch INTEGER, flag_count INTEGER, valgrind_tool TEXT)");
-    // Real uniqueness: a table-level UNIQUE over these nullable columns is a no-op (SQLite treats
-    // NULLs as distinct). Enforce the combo with a COALESCE'd unique index covering all 12 columns.
-    db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_parameter ON parameter("
-            "COALESCE(compiler_id,-1), COALESCE(build_type,''), COALESCE(modules,''), COALESCE(size,''), "
-            "COALESCE(persist,''), COALESCE(output_mode,''), COALESCE(threads,-1), COALESCE(events_per_thread,-1), "
-            "COALESCE(runs,-1), COALESCE(batch,-1), COALESCE(flag_count,-1), COALESCE(valgrind_tool,''))");
-    db.exec("CREATE TABLE IF NOT EXISTS run (run_id INTEGER PRIMARY KEY, ts_utc TEXT, group_id INTEGER, host TEXT, "
-            "cpu TEXT, cores INTEGER, ram_gb INTEGER, os TEXT, store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
-    db.exec("CREATE TABLE IF NOT EXISTS testRun (id INTEGER PRIMARY KEY, run_id INTEGER, test_type_id INTEGER, "
-            "test_list_id INTEGER, parameter_id INTEGER, status TEXT, duration_ms INTEGER, median_ops INTEGER, "
-            "low_ops INTEGER, high_ops INTEGER, avg_ops INTEGER, stddev_ops INTEGER, bytes INTEGER)");
-}
+// Schema + lookup live in jac313_results_db.hpp (shared with store_bench, single source of truth).
+void cli_ensure_results_schema(jac313::Qlite::v002::Sqlite& db) { jac313::results::ensure_schema(db); }
 
 std::int64_t cli_results_id(jac313::Qlite::v002::Sqlite& db, const char* sql, const std::string& name) {
-    std::int64_t id = 0; auto st = db.prepare(sql); st.bind(name); if (st.step()) st.get(id); return id;
+    return jac313::results::lookup_id(db, sql, name);
 }
 
 // insert-or-find a functional parameter combo (batch/flag_count N/A => NULL); SELECT-then-INSERT.
@@ -384,32 +363,23 @@ const char* matrix_status_str(TestStatus s) {
     }
 }
 
-// Ensure schema, resolve this machine's group_id (hardware+os, matching store_bench), create a
-// fresh run row, and return its run_id. Shared by the smoke and ctest recorders.
+// Ensure schema, resolve this machine's group_id (hardware+os, matching store_bench), create a fresh
+// run row, and return its run_id. Shared by the smoke/ctest/verify recorders. Uses the shared helpers.
 std::int64_t cli_begin_run(jac313::Qlite::v002::Sqlite& db) {
-    cli_ensure_results_schema(db);
+    jac313::results::ensure_schema(db);
     const auto hw = collect_host_hardware_record("");
-    std::int64_t group_id = 0;
-    { auto st = db.prepare("SELECT group_id FROM run WHERE cpu=? AND cores=? AND ram_gb=? AND os=? LIMIT 1");
-      st.bind(hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
-              static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty);
-      if (st.step()) st.get(group_id); }
-    if (group_id == 0) { auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM run"); if (st.step()) st.get(group_id); }
-    char host[24]; std::snprintf(host, sizeof host, "jac313-%03lld", static_cast<long long>(group_id));
-    std::int64_t run_id = 1;
-    { auto st = db.prepare("SELECT COALESCE(MAX(run_id),0)+1 FROM run"); if (st.step()) st.get(run_id); }
-    db.exec("INSERT INTO run(run_id, ts_utc, group_id, host, cpu, cores, ram_gb, os) "
-            "VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?,?)",
-            run_id, group_id, std::string(host), hw.cpu_model,
-            static_cast<std::int64_t>(hw.cpu_cores), static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty);
+    const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
+                                    static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty};
+    const std::int64_t group_id = jac313::results::group_id(db, h);
+    const std::int64_t run_id   = jac313::results::next_run_id(db);
+    jac313::results::insert_run(db, run_id, group_id, jac313::results::host_label(group_id), h);
     return run_id;
 }
 
 // Read the tree's CMAKE_CXX_COMPILER and run it for its EXACT version (name + X.Y.Z + major), so a
 // functional result ties to the precise toolchain — same granularity store_bench records.
-struct CliCompiler { std::string name; std::string version; std::int64_t major; };
-CliCompiler read_compiler_info(const fs::path& build_dir) {
-    CliCompiler c{"gcc", "0", 0};
+jac313::results::CompilerInfo read_compiler_info(const fs::path& build_dir) {
+    jac313::results::CompilerInfo c{"gcc", "0", 0};
     std::string cxx;
     { std::ifstream in(build_dir / "CMakeCache.txt"); std::string line;
       while (std::getline(in, line))
@@ -430,12 +400,8 @@ CliCompiler read_compiler_info(const fs::path& build_dir) {
     return c;
 }
 
-std::int64_t cli_compiler_id(jac313::Qlite::v002::Sqlite& db, const CliCompiler& c) {
-    db.exec("INSERT OR IGNORE INTO compiler(name, version, major) VALUES(?,?,?)", c.name, c.version, c.major);
-    std::int64_t id = 0;
-    { auto st = db.prepare("SELECT id FROM compiler WHERE name=? AND version=?");
-      st.bind(c.name, c.version); if (st.step()) st.get(id); }
-    return id;
+std::int64_t cli_compiler_id(jac313::Qlite::v002::Sqlite& db, const jac313::results::CompilerInfo& c) {
+    return jac313::results::compiler_id(db, c);
 }
 
 // ctest parameter combo: just the build axes; persist/output_mode/scaling/batch/flag_count are N/A.
