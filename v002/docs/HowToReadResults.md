@@ -139,7 +139,7 @@ real `ts_store` optimization, not a reporting tweak.)
 
 Older docs sourced throughput from per-test logs — `test_005` / `test_007` / `test_008` — and
 noted that **`test_006` emits no `ops/sec`**. That distinction is now **legacy**. Throughput
-comes from `bench_suite` / `store_bench`, not from per-test logs, so you no longer read a
+comes from `store_bench --suite` / `store_bench`, not from per-test logs, so you no longer read a
 backend's rate out of a test's "Slowest run" line.
 
 The functional side of those tests is unchanged. `test_006` is still a tail-reader
@@ -150,7 +150,7 @@ bench suite.
 
 > The **functional/correctness matrix still exists and is unchanged** — 116 scenarios × 16
 > compiler/build/modules/size combos = **1,856**. Only *throughput benchmarking* moved out of
-> it into `bench_suite`. So 1,856 / 116 / 115 is still accurate **for the functional matrix** —
+> it into `store_bench --suite`. So 1,856 / 116 / 115 is still accurate **for the functional matrix** —
 > just don't read throughput numbers out of it.
 
 ---
@@ -165,7 +165,7 @@ bench suite.
 | "Average" with a wide band | one outlier may have dragged it | No — prefer the median |
 | In-memory (non-durable) median | hot-path ceiling, ~15–25M | Yes (±HW/turbo noise) |
 | Durable median, flush in-clock | bytes actually written to disk | Yes — the real durable number |
-| `test_006` / no `ops/sec` | correctness test; **legacy** non-source | N/A — throughput is in bench_suite |
+| `test_006` / no `ops/sec` | correctness test; **legacy** non-source | N/A — throughput is in the store_bench suite |
 
 **The two true stories:** in-memory hot path ~15–25M ops/sec, and durable-to-disk ~2.1–2.7M
 ops/sec with the honest order **jText ≈ SQL ~2.1M > binary ~0.64M** (binary's old ~2.7M was a

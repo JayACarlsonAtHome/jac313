@@ -100,7 +100,7 @@ flowchart LR
 4. **Multi-toolchain** — `release-check-all` runs the standard set per host: **gcc15 + clang**.
 
 The matrix is the **functional/correctness** suite. Throughput is no longer read as "peak ops/sec"
-from test logs — it now comes from a separate `bench_suite` (curated 7-config run, headline =
+from test logs — it now comes from a separate `store_bench --suite` (curated 7-config run, headline =
 median + low–high band). See [Benchmarks.md](Benchmarks.md).
 
 Metrics are **DB-only** (`jac313_results.db`, tracked) — there are no file side-channels; the
