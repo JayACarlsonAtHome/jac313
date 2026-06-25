@@ -565,7 +565,7 @@ void emit_speed_cell(jac313::Qlite::v002::Sqlite& db, std::ostream& out, std::in
 // the per-run (per-group) detail page body: hardware/versions + the result tables.
 void render_run_detail(jac313::Qlite::v002::Sqlite& db, std::ostream& out, std::int64_t gid) {
     const std::string gq = std::to_string(gid);
-    out << "# Store benchmark results — " << run_label(gid) << " (group_id " << gid << ")\n\n"
+    out << "# Store benchmark results — " << run_label(gid) << "\n\n"
            "_Generated from `bench_results.db` by `store_bench --report`._<br>\n"
            "_(median + low–high band over N runs; timed **end-to-end** — store buffer allocation through flush, front edge included)._\n\n"
            "[← back to index](README.md)\n\n";
