@@ -408,7 +408,12 @@ std::string milstr(std::uint64_t n) { char b[32]; std::snprintf(b, sizeof b, "%.
 std::string milint(std::uint64_t n) { return std::to_string(n / 1000000) + "M"; }   // clean "10M" for headers
 
 // ---- the curated suite (replaces the old bench_suite.sh driver) ----
-int run_suite(Params base, bool dry) {
+// Two scales of the SAME 10 configs:
+//   full  (--suite)         — the big numbers; the recorded throughput benchmark (Release).
+//   smoke (--suite --smoke) — the same 10 capped to <=10k events, run as a CORRECTNESS GATE:
+//                             pass iff ALL configs run clean (incl. structural verify); the
+//                             numbers are meaningless at this scale, so nothing is recorded.
+int run_suite(Params base, bool dry, bool smoke) {
     base.threads = 50;                                 // curated suite is opinionated about threads
     struct Cfg { std::string persist; int flags; std::string label; std::size_t evt, runs; };
     std::vector<Cfg> cfgs;
@@ -419,16 +424,52 @@ int run_suite(Params base, bool dry) {
     for (const char* pn : {"jtext", "sql", "binary"})
         cfgs.push_back({std::string(pn), 0, std::string("durable ") + pn + " @10M", 200000, 3}); // 10M × 3 (scaling)
 
+    if (smoke) {
+        const std::size_t cap = base.threads ? 10000 / base.threads : 10000;  // 200 -> 10k total / config
+        for (auto& cf : cfgs) {
+            cf.evt = std::min<std::size_t>(cf.evt, cap == 0 ? 1 : cap);
+            cf.runs = std::min<std::size_t>(cf.runs, 2);
+            cf.label += " (smoke)";
+        }
+    }
+
     if (dry) {
-        std::cout << "# Store benchmark suite — " << cfgs.size() << " configs (run from the build dir)\n\n";
+        std::cout << "# Store benchmark suite — " << cfgs.size() << " configs"
+                  << (smoke ? " [SMOKE gate: <=10k events, pass/fail, not recorded]" : "")
+                  << " (run from the build dir)\n\n";
         for (const auto& cf : cfgs) {
-            std::cout << "./jac313_store_bench --threads 50 --events-per-thread " << cf.evt
+            std::cout << "./jac313_store_bench --threads " << base.threads << " --events-per-thread " << cf.evt
                       << " --runs " << cf.runs << " --persist " << cf.persist;
             if (cf.persist == "none") std::cout << " --flag-count " << cf.flags;
             std::cout << "   # " << cf.label << "\n";
         }
         return 0;
     }
+
+    if (smoke) {
+        // Correctness gate: run every config, fail the whole gate if ANY config fails.
+        std::size_t passed = 0;
+        std::vector<std::string> failed;
+        for (const auto& cf : cfgs) {
+            Params p = base;
+            p.persist = cf.persist; p.flags = flags_by_count(cf.flags); p.label = cf.label;
+            p.events_per_thread = cf.evt; p.runs = cf.runs;
+            std::cout << "\n=== " << cf.label << " ===\n";
+            if (measure_set(p).empty()) { std::cerr << "FAIL: " << cf.label << "\n"; failed.push_back(cf.label); }
+            else                        { ++passed;  std::cout << "PASS: " << cf.label << "\n"; }
+        }
+        std::cout << "\n=== smoke summary ===\nPassed: " << passed << "/" << cfgs.size() << "\n";
+        if (!failed.empty()) {
+            std::cout << "Failed: " << failed.size() << "\n";
+            for (const auto& f : failed) std::cout << "  - " << f << "\n";
+            std::cout << "smoke FAIL\n";
+            return 1;
+        }
+        std::cout << "smoke PASS (all " << cfgs.size() << " configs clean; correctness only, not recorded)\n";
+        return 0;
+    }
+
+    // full: the recorded throughput benchmark
     for (const auto& cf : cfgs) {
         Params p = base;
         p.persist = cf.persist; p.flags = flags_by_count(cf.flags); p.label = cf.label;
@@ -667,7 +708,7 @@ int main(int argc, char** argv) {
     p.flags = default_flags();
     std::optional<Sweep> sweep;
     std::string out_dir;   // --out: where --report writes README.md + Run_NNN.md (default: the DB's dir)
-    bool do_suite = false, do_report = false, dry = false, do_clear = false;
+    bool do_suite = false, do_report = false, dry = false, do_clear = false, smoke = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -685,6 +726,7 @@ int main(int argc, char** argv) {
         else if (a == "--label") p.label = next();
         else if (a == "--jtext-ver") p.jtext_ver = next();
         else if (a == "--suite") do_suite = true;
+        else if (a == "--smoke") { do_suite = true; smoke = true; }   // smoke = the suite as a pass/fail gate
         else if (a == "--report") do_report = true;
         else if (a == "--clear") do_clear = true;
         else if (a == "--dry-run") dry = true;
@@ -709,7 +751,7 @@ int main(int argc, char** argv) {
     if (do_clear && !dry) {   // wipe THIS host+OS first so a following --suite re-measures clean
         if (int rc = clear_db(p.db_path.empty() ? "bench_results.db" : p.db_path); rc != 0) return rc;
     }
-    if (do_suite)  return run_suite(p, dry);
+    if (do_suite)  return run_suite(p, dry, smoke);
     if (do_clear)  return 0;  // clear-only (no suite/single requested)
 
     if (!sweep) {
