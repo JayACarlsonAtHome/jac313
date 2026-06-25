@@ -39,6 +39,17 @@ jac313_store_link_matrix_target(jac313_store_metric_view)
 add_test(NAME jac313_store_metric_view
          COMMAND jac313_store_metric_view --no-interactive --test-size=smoke)
 
+# store_bench — generic, parameterized throughput instrument (single config or a
+# per-machine --sweep). Honest measurement: flush-and-wait inside the timed region,
+# verify last-run-only, distribution (median + low-high band) per config. Not a
+# pass/fail gate; the smoke test just proves it runs. Drive the curated suite with
+# bench_suite.sh (hardware + version header + the flag/durable grids).
+add_executable(jac313_store_bench store_bench.cpp)
+target_compile_features(jac313_store_bench PRIVATE cxx_std_26)
+jac313_store_link_matrix_target(jac313_store_bench)
+add_test(NAME jac313_store_bench_smoke
+         COMMAND jac313_store_bench --threads 4 --events-per-thread 200 --runs 3 --persist none)
+
 foreach(num IN LISTS _jac313_matrix_nums)
     add_executable(jac313_store_${num}_TS test_${num}_TS.cpp)
     target_compile_features(jac313_store_${num}_TS PRIVATE cxx_std_26)
