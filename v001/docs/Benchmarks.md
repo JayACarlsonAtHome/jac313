@@ -65,8 +65,8 @@ Versions: Store v002.004 · Qlite v002.002 · jText v002.002
 
 Flag-overhead (non-durable) — 10M Events × 10 Runs = 100M Events per config:
 
-| Flags | ops/sec    | σ    |
-|-------|------------|------|
+| Flags | Median Ops/Sec | σ    |
+|-------|----------------|------|
 | 0     | 23,329,003 | 1.6% |
 | 2     | 23,253,779 | 1.0% |
 | 4     | 23,425,087 | 1.2% |
@@ -74,8 +74,8 @@ Flag-overhead (non-durable) — 10M Events × 10 Runs = 100M Events per config:
 
 Durable — 1M Events × 3 Runs = 3M Events per config (median | low–high band):
 
-| Backend | median    | band          |
-|---------|-----------|---------------|
+| Backend | Median Ops/Sec | Band — Low–High (Ops/Sec) |
+|---------|----------------|---------------------------|
 | jText   | 2,418,614 | 2.05M – 2.47M |
 | SQL     | 1,991,445 | 0.34M – 2.05M |
 | binary  |   641,263 | 0.52M – 0.70M |
