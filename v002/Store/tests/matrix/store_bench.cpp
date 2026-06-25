@@ -25,8 +25,6 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
-#include <cstdint>
-#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -330,7 +328,11 @@ HostInfo sense_host() {
     while (std::getline(ci, line)) {
         if (h.cpu.empty() && line.rfind("model name", 0) == 0) {
             auto c = line.find(':');
-            if (c != std::string::npos) { h.cpu = line.substr(c + 1); while (!h.cpu.empty() && h.cpu.front() == ' ') h.cpu.erase(h.cpu.begin()); }
+            if (c != std::string::npos) {
+                h.cpu = line.substr(c + 1);
+                while (!h.cpu.empty() && h.cpu.front() == ' ') h.cpu.erase(h.cpu.begin());
+                while (!h.cpu.empty() && h.cpu.back() == ' ')  h.cpu.pop_back();   // trim BOTH ends to
+            }                                                                       // match the CLI's host sensing (shared group_id)
         }
         if (line.rfind("processor", 0) == 0) ++h.cores;
     }
@@ -467,8 +469,13 @@ void ensure_results_schema(jac313::Qlite::v002::Sqlite& db) {
     db.exec("CREATE TABLE IF NOT EXISTS parameter ("
             "id INTEGER PRIMARY KEY, compiler_id INTEGER, build_type TEXT, modules TEXT, size TEXT, "
             "persist TEXT, output_mode TEXT, threads INTEGER, events_per_thread INTEGER, runs INTEGER, "
-            "batch INTEGER, flag_count INTEGER, valgrind_tool TEXT, "
-            "UNIQUE(compiler_id,build_type,modules,size,persist,output_mode,threads,events_per_thread,runs,batch,flag_count,valgrind_tool))");
+            "batch INTEGER, flag_count INTEGER, valgrind_tool TEXT)");
+    // Real uniqueness: a table-level UNIQUE over these nullable columns is a no-op (SQLite treats
+    // NULLs as distinct). Enforce the combo with a COALESCE'd unique index covering all 12 columns.
+    db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_parameter ON parameter("
+            "COALESCE(compiler_id,-1), COALESCE(build_type,''), COALESCE(modules,''), COALESCE(size,''), "
+            "COALESCE(persist,''), COALESCE(output_mode,''), COALESCE(threads,-1), COALESCE(events_per_thread,-1), "
+            "COALESCE(runs,-1), COALESCE(batch,-1), COALESCE(flag_count,-1), COALESCE(valgrind_tool,''))");
     db.exec("CREATE TABLE IF NOT EXISTS run ("
             "run_id INTEGER PRIMARY KEY, ts_utc TEXT, group_id INTEGER, host TEXT, cpu TEXT, cores INTEGER, "
             "ram_gb INTEGER, os TEXT, store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
