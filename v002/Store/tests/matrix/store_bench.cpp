@@ -492,17 +492,17 @@ std::int64_t parameter_id_bench(jac313::Qlite::v002::Sqlite& db, std::int64_t co
                                 const std::string& persist, std::int64_t threads, std::int64_t events,
                                 std::int64_t runs, std::int64_t flags) {
     const char* where =
-        "SELECT id FROM parameter WHERE compiler_id=? AND build_type='Release' AND modules='off' AND size IS NULL "
-        "AND persist=? AND output_mode IS NULL AND threads=? AND events_per_thread=? AND runs=? AND batch IS NULL "
-        "AND flag_count=? AND valgrind_tool IS NULL";
+        "SELECT id FROM parameter WHERE compiler_id=? AND build_type='Release' AND modules='off' AND import_std='off' "
+        "AND size IS NULL AND persist=? AND output_mode IS NULL AND threads=? AND events_per_thread=? AND runs=? "
+        "AND batch IS NULL AND flag_count=? AND valgrind_tool IS NULL";
     auto find = [&]() -> std::int64_t {
         std::int64_t id = 0; auto st = db.prepare(where);
         st.bind(compiler_id, persist, threads, events, runs, flags); if (st.step()) st.get(id); return id;
     };
     std::int64_t id = find();
     if (id == 0) {
-        db.exec("INSERT INTO parameter(compiler_id,build_type,modules,size,persist,output_mode,threads,"
-                "events_per_thread,runs,batch,flag_count) VALUES(?, 'Release','off', NULL, ?, NULL, ?, ?, ?, NULL, ?)",
+        db.exec("INSERT INTO parameter(compiler_id,build_type,modules,import_std,size,persist,output_mode,threads,"
+                "events_per_thread,runs,batch,flag_count) VALUES(?, 'Release','off','off', NULL, ?, NULL, ?, ?, ?, NULL, ?)",
                 compiler_id, persist, threads, events, runs, flags);
         id = find();
     }

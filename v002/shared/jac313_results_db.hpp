@@ -27,15 +27,33 @@ inline void ensure_schema(Sqlite& db) {
     db.exec("CREATE TABLE IF NOT EXISTS compiler ("
             "id INTEGER PRIMARY KEY, name TEXT, version TEXT, major INTEGER, UNIQUE(name, version))");
     db.exec("CREATE TABLE IF NOT EXISTS parameter ("
-            "id INTEGER PRIMARY KEY, compiler_id INTEGER, build_type TEXT, modules TEXT, size TEXT, "
+            "id INTEGER PRIMARY KEY, compiler_id INTEGER, build_type TEXT, modules TEXT, import_std TEXT, size TEXT, "
             "persist TEXT, output_mode TEXT, threads INTEGER, events_per_thread INTEGER, runs INTEGER, "
             "batch INTEGER, flag_count INTEGER, valgrind_tool TEXT)");
+    // Migrate older parameter tables: add import_std (backfill 'off' = textual) and rebuild a stale
+    // unique index. Each probe statement is finalized in its OWN scope BEFORE any DDL, so the DDL
+    // never hits a read-lock from a still-open cursor.
+    {
+        std::int64_t has_col = 0;
+        { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('parameter') WHERE name='import_std'");
+          if (st.step()) st.get(has_col); }
+        if (has_col == 0) {
+            db.exec("ALTER TABLE parameter ADD COLUMN import_std TEXT");
+            db.exec("UPDATE parameter SET import_std='off' WHERE import_std IS NULL");
+        }
+        std::int64_t stale = 0;
+        { auto st = db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='ux_parameter' "
+                               "AND sql NOT LIKE '%import_std%'");
+          if (st.step()) st.get(stale); }
+        if (stale > 0) db.exec("DROP INDEX IF EXISTS ux_parameter");
+    }
     // Real uniqueness: a table-level UNIQUE over these nullable columns is a no-op (SQLite treats
-    // NULLs as distinct). Enforce the combo with a COALESCE'd unique index covering all 12 columns.
+    // NULLs as distinct). Enforce the combo with a COALESCE'd unique index covering all 13 columns.
     db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_parameter ON parameter("
-            "COALESCE(compiler_id,-1), COALESCE(build_type,''), COALESCE(modules,''), COALESCE(size,''), "
-            "COALESCE(persist,''), COALESCE(output_mode,''), COALESCE(threads,-1), COALESCE(events_per_thread,-1), "
-            "COALESCE(runs,-1), COALESCE(batch,-1), COALESCE(flag_count,-1), COALESCE(valgrind_tool,''))");
+            "COALESCE(compiler_id,-1), COALESCE(build_type,''), COALESCE(modules,''), COALESCE(import_std,''), "
+            "COALESCE(size,''), COALESCE(persist,''), COALESCE(output_mode,''), COALESCE(threads,-1), "
+            "COALESCE(events_per_thread,-1), COALESCE(runs,-1), COALESCE(batch,-1), COALESCE(flag_count,-1), "
+            "COALESCE(valgrind_tool,''))");
     db.exec("CREATE TABLE IF NOT EXISTS run ("
             "run_id INTEGER PRIMARY KEY, ts_utc TEXT, group_id INTEGER, host TEXT, cpu TEXT, cores INTEGER, "
             "ram_gb INTEGER, os TEXT, store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
