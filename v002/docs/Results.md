@@ -8,6 +8,11 @@
 > **Before trusting any `ops/sec` figure, read [HowToReadResults.md](HowToReadResults.md).**
 > The headline "Peak ops/sec" is the in-memory hot path, *not* a persist backend's write
 > speed. That page explains which number is which (methodology is version-independent).
+>
+> **Methodology note:** these figures use the **legacy "Peak ops/sec" (fastest-of-N)** metric
+> from the functional-matrix logs. Current throughput runs use the curated
+> [`store_bench` suite](Benchmarks.md) — headlined by a **median + low–high band**, with durable
+> writes flushed inside the timed region. New numbers will be reported that way.
 
 ## Headline numbers (rhel-9.8, ssd, full tier)
 

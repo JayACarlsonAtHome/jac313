@@ -132,12 +132,27 @@ recorded identity dimension, so Debug and Release results never conflate.
 |------|---------|-----------|-----------|---------|
 | **ctest** | `all` / `release-check` (step 3) | registered tests: store units, matrix bins 001–008 (one persist path each), module smoke, RunIdentity + OS-dedup regression | seconds | Compile/link sanity; one path per binary |
 | **Smoke matrix** | `matrix run` | **115 scenarios**: each matrix test × persist backend (binary, jText, SQL, inmem, flags, unit) × on/off | ~15 s | Daily gate; full persist grid, minimal scale |
-| **Full matrix** | `matrix run --params tests/test_params_full.txt` | same 115 with ts_store stress scaling | **~9–10 min/compiler** | Throughput + correctness under load |
-| **Bench** | `matrix run --release --params tests/test_params_bench.txt` | 005 + 007 at ~1M events/run | seconds | Hot-path peak ops/sec |
+| **Full matrix** | `matrix run --params tests/test_params_full.txt` | same 115 with ts_store stress scaling | **~9–10 min/compiler** | Correctness under load |
+
+The Smoke/Full matrix above is the **functional/correctness** suite (unchanged) — it proves
+every persist backend stays correct across scale. **It is not how you benchmark throughput.**
 
 **ctest is not the matrix.** ctest runs each matrix binary once; the matrix re-runs them many
 times with different persist backends and CLI scaling. `release-check` runs ctest **then** the
 smoke matrix (115), not the full matrix.
+
+### Throughput benchmark (separate)
+
+Throughput now has its own runner — it has moved **out** of the functional matrix. From the repo
+root:
+
+```bash
+bash Store/tests/matrix/bench_suite.sh            # curated 7-config suite (~90 s)
+bash Store/tests/matrix/bench_suite.sh --dry-run  # print the copy-paste command list
+```
+
+A curated 7-config suite (non-durable flag sweep + durable jText/SQL/binary). The headline is the
+**median + low–high band** over N runs, not a single "peak". See [Benchmarks.md](Benchmarks.md).
 
 ```bash
 ./build/tools/jac313_test_cli compilers                                  # probe toolchains

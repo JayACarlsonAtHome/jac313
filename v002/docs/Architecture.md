@@ -95,9 +95,13 @@ flowchart LR
 ```
 
 1. **ctest** — one invocation per registered test; module smokes + a single path per matrix binary.
-2. **Smoke matrix (115)** — full persist × output-mode grid at minimal scale; used by `release-check`.
-3. **Full matrix (115)** — same grid with ts_store stress scaling; peak ops/sec in 005–008 logs.
+2. **Smoke matrix (116, functional)** — full persist × output-mode grid at minimal scale; used by `release-check`.
+3. **Full matrix (116, functional)** — same grid with ts_store stress scaling; correctness under load.
 4. **Multi-toolchain** — `release-check-all` runs the standard set per host: **gcc15 + clang**.
+
+The matrix is the **functional/correctness** suite. Throughput is no longer read as "peak ops/sec"
+from test logs — it now comes from a separate `bench_suite` (curated 7-config run, headline =
+median + low–high band). See [Benchmarks.md](Benchmarks.md).
 
 Metrics are **DB-only** (`jac313_results.db`, tracked) — there are no file side-channels; the
 markdown RUN.md pages render from DB views. See [Setup.md](Setup.md#4-testing) for commands and

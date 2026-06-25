@@ -35,7 +35,7 @@ Add an axis (or expand Release into variants):
 
 - **Build breaks.** Some flag combinations trip the *toolchain*, not your code: optimizer ICEs,
   LTO link failures, `-march=native` on a host the binary later can't run. These are the same
-  flavor as the `clang-scan-deps` phantom in [Bloopers.md](Bloopers.md#3-the-clang-scan-deps-phantom-) — compiler-side, not yours — and a matrix is exactly how you find out *which* flag set
+  flavor as the `clang-scan-deps` phantom in [Bloopers.md](Bloopers.md#4-the-clang-scan-deps-phantom-) — compiler-side, not yours — and a matrix is exactly how you find out *which* flag set
   is the unlucky one.
 
 - **Code breaks — the prize.** Running the *same* scenarios at multiple `-O` levels is

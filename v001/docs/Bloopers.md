@@ -9,7 +9,38 @@ of catching them before anyone else did. We're laughing *with* us. (We're the on
 
 ---
 
-## 1. The Non-Distinct Clusterf‑‑k 🏆
+## 1. 1,856 Tests, Not One You'd Quote 📊
+
+**The headline act, redux.** We had a benchmark matrix of magnificent scale —
+`{compiler} × {build_type} × {modules} × {size} × {persist} × {output on/off}`, **1,856
+scenarios**, the better part of an afternoon to run. It was *thorough*. It also produced
+numbers nobody could trust, and we'd stopped noticing.
+
+The leaderboard quoted the **fastest of N runs** as the headline — so every figure you
+cited was, by construction, the luckiest one. Durable persistence only attached on the
+*last* run, so the "durable" rows smeared two in-memory runs with one real one. Log files
+were full of raw ANSI escape bytes — pretty in a terminal, garbage in an editor or on
+GitHub. And the durable board ranked **binary fastest**… because the clock stopped *before*
+the `msync`. Binary's headline "2.7M ops/sec" was buffered, never written; its real rate
+was **~640K**. The ranking was exactly backwards, and we'd been reading it for weeks.
+
+Maximum testing, minimum signal: more scenarios than a person can hold in their head, each
+reporting a figure quietly engineered to flatter.
+
+**The fix (today):** stop measuring *everything badly*, start measuring *a few things
+honestly*. The 1,856-combo matrix collapsed to a curated **7-config suite** (`store_bench` +
+`bench_suite.sh`). The headline became the **median** with a low–high band over N runs — an
+fsync stall now shows up in the band instead of being hidden or cherry-picked. Durable
+timing moved the flush **inside** the clock, which is what finally caught binary's 4× lie.
+Verify left the hot loop. Total runtime: **~90 seconds**, not an afternoon.
+
+**Moral:** a test suite's job is *trustworthy numbers*, not *many numbers*. If you can't say
+what a figure means in one sentence — "median throughput, flush included, over 10 runs" —
+more scenarios won't save you, they'll bury the lie deeper. Measure less, measure honestly.
+
+---
+
+## 2. The Non-Distinct Clusterf‑‑k 🏆
 
 **The headline act.** The test matrix is `{compiler} × {build_type} × {modules} × {size}` —
 **16 combos** (8 if smoke-only). One day a "full matrix" run took ~2 hours and nobody blinked.
@@ -49,7 +80,7 @@ usually right, and they pay the electricity bill.
 
 ---
 
-## 2. `localhost.localdomain`: The Sequel Nobody Wanted
+## 3. `localhost.localdomain`: The Sequel Nobody Wanted
 
 We scrub machine hostnames to stable `jac313-NNN` labels so committed results don't leak the
 box they ran on. We did this carefully for v002, set a `host_label.local`, verified it — gold star.
@@ -66,7 +97,7 @@ the one you're looking at.
 
 ---
 
-## 3. The clang-scan-deps Phantom 👻
+## 4. The clang-scan-deps Phantom 👻
 
 One combo in a full run died with:
 
@@ -89,9 +120,9 @@ the tool. Confirm, shrug, log it, move on.
 
 ---
 
-## 4. Death by a Thousand `--force`
+## 5. Death by a Thousand `--force`
 
-Side effect of Blooper #1: every `--force` sweep *also* appended duplicate run records. By the
+Side effect of Blooper #2: every `--force` sweep *also* appended duplicate run records. By the
 time we looked, v002 had **78 runs across 32 identities** (some cells recorded 10×) and v001 had
 **112 across 96**. The "top throughput" leaderboards were quietly padded with the same scenario
 listed over and over — every *number* was real, but the *volume* was theatre.
@@ -104,7 +135,7 @@ Ideally both.
 
 ---
 
-## 5. Friendly Fire (bonus blooper) 🔫🦶
+## 6. Friendly Fire (bonus blooper) 🔫🦶
 
 While cleaning up the above, a status-check command ran:
 
@@ -123,7 +154,7 @@ foreground `sleep`, which turned a couple of "wait and poll" one-liners into mod
 
 ## The silver lining
 
-Blooper #1 is *why* the run-all counter now shouts `… of 1,856` (full) / `… of 928` (smoke) on
+Blooper #2 is *why* the run-all counter now shouts `… of 1,856` (full) / `… of 928` (smoke) on
 every line and in the final summary. The expected total is now in your face at all times — so
 the next time the number drifts toward four digits, it gets caught in the first ten seconds,
 not at hour two. The best guardrails are paid for in hours already lost.

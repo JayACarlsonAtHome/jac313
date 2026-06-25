@@ -80,7 +80,7 @@ language standard independently.
 | Version | Standard | State |
 |---------|----------|-------|
 | [**v001/**](v001/README.md) | **C++23** | The proven baseline — builds and tests green on g++-15 and Clang across multiple Linux distros; the full persist × scale matrix is recorded. Modules + `import std` work (opt-in, gcc-only). |
-| [**v002/**](v002/README.md) | **C++26** | The evolving frontier — diverging from v001 into real C++26. Native ISO **contracts (P2900)** are in via the `jac313::contracts` pre/post/assert shim: first-class `contract_assert` on **gcc 16** (`-std=c++26 -fcontracts`), with a runtime-checked fallback on compilers that don't yet define `__cpp_contracts`. **gcc 16 is now in the matrix**, which runs green (1,856/1,856). The Qlite wrapper has also gained its expanded surface (transaction guard, statement cache, `std::expected` path). |
+| [**v002/**](v002/README.md) | **C++26** | The evolving frontier — diverging from v001 into real C++26. Native ISO **contracts (P2900)** are in via the `jac313::contracts` pre/post/assert shim: first-class `contract_assert` on **gcc 16** (`-std=c++26 -fcontracts`), with a runtime-checked fallback on compilers that don't yet define `__cpp_contracts`. **gcc 16 is now in the matrix**, which runs green (1,856/1,856 functional scenarios; throughput is measured separately by the curated `store_bench` suite). The Qlite wrapper has also gained its expanded surface (transaction guard, statement cache, `std::expected` path). |
 
 The one coordination cost of full duplication: a shared-infra fix made *before* the two
 versions diverge must be applied to each `v00N/`. After they diverge, they are free to
