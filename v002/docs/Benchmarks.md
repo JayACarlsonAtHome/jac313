@@ -83,7 +83,7 @@ Durable — 1M Events × 3 Runs = 3M Events per config (median | low–high band
 ## Takeaways
 
 **Flags are free.** Going 0→6 flags is flat within ~2%, and the deltas don't
-even trend — it's pure noise.
+even trend — it's pure noise.<br>
 Setting flags has no measurable hot-path cost.
 
 **The honest durable ranking is jText ≈ SQL (~2.1M) > binary (~0.64M).**
