@@ -1,7 +1,7 @@
 # Store benchmark results
 
 _Generated from `bench_results.db` by `store_bench --report` — the curated suite_<br>
-_(median + low–high band over N runs; durable rates count the flush)._<br>
+_(median + low–high band over N runs; timed **end-to-end** — store buffer allocation through flush, front edge included)._<br>
 _Latest run per config, per host, per compiler._
 
 ## fedora
@@ -10,7 +10,7 @@ _Latest run per config, per host, per compiler._
 |---|---|
 | **Hardware** | Intel(R) Core(TM) Ultra 7 265 · 12 cores · 23 GB · Fedora Linux 44 (Workstation Edition) |
 | **Versions** | Store v002.004 · Qlite v002.002 · jText v002.002 |
-| **Latest run (UTC)** | 2026-06-25T06:38:18Z |
+| **Latest run (UTC)** | 2026-06-25T06:48:03Z |
 
 ### Flag-overhead (non-durable) — 10M Events × 10 Runs<br>That's 100M Events per config
 
@@ -21,10 +21,10 @@ _Latest run per config, per host, per compiler._
 
 | Flags | Median Ops/Sec | Band (Low–High) |
 |---|--:|---|
-| 0 | 16,713,294 | 16.42M – 17.25M |
-| 2 | 16,759,969 | 16.37M – 17.00M |
-| 4 | 16,980,490 | 16.23M – 17.20M |
-| 6 | 16,392,153 | 15.77M – 17.21M |
+| 6 | 6,348,787 | 6.26M – 6.40M |
+| 0 | 6,347,767 | 6.29M – 6.39M |
+| 4 | 6,327,631 | 6.31M – 6.38M |
+| 2 | 6,281,774 | 6.09M – 6.35M |
 
 </td>
 <td>
@@ -33,10 +33,10 @@ _Latest run per config, per host, per compiler._
 
 | Flags | Median Ops/Sec | Band (Low–High) |
 |---|--:|---|
-| 0 | 13,790,231 | 13.58M – 13.96M |
-| 2 | 13,752,616 | 13.71M – 13.92M |
-| 4 | 13,722,773 | 13.65M – 13.79M |
-| 6 | 13,773,645 | 13.69M – 13.83M |
+| 0 | 5,959,689 | 5.81M – 6.08M |
+| 4 | 5,927,795 | 5.81M – 6.00M |
+| 6 | 5,904,765 | 5.83M – 5.99M |
+| 2 | 5,848,404 | 5.76M – 5.96M |
 
 </td>
 </tr></table>
@@ -50,9 +50,9 @@ _Latest run per config, per host, per compiler._
 
 | Backend | Median Ops/Sec | Band (Low–High) |
 |---|--:|---|
-| jtext | 2,210,448 | 2.20M – 2.36M |
-| sql | 319,451 | 0.30M – 0.36M |
-| binary | 602,833 | 0.50M – 0.73M |
+| jtext | 1,947,363 | 1.89M – 1.97M |
+| binary | 557,341 | 0.54M – 0.68M |
+| sql | 287,917 | 0.28M – 0.31M |
 
 </td>
 <td>
@@ -61,9 +61,9 @@ _Latest run per config, per host, per compiler._
 
 | Backend | Median Ops/Sec | Band (Low–High) |
 |---|--:|---|
-| jtext | 2,417,263 | 2.28M – 2.46M |
-| sql | 334,912 | 0.33M – 0.34M |
-| binary | 714,753 | 0.57M – 0.75M |
+| jtext | 1,844,198 | 1.74M – 1.92M |
+| binary | 604,010 | 0.60M – 0.67M |
+| sql | 301,278 | 0.29M – 0.30M |
 
 </td>
 </tr></table>
@@ -72,7 +72,7 @@ _Latest run per config, per host, per compiler._
 
 | Backend | On-disk size |
 |---|--:|
+| binary | 83.8 MB |
 | jtext | 83.0 MB |
 | sql | 76.1 MB |
-| binary | 83.8 MB |
 
