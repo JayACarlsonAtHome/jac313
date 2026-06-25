@@ -85,14 +85,54 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 
 ## Quick start
 
+Run everything from the version directory (`v002/`). The shared `.git` lives at the repo root
+(`jac313/`), so `bootstrap.sh` installs the pre-push hook to the **parent** `.git/hooks` — that's
+expected under the `v00N/` layout, not a bug.
+
 ```bash
-./bootstrap.sh                                  # fresh box: sense → build the test runner → hand off
+cd v002 && ./bootstrap.sh          # sense toolchain → build the test runner → readiness check
+```
+
+`bootstrap.sh` senses the compiler (**on RHEL it activates `gcc-toolset-15` for you** via
+`scl enable`), checks the baseline (g++ ≥ 14, Clang ≥ 20, CMake ≥ 3.26 — exactly **4.3.3** for the
+`import std` pilot, Ninja ≥ 1.11, the sqlite3 dev header, a UTF-8 locale), and if anything is
+missing writes a reviewable `Setup.sh` and stops. It builds **only the test runner** (Debug) —
+package tests and the benchmark are separate, opt-in builds.
+
+**Build + run the package tests** (`-DJAC313_BUILD_STORE_TESTS=ON`):
+
+```bash
+# Linux Mint (g++-15 on PATH):
 cmake -G Ninja -S . -B build-gcc15 -DCMAKE_CXX_COMPILER=g++-15 -DJAC313_BUILD_STORE_TESTS=ON
+# RHEL family — activate the toolset, point at its g++:
+scl enable gcc-toolset-15 -- cmake -G Ninja -S . -B build-gcc15 \
+  -DCMAKE_CXX_COMPILER=/opt/rh/gcc-toolset-15/root/usr/bin/g++ -DJAC313_BUILD_STORE_TESTS=ON
 cmake --build build-gcc15 && ctest --test-dir build-gcc15
 ```
 
-C++23 required (`g++-15` / Clang 20 standard); full prerequisites and the test tiers are in
-[docs/Setup.md](docs/Setup.md).
+**Throughput benchmarks** — `store_bench` *is* the curated suite; build it **Release** for real
+numbers (it isn't built by the steps above). Prefix the `cmake`/run lines with
+`scl enable gcc-toolset-15 --` on RHEL:
+
+```bash
+cmake -G Ninja -S . -B build-bench -DCMAKE_BUILD_TYPE=Release -DJAC313_BUILD_STORE_TESTS=ON \
+  -DCMAKE_CXX_COMPILER=<g++-15 | clang++ | toolset g++ path>
+cmake --build build-bench --target jac313_store_bench
+B=build-bench/Store/tests/matrix/jac313_store_bench
+echo jac313-NNN > host_label.local            # this box's label — set BEFORE the first record (see below)
+$B --suite --smoke                            # fast correctness gate (expect 10/10), not recorded
+$B --suite --db test-summary/bench_results.db --jtext-ver v002.002   # full run → group N / Run_NNN
+$B --report --db test-summary/bench_results.db                       # render README index + Run_NNN.md
+```
+
+> **Set `host_label.local` before the first record.** `group_id` is keyed on the full
+> `(cpu, cores, ram_gb, host, os)` identity. If you record under the real hostname, anonymize, then
+> run a **second compiler**, its row no longer matches that identity and lands in a *new* group.
+> Pinning the label up front (or `JAC313_HOST_LABEL=jac313-NNN`) keeps every run in one group.
+> For a second compiler, rebuild the bench with it and re-run `--suite` into the **same** DB.
+
+C++26 baseline (`cxx_std_26`; g++-15 / Clang 21). Full prerequisites, the toolchain story, and the
+benchmark runbook are in [docs/Setup.md](docs/Setup.md) and [docs/Benchmarks.md](docs/Benchmarks.md).
 
 **Status:** v002 is a **faithful copy of v001**, rebranded to `jac313::*::v002`. It builds clean
 (g++-15, modules + textual) and passed validation (smoke **116/116**; `matrix verify` **60/60**

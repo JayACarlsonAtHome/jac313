@@ -33,9 +33,35 @@ and **retired the old matrix reporting**. State at close, then what's next.
   clang-vs-gcc tables. `store_bench --report` **writes the files** (no stdout redirect),
   defaulting to the DB's dir (or `--out`), and **prunes stale `Run_NNN.md`** for cleared groups.
 - **Recorded & anonymized:** `Run_001` = `jac313-001` (Fedora 44, gcc16/clang22),
-  `Run_002` = `jac313-002` (RHEL 10.2, gcc15/clang21). Finding: **jText is the fastest durable
-  backend** (~1.8–2.0M ops/sec vs binary ~0.8M, sql ~0.66M) — credible because the flush is
-  timed *inside* the clock (Bloopers #1).
+  `Run_002` = `jac313-002` (RHEL 10.2, gcc15/clang21), `Run_003` = `jac313-003` (RHEL 9.8,
+  20-core, gcc15/clang21 — **recorded this session**). Finding: **the durable ranking is
+  hardware/disk-dependent, and that's the point of per-host recording.** On Run_001/002 jText
+  wins (~1.8–2.0M vs binary ~0.8M, sql ~0.66M); on Run_003 it **flips** — binary is fastest
+  (~2.1M) > jText (~1.75M) > sql (~1.3M), consistent across both compilers there. Both are
+  honest: the flush is timed *inside* the clock (Bloopers #1), so the winner just tracks how
+  cheap `msync` is on that box's storage.
+
+### Lessons from the jac313-003 bring-up (this session)
+- **`bootstrap.sh` builds only the test runner (Debug).** The benchmark is a separate, opt-in
+  build: `-DJAC313_BUILD_STORE_TESTS=ON -DCMAKE_BUILD_TYPE=Release`, then
+  `--target jac313_store_bench`. Don't expect `store_bench` after a bare bootstrap.
+- **Set the host label *before the first record*.** We anonymized group 3 after the gcc run, then
+  the clang `--suite` recorded the *real* hostname again — which no longer matched the
+  `(cpu,cores,ram,host,os)` identity, so it would have opened **group 4**. Fix used:
+  `JAC313_HOST_LABEL=jac313-003` on the clang run. Cleaner: drop `host_label.local` first and
+  never anonymize mid-group. (Reinforces the "On a NEW machine" step 2 — it's load-bearing.)
+- **Multi-compiler is manual for the bench.** `--suite` runs whatever compiler built the binary;
+  there's no auto gcc+clang. Build once per compiler, run `--suite` into the **same** DB — the
+  `compiler` column splits the rows, and `--report` renders the clang-vs-gcc tables.
+- **clang on RHEL builds under the toolset.** Configure/build clang inside
+  `scl enable gcc-toolset-15 --` so it picks up the gcc-15 libstdc++ (C++26); bare system clang
+  has too old a libstdc++.
+- **The durable-binary run leaves a big `bench.bin` (~0.8 GB) in `v002/`** — *not* gitignored.
+  Delete it after a run (and consider adding `bench.bin` + stray `*.jtext`/`*.sql`/`*.db` bench
+  outputs to `.gitignore`).
+- **Pre-push gate works as advertised:** the hook ran version-check + valgrind verify-lite
+  (memcheck 21 + helgrind 5 + drd 5 = **31/31 clean**) before each push to `dev-work`. Bypass
+  with `git push --no-verify` if ever needed.
 
 ## On a NEW machine (the destination)
 
