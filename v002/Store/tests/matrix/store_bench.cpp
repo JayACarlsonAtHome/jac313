@@ -308,6 +308,40 @@ HostInfo sense_host() {
     return h;
 }
 
+// External run identifier: group_id N -> "Run_NNN" (zero-padded to 3).
+std::string run_label(std::int64_t gid) {
+    char b[24]; std::snprintf(b, sizeof b, "Run_%03lld", static_cast<long long>(gid)); return b;
+}
+
+// A "group" is one (host, os) — the overarching container for a machine running an OS.
+// Internally it's group_id (NOT NULL); externally it renders as Run_NNN. This ensures the
+// column exists on older DBs and that EVERY row carries a group_id: rows recorded before
+// the column existed are backfilled, one new id per (host, os), in first-seen order.
+void ensure_group_schema(jac313::Qlite::v002::Sqlite& db) {
+    std::int64_t has = 0;
+    { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('bench_run') WHERE name='group_id'");
+      if (st.step()) st.get(has); }
+    if (has == 0) db.exec("ALTER TABLE bench_run ADD COLUMN group_id INTEGER");
+    std::vector<std::pair<std::string, std::string>> pending;
+    { auto st = db.prepare("SELECT host, os FROM bench_run WHERE group_id IS NULL "
+                           "GROUP BY host, os ORDER BY MIN(id)");
+      while (st.step()) { std::string h, o; st.get(h, o); pending.push_back({h, o}); } }
+    for (const auto& [h, o] : pending) {
+        std::int64_t next = 1;
+        { auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM bench_run"); if (st.step()) st.get(next); }
+        db.exec("UPDATE bench_run SET group_id=? WHERE host=? AND os=? AND group_id IS NULL", next, h, o);
+    }
+}
+
+// Resolve the group_id for (host, os): reuse the existing one, else allocate the next.
+std::int64_t group_id_for(jac313::Qlite::v002::Sqlite& db, const HostInfo& h) {
+    std::int64_t gid = 0;
+    { auto st = db.prepare("SELECT group_id FROM bench_run WHERE host=? AND os=? AND group_id IS NOT NULL LIMIT 1");
+      st.bind(h.host, h.os); if (st.step()) st.get(gid); }
+    if (gid == 0) { auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM bench_run"); if (st.step()) st.get(gid); }
+    return gid;
+}
+
 void record_to_db(const Params& p, const BenchSummary& s) {
     if (p.db_path.empty()) return;
     try {
@@ -315,6 +349,7 @@ void record_to_db(const Params& p, const BenchSummary& s) {
         db.exec(R"SQL(
 CREATE TABLE IF NOT EXISTS bench_run (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id          INTEGER NOT NULL,
     ts_utc            TEXT NOT NULL,
     host TEXT, cpu TEXT, cores INTEGER, ram_gb INTEGER, os TEXT, compiler TEXT,
     store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT,
@@ -323,15 +358,17 @@ CREATE TABLE IF NOT EXISTS bench_run (
     median_ops INTEGER, high_ops INTEGER, low_ops INTEGER, avg_ops INTEGER, stddev_ops INTEGER
 )
 )SQL");
+        ensure_group_schema(db);          // migrate older DBs: add + backfill group_id
         const HostInfo h = sense_host();
+        const std::int64_t group_id = group_id_for(db, h);
         const std::int64_t bytes = (p.persist == "none") ? 0
                                  : static_cast<std::int64_t>(measure_output_bytes(p.base_name));
         db.exec(
-            "INSERT INTO bench_run(ts_utc, host, cpu, cores, ram_gb, os, compiler, store_ver, qlite_ver, jtext_ver, "
+            "INSERT INTO bench_run(group_id, ts_utc, host, cpu, cores, ram_gb, os, compiler, store_ver, qlite_ver, jtext_ver, "
             "label, threads, events_per_thread, persist, flag_count, runs, events, bytes, "
             "median_ops, high_ops, low_ops, avg_ops, stddev_ops) VALUES("
-            "strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?, ?, ?,?,?, ?,?,?,?,?, ?,?, ?, ?,?,?,?,?)",
-            h.host, h.cpu, h.cores, h.ram_gb, h.os, compiler_id(),
+            "?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?, ?, ?,?,?, ?,?,?,?,?, ?,?, ?, ?,?,?,?,?)",
+            group_id, h.host, h.cpu, h.cores, h.ram_gb, h.os, compiler_id(),
             std::string(jac313::Store::v002::version()),
             std::string(jac313::Qlite::v002::version()),
             p.jtext_ver,
@@ -348,7 +385,7 @@ CREATE TABLE IF NOT EXISTS bench_run (
             static_cast<std::int64_t>(s.low),
             static_cast<std::int64_t>(s.avg),
             static_cast<std::int64_t>(s.stddev));
-        std::cerr << "[db] recorded 1 row -> " << p.db_path << "\n";
+        std::cerr << "[db] recorded 1 row (" << run_label(group_id) << ") -> " << p.db_path << "\n";
     } catch (const std::exception& e) {
         std::cerr << "[db] record failed: " << e.what() << "\n";
     }
@@ -416,113 +453,174 @@ std::string bytes_human(std::int64_t b) {
     return buf;
 }
 
-// one <td> cell: the speed table (Flags or Backend) for a single host+compiler.
+// one <td> cell: the speed table (Flags or Backend) for a single group+compiler.
 // GitHub renders the inner markdown table because of the blank lines around it.
-void emit_speed_cell(jac313::Qlite::v002::Sqlite& db, const std::string& hq,
+void emit_speed_cell(jac313::Qlite::v002::Sqlite& db, std::ostream& out, std::int64_t gid,
                      const std::string& compiler, bool durable, std::int64_t dtotal = 0) {
+    const std::string gq = std::to_string(gid);
     const std::string cq = "'" + compiler + "'";
-    std::cout << "<td>\n\n**" << compiler << "**\n\n";
+    out << "<td>\n\n**" << compiler << "**\n\n";
     if (durable) {
         const std::string ev = std::to_string(dtotal);
-        std::cout << "| Backend | Median Ops/Sec | Band (Low–High) |\n|---|--:|---|\n";
+        out << "| Backend | Median Ops/Sec | Band (Low–High) |\n|---|--:|---|\n";
         auto st = db.prepare(
-            "SELECT persist,median_ops,low_ops,high_ops FROM bench_run b WHERE host=" + hq +
+            "SELECT persist,median_ops,low_ops,high_ops FROM bench_run b WHERE group_id=" + gq +
             " AND compiler=" + cq + " AND persist<>'none' AND threads*events_per_thread=" + ev +
-            " AND ts_utc=(SELECT MAX(ts_utc) FROM bench_run WHERE host=b.host AND compiler=b.compiler "
+            " AND ts_utc=(SELECT MAX(ts_utc) FROM bench_run WHERE group_id=b.group_id AND compiler=b.compiler "
             "AND persist=b.persist AND threads*events_per_thread=" + ev + ") "
             "ORDER BY median_ops DESC");
         while (st.step()) {
             std::string p; std::int64_t med, low, high; st.get(p, med, low, high);
-            std::cout << "| " << p << " | " << commafy(med) << " | " << milstr(low) << " – " << milstr(high) << " |\n";
+            out << "| " << p << " | " << commafy(med) << " | " << milstr(low) << " – " << milstr(high) << " |\n";
         }
     } else {
-        std::cout << "| Flags | Median Ops/Sec | Band (Low–High) |\n|---|--:|---|\n";
+        out << "| Flags | Median Ops/Sec | Band (Low–High) |\n|---|--:|---|\n";
         auto st = db.prepare(
-            "SELECT flag_count,median_ops,low_ops,high_ops FROM bench_run b WHERE host=" + hq +
+            "SELECT flag_count,median_ops,low_ops,high_ops FROM bench_run b WHERE group_id=" + gq +
             " AND compiler=" + cq + " AND persist='none' AND ts_utc=(SELECT MAX(ts_utc) FROM bench_run "
-            "WHERE host=b.host AND compiler=b.compiler AND persist='none' AND flag_count=b.flag_count) "
+            "WHERE group_id=b.group_id AND compiler=b.compiler AND persist='none' AND flag_count=b.flag_count) "
             "ORDER BY median_ops DESC");
         while (st.step()) {
             std::int64_t fc, med, low, high; st.get(fc, med, low, high);
-            std::cout << "| " << fc << " | " << commafy(med) << " | " << milstr(low) << " – " << milstr(high) << " |\n";
+            out << "| " << fc << " | " << commafy(med) << " | " << milstr(low) << " – " << milstr(high) << " |\n";
         }
     }
-    std::cout << "\n</td>\n";
+    out << "\n</td>\n";
 }
 
-int report_from_db(const std::string& db_path) {
+// the per-run (per-group) detail page body: hardware/versions + the result tables.
+void render_run_detail(jac313::Qlite::v002::Sqlite& db, std::ostream& out, std::int64_t gid) {
+    const std::string gq = std::to_string(gid);
+    out << "# Store benchmark results — " << run_label(gid) << " (group_id " << gid << ")\n\n"
+           "_Generated from `bench_results.db` by `store_bench --report`._<br>\n"
+           "_(median + low–high band over N runs; timed **end-to-end** — store buffer allocation through flush, front edge included)._\n\n"
+           "[← back to index](README.md)\n\n";
+    { auto st = db.prepare("SELECT host,cpu,cores,ram_gb,os,store_ver,qlite_ver,jtext_ver,ts_utc "
+                           "FROM bench_run WHERE group_id=" + gq + " ORDER BY ts_utc DESC LIMIT 1");
+      if (st.step()) {
+          std::string host, cpu, os, sv, qv, jv, ts; std::int64_t cores = 0, ram = 0;
+          st.get(host, cpu, cores, ram, os, sv, qv, jv, ts);
+          out << "| | |\n|---|---|\n"
+              << "| **Host** | " << host << " |\n"
+              << "| **Hardware** | " << cpu << " · " << cores << " cores · " << ram << " GB · " << os << " |\n"
+              << "| **Versions** | Store " << sv << " · Qlite " << qv << " · jText " << jv << " |\n"
+              << "| **Latest run (UTC)** | " << ts << " |\n\n";
+      }
+    }
+    std::vector<std::string> comps;
+    { auto st = db.prepare("SELECT DISTINCT compiler FROM bench_run WHERE group_id=" + gq + " ORDER BY compiler");
+      while (st.step()) { std::string c; st.get(c); comps.push_back(c); } }
+    auto counts = [&](const char* clause) -> std::pair<std::uint64_t, std::int64_t> {
+        auto st = db.prepare("SELECT threads,events_per_thread,runs FROM bench_run WHERE group_id=" + gq +
+                             " AND " + clause + " ORDER BY ts_utc DESC LIMIT 1");
+        if (st.step()) { std::int64_t t, e, r; st.get(t, e, r); return {static_cast<std::uint64_t>(t) * e, r}; }
+        return {0, 0};
+    };
+    // --- non-durable: side-by-side per compiler ---
+    { auto [tot, runs] = counts("persist='none'");
+      if (tot) {
+          out << "### Flag-overhead (non-durable) — " << milint(tot) << " Events × " << runs
+              << " Runs<br>That's " << milint(tot * static_cast<std::uint64_t>(runs)) << " Events per config\n\n"
+              << "<table><tr>\n";
+          for (const auto& c : comps) emit_speed_cell(db, out, gid, c, false);
+          out << "</tr></table>\n\n";
+      }
+    }
+    // --- durable: one side-by-side grid PER event-size (scaling: 1M vs 10M) ---
+    { std::vector<std::pair<std::int64_t, std::int64_t>> dsz;
+      { auto st = db.prepare("SELECT DISTINCT threads*events_per_thread AS tot, runs FROM bench_run "
+                             "WHERE group_id=" + gq + " AND persist<>'none' ORDER BY tot");
+        while (st.step()) { std::int64_t t, r; st.get(t, r); dsz.push_back({t, r}); } }
+      for (const auto& [tot, runs] : dsz) {
+          out << "### Durable — " << milint(static_cast<std::uint64_t>(tot)) << " Events × " << runs
+              << " Runs<br>That's " << milint(static_cast<std::uint64_t>(tot) * static_cast<std::uint64_t>(runs))
+              << " Events per config\n\n<table><tr>\n";
+          for (const auto& c : comps) emit_speed_cell(db, out, gid, c, true, tot);
+          out << "</tr></table>\n\n";
+      }
+    }
+    // --- persisted size: per backend × event-size (compiler-independent) ---
+    { auto st = db.prepare(
+          "SELECT persist, threads*events_per_thread AS tot, bytes FROM bench_run b WHERE group_id=" + gq +
+          " AND persist<>'none' AND ts_utc=(SELECT MAX(ts_utc) FROM bench_run WHERE group_id=b.group_id "
+          "AND persist=b.persist AND threads*events_per_thread=b.threads*b.events_per_thread) "
+          "GROUP BY persist, tot ORDER BY tot, bytes ASC");
+      bool first = true;
+      while (st.step()) {
+          std::string p; std::int64_t tot, by; st.get(p, tot, by);
+          if (first) {
+              out << "### Persisted size — jText vs SQL vs binary (same across compilers)\n\n"
+                  << "| Backend | Events | On-disk size |\n|---|--:|--:|\n";
+              first = false;
+          }
+          out << "| " << p << " | " << milint(static_cast<std::uint64_t>(tot)) << " | " << bytes_human(by) << " |\n";
+      }
+      if (!first) out << "\n";
+    }
+}
+
+// --report: write the summary index (README.md) + one Run_NNN.md detail page per group,
+// into out_dir (defaults to the directory holding the DB).
+int report_from_db(const std::string& db_path, const std::string& out_dir) {
     try {
+        namespace fs = std::filesystem;
         jac313::Qlite::v002::Sqlite db(db_path);
-        std::vector<std::string> hosts;
-        { auto st = db.prepare("SELECT DISTINCT host FROM bench_run ORDER BY host");
-          while (st.step()) { std::string h; st.get(h); hosts.push_back(h); } }
-        std::cout << "# Store benchmark results\n\n"
-                     "_Generated from `bench_results.db` by `store_bench --report` — the curated suite_<br>\n"
-                     "_(median + low–high band over N runs; timed **end-to-end** — store buffer allocation through flush, front edge included)._<br>\n"
-                     "_Latest run per config, per host, per compiler._\n\n";
-        if (hosts.empty()) { std::cout << "_No runs recorded yet._\n"; return 0; }
-        for (const auto& host : hosts) {
-            const std::string hq = "'" + host + "'";   // trusted (our own gethostname)
-            { auto st = db.prepare("SELECT cpu,cores,ram_gb,os,store_ver,qlite_ver,jtext_ver,ts_utc "
-                                   "FROM bench_run WHERE host=" + hq + " ORDER BY ts_utc DESC LIMIT 1");
-              if (st.step()) {
-                  std::string cpu, os, sv, qv, jv, ts; std::int64_t cores = 0, ram = 0;
-                  st.get(cpu, cores, ram, os, sv, qv, jv, ts);
-                  std::cout << "## " << host << "\n\n| | |\n|---|---|\n"
-                            << "| **Hardware** | " << cpu << " · " << cores << " cores · " << ram << " GB · " << os << " |\n"
-                            << "| **Versions** | Store " << sv << " · Qlite " << qv << " · jText " << jv << " |\n"
-                            << "| **Latest run (UTC)** | " << ts << " |\n\n";
+        ensure_group_schema(db);
+        struct G { std::int64_t gid = 0, cores = 0, ram = 0, max_ops = 0; std::string host, os, cpu, sv, ts; };
+        std::vector<G> groups;
+        { auto st = db.prepare(
+              "SELECT group_id, host, os, cpu, cores, ram_gb, store_ver, MAX(ts_utc), MAX(median_ops) "
+              "FROM bench_run GROUP BY group_id ORDER BY group_id");
+          while (st.step()) {
+              G g; st.get(g.gid, g.host, g.os, g.cpu, g.cores, g.ram, g.sv, g.ts, g.max_ops);
+              groups.push_back(g);
+          } }
+        const fs::path dir = out_dir.empty() ? fs::path(".") : fs::path(out_dir);
+
+        // --- summary index: README.md ---
+        { std::ofstream idx(dir / "README.md");
+          if (!idx) { std::cerr << "report failed: cannot write " << (dir / "README.md").string() << "\n"; return 1; }
+          idx << "# Store benchmark results\n\n"
+                 "_Generated from `bench_results.db` by `store_bench --report` — the curated suite._<br>\n"
+                 "_One row per run group (a machine running an OS); open a Run for the full tables._\n\n";
+          if (groups.empty()) { idx << "_No runs recorded yet._\n"; }
+          else {
+              idx << "| group_id | HW Details | Run | Max Ops/Sec |\n|--:|---|---|--:|\n";
+              for (const auto& g : groups) {
+                  const std::string rl = run_label(g.gid);
+                  idx << "| " << g.gid << " | " << g.cpu << " · " << g.cores << "c · " << g.ram
+                      << " GB · " << g.os << " | [" << rl << "](" << rl << ".md) | "
+                      << commafy(g.max_ops) << " |\n";
               }
-            }
-            std::vector<std::string> comps;
-            { auto st = db.prepare("SELECT DISTINCT compiler FROM bench_run WHERE host=" + hq + " ORDER BY compiler");
-              while (st.step()) { std::string c; st.get(c); comps.push_back(c); } }
-            auto counts = [&](const char* clause) -> std::pair<std::uint64_t, std::int64_t> {
-                auto st = db.prepare("SELECT threads,events_per_thread,runs FROM bench_run WHERE host=" + hq +
-                                     " AND " + clause + " ORDER BY ts_utc DESC LIMIT 1");
-                if (st.step()) { std::int64_t t, e, r; st.get(t, e, r); return {static_cast<std::uint64_t>(t) * e, r}; }
-                return {0, 0};
-            };
-            // --- non-durable: side-by-side per compiler ---
-            { auto [tot, runs] = counts("persist='none'");
-              if (tot) {
-                  std::cout << "### Flag-overhead (non-durable) — " << milint(tot) << " Events × " << runs
-                            << " Runs<br>That's " << milint(tot * static_cast<std::uint64_t>(runs)) << " Events per config\n\n"
-                            << "<table><tr>\n";
-                  for (const auto& c : comps) emit_speed_cell(db, hq, c, false);
-                  std::cout << "</tr></table>\n\n";
-              }
-            }
-            // --- durable: one side-by-side grid PER event-size (scaling: 1M vs 10M) ---
-            { std::vector<std::pair<std::int64_t, std::int64_t>> dsz;
-              { auto st = db.prepare("SELECT DISTINCT threads*events_per_thread AS tot, runs FROM bench_run "
-                                     "WHERE host=" + hq + " AND persist<>'none' ORDER BY tot");
-                while (st.step()) { std::int64_t t, r; st.get(t, r); dsz.push_back({t, r}); } }
-              for (const auto& [tot, runs] : dsz) {
-                  std::cout << "### Durable — " << milint(static_cast<std::uint64_t>(tot)) << " Events × " << runs
-                            << " Runs<br>That's " << milint(static_cast<std::uint64_t>(tot) * static_cast<std::uint64_t>(runs))
-                            << " Events per config\n\n<table><tr>\n";
-                  for (const auto& c : comps) emit_speed_cell(db, hq, c, true, tot);
-                  std::cout << "</tr></table>\n\n";
-              }
-            }
-            // --- persisted size: per backend × event-size (compiler-independent) ---
-            { auto st = db.prepare(
-                  "SELECT persist, threads*events_per_thread AS tot, bytes FROM bench_run b WHERE host=" + hq +
-                  " AND persist<>'none' AND ts_utc=(SELECT MAX(ts_utc) FROM bench_run WHERE host=b.host "
-                  "AND persist=b.persist AND threads*events_per_thread=b.threads*b.events_per_thread) "
-                  "GROUP BY persist, tot ORDER BY tot, bytes ASC");
-              bool first = true;
-              while (st.step()) {
-                  std::string p; std::int64_t tot, by; st.get(p, tot, by);
-                  if (first) {
-                      std::cout << "### Persisted size — jText vs SQL vs binary (same across compilers)\n\n"
-                                << "| Backend | Events | On-disk size |\n|---|--:|--:|\n";
-                      first = false;
-                  }
-                  std::cout << "| " << p << " | " << milint(static_cast<std::uint64_t>(tot)) << " | " << bytes_human(by) << " |\n";
-              }
-              if (!first) std::cout << "\n";
+          }
+        }
+        std::cerr << "[report] wrote " << (dir / "README.md").string()
+                  << " (" << groups.size() << " run group(s))\n";
+
+        // --- one detail page per group ---
+        for (const auto& g : groups) {
+            const std::string rl = run_label(g.gid);
+            std::ofstream det(dir / (rl + ".md"));
+            if (!det) { std::cerr << "report failed: cannot write " << (dir / (rl + ".md")).string() << "\n"; return 1; }
+            render_run_detail(db, det, g.gid);
+            std::cerr << "[report] wrote " << (dir / (rl + ".md")).string() << "\n";
+        }
+
+        // --- prune stale detail pages: a Run_NNN.md whose group no longer exists
+        // (e.g. it was fully --cleared) would otherwise linger as a dead link target.
+        auto is_current = [&](const std::string& nm) {
+            for (const auto& g : groups) if (run_label(g.gid) + ".md" == nm) return true;
+            return false;
+        };
+        for (const auto& e : fs::directory_iterator(dir)) {
+            if (!e.is_regular_file()) continue;
+            const std::string nm = e.path().filename().string();
+            bool is_run = nm.rfind("Run_", 0) == 0 && nm.size() > 7 && nm.compare(nm.size() - 3, 3, ".md") == 0;
+            for (std::size_t i = 4; is_run && i + 3 < nm.size(); ++i)
+                if (nm[i] < '0' || nm[i] > '9') is_run = false;
+            if (is_run && !is_current(nm)) {
+                std::error_code ec; fs::remove(e.path(), ec);
+                if (!ec) std::cerr << "[report] removed stale " << nm << "\n";
             }
         }
         return 0;
@@ -531,7 +629,7 @@ int report_from_db(const std::string& db_path) {
     }
 }
 #else
-int report_from_db(const std::string&) { std::cerr << "built without SQL persist -> no report\n"; return 1; }
+int report_from_db(const std::string&, const std::string&) { std::cerr << "built without SQL persist -> no report\n"; return 1; }
 #endif
 
 #ifdef JAC313_STORE_HAS_SQL_PERSIST
@@ -568,6 +666,7 @@ int main(int argc, char** argv) {
     Params p;
     p.flags = default_flags();
     std::optional<Sweep> sweep;
+    std::string out_dir;   // --out: where --report writes README.md + Run_NNN.md (default: the DB's dir)
     bool do_suite = false, do_report = false, dry = false, do_clear = false;
 
     for (int i = 1; i < argc; ++i) {
@@ -582,6 +681,7 @@ int main(int argc, char** argv) {
         else if (a == "--flags") p.flags = parse_flags(next());
         else if (a == "--flag-count") p.flags = flags_by_count(std::stoull(next()));
         else if (a == "--db") p.db_path = next();
+        else if (a == "--out") out_dir = next();
         else if (a == "--label") p.label = next();
         else if (a == "--jtext-ver") p.jtext_ver = next();
         else if (a == "--suite") do_suite = true;
@@ -598,7 +698,14 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (do_report) return report_from_db(p.db_path.empty() ? "bench_results.db" : p.db_path);
+    if (do_report) {
+        const std::string dbp = p.db_path.empty() ? "bench_results.db" : p.db_path;
+        // default output dir = the directory holding the DB (so test-summary/bench_results.db
+        // writes test-summary/README.md + test-summary/Run_NNN.md). --out overrides.
+        std::string od = out_dir;
+        if (od.empty()) od = std::filesystem::path(dbp).parent_path().string();
+        return report_from_db(dbp, od);
+    }
     if (do_clear && !dry) {   // wipe THIS host+OS first so a following --suite re-measures clean
         if (int rc = clear_db(p.db_path.empty() ? "bench_results.db" : p.db_path); rc != 0) return rc;
     }

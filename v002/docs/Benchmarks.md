@@ -30,16 +30,24 @@ It is honest by construction:
 ./jac313_store_bench --suite --dry-run         # print the copy-paste command list
 ./jac313_store_bench --suite --db results.db   # run the curated 10 and record each
 ./jac313_store_bench --clear  --db results.db  # wipe THIS host+OS's rows (re-measure clean); other machines/OSes untouched
-./jac313_store_bench --report --db results.db  # render the results page from the DB
+./jac313_store_bench --report --db results.db  # write the index + per-run pages from the DB
 ```
 
 `--db <path>` appends one row per config to a SQLite database (written via
 Qlite) — host, versions, config, and the full distribution — so re-running
-**accumulates history**. `--report` reads it back and emits the markdown
-[results page](../test-summary/) (latest run per config, per host). Pass
-`--jtext-ver vX.Y` so the recorded row carries the jText version. Each config
-is also a standalone `store_bench` command (see below) for running one in
-isolation.
+**accumulates history**. Every row carries a **`group_id`**: one per
+**(host, os)** — the container for a machine running an OS (externally it
+renders as **`Run_NNN`**). A re-run on the same machine+OS reuses its group; a
+new machine, or a new OS on the same box, gets the next group.
+
+`--report` reads the DB back and **writes files** (no stdout redirect): a
+summary **`README.md`** — one row per group (`group_id` · HW details ·
+`Run_NNN` link · max ops/sec, so you can see at a glance which machines to use
+or ignore) — plus one **`Run_NNN.md`** detail page per group (the full
+clang-vs-gcc tables). Pages land next to the DB by default, or in `--out <dir>`;
+a `Run_NNN.md` whose group was cleared is pruned automatically. Pass
+`--jtext-ver vX.Y` so the recorded row carries the jText version. Each config is
+also a standalone `store_bench` command (see below) for running one in isolation.
 
 ## The 10 configs
 
