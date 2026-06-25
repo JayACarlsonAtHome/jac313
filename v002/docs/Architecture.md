@@ -90,9 +90,11 @@ flowchart LR
     B --> C[expand persist grid]
     C --> D[run each scenario]
     D --> E[test-results/.../logs]
-    D --> F[jac313_results.db]
-    F --> G[test-summary/*.md]
 ```
+
+The functional matrix is a **pass/fail correctness gate** — it records no database. Throughput is a
+separate pipeline: `store_bench --suite --db test-summary/bench_results.db` → `--report` →
+`test-summary/*.md`.
 
 1. **ctest** — one invocation per registered test; module smokes + a single path per matrix binary.
 2. **Smoke matrix (116, functional)** — full persist × output-mode grid at minimal scale; used by `release-check`.
@@ -103,9 +105,9 @@ The matrix is the **functional/correctness** suite. Throughput is no longer read
 from test logs — it now comes from a separate `store_bench --suite` (curated 10-config run, headline =
 median + low–high band). See [Benchmarks.md](Benchmarks.md).
 
-Metrics are **DB-only** (`jac313_results.db`, tracked) — there are no file side-channels; the
-markdown RUN.md pages render from DB views. See [Setup.md](Setup.md#4-testing) for commands and
-the RunIdentity results layout.
+Throughput metrics are **DB-only** (`test-summary/bench_results.db`, tracked) — there are no file
+side-channels; the markdown `Run_NNN.md` pages render from DB views via `store_bench --report`. See
+[Benchmarks.md](Benchmarks.md) for commands and the per-run results layout.
 
 ### Testing without CI theatre
 

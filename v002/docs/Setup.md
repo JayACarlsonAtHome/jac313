@@ -184,7 +184,7 @@ memcheck + helgrind/DRD over a representative smoke set, exiting non-zero on any
 | Path | Tracked | Contents |
 |------|---------|----------|
 | `test-results/` | gitignored | Raw scenario logs from local matrix runs |
-| `test-summary/jac313_results.db` | tracked | Source of truth for metrics; markdown renders from DB views |
+| `test-summary/bench_results.db` | tracked | Source of truth for **throughput** metrics; `store_bench --report` renders the markdown. Groups are keyed by `(cpu, cores, ram_gb, os)` → `jac313-<group_id>` |
 
 A run is keyed by its **RunIdentity** — `(os, compiler, build_type, disk, size)` — defined once
 in [`run_identity.hpp`](../tools/jac313_test_cli/) so DB keys, the results path, and rendered

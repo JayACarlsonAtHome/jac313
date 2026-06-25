@@ -53,3 +53,9 @@ test-results/
 # Generated, per-machine provisioning script + local recipe override
 /Setup.sh
 /recipes.local.conf
+
+# Convenience symlink to the bootstrap-built runner (target lives in gitignored build-bootstrap/)
+/jac313_test_cli
+
+# Generated, re-runnable preset script (overwritten each preset invocation)
+/run_latest_config.sh

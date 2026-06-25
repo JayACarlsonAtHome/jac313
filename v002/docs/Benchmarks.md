@@ -23,6 +23,17 @@ It is honest by construction:
 
 ## How to run
 
+The easy way, from `v002/` — the runner builds Release and drives the suite for you:
+
+```bash
+./jac313_test_cli --bench            # run the curated suite — numbers to stdout, NOT recorded
+./jac313_test_cli --bench --report   # record → test-summary/bench_results.db + render the report
+```
+
+`--bench --report` auto-resolves the machine label (see *group identity* below) — no manual
+`host_label.local`. Everything underneath is `store_bench`; drive it directly when you want one
+config, `--dry-run`, or `--anonymize`.
+
 `store_bench` *is* the suite — no driver script. From the build directory
 (where `jac313_store_bench` was built):
 
@@ -34,11 +45,21 @@ It is honest by construction:
 ```
 
 `--db <path>` appends one row per config to a SQLite database (written via
-Qlite) — host, versions, config, and the full distribution — so re-running
-**accumulates history**. Every row carries a **`group_id`**: one per
-**(host, os)** — the container for a machine running an OS (externally it
-renders as **`Run_NNN`**). A re-run on the same machine+OS reuses its group; a
-new machine, or a new OS on the same box, gets the next group.
+Qlite) — versions, config, and the full distribution — so re-running
+**accumulates history**. Every row carries a **`group_id`**: one per distinct
+**hardware + OS** identity `(cpu, cores, ram_gb, os)` — the container for a machine
+running an OS (externally it renders as **`Run_NNN`**). A re-run on the same
+machine reuses its group; a new machine, or a new OS on the same box, gets the next group.
+
+**Group identity / host label (auto).** The group is resolved by a plain compare:
+this machine's `(cpu, cores, ram_gb, os)` against the recorded groups — same
+hardware+OS reuses its group, anything new gets the next number. The recorded
+`host` is the anonymized **`jac313-<group_id>`**, so no real hostname ever enters
+the DB and no manual label step is needed. A `host_label.local` /
+`$JAC313_HOST_LABEL` override still pins a specific label, and `--anonymize`
+remains for retroactively scrubbing any older rows recorded under a raw hostname.
+Use `jac313_test_cli --group-id` (or `store_bench --group-id --db <path>`) to
+preview the groups and which one this machine resolves to before recording.
 
 `--report` reads the DB back and **writes files** (no stdout redirect): a
 summary **`README.md`** — one row per group (`group_id` · HW details ·

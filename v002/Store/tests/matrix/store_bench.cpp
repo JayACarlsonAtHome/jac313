@@ -25,6 +25,8 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -63,6 +65,7 @@ struct Params {
     std::string db_path;                 // --db: append one row per run to this SQLite DB (via Qlite)
     std::string label;                   // --label: human label for the config (e.g. "2 flags, non-durable")
     std::string jtext_ver;               // --jtext-ver: passed in (jText's version header isn't trivially reachable here)
+    std::int64_t run_id = 0;             // runID: one per --suite run (0 = allocate one per single record)
 };
 
 struct Sweep {
@@ -340,39 +343,44 @@ std::string run_label(std::int64_t gid) {
     char b[24]; std::snprintf(b, sizeof b, "Run_%03lld", static_cast<long long>(gid)); return b;
 }
 
-// A "group" is one machine running one OS — the overarching container. Its identity is
-// the FULL (hardware, hostname, os) = (cpu, cores, ram_gb, host, os): hostname alone is
-// unsafe (four boxes could all be "localhost.localdomain"), so distinct hardware/OS keeps
-// them distinct. Internally it's group_id (NOT NULL); externally it renders as Run_NNN.
-// This ensures the column exists on older DBs and that EVERY row carries a group_id: rows
-// recorded before the column existed are backfilled, one new id per identity, first-seen.
+// A "group" is one machine running one OS — the container for its runs. Identity is the
+// HARDWARE + OS: (cpu, cores, ram_gb, os). The hostname is NOT part of the key — it's recorded
+// as the anonymized jac313-<group_id> label (so matching on it would desync), and "same
+// hardware + same OS" is exactly what we want to call the same group. Internally it's group_id
+// (NOT NULL); externally it renders as Run_NNN. Older DBs get the column added and every row
+// backfilled — one id per (hardware, os) identity, first-seen.
 void ensure_group_schema(jac313::Qlite::v002::Sqlite& db) {
     std::int64_t has = 0;
     { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('bench_run') WHERE name='group_id'");
       if (st.step()) st.get(has); }
     if (has == 0) db.exec("ALTER TABLE bench_run ADD COLUMN group_id INTEGER");
-    struct Id { std::string cpu; std::int64_t cores, ram; std::string host, os; };
+    struct Id { std::string cpu; std::int64_t cores, ram; std::string os; };
     std::vector<Id> pending;
-    { auto st = db.prepare("SELECT cpu, cores, ram_gb, host, os FROM bench_run WHERE group_id IS NULL "
-                           "GROUP BY cpu, cores, ram_gb, host, os ORDER BY MIN(id)");
-      while (st.step()) { Id id; st.get(id.cpu, id.cores, id.ram, id.host, id.os); pending.push_back(id); } }
+    { auto st = db.prepare("SELECT cpu, cores, ram_gb, os FROM bench_run WHERE group_id IS NULL "
+                           "GROUP BY cpu, cores, ram_gb, os ORDER BY MIN(id)");
+      while (st.step()) { Id id; st.get(id.cpu, id.cores, id.ram, id.os); pending.push_back(id); } }
     for (const auto& id : pending) {
         std::int64_t next = 1;
         { auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM bench_run"); if (st.step()) st.get(next); }
-        db.exec("UPDATE bench_run SET group_id=? WHERE cpu=? AND cores=? AND ram_gb=? AND host=? AND os=? "
-                "AND group_id IS NULL", next, id.cpu, id.cores, id.ram, id.host, id.os);
+        db.exec("UPDATE bench_run SET group_id=? WHERE cpu=? AND cores=? AND ram_gb=? AND os=? "
+                "AND group_id IS NULL", next, id.cpu, id.cores, id.ram, id.os);
     }
 }
 
-// Resolve the group_id for this machine's full (hardware, host, os) identity: reuse the
-// existing one, else allocate the next.
+// Resolve the group_id for this machine's (hardware, os) identity: a plain compare against the
+// recorded groups — reuse the match, else allocate the next. No hostname, no side registry.
 std::int64_t group_id_for(jac313::Qlite::v002::Sqlite& db, const HostInfo& h) {
     std::int64_t gid = 0;
-    { auto st = db.prepare("SELECT group_id FROM bench_run WHERE cpu=? AND cores=? AND ram_gb=? AND host=? AND os=? "
+    { auto st = db.prepare("SELECT group_id FROM bench_run WHERE cpu=? AND cores=? AND ram_gb=? AND os=? "
                            "AND group_id IS NOT NULL LIMIT 1");
-      st.bind(h.cpu, h.cores, h.ram_gb, h.host, h.os); if (st.step()) st.get(gid); }
+      st.bind(h.cpu, h.cores, h.ram_gb, h.os); if (st.step()) st.get(gid); }
     if (gid == 0) { auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM bench_run"); if (st.step()) st.get(gid); }
     return gid;
+}
+
+// External label for a group: jac313-<group_id> (zero-padded 3), matching --anonymize.
+std::string host_label_for(std::int64_t gid) {
+    char b[24]; std::snprintf(b, sizeof b, "jac313-%03lld", static_cast<long long>(gid)); return b;
 }
 
 void record_to_db(const Params& p, const BenchSummary& s) {
@@ -392,8 +400,11 @@ CREATE TABLE IF NOT EXISTS bench_run (
 )
 )SQL");
         ensure_group_schema(db);          // migrate older DBs: add + backfill group_id
-        const HostInfo h = sense_host();
+        HostInfo h = sense_host();
         const std::int64_t group_id = group_id_for(db, h);
+        // Record the anonymized jac313-<group_id> as host (no real hostname in the committed DB)
+        // unless an explicit host_label.local / $JAC313_HOST_LABEL is pinned.
+        if (host_label_override().empty()) h.host = host_label_for(group_id);
         const std::int64_t bytes = (p.persist == "none") ? 0
                                  : static_cast<std::int64_t>(measure_output_bytes(p.base_name));
         db.exec(
@@ -708,24 +719,24 @@ int report_from_db(const std::string&, const std::string&) { std::cerr << "built
 
 #ifdef JAC313_STORE_HAS_SQL_PERSIST
 // ---- clear recorded runs so a re-run starts clean ----
-// Scope is always THIS host AND THIS OS: it never touches another machine's numbers,
-// and — crucially — a re-image / dual-boot (SAME hostname, different OS, e.g.
-// Fedora -> RHEL on one box) keeps the other OS's rows. There is deliberately no
-// "clear everything" flag; a full wipe is a manual, intentional act. A missing table
-// is a no-op, not an error.
+// Scope is always THIS machine's (hardware, OS) group: it never touches another machine's
+// numbers, and — crucially — a re-image / dual-boot (different OS on the same box, e.g.
+// Fedora -> RHEL) keeps the other OS's rows (os is part of the identity). There is deliberately
+// no "clear everything" flag; a full wipe is a manual, intentional act. A missing table is a
+// no-op, not an error.
 int clear_db(const std::string& db_path) {
     try {
         jac313::Qlite::v002::Sqlite db(db_path);
         { auto st = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='bench_run'");
           if (!st.step()) { std::cerr << "[clear] no bench_run table in " << db_path << " — nothing to clear\n"; return 0; } }
         const HostInfo h = sense_host();
-        const char* where = "cpu=? AND cores=? AND ram_gb=? AND host=? AND os=?";
+        const char* where = "cpu=? AND cores=? AND ram_gb=? AND os=?";
         std::int64_t n = 0;
         { auto st = db.prepare(std::string("SELECT COUNT(*) FROM bench_run WHERE ") + where);
-          st.bind(h.cpu, h.cores, h.ram_gb, h.host, h.os); if (st.step()) st.get(n); }
-        db.exec(std::string("DELETE FROM bench_run WHERE ") + where, h.cpu, h.cores, h.ram_gb, h.host, h.os);
-        std::cerr << "[clear] removed " << n << " row(s) for this machine ('" << h.host
-                  << "' / " << h.cpu << " / " << h.os << "') from " << db_path << "\n";
+          st.bind(h.cpu, h.cores, h.ram_gb, h.os); if (st.step()) st.get(n); }
+        db.exec(std::string("DELETE FROM bench_run WHERE ") + where, h.cpu, h.cores, h.ram_gb, h.os);
+        std::cerr << "[clear] removed " << n << " row(s) for this machine ("
+                  << h.cpu << " / " << h.cores << "c / " << h.os << ") from " << db_path << "\n";
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "clear failed: " << e.what() << "\n"; return 1;
@@ -759,6 +770,76 @@ int anonymize_db(const std::string& db_path) {
 int anonymize_db(const std::string&) { std::cerr << "built without SQL persist -> no anonymize\n"; return 1; }
 #endif
 
+#ifdef JAC313_STORE_HAS_SQL_PERSIST
+// Read-only precheck: list the existing groups (group_id | host | hw | os | max ops/sec) and this
+// machine's identity + the group_id a record WOULD land on — so you can see up front whether
+// recording reuses an existing group (adds rows; `--clear` wipes it) or creates a brand-new one.
+// Writes NOTHING: no DB row, no registry append.
+int group_id_precheck(const std::string& db_path_in) {
+    namespace fs = std::filesystem;
+    const std::string db_path = db_path_in.empty() ? "bench_results.db" : db_path_in;
+    std::cout << "=== bench group precheck (read-only) ===\nDB: " << db_path << "\n\n";
+
+    HostInfo h = sense_host();
+    const std::string override = host_label_override();
+    std::int64_t db_max = 0, proposed = 0;
+    bool reuse = false, resolved = false, have_rows = false;
+
+    std::cout << "Existing groups:\n";
+    std::cout << "  gid | host         | hardware                         | os                       |   max ops/sec\n";
+    std::cout << "  ----+--------------+----------------------------------+--------------------------+--------------\n";
+    try {
+        if (fs::exists(db_path)) {
+            jac313::Qlite::v002::Sqlite db(db_path);
+            bool has_tbl = false;
+            { auto st = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='bench_run'");
+              has_tbl = st.step(); }
+            if (has_tbl) {
+                ensure_group_schema(db);
+                { auto st = db.prepare("SELECT group_id, host, cpu, cores, ram_gb, os, MAX(median_ops) "
+                                       "FROM bench_run GROUP BY group_id ORDER BY group_id");
+                  while (st.step()) {
+                      std::int64_t gid = 0, cores = 0, ram = 0, mx = 0; std::string host, cpu, os;
+                      st.get(gid, host, cpu, cores, ram, os, mx);
+                      if (gid > db_max) db_max = gid;
+                      have_rows = true;
+                      const std::string hw = cpu + " (" + std::to_string(cores) + "c/" +
+                                             std::to_string(ram) + "G)";
+                      char line[400];
+                      std::snprintf(line, sizeof line, "  %3lld | %-12.12s | %-32.32s | %-24.24s | %13lld\n",
+                                    (long long)gid, host.c_str(), hw.c_str(), os.c_str(), (long long)mx);
+                      std::cout << line;
+                  } }
+                proposed = group_id_for(db, h);    // the same hardware+os compare recording uses
+                reuse = (proposed <= db_max);
+                resolved = true;
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cout << "  (could not read DB: " << e.what() << ")\n";
+    }
+    if (!have_rows) std::cout << "  (none yet)\n";
+    if (!resolved) { proposed = 1; reuse = false; }   // no DB / no table yet -> this is group 1
+
+    const std::string label = override.empty() ? host_label_for(proposed) : override;
+    std::cout << "\nThis machine:\n"
+              << "  cpu:   " << h.cpu << "\n"
+              << "  cores: " << h.cores << "    ram_gb: " << h.ram_gb << "\n"
+              << "  os:    " << h.os << "\n"
+              << "  recorded as: " << label
+              << (override.empty() ? "   (matched on cpu + cores + ram + os; hostname not used)\n"
+                                   : "   (pinned via host_label.local / $JAC313_HOST_LABEL)\n");
+
+    std::cout << "\nProposed group_id: " << proposed << "   (" << label << ")\n";
+    std::cout << (reuse
+        ? "  -> REUSES an existing group: recording ADDS rows to it; `store_bench --clear` wipes it first.\n"
+        : "  -> NEW group: recording creates a fresh group; nothing existing is touched.\n");
+    return 0;
+}
+#else
+int group_id_precheck(const std::string&) { std::cerr << "built without SQL persist -> no group precheck\n"; return 1; }
+#endif
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -767,6 +848,7 @@ int main(int argc, char** argv) {
     std::optional<Sweep> sweep;
     std::string out_dir;   // --out: where --report writes README.md + Run_NNN.md (default: the DB's dir)
     bool do_suite = false, do_report = false, dry = false, do_clear = false, smoke = false, do_anon = false;
+    bool do_group_id = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -787,6 +869,7 @@ int main(int argc, char** argv) {
         else if (a == "--smoke") { do_suite = true; smoke = true; }   // smoke = the suite as a pass/fail gate
         else if (a == "--report") do_report = true;
         else if (a == "--anonymize") do_anon = true;   // scrub hostnames -> jac313-<group_id>, then re-render
+        else if (a == "--group-id") do_group_id = true; // read-only: show groups + this machine's proposed id
         else if (a == "--clear") do_clear = true;
         else if (a == "--dry-run") dry = true;
         else if (a == "--sweep") { sweep = parse_sweep(next()); if (!sweep) { std::cerr << "bad --sweep (want AXIS=LO..HI:STEP)\n"; return 2; } }
@@ -798,6 +881,8 @@ int main(int argc, char** argv) {
             std::cerr << "unknown option: " << a << "\n"; return 2;
         }
     }
+
+    if (do_group_id) return group_id_precheck(p.db_path);
 
     if (do_report || do_anon) {
         const std::string dbp = p.db_path.empty() ? "bench_results.db" : p.db_path;

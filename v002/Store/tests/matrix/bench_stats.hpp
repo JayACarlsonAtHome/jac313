@@ -9,8 +9,8 @@
 //
 //   BENCHSTATS runs=<N> events=<E> high=<ops> low=<ops> avg=<ops> median=<ops> stddev=<ops>
 //
-// All ops values are raw integers (no locale separators) so the runner's parser
-// (tools/jac313_test_cli/matrix_log_metrics) stays trivial. high = fastest run,
+// All ops values are raw integers (no locale separators) so any parser stays
+// trivial. high = fastest run,
 // low = slowest run, avg/median/stddev computed over the per-run ops/sec.
 //
 // A benchmark IS a distribution, not a single lucky number: the in-memory ceiling

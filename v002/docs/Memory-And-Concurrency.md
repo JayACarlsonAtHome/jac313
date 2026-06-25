@@ -21,7 +21,7 @@ threads coordinate correctly?" — two different questions, two different tools.
 - **valgrind 3.22.0**, gcc-15 **Debug** binaries (symbols, no optimization — the right
   target for these tools).
 - Binaries were driven **directly** with a `/tmp` working directory so nothing in the repo
-  was touched — not the tracked results DB (`test-summary/jac313_results.db`), not the
+  was touched — not the tracked results DB (`test-summary/bench_results.db`), not the
   committed `persist_*` sample artifacts at the repo root.
 - The matrix tests are the real concurrency surface (each spins multiple writer threads);
   they were exercised on both the **lock-free path** (`--persist=none`) and the

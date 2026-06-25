@@ -65,12 +65,6 @@ struct MatrixOptions {
     std::string compiler_label{"gcc15"};
     bool dry_run{false};
     bool no_summary{false};
-    // Legacy matrix results DB + test-summary hub render. RETIRED: throughput +
-    // the committed report now come from store_bench (--db bench_results.db /
-    // --report). Off by default so a matrix run no longer writes
-    // test-summary/jac313_results.db nor overwrites the store_bench README.
-    // Opt back in with --legacy-results while the old code path still exists.
-    bool legacy_results{false};
     std::optional<std::int64_t> group_id;
     std::optional<std::string> group_run_utc;
     std::optional<std::string> run_utc;

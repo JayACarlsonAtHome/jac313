@@ -4,21 +4,28 @@
 
 # RunAllTests — the full jac313 test battery
 
-There are **three gates**, run separately (there is no longer a single `run-all` driver):
+One entry point: **`./jac313_test_cli`** at the `v002/` root (a symlink `bootstrap.sh` drops to the
+built runner — no `scl enable …` prefix needed; the runner self-activates the toolchain). There are
+**three gates**, selected by composable preset flags:
 
-1. **Functional correctness** — `matrix run` / `matrix runner` (ctest + the persist×output grid).
-   A pass/fail gate; it opens **no database** and writes **nothing** to `test-summary/`.
-2. **Throughput** — `store_bench` (the curated 10-config suite). `--smoke` is a fast correctness
-   gate; `--suite` records the numbers. See [Benchmarks.md](Benchmarks.md) for the detail.
-3. **Memory / thread** — `matrix verify-lite` / `verify` (valgrind memcheck + helgrind/DRD).
-   `verify-lite` is also the pre-push hook.
+1. **Functional correctness** — `--ctest` (unit suite) + `--smoke` (persist×output grid). Pass/fail;
+   opens **no database**, writes **nothing** to `test-summary/`.
+2. **Throughput** — `--bench` (numbers only) / `--bench --report` (records + renders). See
+   [Benchmarks.md](Benchmarks.md).
+3. **Memory / thread** — `--verify-lite` (memcheck) / `--verify` (+ helgrind/DRD). `--verify-lite` is
+   also the pre-push hook.
 
-> **gcc15 + clang are the gate on every platform** (gcc14 is excluded by design).
-> The old `matrix run-all` / `matrix render` / `jac313_results.db` were **retired** — throughput
-> and the committed report now live in `store_bench` + `test-summary/bench_results.db`. See
-> [Forward.md](Forward.md).
+Every preset invocation writes the exact commands to **`./run_latest_config.sh`** and runs that
+script; it's left in place so you can re-run it with `bash run_latest_config.sh`.
 
-See also: [Setup.md](Setup.md) · [Benchmarks.md](Benchmarks.md) · [README.md](../README.md)
+> **Just want a fast green check?** **[QuickStart.md](QuickStart.md)** — `./jac313_test_cli --ctest
+> --smoke`, gcc15, ~20 s. This page is the *full* battery (clang, `--size full`, modules), driven by
+> the explicit **`runner`** subcommand for the cells presets don't cover.
+
+> The old `matrix run-all` / `matrix render` / `jac313_results.db` were **retired** — throughput and
+> the committed report now live in the benchmark + `test-summary/bench_results.db`. See [Forward.md](Forward.md).
+
+See also: [QuickStart.md](QuickStart.md) · [Setup.md](Setup.md) · [Benchmarks.md](Benchmarks.md) · [README.md](../README.md)
 
 ---
 
@@ -27,26 +34,28 @@ See also: [Setup.md](Setup.md) · [Benchmarks.md](Benchmarks.md) · [README.md](
 Run everything **from `v002/`**.
 
 ```bash
-cd v002 && ./bootstrap.sh        # senses toolchain, REQUIRES valgrind (+ dev headers), builds the runner
+cd v002 && ./bootstrap.sh        # senses toolchain, REQUIRES valgrind, builds the runner + drops the symlink
 ```
 
-The runner lives at `./build-bootstrap/tools/jac313_test_cli`. Set these once per shell (RHEL
-needs the toolset activated; Mint has `g++-15`/`clang` on `PATH`):
-
-```bash
-ACT="scl enable gcc-toolset-15 --"   # Linux Mint: ACT=""
-CLI="./build-bootstrap/tools/jac313_test_cli"
-```
+After bootstrap, the everyday surface is just `./jac313_test_cli <flags>`.
 
 ---
 
-## 1. Functional correctness — `matrix runner`
+## 1. Functional correctness
 
-`matrix runner` builds + runs **one explicit configuration** (ctest + the persist×output
-matrix) and reports pass/fail. The build dir is auto-named; nothing is recorded to a DB.
+**Everyday (gcc15 / Debug / textual):**
 
 ```bash
-$ACT $CLI matrix runner --compiler gcc15 --build-type Debug --modules off --size smoke
+./jac313_test_cli --ctest --smoke        # ctest unit suite (36) + persist×output smoke grid (116)
+./jac313_test_cli --ctest                # just the unit suite
+./jac313_test_cli --smoke                # just the smoke grid
+```
+
+**Explicit single cell — the `runner` subcommand** (for a specific compiler / build-type / modules /
+full size; the preset flags above are the smoke-oriented gcc15 path):
+
+```bash
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Debug --modules off --size smoke
 ```
 
 | Option | Values |
@@ -57,85 +66,73 @@ $ACT $CLI matrix runner --compiler gcc15 --build-type Debug --modules off --size
 | `--size` | `smoke` \| `full` |
 | `--build-dir` | optional; default `build-<compiler>-<buildtype>-<modules>` |
 
-`matrix run` (no dimensions) is the quick variant: it runs the matrix for the **current/auto**
-compiler against an existing build dir — handy mid-edit. `runner` is the workhorse for a clean,
-explicit cell.
-
 ### Every functional combo, spelled out
 
 The full functional sweep is **{gcc15, clang} × {Debug, Release} × {modules on, off} × {smoke,
-full}** — 16 cells. There's no `run-all` anymore, so run the ones you need (each auto-builds its
-own `build-<compiler>-<buildtype>-<modules>` tree; `modules on` vs `off` never collide):
+full}** — 16 cells. There's no `run-all` anymore, so run the ones you need (each auto-builds its own
+`build-<compiler>-<buildtype>-<modules>` tree; `modules on` vs `off` never collide):
 
 ```bash
 # --- gcc15 ---
-$ACT $CLI matrix runner --compiler gcc15 --build-type Debug   --modules on  --size smoke
-$ACT $CLI matrix runner --compiler gcc15 --build-type Debug   --modules on  --size full
-$ACT $CLI matrix runner --compiler gcc15 --build-type Debug   --modules off --size smoke
-$ACT $CLI matrix runner --compiler gcc15 --build-type Debug   --modules off --size full
-$ACT $CLI matrix runner --compiler gcc15 --build-type Release --modules on  --size smoke
-$ACT $CLI matrix runner --compiler gcc15 --build-type Release --modules on  --size full
-$ACT $CLI matrix runner --compiler gcc15 --build-type Release --modules off --size smoke
-$ACT $CLI matrix runner --compiler gcc15 --build-type Release --modules off --size full
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Debug   --modules on  --size smoke
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Debug   --modules on  --size full
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Debug   --modules off --size smoke
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Debug   --modules off --size full
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Release --modules on  --size smoke
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Release --modules on  --size full
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Release --modules off --size smoke
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Release --modules off --size full
 
 # --- clang (textual only; clang module builds need clang-scan-deps-20 on PATH) ---
-$ACT $CLI matrix runner --compiler clang --build-type Debug   --modules off --size smoke
-$ACT $CLI matrix runner --compiler clang --build-type Debug   --modules off --size full
-$ACT $CLI matrix runner --compiler clang --build-type Release --modules off --size smoke
-$ACT $CLI matrix runner --compiler clang --build-type Release --modules off --size full
+./jac313_test_cli matrix runner --compiler clang --build-type Debug   --modules off --size smoke
+./jac313_test_cli matrix runner --compiler clang --build-type Debug   --modules off --size full
+./jac313_test_cli matrix runner --compiler clang --build-type Release --modules off --size smoke
+./jac313_test_cli matrix runner --compiler clang --build-type Release --modules off --size full
 ```
 
-The heavy `--size full` cells are I/O-intensive — start day-to-day with the `smoke` lines.
+The heavy `--size full` cells are I/O-intensive — start day-to-day with `--ctest --smoke`.
 
 ---
 
-## 2. Throughput — `store_bench`
-
-`store_bench` is **not** built by `bootstrap` or the functional matrix — build it explicitly
-(`-DJAC313_BUILD_STORE_TESTS=ON`, **Release** for real numbers), once per compiler:
+## 2. Throughput
 
 ```bash
-$ACT cmake -G Ninja -S . -B build-bench -DCMAKE_BUILD_TYPE=Release -DJAC313_BUILD_STORE_TESTS=ON \
-  -DCMAKE_CXX_COMPILER=/opt/rh/gcc-toolset-15/root/usr/bin/g++     # or g++-15 / /usr/bin/clang++
-$ACT cmake --build build-bench --target jac313_store_bench
-B=build-bench/Store/tests/matrix/jac313_store_bench
+./jac313_test_cli --group-id         # PRECHECK: existing groups + this machine's proposed group_id (read-only)
+./jac313_test_cli --bench            # build Release, run the curated suite — numbers to stdout, NOT recorded
+./jac313_test_cli --bench --report   # record → test-summary/bench_results.db + render README + Run_NNN.md
 ```
 
-Then:
+Run `--group-id` first to see whether recording reuses an existing group or creates a new one (a
+machine recorded before the registry existed resolves to a new id unless you pin `host_label.local`).
 
-```bash
-echo jac313-NNN > host_label.local                 # this box's label — BEFORE the first record
-$ACT $B --suite --smoke                             # 10 configs ≤10k events — correctness gate (expect 10/10)
-$ACT $B --suite --db test-summary/bench_results.db --jtext-ver v002.002   # recorded full run → group N / Run_NNN
-$ACT $B --report --db test-summary/bench_results.db                       # render README index + Run_NNN.md
-```
+`--bench` configures a Release `build-bench`, builds the `jac313_store_bench` target, and runs the
+curated 10-config suite. `--report` additionally records to the tracked DB and renders the report.
 
-**For a second compiler:** rebuild `store_bench` with it (clang on RHEL must configure/build
-**under `scl enable gcc-toolset-15 --`** for a C++26 libstdc++) and re-run `--suite` into the
-**same** DB — the `compiler` column splits the rows; `--report` then renders the clang-vs-gcc
-tables. There is no automatic gcc+clang sweep — it's manual by decision (the suite is short).
+**Host label is auto-resolved** — no manual `host_label.local`. A run's group is its **hardware + OS**
+identity `(cpu, cores, ram_gb, os)`, compared against the recorded groups: same hardware+OS reuses
+its `jac313-<group_id>`, new hardware/OS gets the next number — so no real hostname ever enters the
+DB. A `host_label.local` / `$JAC313_HOST_LABEL` still overrides. Preview with `--group-id`.
 
-> **Set `host_label.local` before the first record, and never anonymize mid-group.** `group_id`
-> is keyed on the full `(cpu, cores, ram_gb, host, os)` identity — record under the real hostname,
-> anonymize, then run a second compiler, and its row no longer matches that identity and opens a
-> *new* group. (`store_bench --anonymize` scrubs hostnames → `jac313-<group_id>`; run it **last**.)
+**A second compiler:** add `--clang`, re-run `--bench --report` into the same DB — the `compiler`
+column splits the rows and the report renders the clang-vs-gcc tables. No automatic gcc+clang sweep
+(manual by decision — the suite is short).
 
-The recorded test matrix is therefore: `--suite --smoke` in **Debug and Release**, and the
-recorded `--suite` in **Release only**, each × `{gcc15, clang}`.
+> Under the hood this drives `store_bench` (`--suite` / `--suite --db …` / `--report --db …`); see
+> [Benchmarks.md](Benchmarks.md) to run a single config or use `--dry-run` / `--anonymize` directly.
 
 ---
 
-## 3. Memory / thread gate — `verify`
+## 3. Memory / thread gate
 
 Valgrind **memcheck + helgrind + DRD** (all ship in the one valgrind package, which `bootstrap`
 *requires*):
 
 ```bash
-$ACT $CLI matrix verify-lite     # ctest representative set        (~31 checks, ~3 min)
-$ACT $CLI matrix verify          # + full smoke-matrix sink sweep  (~60 checks, ~6 min)
+./jac313_test_cli --verify-lite     # memcheck over ctest + smoke surface  (~31 checks, ~3 min)
+./jac313_test_cli --verify          # + helgrind/DRD + full sink sweep      (~60 checks, ~6 min)
 ```
 
-Verdict-only (no DB write) — non-zero exit on any error. `verify-lite` is the pre-push gate
+Verdict-only (no DB write) — non-zero exit on any error. `--verify-lite` is the pre-push gate
 (installed by `bootstrap` into the shared parent `.git/hooks`); bypass once with
 `git push --no-verify`.
 
@@ -145,13 +142,11 @@ Verdict-only (no DB write) — non-zero exit on any error. `verify-lite` is the 
 
 | Gate | Command | Scope |
 |------|---------|-------|
-| Functional | `matrix runner …` | one explicit cell: ctest + persist×output matrix (pass/fail) |
-| Functional (quick) | `matrix run` | the matrix for the current/auto config |
-| Throughput (gate) | `store_bench --suite --smoke` | 10 configs ≤10k events, pass/fail, not recorded |
-| Throughput (recorded) | `store_bench --suite --db …` | the curated 10, median + low–high band → DB |
-| Report | `store_bench --report --db …` | DB → `test-summary/README.md` + `Run_NNN.md` |
-| Memory/thread | `matrix verify[-lite]` | valgrind memcheck + helgrind/DRD |
+| Functional | `--ctest` / `--smoke` (or `matrix runner …`) | ctest suite + persist×output matrix (pass/fail) |
+| Throughput (gate) | `--bench` | curated suite, numbers to stdout, not recorded |
+| Throughput (recorded) | `--bench --report` | median + low–high band → DB + rendered report |
+| Memory/thread | `--verify-lite` / `--verify` | valgrind memcheck + helgrind/DRD |
 
-Functional and valgrind gates are pass/fail only — they record nothing. The only persisted
-results are the throughput numbers in the tracked `test-summary/bench_results.db` and the
-markdown pages rendered from it.
+Functional and valgrind gates are pass/fail only — they record nothing. The only persisted results
+are the throughput numbers in the tracked `test-summary/bench_results.db` and the markdown pages
+rendered from it.

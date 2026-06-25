@@ -60,6 +60,7 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 
 | Doc | Contents |
 |-----|----------|
+| [docs/QuickStart.md](docs/QuickStart.md) | **Start here** — the fast **base check**: `./jac313_test_cli --ctest --smoke` to a green tree in ~20 s (composable preset gates; writes a re-runnable `run_latest_config.sh`) |
 | [docs/Setup.md](docs/Setup.md) | Toolchain, **bootstrapping**, building, and **running the tests** |
 | [docs/RunAllTests.md](docs/RunAllTests.md) | One-stop **runbook** — the full battery (gcc15 + clang; smoke + full Debug + full Release; modules + no-modules; optional valgrind) |
 | [docs/Modules.md](docs/Modules.md) | C++23 modules + the `import std;` story (quirks / blessings / curses) |
@@ -93,43 +94,35 @@ expected under the `v00N/` layout, not a bug.
 cd v002 && ./bootstrap.sh          # sense toolchain → build the test runner → readiness check
 ```
 
-`bootstrap.sh` senses the compiler (**on RHEL it activates `gcc-toolset-15` for you** via
-`scl enable`), checks the baseline (g++ ≥ 14, Clang ≥ 20, CMake ≥ 3.26 — exactly **4.3.3** for the
-`import std` pilot, Ninja ≥ 1.11, the sqlite3 dev header, a UTF-8 locale), and if anything is
-missing writes a reviewable `Setup.sh` and stops. It builds **only the test runner** (Debug) —
-package tests and the benchmark are separate, opt-in builds.
+`bootstrap.sh` senses the compiler (on RHEL it activates `gcc-toolset-15` for you), checks the
+baseline (g++ ≥ 14, Clang ≥ 20, CMake ≥ 3.26 — exactly **4.3.3** for the `import std` pilot, Ninja ≥
+1.11, the sqlite3 dev header, a UTF-8 locale), and if anything is missing writes a reviewable
+`Setup.sh` and stops. It builds **only the test runner** (Debug) and drops a `./jac313_test_cli`
+symlink at the `v002/` root.
 
-**Build + run the package tests** (`-DJAC313_BUILD_STORE_TESTS=ON`):
-
-```bash
-# Linux Mint (g++-15 on PATH):
-cmake -G Ninja -S . -B build-gcc15 -DCMAKE_CXX_COMPILER=g++-15 -DJAC313_BUILD_STORE_TESTS=ON
-# RHEL family — activate the toolset, point at its g++:
-scl enable gcc-toolset-15 -- cmake -G Ninja -S . -B build-gcc15 \
-  -DCMAKE_CXX_COMPILER=/opt/rh/gcc-toolset-15/root/usr/bin/g++ -DJAC313_BUILD_STORE_TESTS=ON
-cmake --build build-gcc15 && ctest --test-dir build-gcc15
-```
-
-**Throughput benchmarks** — `store_bench` *is* the curated suite; build it **Release** for real
-numbers (it isn't built by the steps above). Prefix the `cmake`/run lines with
-`scl enable gcc-toolset-15 --` on RHEL:
+**Base check** — one entry point, composable gate flags; no `scl` prefix, no raw cmake (see
+**[docs/QuickStart.md](docs/QuickStart.md)**):
 
 ```bash
-cmake -G Ninja -S . -B build-bench -DCMAKE_BUILD_TYPE=Release -DJAC313_BUILD_STORE_TESTS=ON \
-  -DCMAKE_CXX_COMPILER=<g++-15 | clang++ | toolset g++ path>
-cmake --build build-bench --target jac313_store_bench
-B=build-bench/Store/tests/matrix/jac313_store_bench
-echo jac313-NNN > host_label.local            # this box's label — set BEFORE the first record (see below)
-$B --suite --smoke                            # fast correctness gate (expect 10/10), not recorded
-$B --suite --db test-summary/bench_results.db --jtext-ver v002.002   # full run → group N / Run_NNN
-$B --report --db test-summary/bench_results.db                       # render README index + Run_NNN.md
+./jac313_test_cli --ctest --smoke      # ctest unit suite (36) + persist×output smoke matrix (116), ~20 s
 ```
 
-> **Set `host_label.local` before the first record.** `group_id` is keyed on the full
-> `(cpu, cores, ram_gb, host, os)` identity. If you record under the real hostname, anonymize, then
-> run a **second compiler**, its row no longer matches that identity and lands in a *new* group.
-> Pinning the label up front (or `JAC313_HOST_LABEL=jac313-NNN`) keeps every run in one group.
-> For a second compiler, rebuild the bench with it and re-run `--suite` into the **same** DB.
+Every preset invocation writes the exact commands to **`./run_latest_config.sh`** and runs them, so
+you can re-run the identical run with `bash run_latest_config.sh`. The gates compose:
+
+```bash
+./jac313_test_cli --ctest              # just the unit suite
+./jac313_test_cli --smoke              # just the smoke matrix
+./jac313_test_cli --bench              # throughput numbers (not recorded)
+./jac313_test_cli --bench --report     # record → test-summary/ + render the report
+./jac313_test_cli --verify-lite        # valgrind memcheck gate (the pre-push hook)
+```
+
+`--bench --report` auto-resolves the machine to `jac313-<group_id>` by matching its **hardware + OS**
+`(cpu, cores, ram_gb, os)` against the recorded groups — same hardware+OS reuses its group, no real
+hostname stored, no manual `host_label.local` (run `--group-id` to preview). For a second compiler,
+add `--clang` and re-run into the same DB. Full battery
+(clang, `--size full`, modules) and the explicit single-cell `runner`: [docs/RunAllTests.md](docs/RunAllTests.md).
 
 C++26 baseline (`cxx_std_26`; g++-15 / Clang 21). Full prerequisites, the toolchain story, and the
 benchmark runbook are in [docs/Setup.md](docs/Setup.md) and [docs/Benchmarks.md](docs/Benchmarks.md).

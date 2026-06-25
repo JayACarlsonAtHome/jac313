@@ -218,6 +218,12 @@ $ACT cmake -G Ninja -S "$ROOT" -B "$BUILD" \
 $ACT cmake --build "$BUILD" --target jac313_test_cli
 CLI="$BUILD/tools/jac313_test_cli"
 
+# Convenience entry point: a symlink at the v002/ root so everyday use is ./jac313_test_cli
+# instead of the deep build path. Relative target survives a repo move; it's gitignored
+# (the target lives in the gitignored build-bootstrap/).
+ln -sfn "build-bootstrap/tools/jac313_test_cli" "$ROOT/jac313_test_cli"
+echo "Linked ./jac313_test_cli -> build-bootstrap/tools/jac313_test_cli"
+
 # --- install the pre-push gate hook (git hooks are local, not version-controlled) ---
 # Runs the valgrind verify-lite before every push. Bypass once with: git push --no-verify
 # Under the v00N/ layout the repo's .git lives at the PARENT root (shared by every
@@ -248,8 +254,11 @@ echo "=== handing off to jac313_test_cli ==="
 $ACT "$CLI" setup
 
 echo
-echo "Bootstrap complete. The tool now drives platform-aware builds — e.g.:"
-echo "  $ACT $CLI matrix run-all"
+echo "Bootstrap complete. Run the everyday base check from v002/:"
+echo "  ./jac313_test_cli --ctest --smoke      # ctest unit suite + smoke matrix"
 echo
-echo "To run the FULL battery (gcc15 + clang; smoke + full Debug + full Release), see:"
+echo "It writes the exact commands to ./run_latest_config.sh and runs them — re-run that"
+echo "script any time. Gates compose: add --bench --report, --verify-lite, or --verify."
+echo
+echo "Full battery (gcc15 + clang; smoke + full Debug/Release; modules) — see:"
 echo "  docs/RunAllTests.md"
