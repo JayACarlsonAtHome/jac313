@@ -63,7 +63,7 @@ Host:     Intel Core Ultra 7 265 · 12 cores · 23 GB · Fedora Linux 44 · Rele
 Versions: Store v002.004 · Qlite v002.002 · jText v002.002
 ```
 
-Flag-overhead (non-durable, 10M×10):
+Flag-overhead (non-durable) — 10M Events × 10 Runs = 100M Events per config:
 
 | Flags | ops/sec    | σ    |
 |-------|------------|------|
@@ -72,7 +72,7 @@ Flag-overhead (non-durable, 10M×10):
 | 4     | 23,425,087 | 1.2% |
 | 6     | 23,832,126 | 1.8% |
 
-Durable (1M×3, median | low–high band):
+Durable — 1M Events × 3 Runs = 3M Events per config (median | low–high band):
 
 | Backend | median    | band          |
 |---------|-----------|---------------|
