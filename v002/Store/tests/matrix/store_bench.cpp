@@ -378,7 +378,9 @@ int run_suite(Params base, bool dry) {
     for (int n : {0, 2, 4, 6})
         cfgs.push_back({"none", n, std::to_string(n) + " flags, non-durable", 200000, 10});
     for (const char* pn : {"jtext", "sql", "binary"})
-        cfgs.push_back({std::string(pn), 0, std::string("durable ") + pn, 20000, 3});
+        cfgs.push_back({std::string(pn), 0, std::string("durable ") + pn, 20000, 3});          // 1M × 3
+    for (const char* pn : {"jtext", "sql", "binary"})
+        cfgs.push_back({std::string(pn), 0, std::string("durable ") + pn + " @10M", 200000, 3}); // 10M × 3 (scaling)
 
     if (dry) {
         std::cout << "# Store benchmark suite — 7 configs (run from the build dir)\n\n";
@@ -417,15 +419,17 @@ std::string bytes_human(std::int64_t b) {
 // one <td> cell: the speed table (Flags or Backend) for a single host+compiler.
 // GitHub renders the inner markdown table because of the blank lines around it.
 void emit_speed_cell(jac313::Qlite::v002::Sqlite& db, const std::string& hq,
-                     const std::string& compiler, bool durable) {
+                     const std::string& compiler, bool durable, std::int64_t dtotal = 0) {
     const std::string cq = "'" + compiler + "'";
     std::cout << "<td>\n\n**" << compiler << "**\n\n";
     if (durable) {
+        const std::string ev = std::to_string(dtotal);
         std::cout << "| Backend | Median Ops/Sec | Band (Low–High) |\n|---|--:|---|\n";
         auto st = db.prepare(
             "SELECT persist,median_ops,low_ops,high_ops FROM bench_run b WHERE host=" + hq +
-            " AND compiler=" + cq + " AND persist<>'none' AND ts_utc=(SELECT MAX(ts_utc) FROM bench_run "
-            "WHERE host=b.host AND compiler=b.compiler AND persist=b.persist) "
+            " AND compiler=" + cq + " AND persist<>'none' AND threads*events_per_thread=" + ev +
+            " AND ts_utc=(SELECT MAX(ts_utc) FROM bench_run WHERE host=b.host AND compiler=b.compiler "
+            "AND persist=b.persist AND threads*events_per_thread=" + ev + ") "
             "ORDER BY median_ops DESC");
         while (st.step()) {
             std::string p; std::int64_t med, low, high; st.get(p, med, low, high);
@@ -489,30 +493,34 @@ int report_from_db(const std::string& db_path) {
                   std::cout << "</tr></table>\n\n";
               }
             }
-            // --- durable: side-by-side per compiler ---
-            { auto [tot, runs] = counts("persist<>'none'");
-              if (tot) {
-                  std::cout << "### Durable — " << milint(tot) << " Events × " << runs
-                            << " Runs<br>That's " << milint(tot * static_cast<std::uint64_t>(runs)) << " Events per config\n\n"
-                            << "<table><tr>\n";
-                  for (const auto& c : comps) emit_speed_cell(db, hq, c, true);
+            // --- durable: one side-by-side grid PER event-size (scaling: 1M vs 10M) ---
+            { std::vector<std::pair<std::int64_t, std::int64_t>> dsz;
+              { auto st = db.prepare("SELECT DISTINCT threads*events_per_thread AS tot, runs FROM bench_run "
+                                     "WHERE host=" + hq + " AND persist<>'none' ORDER BY tot");
+                while (st.step()) { std::int64_t t, r; st.get(t, r); dsz.push_back({t, r}); } }
+              for (const auto& [tot, runs] : dsz) {
+                  std::cout << "### Durable — " << milint(static_cast<std::uint64_t>(tot)) << " Events × " << runs
+                            << " Runs<br>That's " << milint(static_cast<std::uint64_t>(tot) * static_cast<std::uint64_t>(runs))
+                            << " Events per config\n\n<table><tr>\n";
+                  for (const auto& c : comps) emit_speed_cell(db, hq, c, true, tot);
                   std::cout << "</tr></table>\n\n";
               }
             }
-            // --- persisted size: ONE table (compiler-independent) ---
+            // --- persisted size: per backend × event-size (compiler-independent) ---
             { auto st = db.prepare(
-                  "SELECT persist, bytes FROM bench_run b WHERE host=" + hq + " AND persist<>'none' "
-                  "AND ts_utc=(SELECT MAX(ts_utc) FROM bench_run WHERE host=b.host AND persist=b.persist) "
-                  "GROUP BY persist ORDER BY bytes DESC");
+                  "SELECT persist, threads*events_per_thread AS tot, bytes FROM bench_run b WHERE host=" + hq +
+                  " AND persist<>'none' AND ts_utc=(SELECT MAX(ts_utc) FROM bench_run WHERE host=b.host "
+                  "AND persist=b.persist AND threads*events_per_thread=b.threads*b.events_per_thread) "
+                  "GROUP BY persist, tot ORDER BY tot, bytes DESC");
               bool first = true;
               while (st.step()) {
-                  std::string p; std::int64_t by; st.get(p, by);
+                  std::string p; std::int64_t tot, by; st.get(p, tot, by);
                   if (first) {
                       std::cout << "### Persisted size — jText vs SQL vs binary (same across compilers)\n\n"
-                                << "| Backend | On-disk size |\n|---|--:|\n";
+                                << "| Backend | Events | On-disk size |\n|---|--:|--:|\n";
                       first = false;
                   }
-                  std::cout << "| " << p << " | " << bytes_human(by) << " |\n";
+                  std::cout << "| " << p << " | " << milint(static_cast<std::uint64_t>(tot)) << " | " << bytes_human(by) << " |\n";
               }
               if (!first) std::cout << "\n";
             }
