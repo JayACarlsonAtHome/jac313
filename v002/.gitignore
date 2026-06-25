@@ -37,10 +37,6 @@ test-results/
 # Matrix persist spillover at repo root (cwd-relative test output)
 /persist*
 
-# store_bench persist output at repo root (default base-name "bench", cwd-relative)
-/bench.*
-/bench_*
-
 # Auto-generated, per-machine sensed-environment snapshot (informational only)
 /FileCheckList.txt
 
