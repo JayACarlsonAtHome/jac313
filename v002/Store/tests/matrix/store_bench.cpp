@@ -367,6 +367,49 @@ void ensure_group_schema(jac313::Qlite::v002::Sqlite& db) {
     }
 }
 
+// testType: a small reference/dimension table naming the runner's test kinds, so results can be
+// categorized by type. Created + seeded idempotently (CREATE IF NOT EXISTS + INSERT OR IGNORE), so
+// it's safe to call on every DB open and never disturbs existing rows.
+void ensure_testtype_schema(jac313::Qlite::v002::Sqlite& db) {
+    db.exec("CREATE TABLE IF NOT EXISTS testType ("
+            "id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, description TEXT)");
+    db.exec("INSERT OR IGNORE INTO testType(name, description) VALUES"
+            " ('ctest',       'ctest unit suite'),"
+            " ('smoke',       'persist x output smoke matrix'),"
+            " ('bench',       'throughput benchmark suite'),"
+            " ('verify-lite', 'valgrind memcheck gate'),"
+            " ('verify',      'valgrind memcheck + helgrind + DRD')");
+
+    // testList: the catalog of individual tests (id + name). store_bench seeds its own 7 bench
+    // suite configs here; jac313_test_cli seeds the discovered ctest/smoke names. INSERT OR IGNORE
+    // means both sources merge and re-runs are no-ops. (The @10M durable runs reuse jtext/sql/binary
+    // with a larger event count — same test, a scale parameter, so they are not separate entries.)
+    db.exec("CREATE TABLE IF NOT EXISTS testList ("
+            "id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL)");
+    db.exec("INSERT OR IGNORE INTO testList(name) VALUES"
+            " ('0 flags, non-durable'),"
+            " ('2 flags, non-durable'),"
+            " ('4 flags, non-durable'),"
+            " ('6 flags, non-durable'),"
+            " ('durable jtext'),"
+            " ('durable sql'),"
+            " ('durable binary')");
+
+    // Link results to their type: bench_run.test_type_id -> testType.id. Add the column on older
+    // DBs and backfill existing rows to 'bench' (the only kind that records today). Idempotent;
+    // guarded on bench_run existing (a brand-new DB creates the column in CREATE TABLE).
+    std::int64_t has_tbl = 0;
+    { auto st = db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='bench_run'");
+      if (st.step()) st.get(has_tbl); }
+    if (has_tbl == 0) return;
+    std::int64_t has_col = 0;
+    { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('bench_run') WHERE name='test_type_id'");
+      if (st.step()) st.get(has_col); }
+    if (has_col == 0) db.exec("ALTER TABLE bench_run ADD COLUMN test_type_id INTEGER");
+    db.exec("UPDATE bench_run SET test_type_id=(SELECT id FROM testType WHERE name='bench') "
+            "WHERE test_type_id IS NULL");
+}
+
 // Resolve the group_id for this machine's (hardware, os) identity: a plain compare against the
 // recorded groups — reuse the match, else allocate the next. No hostname, no side registry.
 std::int64_t group_id_for(jac313::Qlite::v002::Sqlite& db, const HostInfo& h) {
@@ -383,6 +426,128 @@ std::string host_label_for(std::int64_t gid) {
     char b[24]; std::snprintf(b, sizeof b, "jac313-%03lld", static_cast<long long>(gid)); return b;
 }
 
+// ============================================================================
+// results.db — the unified, normalized results database (run / parameter / testRun + the
+// testType / testList catalogs). store_bench writes here IN ADDITION to the legacy bench_run
+// table during the port-over. It's a sibling file next to the bench DB (results.db).
+// ============================================================================
+std::filesystem::path results_db_path(const std::string& bench_db_path) {
+    namespace fs = std::filesystem;
+    const fs::path p(bench_db_path);
+    return (p.has_parent_path() ? p.parent_path() : fs::path(".")) / "results.db";
+}
+
+void ensure_results_schema(jac313::Qlite::v002::Sqlite& db) {
+    db.exec("CREATE TABLE IF NOT EXISTS testType (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, description TEXT)");
+    db.exec("INSERT OR IGNORE INTO testType(name, description) VALUES"
+            " ('ctest','ctest unit suite'),('smoke','persist x output smoke matrix'),"
+            " ('bench','throughput benchmark suite'),('verify-lite','valgrind memcheck gate'),"
+            " ('verify','valgrind memcheck + helgrind + DRD')");
+    db.exec("CREATE TABLE IF NOT EXISTS testList (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL)");
+    db.exec("INSERT OR IGNORE INTO testList(name) VALUES"
+            " ('0 flags, non-durable'),('2 flags, non-durable'),('4 flags, non-durable'),"
+            " ('6 flags, non-durable'),('durable jtext'),('durable sql'),('durable binary')");
+    db.exec("CREATE TABLE IF NOT EXISTS parameter ("
+            "id INTEGER PRIMARY KEY, compiler TEXT, build_type TEXT, modules TEXT, size TEXT, "
+            "persist TEXT, output_mode TEXT, threads INTEGER, events_per_thread INTEGER, runs INTEGER, "
+            "batch INTEGER, flag_count INTEGER, "
+            "UNIQUE(compiler,build_type,modules,size,persist,output_mode,threads,events_per_thread,runs,batch,flag_count))");
+    db.exec("CREATE TABLE IF NOT EXISTS run ("
+            "run_id INTEGER PRIMARY KEY, ts_utc TEXT, group_id INTEGER, host TEXT, cpu TEXT, cores INTEGER, "
+            "ram_gb INTEGER, os TEXT, store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
+    db.exec("CREATE TABLE IF NOT EXISTS testRun ("
+            "id INTEGER PRIMARY KEY, run_id INTEGER, test_type_id INTEGER, test_list_id INTEGER, parameter_id INTEGER, "
+            "status TEXT, duration_ms INTEGER, median_ops INTEGER, low_ops INTEGER, high_ops INTEGER, "
+            "avg_ops INTEGER, stddev_ops INTEGER, bytes INTEGER)");
+}
+
+// group_id in results.db is resolved from the run table by hardware+os identity (same rule as
+// bench_run's group_id_for), so a machine keeps its number across the two databases.
+std::int64_t results_group_id(jac313::Qlite::v002::Sqlite& db, const HostInfo& h) {
+    std::int64_t gid = 0;
+    { auto st = db.prepare("SELECT group_id FROM run WHERE cpu=? AND cores=? AND ram_gb=? AND os=? LIMIT 1");
+      st.bind(h.cpu, h.cores, h.ram_gb, h.os); if (st.step()) st.get(gid); }
+    if (gid == 0) { auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM run"); if (st.step()) st.get(gid); }
+    return gid;
+}
+
+std::int64_t results_next_run_id(jac313::Qlite::v002::Sqlite& db) {
+    std::int64_t n = 1;
+    { auto st = db.prepare("SELECT COALESCE(MAX(run_id),0)+1 FROM run"); if (st.step()) st.get(n); }
+    return n;
+}
+
+// Allocate the next results.db run_id up front (one per --suite run, shared by all its configs).
+std::int64_t next_results_run_id(const std::string& bench_db_path) {
+    try {
+        jac313::Qlite::v002::Sqlite db(results_db_path(bench_db_path).string());
+        ensure_results_schema(db);
+        return results_next_run_id(db);
+    } catch (...) { return 0; }
+}
+
+std::int64_t results_lookup_id(jac313::Qlite::v002::Sqlite& db, const char* sql, const std::string& name) {
+    std::int64_t id = 0; auto st = db.prepare(sql); st.bind(name); if (st.step()) st.get(id); return id;
+}
+
+// Insert-or-find a bench parameter combo (build_type Release, modules off; size/output_mode/batch
+// N/A => NULL). SELECT-then-INSERT, because a UNIQUE over NULL-bearing columns won't dedupe in SQLite.
+std::int64_t parameter_id_bench(jac313::Qlite::v002::Sqlite& db, const std::string& compiler,
+                                const std::string& persist, std::int64_t threads, std::int64_t events,
+                                std::int64_t runs, std::int64_t flags) {
+    const char* where =
+        "SELECT id FROM parameter WHERE compiler=? AND build_type='Release' AND modules='off' AND size IS NULL "
+        "AND persist=? AND output_mode IS NULL AND threads=? AND events_per_thread=? AND runs=? AND batch IS NULL "
+        "AND flag_count=?";
+    auto find = [&]() -> std::int64_t {
+        std::int64_t id = 0; auto st = db.prepare(where);
+        st.bind(compiler, persist, threads, events, runs, flags); if (st.step()) st.get(id); return id;
+    };
+    std::int64_t id = find();
+    if (id == 0) {
+        db.exec("INSERT INTO parameter(compiler,build_type,modules,size,persist,output_mode,threads,"
+                "events_per_thread,runs,batch,flag_count) VALUES(?, 'Release','off', NULL, ?, NULL, ?, ?, ?, NULL, ?)",
+                compiler, persist, threads, events, runs, flags);
+        id = find();
+    }
+    return id;
+}
+
+// Write one normalized testRun fact (resolving run / parameter / testList / testType) into results.db.
+void record_to_results_db(const Params& p, const BenchSummary& s) {
+    if (p.db_path.empty()) return;
+    try {
+        jac313::Qlite::v002::Sqlite db(results_db_path(p.db_path).string());
+        ensure_results_schema(db);
+        HostInfo h = sense_host();
+        const std::int64_t group_id = results_group_id(db, h);
+        if (host_label_override().empty()) h.host = host_label_for(group_id);
+        const std::int64_t run_id = (p.run_id != 0) ? p.run_id : results_next_run_id(db);
+        db.exec("INSERT OR IGNORE INTO run(run_id, ts_utc, group_id, host, cpu, cores, ram_gb, os, "
+                "store_ver, qlite_ver, jtext_ver) VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?,?, ?,?,?)",
+                run_id, group_id, h.host, h.cpu, h.cores, h.ram_gb, h.os,
+                std::string(jac313::Store::v002::version()), std::string(jac313::Qlite::v002::version()), p.jtext_ver);
+        std::string base = p.label;
+        if (const auto pos = base.find(" @10M"); pos != std::string::npos) base.erase(pos, 5);
+        const std::int64_t test_list_id = results_lookup_id(db, "SELECT id FROM testList WHERE name=?", base);
+        const std::int64_t test_type_id = results_lookup_id(db, "SELECT id FROM testType WHERE name=?", std::string("bench"));
+        const std::int64_t flags = set_flag_count(p.flags);
+        const std::int64_t param_id = parameter_id_bench(db, compiler_id(), p.persist,
+            static_cast<std::int64_t>(p.threads), static_cast<std::int64_t>(p.events_per_thread),
+            static_cast<std::int64_t>(p.runs), flags);
+        const std::int64_t bytes = (p.persist == "none") ? 0
+                                 : static_cast<std::int64_t>(measure_output_bytes(p.base_name));
+        db.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms, "
+                "median_ops, low_ops, high_ops, avg_ops, stddev_ops, bytes) VALUES(?,?,?,?, NULL, NULL, ?,?,?,?,?, ?)",
+                run_id, test_type_id, test_list_id, param_id,
+                static_cast<std::int64_t>(s.median), static_cast<std::int64_t>(s.low),
+                static_cast<std::int64_t>(s.high), static_cast<std::int64_t>(s.avg),
+                static_cast<std::int64_t>(s.stddev), bytes);
+    } catch (const std::exception& e) {
+        std::cerr << "[results] record failed: " << e.what() << "\n";
+    }
+}
+
 void record_to_db(const Params& p, const BenchSummary& s) {
     if (p.db_path.empty()) return;
     try {
@@ -391,6 +556,7 @@ void record_to_db(const Params& p, const BenchSummary& s) {
 CREATE TABLE IF NOT EXISTS bench_run (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
     group_id          INTEGER NOT NULL,
+    test_type_id      INTEGER,
     ts_utc            TEXT NOT NULL,
     host TEXT, cpu TEXT, cores INTEGER, ram_gb INTEGER, os TEXT, compiler TEXT,
     store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT,
@@ -400,6 +566,7 @@ CREATE TABLE IF NOT EXISTS bench_run (
 )
 )SQL");
         ensure_group_schema(db);          // migrate older DBs: add + backfill group_id
+        ensure_testtype_schema(db);       // reference table of test kinds
         HostInfo h = sense_host();
         const std::int64_t group_id = group_id_for(db, h);
         // Record the anonymized jac313-<group_id> as host (no real hostname in the committed DB)
@@ -408,10 +575,10 @@ CREATE TABLE IF NOT EXISTS bench_run (
         const std::int64_t bytes = (p.persist == "none") ? 0
                                  : static_cast<std::int64_t>(measure_output_bytes(p.base_name));
         db.exec(
-            "INSERT INTO bench_run(group_id, ts_utc, host, cpu, cores, ram_gb, os, compiler, store_ver, qlite_ver, jtext_ver, "
+            "INSERT INTO bench_run(group_id, test_type_id, ts_utc, host, cpu, cores, ram_gb, os, compiler, store_ver, qlite_ver, jtext_ver, "
             "label, threads, events_per_thread, persist, flag_count, runs, events, bytes, "
             "median_ops, high_ops, low_ops, avg_ops, stddev_ops) VALUES("
-            "?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?, ?, ?,?,?, ?,?,?,?,?, ?,?, ?, ?,?,?,?,?)",
+            "?, (SELECT id FROM testType WHERE name='bench'), strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?, ?, ?,?,?, ?,?,?,?,?, ?,?, ?, ?,?,?,?,?)",
             group_id, h.host, h.cpu, h.cores, h.ram_gb, h.os, compiler_id(),
             std::string(jac313::Store::v002::version()),
             std::string(jac313::Qlite::v002::version()),
@@ -433,6 +600,7 @@ CREATE TABLE IF NOT EXISTS bench_run (
     } catch (const std::exception& e) {
         std::cerr << "[db] record failed: " << e.what() << "\n";
     }
+    record_to_results_db(p, s);   // also write the normalized results.db (port-over target)
 }
 #else
 void record_to_db(const Params&, const BenchSummary&) {}   // built without SQL persist -> no DB
@@ -513,7 +681,9 @@ int run_suite(Params base, bool dry, bool smoke) {
         return 0;
     }
 
-    // full: the recorded throughput benchmark
+    // full: the recorded throughput benchmark. Allocate ONE results.db run_id up front so every
+    // config in this suite shares it (that's what "ran together" means).
+    if (!base.db_path.empty()) base.run_id = next_results_run_id(base.db_path);
     for (const auto& cf : cfgs) {
         Params p = base;
         p.persist = cf.persist; p.flags = flags_by_count(cf.flags); p.label = cf.label;
@@ -651,6 +821,7 @@ int report_from_db(const std::string& db_path, const std::string& out_dir) {
         namespace fs = std::filesystem;
         jac313::Qlite::v002::Sqlite db(db_path);
         ensure_group_schema(db);
+        ensure_testtype_schema(db);
         struct G { std::int64_t gid = 0, cores = 0, ram = 0, max_ops = 0; std::string host, os, cpu, sv, ts; };
         std::vector<G> groups;
         { auto st = db.prepare(
@@ -796,6 +967,7 @@ int group_id_precheck(const std::string& db_path_in) {
               has_tbl = st.step(); }
             if (has_tbl) {
                 ensure_group_schema(db);
+                ensure_testtype_schema(db);
                 { auto st = db.prepare("SELECT group_id, host, cpu, cores, ram_gb, os, MAX(median_ops) "
                                        "FROM bench_run GROUP BY group_id ORDER BY group_id");
                   while (st.step()) {

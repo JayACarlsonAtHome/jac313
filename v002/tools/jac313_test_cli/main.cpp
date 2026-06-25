@@ -16,6 +16,8 @@
 #include "host_hardware.hpp"
 #include "runner.hpp"
 
+#include <jac313/Qlite/v002.hpp>   // shared testList catalog in the bench results DB
+
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -121,6 +123,30 @@ int run_list_command(const GlobalOptions& global) {
     return 0;
 }
 
+// Seed the discovered test names into the shared testList catalog (bench_results.db). Best-effort:
+// the catalog is a convenience, never block a run on it. CREATE IF NOT EXISTS + INSERT OR IGNORE,
+// so it merges with store_bench's bench-config entries and a re-run writes nothing (no DB churn).
+void seed_test_catalog(const fs::path& source_dir, const std::vector<TestEntry>& tests) {
+    const fs::path db_path = source_dir / "test-summary" / "bench_results.db";
+    std::error_code ec;
+    if (!fs::exists(db_path.parent_path(), ec)) {
+        return;   // no test-summary/ -> nothing to catalog into
+    }
+    try {
+        jac313::Qlite::v002::Sqlite db(db_path.string());
+        db.exec("CREATE TABLE IF NOT EXISTS testList (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL)");
+        for (const auto& t : tests) {
+            db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", t.name);
+        }
+    } catch (const std::exception&) {
+        // best-effort: a catalog write failure never fails the test run
+    }
+}
+
+// Defined further down (next to the other results.db recorders); declared here for run_tests_command.
+void record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
+                          const std::vector<TestResult>& results);
+
 int run_tests_command(const GlobalOptions& global, const RunOptions& opts,
                       const std::optional<fs::path>& report_path)
 {
@@ -130,6 +156,7 @@ int run_tests_command(const GlobalOptions& global, const RunOptions& opts,
         std::cerr << "Hint: jac313_test_cli configure && jac313_test_cli build\n";
         return 1;
     }
+    seed_test_catalog(global.source_dir, tests);   // record the discovered names in testList
 
     if (opts.list_only) {
         return run_list_command(global);
@@ -148,6 +175,8 @@ int run_tests_command(const GlobalOptions& global, const RunOptions& opts,
     }
     const auto summary = summarize(results);
     print_summary(summary, results);
+
+    record_ctest_results(global.source_dir, global.build_dir, results);   // capture into results.db
 
     if (report_path) {
         if (write_summary_file(*report_path, summary, results)) {
@@ -290,6 +319,187 @@ int run_setup_command(const GlobalOptions& global) {
 // transient toolchain issue, e.g. clang-scan-deps).
 constexpr int kBuildPhaseFailed = 2;
 
+// ---- results.db (CLI side): capture functional smoke results as testRun rows ----
+// NOTE: this schema MUST match store_bench's ensure_results_schema (two writers, one DB).
+// TODO: factor the shared schema/resolution into a common header to remove the duplication.
+void cli_ensure_results_schema(jac313::Qlite::v002::Sqlite& db) {
+    db.exec("CREATE TABLE IF NOT EXISTS testType (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, description TEXT)");
+    db.exec("INSERT OR IGNORE INTO testType(name, description) VALUES"
+            " ('ctest','ctest unit suite'),('smoke','persist x output smoke matrix'),"
+            " ('bench','throughput benchmark suite'),('verify-lite','valgrind memcheck gate'),"
+            " ('verify','valgrind memcheck + helgrind + DRD')");
+    db.exec("CREATE TABLE IF NOT EXISTS testList (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL)");
+    db.exec("CREATE TABLE IF NOT EXISTS parameter (id INTEGER PRIMARY KEY, compiler TEXT, build_type TEXT, "
+            "modules TEXT, size TEXT, persist TEXT, output_mode TEXT, threads INTEGER, events_per_thread INTEGER, "
+            "runs INTEGER, batch INTEGER, flag_count INTEGER, "
+            "UNIQUE(compiler,build_type,modules,size,persist,output_mode,threads,events_per_thread,runs,batch,flag_count))");
+    db.exec("CREATE TABLE IF NOT EXISTS run (run_id INTEGER PRIMARY KEY, ts_utc TEXT, group_id INTEGER, host TEXT, "
+            "cpu TEXT, cores INTEGER, ram_gb INTEGER, os TEXT, store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
+    db.exec("CREATE TABLE IF NOT EXISTS testRun (id INTEGER PRIMARY KEY, run_id INTEGER, test_type_id INTEGER, "
+            "test_list_id INTEGER, parameter_id INTEGER, status TEXT, duration_ms INTEGER, median_ops INTEGER, "
+            "low_ops INTEGER, high_ops INTEGER, avg_ops INTEGER, stddev_ops INTEGER, bytes INTEGER)");
+}
+
+std::int64_t cli_results_id(jac313::Qlite::v002::Sqlite& db, const char* sql, const std::string& name) {
+    std::int64_t id = 0; auto st = db.prepare(sql); st.bind(name); if (st.step()) st.get(id); return id;
+}
+
+// insert-or-find a functional parameter combo (batch/flag_count N/A => NULL); SELECT-then-INSERT.
+std::int64_t cli_parameter_id(jac313::Qlite::v002::Sqlite& db,
+        const std::string& compiler, const std::string& build_type, const std::string& modules,
+        const std::string& size, const std::string& persist, const std::string& output_mode,
+        std::int64_t threads, std::int64_t events, std::int64_t runs) {
+    const char* where =
+        "SELECT id FROM parameter WHERE compiler=? AND build_type=? AND modules=? AND size=? "
+        "AND persist=? AND output_mode=? AND threads=? AND events_per_thread=? AND runs=? "
+        "AND batch IS NULL AND flag_count IS NULL";
+    auto find = [&]() -> std::int64_t {
+        std::int64_t id = 0; auto st = db.prepare(where);
+        st.bind(compiler, build_type, modules, size, persist, output_mode, threads, events, runs);
+        if (st.step()) st.get(id); return id;
+    };
+    std::int64_t id = find();
+    if (id == 0) {
+        db.exec("INSERT INTO parameter(compiler,build_type,modules,size,persist,output_mode,threads,"
+                "events_per_thread,runs,batch,flag_count) VALUES(?,?,?,?,?,?,?,?,?,NULL,NULL)",
+                compiler, build_type, modules, size, persist, output_mode, threads, events, runs);
+        id = find();
+    }
+    return id;
+}
+
+const char* matrix_status_str(TestStatus s) {
+    switch (s) {
+        case TestStatus::Passed:  return "pass";
+        case TestStatus::Failed:  return "fail";
+        case TestStatus::Skipped: return "skip";
+        default:                  return "error";
+    }
+}
+
+// Ensure schema, resolve this machine's group_id (hardware+os, matching store_bench), create a
+// fresh run row, and return its run_id. Shared by the smoke and ctest recorders.
+std::int64_t cli_begin_run(jac313::Qlite::v002::Sqlite& db) {
+    cli_ensure_results_schema(db);
+    const auto hw = collect_host_hardware_record("");
+    std::int64_t group_id = 0;
+    { auto st = db.prepare("SELECT group_id FROM run WHERE cpu=? AND cores=? AND ram_gb=? AND os=? LIMIT 1");
+      st.bind(hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
+              static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty);
+      if (st.step()) st.get(group_id); }
+    if (group_id == 0) { auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM run"); if (st.step()) st.get(group_id); }
+    char host[24]; std::snprintf(host, sizeof host, "jac313-%03lld", static_cast<long long>(group_id));
+    std::int64_t run_id = 1;
+    { auto st = db.prepare("SELECT COALESCE(MAX(run_id),0)+1 FROM run"); if (st.step()) st.get(run_id); }
+    db.exec("INSERT INTO run(run_id, ts_utc, group_id, host, cpu, cores, ram_gb, os) "
+            "VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?,?)",
+            run_id, group_id, std::string(host), hw.cpu_model,
+            static_cast<std::int64_t>(hw.cpu_cores), static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty);
+    return run_id;
+}
+
+// Best-effort compiler label (gcc15 / gcc16 / clang) from the tree's CMAKE_CXX_COMPILER cache line.
+std::string read_compiler_label(const fs::path& build_dir) {
+    std::ifstream in(build_dir / "CMakeCache.txt");
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.rfind("CMAKE_CXX_COMPILER:", 0) == 0) {
+            const std::string path = line.substr(line.find('=') + 1);
+            if (path.find("clang") != std::string::npos) return "clang";
+            if (path.find("toolset-16") != std::string::npos || path.find("g++-16") != std::string::npos) return "gcc16";
+            if (path.find("toolset-15") != std::string::npos || path.find("g++-15") != std::string::npos) return "gcc15";
+            return "gcc";
+        }
+    }
+    return "gcc15";
+}
+
+// ctest parameter combo: just the build axes; persist/output_mode/scaling/batch/flag_count are N/A.
+std::int64_t cli_parameter_id_ctest(jac313::Qlite::v002::Sqlite& db, const std::string& compiler,
+                                    const std::string& build_type, const std::string& modules) {
+    const char* where =
+        "SELECT id FROM parameter WHERE compiler=? AND build_type=? AND modules=? AND size IS NULL "
+        "AND persist IS NULL AND output_mode IS NULL AND threads IS NULL AND events_per_thread IS NULL "
+        "AND runs IS NULL AND batch IS NULL AND flag_count IS NULL";
+    auto find = [&]() -> std::int64_t {
+        std::int64_t id = 0; auto st = db.prepare(where);
+        st.bind(compiler, build_type, modules); if (st.step()) st.get(id); return id;
+    };
+    std::int64_t id = find();
+    if (id == 0) {
+        db.exec("INSERT INTO parameter(compiler,build_type,modules,size,persist,output_mode,threads,"
+                "events_per_thread,runs,batch,flag_count) VALUES(?,?,?,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL)",
+                compiler, build_type, modules);
+        id = find();
+    }
+    return id;
+}
+
+// Record one testRun row per ctest unit test into results.db.
+void record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
+                          const std::vector<TestResult>& results) {
+    if (results.empty()) return;
+    const fs::path db_path = source_dir / "test-summary" / "results.db";
+    std::error_code ec;
+    if (!fs::exists(db_path.parent_path(), ec)) return;
+    try {
+        jac313::Qlite::v002::Sqlite db(db_path.string());
+        const std::int64_t run_id = cli_begin_run(db);
+        for (const auto& r : results) {
+            db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", r.entry.name);
+        }
+        const BuildFeatures bf = read_build_features(build_dir);
+        const std::string compiler = read_compiler_label(build_dir);
+        const std::int64_t type_id = cli_results_id(db, "SELECT id FROM testType WHERE name=?", std::string("ctest"));
+        const std::int64_t param_id = cli_parameter_id_ctest(db, compiler, bf.build_type,
+                                                             bf.modules ? "on" : "off");
+        for (const auto& r : results) {
+            const std::int64_t list_id = cli_results_id(db, "SELECT id FROM testList WHERE name=?", r.entry.name);
+            db.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms) "
+                    "VALUES(?,?,?,?,?,?)",
+                    run_id, type_id, list_id, param_id, std::string(matrix_status_str(r.status)),
+                    static_cast<std::int64_t>(r.duration.count()));
+        }
+        std::cout << "[results] recorded " << results.size() << " ctest results (run " << run_id << ") -> "
+                  << db_path.string() << '\n';
+    } catch (const std::exception& e) {
+        std::cerr << "[results] ctest record failed: " << e.what() << '\n';
+    }
+}
+
+// Record one testRun row per scenario of a matrix (smoke) run into results.db.
+void record_matrix_results(const fs::path& source_dir, const std::vector<MatrixRunResult>& results,
+                           const std::string& compiler, const std::string& build_type,
+                           const std::string& modules, const std::string& size) {
+    if (results.empty()) return;
+    const fs::path db_path = source_dir / "test-summary" / "results.db";
+    std::error_code ec;
+    if (!fs::exists(db_path.parent_path(), ec)) return;
+    try {
+        jac313::Qlite::v002::Sqlite db(db_path.string());
+        const std::int64_t run_id = cli_begin_run(db);
+        for (const auto& r : results) {
+            db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", r.scenario.entry.name);
+        }
+        const std::int64_t type_id = cli_results_id(db, "SELECT id FROM testType WHERE name=?", std::string("smoke"));
+        for (const auto& r : results) {
+            const std::int64_t list_id = cli_results_id(db, "SELECT id FROM testList WHERE name=?", r.scenario.entry.name);
+            const std::int64_t param_id = cli_parameter_id(db, compiler, build_type, modules, size,
+                r.scenario.persist, r.scenario.output_mode,
+                static_cast<std::int64_t>(r.scenario.threads), static_cast<std::int64_t>(r.scenario.events_per_thread),
+                static_cast<std::int64_t>(r.scenario.runs));
+            db.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms) "
+                    "VALUES(?,?,?,?,?,?)",
+                    run_id, type_id, list_id, param_id, std::string(matrix_status_str(r.result.status)),
+                    static_cast<std::int64_t>(r.result.duration.count()));
+        }
+        std::cout << "[results] recorded " << results.size() << " smoke results (run " << run_id << ") -> "
+                  << db_path.string() << '\n';
+    } catch (const std::exception& e) {
+        std::cerr << "[results] matrix record failed: " << e.what() << '\n';
+    }
+}
+
 int run_matrix_run_command(const GlobalOptions& global,
                            MatrixOptions matrix_opts,
                            const RunOptions& run_opts,
@@ -402,6 +612,10 @@ int run_matrix_run_command(const GlobalOptions& global,
     std::cout << "Failed:  " << format_count(tally.failed) << '\n';
     std::cout << "Skipped: " << format_count(tally.skipped) << '\n';
     std::cout << "Errors:  " << format_count(tally.errors) << '\n';
+
+    // Capture this smoke run into results.db (one testRun row per scenario).
+    record_matrix_results(global.source_dir, results, matrix_opts.compiler_label, build_type,
+                          features.modules ? "on" : "off", params.size);
 
     return (tally.failed > 0 || tally.errors > 0) ? 1 : 0;
 }
