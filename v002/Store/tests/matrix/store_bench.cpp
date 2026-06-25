@@ -467,8 +467,8 @@ void ensure_results_schema(jac313::Qlite::v002::Sqlite& db) {
     db.exec("CREATE TABLE IF NOT EXISTS parameter ("
             "id INTEGER PRIMARY KEY, compiler_id INTEGER, build_type TEXT, modules TEXT, size TEXT, "
             "persist TEXT, output_mode TEXT, threads INTEGER, events_per_thread INTEGER, runs INTEGER, "
-            "batch INTEGER, flag_count INTEGER, "
-            "UNIQUE(compiler_id,build_type,modules,size,persist,output_mode,threads,events_per_thread,runs,batch,flag_count))");
+            "batch INTEGER, flag_count INTEGER, valgrind_tool TEXT, "
+            "UNIQUE(compiler_id,build_type,modules,size,persist,output_mode,threads,events_per_thread,runs,batch,flag_count,valgrind_tool))");
     db.exec("CREATE TABLE IF NOT EXISTS run ("
             "run_id INTEGER PRIMARY KEY, ts_utc TEXT, group_id INTEGER, host TEXT, cpu TEXT, cores INTEGER, "
             "ram_gb INTEGER, os TEXT, store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
@@ -524,7 +524,7 @@ std::int64_t parameter_id_bench(jac313::Qlite::v002::Sqlite& db, std::int64_t co
     const char* where =
         "SELECT id FROM parameter WHERE compiler_id=? AND build_type='Release' AND modules='off' AND size IS NULL "
         "AND persist=? AND output_mode IS NULL AND threads=? AND events_per_thread=? AND runs=? AND batch IS NULL "
-        "AND flag_count=?";
+        "AND flag_count=? AND valgrind_tool IS NULL";
     auto find = [&]() -> std::int64_t {
         std::int64_t id = 0; auto st = db.prepare(where);
         st.bind(compiler_id, persist, threads, events, runs, flags); if (st.step()) st.get(id); return id;

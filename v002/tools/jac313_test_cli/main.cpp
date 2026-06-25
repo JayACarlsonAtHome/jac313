@@ -333,8 +333,8 @@ void cli_ensure_results_schema(jac313::Qlite::v002::Sqlite& db) {
             "id INTEGER PRIMARY KEY, name TEXT, version TEXT, major INTEGER, UNIQUE(name, version))");
     db.exec("CREATE TABLE IF NOT EXISTS parameter (id INTEGER PRIMARY KEY, compiler_id INTEGER, build_type TEXT, "
             "modules TEXT, size TEXT, persist TEXT, output_mode TEXT, threads INTEGER, events_per_thread INTEGER, "
-            "runs INTEGER, batch INTEGER, flag_count INTEGER, "
-            "UNIQUE(compiler_id,build_type,modules,size,persist,output_mode,threads,events_per_thread,runs,batch,flag_count))");
+            "runs INTEGER, batch INTEGER, flag_count INTEGER, valgrind_tool TEXT, "
+            "UNIQUE(compiler_id,build_type,modules,size,persist,output_mode,threads,events_per_thread,runs,batch,flag_count,valgrind_tool))");
     db.exec("CREATE TABLE IF NOT EXISTS run (run_id INTEGER PRIMARY KEY, ts_utc TEXT, group_id INTEGER, host TEXT, "
             "cpu TEXT, cores INTEGER, ram_gb INTEGER, os TEXT, store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
     db.exec("CREATE TABLE IF NOT EXISTS testRun (id INTEGER PRIMARY KEY, run_id INTEGER, test_type_id INTEGER, "
@@ -354,7 +354,7 @@ std::int64_t cli_parameter_id(jac313::Qlite::v002::Sqlite& db,
     const char* where =
         "SELECT id FROM parameter WHERE compiler_id=? AND build_type=? AND modules=? AND size=? "
         "AND persist=? AND output_mode=? AND threads=? AND events_per_thread=? AND runs=? "
-        "AND batch IS NULL AND flag_count IS NULL";
+        "AND batch IS NULL AND flag_count IS NULL AND valgrind_tool IS NULL";
     auto find = [&]() -> std::int64_t {
         std::int64_t id = 0; auto st = db.prepare(where);
         st.bind(compiler_id, build_type, modules, size, persist, output_mode, threads, events, runs);
@@ -439,7 +439,7 @@ std::int64_t cli_parameter_id_ctest(jac313::Qlite::v002::Sqlite& db, std::int64_
     const char* where =
         "SELECT id FROM parameter WHERE compiler_id=? AND build_type=? AND modules=? AND size IS NULL "
         "AND persist IS NULL AND output_mode IS NULL AND threads IS NULL AND events_per_thread IS NULL "
-        "AND runs IS NULL AND batch IS NULL AND flag_count IS NULL";
+        "AND runs IS NULL AND batch IS NULL AND flag_count IS NULL AND valgrind_tool IS NULL";
     auto find = [&]() -> std::int64_t {
         std::int64_t id = 0; auto st = db.prepare(where);
         st.bind(compiler_id, build_type, modules); if (st.step()) st.get(id); return id;
@@ -449,6 +449,39 @@ std::int64_t cli_parameter_id_ctest(jac313::Qlite::v002::Sqlite& db, std::int64_
         db.exec("INSERT INTO parameter(compiler_id,build_type,modules,size,persist,output_mode,threads,"
                 "events_per_thread,runs,batch,flag_count) VALUES(?,?,?,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL)",
                 compiler_id, build_type, modules);
+        id = find();
+    }
+    return id;
+}
+
+// Verify parameter combo: build axes + the underlying test's persist (may be empty) + the valgrind
+// tool (memcheck/helgrind/drd). SELECT-then-INSERT, persist NULL when the task has none (unit tests).
+std::int64_t cli_parameter_id_verify(jac313::Qlite::v002::Sqlite& db, std::int64_t compiler_id,
+                                     const std::string& build_type, const std::string& modules,
+                                     const std::string& persist, const std::string& tool) {
+    const bool has_p = !persist.empty();
+    auto find = [&]() -> std::int64_t {
+        std::int64_t id = 0;
+        const std::string where = std::string(
+            "SELECT id FROM parameter WHERE compiler_id=? AND build_type=? AND modules=? AND size IS NULL "
+            "AND persist ") + (has_p ? "=?" : "IS NULL") +
+            " AND output_mode IS NULL AND threads IS NULL AND events_per_thread IS NULL AND runs IS NULL "
+            "AND batch IS NULL AND flag_count IS NULL AND valgrind_tool=?";
+        auto st = db.prepare(where.c_str());
+        if (has_p) st.bind(compiler_id, build_type, modules, persist, tool);
+        else       st.bind(compiler_id, build_type, modules, tool);
+        if (st.step()) st.get(id); return id;
+    };
+    std::int64_t id = find();
+    if (id == 0) {
+        if (has_p)
+            db.exec("INSERT INTO parameter(compiler_id,build_type,modules,size,persist,output_mode,threads,"
+                    "events_per_thread,runs,batch,flag_count,valgrind_tool) VALUES(?,?,?,NULL,?,NULL,NULL,NULL,NULL,NULL,NULL,?)",
+                    compiler_id, build_type, modules, persist, tool);
+        else
+            db.exec("INSERT INTO parameter(compiler_id,build_type,modules,size,persist,output_mode,threads,"
+                    "events_per_thread,runs,batch,flag_count,valgrind_tool) VALUES(?,?,?,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,?)",
+                    compiler_id, build_type, modules, tool);
         id = find();
     }
     return id;
@@ -772,12 +805,18 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
 
     int clean = 0, vgfail = 0, testfail = 0;
     std::vector<std::string> failures;
+    struct VerifyRec { std::string tool, test, persist, status; std::int64_t dur_ms; };
+    std::vector<VerifyRec> recs;   // one per (tool x task) — captured into results.db below
 
     auto run_one = [&](const std::string& tool, const VgTask& t) {
+        std::string persist;
+        for (const auto& a : t.args) if (a.rfind("--persist=", 0) == 0) persist = a.substr(10);
+        const std::string test = t.bin.filename().string();
         if (!fs::exists(t.bin)) {
             std::cout << "  [" << tool << "] " << t.label << " — MISSING BINARY\n";
             ++testfail;
             failures.push_back(tool + " " + t.label + " [missing]");
+            recs.push_back({tool, test, persist, "error", 0});
             return;
         }
         std::vector<std::string> cmd = {"valgrind", "--tool=" + tool, "--error-exitcode=99"};
@@ -789,25 +828,29 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
         for (const auto& a : t.args) {
             cmd.push_back(a);
         }
+        const auto t0 = std::chrono::steady_clock::now();
         const auto r = run_process(cmd, 300, scratch_s);
+        const auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::steady_clock::now() - t0).count();
         const int errs = parse_vg_errors(r.stderr_text + r.stdout_text);
-        std::string verdict;
+        std::string verdict, status;
         if (!r.started) {
-            verdict = "LAUNCH-FAIL";
+            verdict = "LAUNCH-FAIL"; status = "error";
             ++testfail;
             failures.push_back(tool + " " + t.label + " [launch]");
         } else if (r.exit_code == 99) {
-            verdict = "VALGRIND ERRORS (" + std::to_string(errs) + ")";
+            verdict = "VALGRIND ERRORS (" + std::to_string(errs) + ")"; status = "fail";
             ++vgfail;
             failures.push_back(tool + " " + t.label + " [vg:" + std::to_string(errs) + "]");
         } else if (r.exit_code != 0) {
-            verdict = "TEST FAIL (rc=" + std::to_string(r.exit_code) + ")";
+            verdict = "TEST FAIL (rc=" + std::to_string(r.exit_code) + ")"; status = "fail";
             ++testfail;
             failures.push_back(tool + " " + t.label + " [rc:" + std::to_string(r.exit_code) + "]");
         } else {
-            verdict = "clean";
+            verdict = "clean"; status = "pass";
             ++clean;
         }
+        recs.push_back({tool, test, persist, status, static_cast<std::int64_t>(dur_ms)});
         std::cout << "  [" << tool << "] " << t.label << " — " << verdict << '\n';
     };
 
@@ -837,6 +880,32 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
     }
     const bool ok = (vgfail == 0 && testfail == 0);
     std::cout << (ok ? (name + " PASS\n") : (name + " FAIL\n"));
+
+    // Capture each (tool x task) into results.db — test_type = this gate's name (verify-lite|verify),
+    // valgrind tool as a parameter, status pass/fail/error + duration. Best-effort.
+    {
+        const fs::path rpath = global.source_dir / "test-summary" / "results.db";
+        std::error_code rec;
+        if (!recs.empty() && fs::exists(rpath.parent_path(), rec)) {
+            try {
+                jac313::Qlite::v002::Sqlite rdb(rpath.string());
+                const std::int64_t run_id  = cli_begin_run(rdb);
+                const std::int64_t comp_id = cli_compiler_id(rdb, read_compiler_info(global.build_dir));
+                const std::int64_t type_id = cli_results_id(rdb, "SELECT id FROM testType WHERE name=?", name);
+                for (const auto& v : recs) rdb.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", v.test);
+                for (const auto& v : recs) {
+                    const std::int64_t list_id  = cli_results_id(rdb, "SELECT id FROM testList WHERE name=?", v.test);
+                    const std::int64_t param_id = cli_parameter_id_verify(rdb, comp_id, "Debug", "off", v.persist, v.tool);
+                    rdb.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms) "
+                             "VALUES(?,?,?,?,?,?)", run_id, type_id, list_id, param_id, v.status, v.dur_ms);
+                }
+                std::cout << "[results] recorded " << recs.size() << " " << name << " results (run " << run_id
+                          << ") -> " << rpath.string() << '\n';
+            } catch (const std::exception& e) {
+                std::cerr << "[results] verify record failed: " << e.what() << '\n';
+            }
+        }
+    }
     return ok ? 0 : 1;
 }
 
