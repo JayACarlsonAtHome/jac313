@@ -25,6 +25,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -156,8 +157,24 @@ std::unique_ptr<IEventSink> make_sink(const Params& p) {
     return nullptr;
 }
 
+// Remove prior persisted output (base_name*) so each run's footprint is measured alone
+// (and durable output doesn't accumulate across configs/compilers).
+void clean_output(const std::string& base) {
+    namespace fs = std::filesystem;
+    try {
+        fs::path bp(base);
+        fs::path dir = bp.has_parent_path() ? bp.parent_path() : fs::path(".");
+        const std::string stem = bp.filename().string();
+        if (!fs::exists(dir)) return;
+        for (const auto& e : fs::directory_iterator(dir))
+            if (e.is_regular_file() && e.path().filename().string().rfind(stem, 0) == 0)
+                fs::remove(e.path());
+    } catch (...) {}
+}
+
 // One timed run of the full workload. Attaches persistence for THIS run when durable.
 std::optional<std::size_t> run_one(const Params& p, bool verify) {
+    if (p.persist != "none") clean_output(p.base_name);
     LogxStore store(p.threads, p.events_per_thread);
 
     if (p.persist != "none") {
@@ -230,6 +247,32 @@ void apply_axis(Params& p, const std::string& axis, std::size_t v) {
 // ---- the results DB (receiver): one append-only row per run, written via Qlite ----
 int set_flag_count(std::uint64_t f) { int n = 0; for (int i = 0; i < 7; ++i) if (f & (1ull << i)) ++n; return n; }
 
+std::string compiler_id() {
+#if defined(__clang__)
+    return "clang " + std::to_string(__clang_major__) + "." + std::to_string(__clang_minor__);
+#elif defined(__GNUC__)
+    return "gcc " + std::to_string(__GNUC__) + "." + std::to_string(__GNUC_MINOR__);
+#else
+    return "unknown";
+#endif
+}
+
+// total bytes of the persisted output (every file starting with base_name) — the on-disk
+// footprint of jtext / binary / sql for this config.
+std::uint64_t measure_output_bytes(const std::string& base) {
+    namespace fs = std::filesystem;
+    std::uint64_t total = 0;
+    try {
+        fs::path bp(base);
+        fs::path dir = bp.has_parent_path() ? bp.parent_path() : fs::path(".");
+        const std::string stem = bp.filename().string();
+        for (const auto& e : fs::directory_iterator(dir))
+            if (e.is_regular_file() && e.path().filename().string().rfind(stem, 0) == 0)
+                total += static_cast<std::uint64_t>(e.file_size());
+    } catch (...) {}
+    return total;
+}
+
 struct HostInfo { std::string host, cpu, os; std::int64_t cores = 0, ram_gb = 0; };
 
 HostInfo sense_host() {
@@ -271,20 +314,22 @@ void record_to_db(const Params& p, const BenchSummary& s) {
 CREATE TABLE IF NOT EXISTS bench_run (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
     ts_utc            TEXT NOT NULL,
-    host TEXT, cpu TEXT, cores INTEGER, ram_gb INTEGER, os TEXT,
+    host TEXT, cpu TEXT, cores INTEGER, ram_gb INTEGER, os TEXT, compiler TEXT,
     store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT,
     label TEXT, threads INTEGER, events_per_thread INTEGER, persist TEXT, flag_count INTEGER,
-    runs INTEGER, events INTEGER,
+    runs INTEGER, events INTEGER, bytes INTEGER,
     median_ops INTEGER, high_ops INTEGER, low_ops INTEGER, avg_ops INTEGER, stddev_ops INTEGER
 )
 )SQL");
         const HostInfo h = sense_host();
+        const std::int64_t bytes = (p.persist == "none") ? 0
+                                 : static_cast<std::int64_t>(measure_output_bytes(p.base_name));
         db.exec(
-            "INSERT INTO bench_run(ts_utc, host, cpu, cores, ram_gb, os, store_ver, qlite_ver, jtext_ver, "
-            "label, threads, events_per_thread, persist, flag_count, runs, events, "
+            "INSERT INTO bench_run(ts_utc, host, cpu, cores, ram_gb, os, compiler, store_ver, qlite_ver, jtext_ver, "
+            "label, threads, events_per_thread, persist, flag_count, runs, events, bytes, "
             "median_ops, high_ops, low_ops, avg_ops, stddev_ops) VALUES("
-            "strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?, ?,?,?, ?,?,?,?,?, ?,?, ?,?,?,?,?)",
-            h.host, h.cpu, h.cores, h.ram_gb, h.os,
+            "strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?, ?, ?,?,?, ?,?,?,?,?, ?,?, ?, ?,?,?,?,?)",
+            h.host, h.cpu, h.cores, h.ram_gb, h.os, compiler_id(),
             std::string(jac313::Store::v002::version()),
             std::string(jac313::Qlite::v002::version()),
             p.jtext_ver,
@@ -295,6 +340,7 @@ CREATE TABLE IF NOT EXISTS bench_run (
             static_cast<std::int64_t>(set_flag_count(p.flags)),
             static_cast<std::int64_t>(s.runs),
             static_cast<std::int64_t>(s.events_per_run),
+            bytes,
             static_cast<std::int64_t>(s.median),
             static_cast<std::int64_t>(s.high),
             static_cast<std::int64_t>(s.low),
@@ -358,6 +404,46 @@ int run_suite(Params base, bool dry) {
 
 #ifdef JAC313_STORE_HAS_SQL_PERSIST
 // ---- render the results page from the DB (replaces the old bench_report.py) ----
+std::string bytes_human(std::int64_t b) {
+    char buf[32];
+    if (b >= 1024 * 1024) std::snprintf(buf, sizeof buf, "%.1f MB", b / (1024.0 * 1024.0));
+    else if (b >= 1024)   std::snprintf(buf, sizeof buf, "%.1f KB", b / 1024.0);
+    else                  std::snprintf(buf, sizeof buf, "%lld B", static_cast<long long>(b));
+    return buf;
+}
+
+// one <td> cell: the speed table (Flags or Backend) for a single host+compiler.
+// GitHub renders the inner markdown table because of the blank lines around it.
+void emit_speed_cell(jac313::Qlite::v002::Sqlite& db, const std::string& hq,
+                     const std::string& compiler, bool durable) {
+    const std::string cq = "'" + compiler + "'";
+    std::cout << "<td>\n\n**" << compiler << "**\n\n";
+    if (durable) {
+        std::cout << "| Backend | Median Ops/Sec | Band (Low–High) |\n|---|--:|---|\n";
+        auto st = db.prepare(
+            "SELECT persist,median_ops,low_ops,high_ops FROM bench_run b WHERE host=" + hq +
+            " AND compiler=" + cq + " AND persist<>'none' AND ts_utc=(SELECT MAX(ts_utc) FROM bench_run "
+            "WHERE host=b.host AND compiler=b.compiler AND persist=b.persist) "
+            "ORDER BY CASE persist WHEN 'jtext' THEN 0 WHEN 'sql' THEN 1 ELSE 2 END");
+        while (st.step()) {
+            std::string p; std::int64_t med, low, high; st.get(p, med, low, high);
+            std::cout << "| " << p << " | " << commafy(med) << " | " << milstr(low) << " – " << milstr(high) << " |\n";
+        }
+    } else {
+        std::cout << "| Flags | Median Ops/Sec | Band (Low–High) |\n|---|--:|---|\n";
+        auto st = db.prepare(
+            "SELECT flag_count,median_ops,low_ops,high_ops FROM bench_run b WHERE host=" + hq +
+            " AND compiler=" + cq + " AND persist='none' AND ts_utc=(SELECT MAX(ts_utc) FROM bench_run "
+            "WHERE host=b.host AND compiler=b.compiler AND persist='none' AND flag_count=b.flag_count) "
+            "ORDER BY flag_count");
+        while (st.step()) {
+            std::int64_t fc, med, low, high; st.get(fc, med, low, high);
+            std::cout << "| " << fc << " | " << commafy(med) << " | " << milstr(low) << " – " << milstr(high) << " |\n";
+        }
+    }
+    std::cout << "\n</td>\n";
+}
+
 int report_from_db(const std::string& db_path) {
     try {
         jac313::Qlite::v002::Sqlite db(db_path);
@@ -367,7 +453,7 @@ int report_from_db(const std::string& db_path) {
         std::cout << "# Store benchmark results\n\n"
                      "_Generated from `bench_results.db` by `store_bench --report` — the curated suite_<br>\n"
                      "_(median + low–high band over N runs; durable rates count the flush)._<br>\n"
-                     "_Latest run per config per host._\n\n";
+                     "_Latest run per config, per host, per compiler._\n\n";
         if (hosts.empty()) { std::cout << "_No runs recorded yet._\n"; return 0; }
         for (const auto& host : hosts) {
             const std::string hq = "'" + host + "'";   // trusted (our own gethostname)
@@ -382,43 +468,49 @@ int report_from_db(const std::string& db_path) {
                             << "| **Latest run (UTC)** | " << ts << " |\n\n";
               }
             }
-            { auto st = db.prepare(
-                  "SELECT flag_count,median_ops,low_ops,high_ops,threads,events_per_thread,runs FROM bench_run b "
-                  "WHERE host=" + hq + " AND persist='none' AND ts_utc=(SELECT MAX(ts_utc) FROM bench_run "
-                  "WHERE host=b.host AND persist='none' AND flag_count=b.flag_count) ORDER BY flag_count");
-              bool first = true;
-              while (st.step()) {
-                  std::int64_t fc, med, low, high, thr, evt, runs; st.get(fc, med, low, high, thr, evt, runs);
-                  if (first) {
-                      std::uint64_t total = static_cast<std::uint64_t>(thr) * evt;
-                      std::cout << "### Flag-overhead (non-durable) — " << milint(total) << " Events × " << runs
-                                << " Runs<br>That's " << milint(total * static_cast<std::uint64_t>(runs)) << " Events per config\n\n"
-                                << "| Flags | Median Ops/Sec | Band — Low–High (Ops/Sec) |\n"
-                                << "|-------|----------------|---------------------------|\n";
-                      first = false;
-                  }
-                  std::cout << "| " << fc << " | " << commafy(med) << " | " << milstr(low) << " – " << milstr(high) << " |\n";
+            std::vector<std::string> comps;
+            { auto st = db.prepare("SELECT DISTINCT compiler FROM bench_run WHERE host=" + hq + " ORDER BY compiler");
+              while (st.step()) { std::string c; st.get(c); comps.push_back(c); } }
+            auto counts = [&](const char* clause) -> std::pair<std::uint64_t, std::int64_t> {
+                auto st = db.prepare("SELECT threads,events_per_thread,runs FROM bench_run WHERE host=" + hq +
+                                     " AND " + clause + " ORDER BY ts_utc DESC LIMIT 1");
+                if (st.step()) { std::int64_t t, e, r; st.get(t, e, r); return {static_cast<std::uint64_t>(t) * e, r}; }
+                return {0, 0};
+            };
+            // --- non-durable: side-by-side per compiler ---
+            { auto [tot, runs] = counts("persist='none'");
+              if (tot) {
+                  std::cout << "### Flag-overhead (non-durable) — " << milint(tot) << " Events × " << runs
+                            << " Runs<br>That's " << milint(tot * static_cast<std::uint64_t>(runs)) << " Events per config\n\n"
+                            << "<table><tr>\n";
+                  for (const auto& c : comps) emit_speed_cell(db, hq, c, false);
+                  std::cout << "</tr></table>\n\n";
               }
-              if (!first) std::cout << "\n";
             }
+            // --- durable: side-by-side per compiler ---
+            { auto [tot, runs] = counts("persist<>'none'");
+              if (tot) {
+                  std::cout << "### Durable — " << milint(tot) << " Events × " << runs
+                            << " Runs<br>That's " << milint(tot * static_cast<std::uint64_t>(runs)) << " Events per config\n\n"
+                            << "<table><tr>\n";
+                  for (const auto& c : comps) emit_speed_cell(db, hq, c, true);
+                  std::cout << "</tr></table>\n\n";
+              }
+            }
+            // --- persisted size: ONE table (compiler-independent) ---
             { auto st = db.prepare(
-                  "SELECT persist,median_ops,low_ops,high_ops,threads,events_per_thread,runs FROM bench_run b "
-                  "WHERE host=" + hq + " AND persist<>'none' AND ts_utc=(SELECT MAX(ts_utc) FROM bench_run "
-                  "WHERE host=b.host AND persist=b.persist) "
-                  "ORDER BY CASE persist WHEN 'jtext' THEN 0 WHEN 'sql' THEN 1 ELSE 2 END");
+                  "SELECT persist, bytes FROM bench_run b WHERE host=" + hq + " AND persist<>'none' "
+                  "AND ts_utc=(SELECT MAX(ts_utc) FROM bench_run WHERE host=b.host AND persist=b.persist) "
+                  "GROUP BY persist ORDER BY CASE persist WHEN 'jtext' THEN 0 WHEN 'sql' THEN 1 ELSE 2 END");
               bool first = true;
               while (st.step()) {
-                  std::string persist; std::int64_t med, low, high, thr, evt, runs;
-                  st.get(persist, med, low, high, thr, evt, runs);
+                  std::string p; std::int64_t by; st.get(p, by);
                   if (first) {
-                      std::uint64_t total = static_cast<std::uint64_t>(thr) * evt;
-                      std::cout << "### Durable — " << milint(total) << " Events × " << runs
-                                << " Runs<br>That's " << milint(total * static_cast<std::uint64_t>(runs)) << " Events per config\n\n"
-                                << "| Backend | Median Ops/Sec | Band — Low–High (Ops/Sec) |\n"
-                                << "|---------|----------------|---------------------------|\n";
+                      std::cout << "### Persisted size — jText vs SQL vs binary (same across compilers)\n\n"
+                                << "| Backend | On-disk size |\n|---|--:|\n";
                       first = false;
                   }
-                  std::cout << "| " << persist << " | " << commafy(med) << " | " << milstr(low) << " – " << milstr(high) << " |\n";
+                  std::cout << "| " << p << " | " << bytes_human(by) << " |\n";
               }
               if (!first) std::cout << "\n";
             }
