@@ -511,7 +511,7 @@ int report_from_db(const std::string& db_path) {
                   "SELECT persist, threads*events_per_thread AS tot, bytes FROM bench_run b WHERE host=" + hq +
                   " AND persist<>'none' AND ts_utc=(SELECT MAX(ts_utc) FROM bench_run WHERE host=b.host "
                   "AND persist=b.persist AND threads*events_per_thread=b.threads*b.events_per_thread) "
-                  "GROUP BY persist, tot ORDER BY tot, bytes DESC");
+                  "GROUP BY persist, tot ORDER BY tot, bytes ASC");
               bool first = true;
               while (st.step()) {
                   std::string p; std::int64_t tot, by; st.get(p, tot, by);

@@ -99,10 +99,10 @@ _Latest run per config, per host, per compiler._
 
 | Backend | Events | On-disk size |
 |---|--:|--:|
-| binary | 1M | 83.8 MB |
-| jtext | 1M | 83.0 MB |
 | sql | 1M | 76.1 MB |
-| jtext | 10M | 848.6 MB |
-| binary | 10M | 837.8 MB |
+| jtext | 1M | 83.0 MB |
+| binary | 1M | 83.8 MB |
 | sql | 10M | 783.0 MB |
+| binary | 10M | 837.8 MB |
+| jtext | 10M | 848.6 MB |
 
