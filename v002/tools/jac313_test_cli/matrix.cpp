@@ -1,11 +1,10 @@
 #include "matrix.hpp"
 #include "build_pipeline.hpp"
 #include "format.hpp"
-#include "matrix_log_metrics.hpp"
-#include "results_db.hpp"
 #include "run_identity.hpp"
 #include "runner.hpp"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 
@@ -13,16 +12,6 @@ namespace jac313::test_cli {
 namespace fs = std::filesystem;
 
 namespace {
-
-const char* status_string(TestStatus status) {
-    switch (status) {
-    case TestStatus::Passed:  return "pass";
-    case TestStatus::Failed:  return "fail";
-    case TestStatus::Skipped: return "skip";
-    case TestStatus::Error:   return "error";
-    }
-    return "error";
-}
 
 std::string persist_log_dir_name(const std::string& persist) {
     if (persist == "jtext") return "jText_logs";
@@ -279,16 +268,6 @@ bool scenario_matches_filter(const MatrixScenario& scen, const std::string& filt
         || matches_filter(key, filter);
 }
 
-ScenarioIdentity scenario_identity(const MatrixScenario& scen) {
-    return {
-        scen.entry.name,
-        scen.package,
-        scen.category,
-        scen.persist,
-        scen.output_mode,
-    };
-}
-
 void print_matrix_scenario_line(const MatrixScenario& scen,
                                 const int index,
                                 const int total,
@@ -331,43 +310,6 @@ void print_matrix_scenario_line(const MatrixScenario& scen,
         std::cout.flush();
     } else {
         std::cout << '\n';
-    }
-}
-
-void prepare_matrix_run_session(MatrixRunMeta& meta,
-                              MatrixOptions& opts,
-                              const fs::path& project_root)
-{
-    const ResultsDbContext db{project_root};
-    if (!opts.group_id.has_value()) {
-        if (opts.run_utc.has_value()) {
-            meta.run_utc = *opts.run_utc;
-        } else {
-            meta.run_utc = matrix_run_utc_timestamp();
-        }
-        opts.group_id = allocate_test_group(db, meta);
-        opts.group_run_utc = meta.run_utc;
-    } else if (opts.group_run_utc.has_value()) {
-        meta.run_utc = *opts.group_run_utc;
-    } else if (opts.run_utc.has_value()) {
-        meta.run_utc = *opts.run_utc;
-    } else {
-        meta.run_utc = matrix_run_utc_timestamp();
-    }
-    meta.group_id = *opts.group_id;
-}
-
-void accumulate_matrix_results(MatrixRunMeta& meta,
-                               const std::vector<MatrixRunResult>& results)
-{
-    for (const auto& r : results) {
-        meta.duration_ms += static_cast<int>(r.result.duration.count());
-        switch (r.result.status) {
-        case TestStatus::Passed:  ++meta.passed;  break;
-        case TestStatus::Failed:  ++meta.failed;  break;
-        case TestStatus::Skipped: ++meta.skipped; break;
-        case TestStatus::Error:   ++meta.errors;  break;
-        }
     }
 }
 
@@ -477,10 +419,6 @@ std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scena
         }
     }
     int index = 0;
-    std::optional<std::string> results_rel;
-    if (opts.db.active()) {
-        results_rel = fs::relative(results_base, opts.db.db.project_root).generic_string();
-    }
 
     for (const auto& scen : scenarios) {
         ++index;
@@ -527,39 +465,6 @@ std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scena
 
         write_log_file(log_path, scen, args, run.result);
 
-        if (run.result.status == TestStatus::Passed
-            && (scen.persist == "binary" || scen.persist == "jtext" || scen.persist == "sql")) {
-            run.persist_log_bytes = persist_log_bytes(log_dir, scen.persist);
-        }
-
-        if (opts.db.active()) {
-            const fs::path rel_log = fs::relative(log_path, results_base);
-            const std::string log_rel = rel_log.generic_string();
-            std::optional<std::int64_t> peak_ops;
-            if (run.result.status == TestStatus::Passed) {
-                if (const auto ops = peak_ops_from_text(run.result.stdout_tail)) {
-                    peak_ops = static_cast<std::int64_t>(*ops);
-                }
-            }
-            record_scenario_result(
-                opts.db.db,
-                opts.db.run_id,
-                scenario_identity(scen),
-                status_string(run.result.status),
-                static_cast<int>(run.result.duration.count()),
-                log_rel,
-                peak_ops,
-                run.persist_log_bytes);
-            if (results_rel.has_value()) {
-                publish_scenario_log_tail(
-                    opts.db.db,
-                    *results_rel,
-                    log_rel,
-                    run.result.stdout_tail,
-                    50);
-            }
-        }
-
         const TestStatus final_status = run.result.status;
         results.push_back(std::move(run));
 
@@ -570,6 +475,19 @@ std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scena
     }
 
     return results;
+}
+
+MatrixTally tally_matrix_results(const std::vector<MatrixRunResult>& results) {
+    MatrixTally tally;
+    for (const auto& r : results) {
+        switch (r.result.status) {
+        case TestStatus::Passed:  ++tally.passed;  break;
+        case TestStatus::Failed:  ++tally.failed;  break;
+        case TestStatus::Skipped: ++tally.skipped; break;
+        case TestStatus::Error:   ++tally.errors;  break;
+        }
+    }
+    return tally;
 }
 
 } // namespace jac313::test_cli

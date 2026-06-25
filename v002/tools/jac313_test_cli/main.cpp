@@ -2,7 +2,6 @@
 // Discovers CTest entries from a build tree, runs them with captured output,
 // and prints a summary. No shell scripts required.
 
-#include "build_benchmark.hpp"
 #include "build_pipeline.hpp"
 #include "compiler.hpp"
 #include "format.hpp"
@@ -13,11 +12,9 @@
 #include "platform.hpp"
 #include "process.hpp"
 #include "report.hpp"
-#include "results_db.hpp"
 #include "run_identity.hpp"
 #include "host_hardware.hpp"
 #include "runner.hpp"
-#include "test_summary_render.hpp"
 
 #include <cstdlib>
 #include <filesystem>
@@ -30,13 +27,6 @@ namespace fs = std::filesystem;
 using namespace jac313::test_cli;
 
 namespace {
-
-ResultsDbContext make_results_db_context(const fs::path& project_root)
-{
-    ResultsDbContext ctx;
-    ctx.project_root = fs::absolute(project_root);
-    return ctx;
-}
 
 void print_usage() {
     std::cout <<
@@ -51,8 +41,7 @@ void print_usage() {
         "  compilers   Sense toolchains from the registry (writes FileCheckList.txt)\n"
         "  setup       Sense readiness; generate Setup.sh for missing prerequisites\n"
         "  version-check  check each package owes a version() bump (git, no build)\n"
-        "  anonymize-hosts  scrub identifying hostnames in the results DB -> jac313-NNN\n"
-        "  matrix      run | runner | run-all | render | top | runs | verify | verify-lite\n\n"
+        "  matrix      run | runner | verify | verify-lite\n\n"
         "Common options:\n"
         "  --build-dir <path>   Build directory (default: build)\n"
         "  --source-dir <path>  Source root (default: auto-detect)\n"
@@ -80,7 +69,6 @@ void print_usage() {
         "  ./jac313_test_cli compilers\n"
         "  ./jac313_test_cli run --filter store\n"
         "  ./jac313_test_cli list --build-dir build\n"
-        "  ./jac313_test_cli matrix run-all --dry-run\n"
         "  ./jac313_test_cli matrix runner --compiler gcc15 --build-type Debug --modules on --size smoke\n"
         "  ./jac313_test_cli matrix verify-lite\n";
 }
@@ -358,16 +346,6 @@ int run_matrix_run_command(const GlobalOptions& global,
     }
     std::cout << "\n\n";
 
-    const ResultsDbContext db{global.source_dir};
-    MatrixRunMeta meta = matrix_run_meta_for(params, matrix_opts.compiler_label);
-    meta.build_type = build_type;
-    meta.modules = modules_label;
-
-    if (!matrix_opts.dry_run && matrix_opts.legacy_results) {
-        prepare_matrix_run_session(meta, matrix_opts, global.source_dir);
-        std::cout << "Group ID: " << format_count(meta.group_id) << '\n';
-    }
-
     if (matrix_opts.dry_run) {
         const int total = static_cast<int>(scenarios.size());
         int name_width = 0;
@@ -393,41 +371,25 @@ int run_matrix_run_command(const GlobalOptions& global,
     run_opts_matrix.verbose = global.verbose;
     run_opts_matrix.fail_fast = run_opts.fail_fast;
     run_opts_matrix.failsafe_sec = failsafe_sec;
-    run_opts_matrix.db.db = db;
     run_opts_matrix.global_done_before = global_before;
     run_opts_matrix.global_total = grand_total;
-    std::optional<std::int64_t> run_id;
-    if (!matrix_opts.dry_run && matrix_opts.legacy_results) {
-        run_id = ensure_matrix_run_record(db, meta, results_base);
-        if (run_id.has_value()) {
-            run_opts_matrix.db.run_id = *run_id;
-        }
-    }
 
     const auto results = run_matrix(scenarios, params, results_base, run_opts_matrix);
-    accumulate_matrix_results(meta, results);
+    MatrixTally tally = tally_matrix_results(results);
     if (out_tally != nullptr) {
-        out_tally->passed  = static_cast<int>(meta.passed);
-        out_tally->failed  = static_cast<int>(meta.failed);
-        out_tally->skipped = static_cast<int>(meta.skipped);
-        out_tally->errors  = static_cast<int>(meta.errors);
+        out_tally->passed  = static_cast<int>(tally.passed);
+        out_tally->failed  = static_cast<int>(tally.failed);
+        out_tally->skipped = static_cast<int>(tally.skipped);
+        out_tally->errors  = static_cast<int>(tally.errors);
     }
 
     std::cout << "\n=== matrix summary ===\n";
-    std::cout << "Passed:  " << format_count(meta.passed) << '\n';
-    std::cout << "Failed:  " << format_count(meta.failed) << '\n';
-    std::cout << "Skipped: " << format_count(meta.skipped) << '\n';
-    std::cout << "Errors:  " << format_count(meta.errors) << '\n';
-    if (run_id.has_value()) {
-        finalize_matrix_run(db, *run_id, meta);
-        if (!matrix_opts.no_summary) {
-            if (!render_test_summary(db, *run_id)) {
-                return 1;
-            }
-        }
-    }
+    std::cout << "Passed:  " << format_count(tally.passed) << '\n';
+    std::cout << "Failed:  " << format_count(tally.failed) << '\n';
+    std::cout << "Skipped: " << format_count(tally.skipped) << '\n';
+    std::cout << "Errors:  " << format_count(tally.errors) << '\n';
 
-    return (meta.failed > 0 || meta.errors > 0) ? 1 : 0;
+    return (tally.failed > 0 || tally.errors > 0) ? 1 : 0;
 }
 
 // ---- cleancheck: valgrind memcheck + helgrind/DRD over the representative set ----
@@ -689,31 +651,9 @@ int execute_matrix_run(GlobalOptions& global, ConfigureOptions& configure_opts,
     if (!apply_compiler_resolution(global, configure_opts, matrix_opts)) {
         return 1;
     }
-    if (configure_opts.modules) {
-        const MatrixParams params =
-            load_matrix_params(global.source_dir / matrix_opts.params_file);
-        const ResultsDbContext db{global.source_dir};
-        if (!matrix_opts.group_id.has_value()) {
-            MatrixRunMeta group_meta;
-            group_meta.run_utc = matrix_run_utc_timestamp();
-            group_meta.disk_type = params.disk_type;
-            group_meta.os_id = params.os_id;
-            matrix_opts.group_run_utc = group_meta.run_utc;
-            matrix_opts.group_id = allocate_test_group(db, group_meta);
-        }
-        BuildBenchmarkRequest benchmark;
-        benchmark.global = global;
-        benchmark.configure = configure_opts;
-        benchmark.build = build_opts;
-        benchmark.db = db;
-        benchmark.group_id = *matrix_opts.group_id;
-        benchmark.compiler_label = matrix_opts.compiler_label;
-        if (const int rc = run_build_benchmark(benchmark); rc != 0) {
-            return kBuildPhaseFailed;   // module build failed -> tests skipped
-        }
-    } else if (discover_tests(global.build_dir).empty()) {
-        std::cout << "[matrix] '" << global.build_dir.string()
-                  << "' has no built tests — configuring + building first\n";
+    if (configure_opts.modules || discover_tests(global.build_dir).empty()) {
+        std::cout << "[matrix] configuring + building '" << global.build_dir.string()
+                  << "' before run\n";
         if (const int rc = run_configure_command(global, configure_opts); rc != 0) {
             return kBuildPhaseFailed;   // configure failed -> tests skipped
         }
@@ -778,10 +718,6 @@ int main(int argc, char** argv) {
                 matrix_opts.params_file = argv[++i];
             } else if (arg == "--dry-run") {
                 matrix_opts.dry_run = true;
-            } else if (arg == "--no-summary") {
-                matrix_opts.no_summary = true;
-            } else if (arg == "--legacy-results") {
-                matrix_opts.legacy_results = true;
             } else if (arg == "--compiler" && i + 1 < argc) {
                 configure_opts.compiler = argv[++i];
             } else if (arg == "--gcc15") {
@@ -814,19 +750,13 @@ int main(int argc, char** argv) {
                 "matrix commands:\n"
                 "  run            Run selected package scenarios\n"
                 "  runner         Run ONE explicit config: --compiler --build-type --modules --size\n"
-                "  run-all        Run every MISSING combo for this host (gap-filling, idempotent)\n"
                 "  verify-lite    valgrind gate: ctest under memcheck + helgrind/DRD\n"
-                "  verify         valgrind gate: ctest + smoke matrix (full sink coverage)\n"
-                "  render         [legacy] Render old test-summary hub from results DB (needs --legacy-results data)\n"
-                "  top            [legacy] Query top N peak ops/sec scenarios (v_top_throughput)\n"
-                "  runs           [legacy] List latest run per compiler/size/disk (v_latest_runs)\n\n"
-                "Throughput + the committed report now come from store_bench (--db bench_results.db / --report);\n"
-                "a matrix run is a correctness gate only and no longer writes test-summary/ by default.\n\n"
+                "  verify         valgrind gate: ctest + smoke matrix (full sink coverage)\n\n"
+                "A matrix run is a correctness gate only; throughput + the committed report come\n"
+                "from store_bench (--db bench_results.db / --report).\n\n"
                 "matrix options:\n"
                 "  --params <file>   Params file (default: tests/test_params.txt)\n"
                 "  --dry-run         List scenarios only\n"
-                "  --no-summary      Skip auto test-summary render after run (legacy path only)\n"
-                "  --legacy-results  Re-enable the retired matrix results DB + hub render (jac313_results.db)\n"
                 "  --modules         Configure+build with modules before run\n"
                 "  --filter <regex>  Match test name, persist, or name|persist|mode\n"
                 "  --failsafe <sec>  Kill stuck scenario after N seconds (smoke: "
@@ -837,103 +767,6 @@ int main(int argc, char** argv) {
             return argc < 3 ? 1 : 0;
         }
         const std::string sub = argv[2];
-
-        if (sub == "top") {
-            int limit = 10;
-            for (int i = 3; i < argc; ++i) {
-                const std::string arg = argv[i];
-                if (arg == "--source-dir" && i + 1 < argc) {
-                    global.source_dir = argv[++i];
-                } else if (arg == "--limit" && i + 1 < argc) {
-                    limit = std::stoi(argv[++i]);
-                } else if (arg == "--help" || arg == "-h") {
-                    std::cout << "matrix top — query v_top_throughput\n\n"
-                                 "  --limit <n>       Row count (default: 10)\n"
-                                 "  --source-dir <p>  Project root\n";
-                    return 0;
-                } else {
-                    std::cerr << "Unknown matrix top option: " << arg << '\n';
-                    return 1;
-                }
-            }
-            return print_top_fastest(make_results_db_context(global.source_dir), limit) ? 0 : 1;
-        }
-
-        if (sub == "runs") {
-            for (int i = 3; i < argc; ++i) {
-                const std::string arg = argv[i];
-                if (arg == "--source-dir" && i + 1 < argc) {
-                    global.source_dir = argv[++i];
-                } else if (arg == "--help" || arg == "-h") {
-                    std::cout << "matrix runs — query v_latest_runs\n\n"
-                                 "  --source-dir <p>  Project root\n";
-                    return 0;
-                } else {
-                    std::cerr << "Unknown matrix runs option: " << arg << '\n';
-                    return 1;
-                }
-            }
-            return print_latest_runs(make_results_db_context(global.source_dir)) ? 0 : 1;
-        }
-
-        if (sub == "render") {
-            std::optional<std::int64_t> run_id;
-            bool render_all = false;
-            SummaryRenderStep through = SummaryRenderStep::All;
-            for (int i = 3; i < argc; ++i) {
-                const std::string arg = argv[i];
-                if (arg == "--source-dir" && i + 1 < argc) {
-                    global.source_dir = argv[++i];
-                } else if (arg == "--run-id" && i + 1 < argc) {
-                    run_id = std::stoll(argv[++i]);
-                } else if (arg == "--all") {
-                    render_all = true;
-                } else if (arg == "--step" && i + 1 < argc) {
-                    const std::string step = argv[++i];
-                    if (step == "run") {
-                        through = SummaryRenderStep::RunPage;
-                    } else if (step == "hub") {
-                        through = SummaryRenderStep::Hub;
-                    } else if (step == "all") {
-                        through = SummaryRenderStep::All;
-                    } else {
-                        std::cerr << "Unknown render step: " << step
-                                  << " (run|hub|all)\n";
-                        return 1;
-                    }
-                } else if (arg == "--help" || arg == "-h") {
-                    std::cout << "matrix render — generate test-summary from results DB\n\n"
-                                 "  --source-dir <p>  Project or fixture root\n"
-                                 "  --run-id <n>      Run id (default: latest)\n"
-                                 "  --all             Re-render every run's page + hub\n"
-                                 "  --step <name>     Stop after step: run, hub, all\n";
-                    return 0;
-                } else {
-                    std::cerr << "Unknown matrix render option: " << arg << '\n';
-                    return 1;
-                }
-            }
-
-            const ResultsDbContext db = make_results_db_context(global.source_dir);
-            if (render_all) {
-                // Re-render every current run's page, then the hub once. Useful after a
-                // rendering/format change to refresh all committed pages from the DB.
-                std::vector<ResultsHubRun> runs;
-                load_hub_runs_from_db(db, runs);
-                for (const auto& run : runs) {
-                    write_run_results_page(db, run.run_id);
-                }
-                return write_summary_hub(db, true) ? 0 : 1;
-            }
-            if (!run_id.has_value()) {
-                run_id = latest_run_id(db);
-            }
-            if (!run_id.has_value()) {
-                std::cerr << "No runs in " << db.db_path().string() << '\n';
-                return 1;
-            }
-            return render_test_summary_through(db, *run_id, through) ? 0 : 1;
-        }
 
         if (sub == "run") {
             parse_common(3);
@@ -1022,188 +855,6 @@ int main(int argc, char** argv) {
             }
             return execute_matrix_run(global, configure_opts, matrix_opts, run_opts, build_opts);
         }
-        if (sub == "run-all") {
-            // Diff the desired matrix against runs (this host+disk) and run the gap,
-            // composing the same execute_matrix_run core as `runner`. Idempotent.
-            bool force = false, include_full = true, dry_run = false;
-            for (int i = 3; i < argc; ++i) {
-                const std::string a = argv[i];
-                if (a == "--force") {
-                    force = true;
-                } else if (a == "--no-full") {
-                    include_full = false;
-                } else if (a == "--dry-run") {
-                    dry_run = true;
-                } else if (a == "--fail-fast") {
-                    run_opts.fail_fast = true;
-                } else if (a == "--source-dir" && i + 1 < argc) {
-                    global.source_dir = argv[++i];
-                } else if (a == "-v" || a == "--verbose") {
-                    global.verbose = true;
-                } else if (a == "--help" || a == "-h") {
-                    std::cout <<
-                        "matrix run-all — run every MISSING combo for this host (gap-filling, idempotent)\n\n"
-                        "  Diffs v_desired_matrix {compiler}x{build_type}x{modules}x{size} against runs\n"
-                        "  (this host+disk) and runs the difference via the same core as `runner`.\n\n"
-                        "  --force        Run all combos, not just the missing ones\n"
-                        "  --no-full      Smoke only (skip xFull)\n"
-                        "  --fail-fast    Stop at the first failed combo (default: run all, report at end)\n"
-                        "  --dry-run      List the combos that would run, then stop\n";
-                    return 0;
-                } else {
-                    std::cerr << "Unknown matrix run-all option: " << a << '\n';
-                    return 2;
-                }
-            }
-            const std::string os = sensed_os_key();
-            std::string disk = detect_disk_type(".");
-            if (disk.empty()) {
-                disk = "ssd";
-            }
-            const ResultsDbContext db{global.source_dir};
-            const auto combos = missing_matrix_combos(db, os, disk, include_full, force);
-            std::cout << "run-all: " << combos.size()
-                      << (force ? " combo(s) [forced]" : " missing combo(s)")
-                      << " for " << os << "/" << disk
-                      << (include_full ? "" : " [smoke only]") << ":\n";
-            for (const auto& c : combos) {
-                std::cout << "  " << c.compiler << ' ' << c.build_type << ' '
-                          << c.modules << ' ' << c.size_label << '\n';
-            }
-            if (combos.empty()) {
-                std::cout << "Nothing to do — the matrix is complete for this host.\n";
-                return 0;
-            }
-            if (dry_run) {
-                // Preview the expected scenario grand total = combos x per-combo
-                // (per-combo count is constant). Counted from the first combo's
-                // already-built tree if present — no configure, build, or DB writes.
-                const auto& c0 = combos.front();
-                const std::string bt0 = (c0.build_type == "Release") ? "release" : "debug";
-                const std::string md0 = (c0.modules == "modules") ? "modules" : "textual";
-                const fs::path bdir0 = std::string("build-") + c0.compiler + "-" + bt0 + "-" + md0;
-                const auto tests0 = discover_tests(bdir0);
-                if (!tests0.empty()) {
-                    const std::string params_file =
-                        (c0.size_label == "xFull") ? "tests/test_params_full.txt"
-                                                    : "tests/test_params.txt";
-                    const auto params0 = load_matrix_params(global.source_dir / params_file);
-                    const int per_combo = static_cast<int>(
-                        build_matrix_scenarios(tests0, params0, c0.compiler, bdir0, run_opts.filter).size());
-                    std::cout << "expected: " << combos.size() << " combos x " << per_combo
-                              << " = " << (static_cast<int>(combos.size()) * per_combo)
-                              << " scenarios\n";
-                } else {
-                    std::cout << "(expected scenario total: build a combo first to count; "
-                                 "= " << combos.size() << " combos x ~116)\n";
-                }
-                std::cout << "(dry-run: nothing executed)\n";
-                return 0;
-            }
-            struct FailedCombo { std::string desc; bool build_failed; };
-            std::vector<FailedCombo> failed;
-            int idx = 0;
-            int seen_per_combo = 0;   // scenarios per combo (constant across combos)
-            MatrixComboTally agg;     // aggregate pass/fail across all combos that ran
-            for (const auto& c : combos) {
-                ++idx;
-                std::cout << "\n=== run-all [" << idx << '/' << combos.size() << "]  "
-                          << c.compiler << ' ' << c.build_type << ' ' << c.modules
-                          << ' ' << c.size_label << " ===\n";
-                ConfigureOptions co;
-                MatrixOptions mo;
-                if (c.compiler == "gcc15") {
-                    co.prefer_gcc15 = true;
-                    mo.compiler_label = "gcc15";
-                } else if (c.compiler == "clang") {
-                    co.prefer_clang = true;
-                    mo.compiler_label = "clang";
-                } else {
-                    // gcc16 or any registry label: resolved by label via compilers.conf
-                    co.compiler = c.compiler;
-                    mo.compiler_label = c.compiler;
-                }
-                co.build_type = c.build_type;
-                co.modules = (c.modules == "modules");
-                mo.params_file = (c.size_label == "xFull")
-                                     ? "tests/test_params_full.txt"
-                                     : "tests/test_params.txt";
-                GlobalOptions go = global;
-                const std::string bt = (c.build_type == "Release") ? "release" : "debug";
-                const std::string md = co.modules ? "modules" : "textual";
-                go.build_dir = "build-" + c.compiler + "-" + bt + "-" + md;
-                mo.combo_index = idx;
-                mo.combo_count = static_cast<int>(combos.size());
-                MatrixComboTally tally;
-                const int rc = execute_matrix_run(go, co, mo, run_opts, build_opts, &tally);
-                if (tally.scenarios > 0) seen_per_combo = tally.scenarios;
-                agg.passed  += tally.passed;  agg.failed += tally.failed;
-                agg.skipped += tally.skipped; agg.errors += tally.errors;
-                if (rc != 0) {
-                    const bool build_failed = (rc == kBuildPhaseFailed);
-                    const std::string desc = c.compiler + ' ' + c.build_type + ' '
-                                           + c.modules + ' ' + c.size_label;
-                    failed.push_back({desc, build_failed});
-                    std::cerr << "run-all: FAILED combo " << desc
-                              << (build_failed ? "  [BUILD failed — tests skipped]"
-                                               : "  [test failure]") << '\n';
-                    if (run_opts.fail_fast) {
-                        std::cerr << "run-all: --fail-fast set — stopping after first failure.\n";
-                        break;
-                    }
-                }
-            }
-
-            // `idx` is how many combos were actually attempted (== total unless
-            // --fail-fast broke the loop early). Only attempted-minus-failed are ok;
-            // the rest were never run.
-            const int attempted = idx;
-            const int total     = static_cast<int>(combos.size());
-            const int ok        = attempted - static_cast<int>(failed.size());
-            std::cout << "\nrun-all done: " << ok << '/' << total << " combo(s) ok";
-            if (seen_per_combo > 0) {
-                std::cout << "  ·  " << format_count(ok * seen_per_combo) << " of "
-                          << format_count(total * seen_per_combo) << " scenarios ("
-                          << total << " combos x " << seen_per_combo << ")";
-            }
-            if (attempted < total) {
-                std::cout << "  (stopped after " << attempted << "; "
-                          << (total - attempted) << " not run — --fail-fast)";
-            }
-            std::cout << '\n';
-
-            // Aggregate pass/fail verdict across every scenario that ran.
-            const bool all_passed =
-                (agg.failed == 0 && agg.errors == 0 && failed.empty());
-            std::cout << "             "
-                      << format_count(agg.passed)  << " passed, "
-                      << format_count(agg.failed)  << " failed, "
-                      << format_count(agg.skipped) << " skipped, "
-                      << format_count(agg.errors)  << " errors    "
-                      << (all_passed ? "*** ALL PASSED ***" : "*** FAILURES ***")
-                      << '\n';
-
-            if (!failed.empty()) {
-                bool any_build_fail = false;
-                std::cout << "\n=== " << failed.size() << " combo(s) FAILED ===\n";
-                for (const auto& f : failed) {
-                    any_build_fail = any_build_fail || f.build_failed;
-                    std::cout << "  - " << f.desc << "   ["
-                              << (f.build_failed ? "BUILD failed — tests skipped"
-                                                 : "test failure") << "]\n";
-                }
-                if (any_build_fail) {
-                    std::cout <<
-                        "\nA build failure skips that combo's tests by design. Build crashes are\n"
-                        "often transient toolchain issues (e.g. a clang-scan-deps module-scanner\n"
-                        "crash) — JUST RETRY: re-run `matrix run-all` (idempotent, gap-fills only\n"
-                        "the missing combos), or re-run a single combo from scratch with e.g.\n"
-                        "  matrix runner --compiler <c> --build-type <Debug|Release> --modules <on|off> --size <smoke|full>\n";
-                }
-                std::cout << "(Test failures: inspect the combo's RUN.md / scenario logs.)\n";
-            }
-            return failed.empty() ? 0 : 1;
-        }
 
         if (sub == "verify" || sub == "verify-lite") {
             const bool full = (sub == "verify");
@@ -1247,30 +898,6 @@ int main(int argc, char** argv) {
             }
         }
         return run_version_check_command(global);
-    }
-
-    if (command == "anonymize-hosts") {
-        bool dry_run = false;
-        for (int i = argi; i < argc; ++i) {
-            const std::string a = argv[i];
-            if (a == "--dry-run") {
-                dry_run = true;
-            } else if (a == "--source-dir" && i + 1 < argc) {
-                global.source_dir = argv[++i];
-            } else if (a == "--help" || a == "-h") {
-                std::cout <<
-                    "anonymize-hosts — replace identifying hostnames in the results DB with jac313-NNN\n\n"
-                    "  Ranks distinct hosts by core count, maps each to jac313-NNN, and scrubs the\n"
-                    "  hostname from host_hardware + group_specs. Idempotent. Re-render afterwards.\n\n"
-                    "  --dry-run         Show the mapping without writing\n"
-                    "  --source-dir <p>  Project root\n";
-                return 0;
-            } else {
-                std::cerr << "Unknown anonymize-hosts option: " << a << '\n';
-                return 2;
-            }
-        }
-        return anonymize_hosts(make_results_db_context(global.source_dir), dry_run) ? 0 : 1;
     }
 
     parse_common(argi);

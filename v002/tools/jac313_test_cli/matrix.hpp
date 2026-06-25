@@ -1,10 +1,8 @@
 #pragma once
 
 #include "manifest.hpp"
-#include "matrix_manifest.hpp"
 #include "options.hpp"
 #include "params.hpp"
-#include "results_db.hpp"
 #include "runner.hpp"
 
 #include <filesystem>
@@ -30,7 +28,6 @@ struct MatrixRunOptions {
     bool verbose{false};
     bool fail_fast{false};
     int failsafe_sec{kDefaultFailsafeSec};
-    MatrixDbSession db;
     // Global scenario progress across a whole run-all sweep (0 total = don't show).
     // Lets each line read "[i/116 · G of TOTAL]" so the expected grand total is
     // always visible and an inflated combo count is impossible to miss.
@@ -45,8 +42,6 @@ struct MatrixRunResult {
     std::optional<std::uint64_t> persist_log_bytes;
 };
 
-ScenarioIdentity scenario_identity(const MatrixScenario& scen);
-
 void print_matrix_scenario_line(const MatrixScenario& scen,
                                 int index,
                                 int total,
@@ -54,13 +49,6 @@ void print_matrix_scenario_line(const MatrixScenario& scen,
                                 int global_index = 0,
                                 int global_total = 0,
                                 int name_width = 0);
-
-void prepare_matrix_run_session(MatrixRunMeta& meta,
-                              MatrixOptions& opts,
-                              const std::filesystem::path& project_root);
-
-void accumulate_matrix_results(MatrixRunMeta& meta,
-                               const std::vector<MatrixRunResult>& results);
 
 std::string infer_package(const std::string& test_name);
 std::string infer_category(const std::string& test_name);
@@ -91,5 +79,14 @@ std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scena
                                         const MatrixParams& params,
                                         const std::filesystem::path& results_base,
                                         const MatrixRunOptions& opts = {});
+
+struct MatrixTally {
+    std::size_t passed{0};
+    std::size_t failed{0};
+    std::size_t skipped{0};
+    std::size_t errors{0};
+};
+
+MatrixTally tally_matrix_results(const std::vector<MatrixRunResult>& results);
 
 } // namespace jac313::test_cli
