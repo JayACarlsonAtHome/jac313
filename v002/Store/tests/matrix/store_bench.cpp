@@ -25,6 +25,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -277,10 +278,36 @@ std::uint64_t measure_output_bytes(const std::string& base) {
 
 struct HostInfo { std::string host, cpu, os; std::int64_t cores = 0, ram_gb = 0; };
 
+// Public-safety override: prefer a gitignored host_label.local (then $JAC313_HOST_LABEL)
+// over the machine's real hostname, so a committed DB carries a stable label (e.g.
+// jac313-002) from the start — no scrub needed, and grouping stays stable across re-runs.
+// store_bench runs from the build dir, so the file is searched from CWD UP the tree (it
+// lives at the v002/ root). Mirrors tools/jac313_test_cli/host_hardware.cpp::hostname().
+std::string host_label_override() {
+    namespace fs = std::filesystem;
+    auto trim = [](std::string s) {
+        const auto ws = [](char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; };
+        while (!s.empty() && ws(s.front())) s.erase(s.begin());
+        while (!s.empty() && ws(s.back()))  s.pop_back();
+        return s;
+    };
+    std::error_code ec;
+    for (fs::path d = fs::current_path(ec); !ec && !d.empty(); d = d.parent_path()) {
+        std::ifstream in(d / "host_label.local");
+        if (in) { std::string s; std::getline(in, s); s = trim(std::move(s)); if (!s.empty()) return s; }
+        if (d == d.parent_path()) break;
+    }
+    if (const char* env = std::getenv("JAC313_HOST_LABEL")) { std::string s = trim(env); if (!s.empty()) return s; }
+    return {};
+}
+
 HostInfo sense_host() {
     HostInfo h;
-    char hn[256] = {0};
-    if (::gethostname(hn, sizeof(hn) - 1) == 0) h.host = hn;
+    h.host = host_label_override();
+    if (h.host.empty()) {
+        char hn[256] = {0};
+        if (::gethostname(hn, sizeof(hn) - 1) == 0) h.host = hn;
+    }
     std::ifstream ci("/proc/cpuinfo"); std::string line;
     while (std::getline(ci, line)) {
         if (h.cpu.empty() && line.rfind("model name", 0) == 0) {
