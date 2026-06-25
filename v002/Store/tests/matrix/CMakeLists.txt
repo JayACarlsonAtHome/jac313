@@ -43,7 +43,7 @@ add_test(NAME jac313_store_metric_view
 # per-machine --sweep). Honest measurement: flush-and-wait inside the timed region,
 # verify last-run-only, distribution (median + low-high band) per config. Not a
 # pass/fail gate; the smoke test just proves it runs. Drive the curated suite with
-# bench_suite.sh (hardware + version header + the flag/durable grids).
+# store_bench --suite (hardware + version header + the flag/durable grids).
 add_executable(jac313_store_bench store_bench.cpp)
 target_compile_features(jac313_store_bench PRIVATE cxx_std_26)
 jac313_store_link_matrix_target(jac313_store_bench)

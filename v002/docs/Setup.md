@@ -147,8 +147,8 @@ Throughput now has its own runner — it has moved **out** of the functional mat
 root:
 
 ```bash
-bash Store/tests/matrix/bench_suite.sh            # curated 7-config suite (~90 s)
-bash Store/tests/matrix/bench_suite.sh --dry-run  # print the copy-paste command list
+./jac313_store_bench --suite            # curated 7-config suite (~90 s)
+./jac313_store_bench --suite --dry-run  # print the copy-paste command list
 ```
 
 A curated 7-config suite (non-durable flag sweep + durable jText/SQL/binary). The headline is the

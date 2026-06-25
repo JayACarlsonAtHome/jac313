@@ -44,10 +44,10 @@ Store is).
 ## Where throughput numbers come from
 
 Throughput is now measured by a dedicated instrument, **`store_bench`**, driven by
-**`bench_suite.sh`** (both in `Store/tests/matrix/`). Run it from the repo root:
+**`store_bench --suite`** (both in `Store/tests/matrix/`). Run it from the repo root:
 
 ```
-bash Store/tests/matrix/bench_suite.sh
+./jac313_store_bench --suite
 ```
 
 It is a **curated 7-config suite**, not a giant matrix:

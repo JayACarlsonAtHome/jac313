@@ -6,10 +6,11 @@
 
 ## What it is
 
-Throughput is measured by the `store_bench` instrument, driven by
-`bench_suite.sh`. Both live in `Store/tests/matrix/`. This is a *curated*
-7-config suite — deliberately small and trustworthy, not the big functional
-test matrix. Its job is to give numbers you can stand behind, not coverage.
+Throughput is measured by the `store_bench` instrument (in
+`Store/tests/matrix/`); the curated suite is its own built-in `--suite` mode —
+no driver script. It is a *curated* 7-config suite — deliberately small and
+trustworthy, not the big functional test matrix. Its job is to give numbers
+you can stand behind, not coverage.
 
 It is honest by construction:
 
@@ -22,22 +23,22 @@ It is honest by construction:
 
 ## How to run
 
-From the repo root:
+`store_bench` *is* the suite — no driver script. From the build directory
+(where `jac313_store_bench` was built):
 
 ```bash
-bash Store/tests/matrix/bench_suite.sh --dry-run   # print the copy-paste command list
-bash Store/tests/matrix/bench_suite.sh             # real run (~90 s)
+./jac313_store_bench --suite --dry-run         # print the copy-paste command list
+./jac313_store_bench --suite --db results.db   # run the curated 7 and record each (~90 s)
+./jac313_store_bench --report --db results.db  # render the results page from the DB
 ```
 
-Override the workload via environment variables:
-
-```bash
-NEVENTS=5000000 bash Store/tests/matrix/bench_suite.sh   # 5M total instead of 10M
-```
-
-`NEVENTS` is the non-durable total (`NDEV` sets per-thread instead). `DEVENTS`
-/ `DDEV` are the durable equivalents. `THREADS` sets the thread count, and
-`NRUN` / `DRUN` set the run counts for non-durable and durable respectively.
+`--db <path>` appends one row per config to a SQLite database (written via
+Qlite) — host, versions, config, and the full distribution — so re-running
+**accumulates history**. `--report` reads it back and emits the markdown
+[results page](../test-summary/) (latest run per config, per host). Pass
+`--jtext-ver vX.Y` so the recorded row carries the jText version. Each config
+is also a standalone `store_bench` command (see below) for running one in
+isolation.
 
 ## The 7 configs
 

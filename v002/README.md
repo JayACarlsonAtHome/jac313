@@ -67,7 +67,7 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 | [docs/store/](docs/store/) | Store by feature — logging, categories, bitmaps, persistence, reporting |
 | [docs/Memory-And-Concurrency.md](docs/Memory-And-Concurrency.md) | valgrind memcheck + helgrind/DRD — method, the tail-reader data race found & fixed, results, and honest limits |
 | [docs/Maturity.md](docs/Maturity.md) | Honest self-assessment on a 12-level scale — where jac313 sits (~7), and why that's a deliberate ceiling |
-| [docs/Benchmarks.md](docs/Benchmarks.md) | **How to run the throughput suite** — `store_bench` + `bench_suite.sh`, the curated 7 configs, `--dry-run` copy-paste commands, and a sample report |
+| [docs/Benchmarks.md](docs/Benchmarks.md) | **How to run the throughput suite** — `store_bench --suite` / `--report`, the curated 7 configs, the `--dry-run` command list, and a DB-backed [results page](test-summary/) |
 | [docs/HowToReadResults.md](docs/HowToReadResults.md) | **Read this before trusting any `ops/sec`** — what each number measures: in-memory ceiling (~15–25M) vs durable rate (~2.1–2.7M), why the headline is the **median + low–high band** (not lucky-max), and how flushing durable writes inside the clock corrects the ranking |
 | [docs/Results.md](docs/Results.md) | v002 results — **pending its first matrix run** (faithful copy of v001; validated green, but no per-platform throughput recorded yet) |
 | [docs/Bloopers.md](docs/Bloopers.md) | The bugs we shipped to ourselves, owned and explained — newest first. **#1 (today): "1,856 Tests, Not One You'd Quote"** — how the sprawling benchmark matrix became the honest `store_bench` 7-config suite |
