@@ -73,6 +73,14 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 | [docs/Bloopers.md](docs/Bloopers.md) | The bugs we shipped to ourselves, owned and explained — newest first. **#1 (today): "1,856 Tests, Not One You'd Quote"** — how the sprawling benchmark matrix became the honest `store_bench` 7-config suite |
 | Package READMEs | [Qlite](Qlite/README.md) · [jText](jText/README.md) · [Store](Store/README.md) |
 
+> **🚧 Results are being simplified.** The old matrix's `results_db` + committed
+> `test-summary/` report pages are being **retired** — those numbers were never
+> trustworthy (lucky-max headlines, smeared durable rows; see [Bloopers #1](docs/Bloopers.md)),
+> so nothing of value is lost. Going forward, throughput comes from the lean
+> [`store_bench` suite](docs/Benchmarks.md) (median + low–high band) and the new results
+> land in **one small database**. The old convoluted reports are going away and the new
+> simple ones are the way forward — **within a few days.**
+
 ---
 
 ## Quick start
