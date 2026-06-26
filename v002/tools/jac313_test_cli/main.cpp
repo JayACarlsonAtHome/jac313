@@ -625,26 +625,28 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
         return -1; };
 
     // Head-to-head: each compiler contributes a (median, band) pair per config row.
-    struct Cell { std::string median = "-", band = "-"; };
+    struct Cell { std::string median = "-", band = "-", size = "-"; };
     struct Row { std::string key; std::vector<Cell> cells; };
     std::vector<Row> rows;
     {
         auto st = db.prepare(
             "SELECT tr.run_id, tl.name, IFNULL(p.threads*p.events_per_thread,0), IFNULL(tr.median_ops,0), "
-            "IFNULL(tr.low_ops,0), IFNULL(tr.high_ops,0) "
+            "IFNULL(tr.low_ops,0), IFNULL(tr.high_ops,0), IFNULL(tr.bytes,0) "
             "FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id JOIN parameter p ON p.id=tr.parameter_id "
             "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' AND tr.run_id IN (" + inlist + ") "
             "ORDER BY tl.name, p.threads*p.events_per_thread");
         while (st.step()) {
-            std::int64_t run = 0, events = 0, med = 0, low = 0, high = 0; std::string name;
-            st.get(run, name, events, med, low, high);
+            std::int64_t run = 0, events = 0, med = 0, low = 0, high = 0, bytes = 0; std::string name;
+            st.get(run, name, events, med, low, high, bytes);
             const std::string key = events ? (name + " @" + std::to_string(events / 1000000) + "M") : name;
             Row* r = nullptr;
             for (auto& rr : rows) if (rr.key == key) { r = &rr; break; }
             if (!r) { rows.push_back({key, std::vector<Cell>(comps.size())}); r = &rows.back(); }
             const int col = col_for(run);
-            if (col >= 0) { r->cells[static_cast<std::size_t>(col)].median = fmt_num(med);
-                            r->cells[static_cast<std::size_t>(col)].band = human_ops(low) + "–" + human_ops(high); }
+            if (col >= 0) { Cell& cell = r->cells[static_cast<std::size_t>(col)];
+                            cell.median = fmt_num(med);
+                            cell.band   = human_ops(low) + "–" + human_ops(high);
+                            cell.size   = human_bytes(bytes); }
         }
     }
 
@@ -654,14 +656,15 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
               "the low–high band, head to head; latest run per compiler._\n\n| config";
         for (const auto& c : comps) {
             const std::string rl = run_label_md(c.second);
-            md << " | [" << c.first << "](" << rl << ".md)<br>median ops/sec | " << c.first << "<br>band";
+            md << " | [" << c.first << "](" << rl << ".md)<br>median ops/sec | " << c.first << "<br>band | "
+               << c.first << "<br>size";
         }
         md << " |\n|---";
-        for (std::size_t i = 0; i < comps.size(); ++i) md << "|--:|:--:";
+        for (std::size_t i = 0; i < comps.size(); ++i) md << "|--:|:--:|--:";
         md << "|\n";
         for (const auto& r : rows) {
             md << "| " << r.key;
-            for (const auto& cell : r.cells) md << " | " << cell.median << " | " << cell.band;
+            for (const auto& cell : r.cells) md << " | " << cell.median << " | " << cell.band << " | " << cell.size;
             md << " |\n";
         }
     }
