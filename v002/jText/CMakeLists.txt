@@ -73,10 +73,10 @@ if(JAC313_JTEXT_BUILD_MODULES)
                 "JAC313_JTEXT_IMPORT_STD needs CMake >= 3.30 for native `import std;` "
                 "(have ${CMAKE_VERSION}). See the root README \"Newer CMake on Linux Mint\".")
         endif()
-        if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        if(NOT (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
             message(FATAL_ERROR
-                "JAC313_JTEXT_IMPORT_STD is a g++-15 pilot; compiler is "
-                "${CMAKE_CXX_COMPILER_ID}. Leave it OFF for clang (textual partitions).")
+                "JAC313_JTEXT_IMPORT_STD is validated on GNU (g++-15) and Clang (clang-21); "
+                "compiler is ${CMAKE_CXX_COMPILER_ID} — leave it OFF.")
         endif()
         # Interface unit (BMI) + implementation unit, over the SAME shared fragments
         # as the textual jText.h/jText.cpp. Self-contained (public API uses no jtext::

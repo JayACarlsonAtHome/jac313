@@ -712,16 +712,17 @@ void write_build_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
         md << "| " << t;
         for (const auto& cf : configs) {
             std::string cell = "-";
-            auto st = db.prepare("SELECT IFNULL(tr.duration_ms,0), IFNULL(tr.status,'') FROM testRun tr "
-                "JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
+            auto st = db.prepare("SELECT IFNULL(tr.duration_ms,0), IFNULL(tr.status,''), IFNULL(tr.bytes,0) "
+                "FROM testRun tr JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
                 "JOIN testList tl ON tl.id=tr.test_list_id JOIN testType tt ON tt.id=tr.test_type_id "
                 "WHERE tt.name='build' AND tl.name=? AND c.name=? AND c.major=? AND p.build_type=? "
                 "AND p.modules=? AND p.import_std=? ORDER BY tr.run_id DESC LIMIT 1");
             st.bind(t, cf.cname, cf.cmajor, cf.bt, cf.mod, cf.imp);
-            if (st.step()) { std::int64_t ms = 0; std::string status; st.get(ms, status);
-                if (status == "NA") { cell = "NA"; }   // config not built by design (e.g. clang import-std)
+            if (st.step()) { std::int64_t ms = 0, bytes = 0; std::string status; st.get(ms, status, bytes);
+                if (status == "NA") { cell = "NA"; }   // config not built by design
                 else { char b[24]; std::snprintf(b, sizeof b, "%.2fs", static_cast<double>(ms) / 1000.0);
-                       cell = std::string(b) + " · " + (status.empty() ? "-" : status); } }
+                       cell = std::string(b) + " · " + (status.empty() ? "-" : status)
+                              + (bytes ? (" · " + human_bytes(bytes)) : std::string()); } }
             md << " | " << cell;
         }
         md << " |\n";
@@ -825,6 +826,7 @@ std::int64_t cli_parameter_id_verify(jac313::Qlite::v002::Sqlite& db, std::int64
 // plus its run status (pass/fail), keyed by compiler + build_type + front-end (headers/modules/import-std).
 void record_build_test(const fs::path& source_dir, const fs::path& build_dir,
                        const std::string& test, std::int64_t build_ms, const std::string& status,
+                       std::int64_t exe_bytes = 0,
                        const std::string& modules_override = "", const std::string& import_std_override = "") {
     const fs::path db_path = source_dir / "test-summary" / "results.db";
     std::error_code ec;
@@ -842,10 +844,10 @@ void record_build_test(const fs::path& source_dir, const fs::path& build_dir,
         const std::int64_t param_id = cli_parameter_id_ctest(db, comp_id, bf.build_type, modules, istd);
         db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", test);
         const std::int64_t list_id = cli_results_id(db, "SELECT id FROM testList WHERE name=?", test);
-        db.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms) "
-                "VALUES(?,?,?,?,?,?)", run_id, type_id, list_id, param_id, status, build_ms);
+        db.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms, bytes) "
+                "VALUES(?,?,?,?,?,?,?)", run_id, type_id, list_id, param_id, status, build_ms, exe_bytes);
         std::cout << "[results] build-matrix: " << test << "  build=" << build_ms << "ms  run=" << status
-                  << "  (run " << run_id << ")\n";
+                  << "  size=" << exe_bytes << "  (run " << run_id << ")\n";
     } catch (const std::exception& e) {
         std::cerr << "[results] build-test record failed: " << e.what() << "\n";
     }
@@ -1534,7 +1536,7 @@ int main(int argc, char** argv) {
     }
     if (command == "record-build-test") {   // build-matrix cell ingest: --build-dir --test --build-ms --status
         GlobalOptions g; g.source_dir = ".";
-        std::string test, status, modules_ov, istd_ov; std::int64_t bms = 0;
+        std::string test, status, modules_ov, istd_ov; std::int64_t bms = 0, ebytes = 0;
         for (int i = 2; i < argc; ++i) {
             const std::string a = argv[i];
             if (a == "--build-dir" && i + 1 < argc) g.build_dir = argv[++i];
@@ -1542,10 +1544,11 @@ int main(int argc, char** argv) {
             else if (a == "--test" && i + 1 < argc) test = argv[++i];
             else if (a == "--build-ms" && i + 1 < argc) bms = std::stoll(argv[++i]);
             else if (a == "--status" && i + 1 < argc) status = argv[++i];
+            else if (a == "--bytes" && i + 1 < argc) ebytes = std::stoll(argv[++i]);
             else if (a == "--modules" && i + 1 < argc) modules_ov = argv[++i];
             else if (a == "--import-std" && i + 1 < argc) istd_ov = argv[++i];
         }
-        record_build_test(g.source_dir, g.build_dir, test, bms, status, modules_ov, istd_ov);
+        record_build_test(g.source_dir, g.build_dir, test, bms, status, ebytes, modules_ov, istd_ov);
         return 0;
     }
     if (command.rfind('-', 0) == 0) {

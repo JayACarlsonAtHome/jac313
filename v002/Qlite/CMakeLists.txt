@@ -74,10 +74,10 @@ if(JAC313_QLITE_BUILD_MODULES)
                 "(have ${CMAKE_VERSION}). Install a newer CMake without root — see the "
                 "root README section \"Newer CMake on Linux Mint\".")
         endif()
-        if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        if(NOT (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
             message(FATAL_ERROR
-                "JAC313_QLITE_IMPORT_STD is a g++-15 pilot; compiler is "
-                "${CMAKE_CXX_COMPILER_ID}. Leave it OFF for clang (textual front-end).")
+                "JAC313_QLITE_IMPORT_STD is validated on GNU (g++-15) and Clang (clang-21); "
+                "compiler is ${CMAKE_CXX_COMPILER_ID} — leave it OFF.")
         endif()
         set_target_properties(jac313_qlite_module PROPERTIES CXX_MODULE_STD ON)
         target_compile_features(jac313_qlite_module PUBLIC cxx_std_26)

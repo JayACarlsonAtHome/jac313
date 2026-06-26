@@ -114,10 +114,10 @@ if(JAC313_STORE_BUILD_MODULES)
                 "JAC313_STORE_IMPORT_STD needs CMake >= 3.30 for native `import std;` "
                 "(have ${CMAKE_VERSION}). See the root README \"Newer CMake on Linux Mint\".")
         endif()
-        if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        if(NOT (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
             message(FATAL_ERROR
-                "JAC313_STORE_IMPORT_STD is a g++-15 pilot; compiler is "
-                "${CMAKE_CXX_COMPILER_ID}. Leave it OFF for clang (textual wrapper).")
+                "JAC313_STORE_IMPORT_STD is validated on GNU (g++-15) and Clang (clang-21); "
+                "compiler is ${CMAKE_CXX_COMPILER_ID} — leave it OFF.")
         endif()
         target_sources(jac313_store_module
             PUBLIC
