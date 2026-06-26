@@ -356,94 +356,11 @@ HostInfo sense_host() {
     return h;
 }
 
-// External run identifier: group_id N -> "Run_NNN" (zero-padded to 3).
-std::string run_label(std::int64_t gid) {
-    char b[24]; std::snprintf(b, sizeof b, "Run_%03lld", static_cast<long long>(gid)); return b;
-}
-
-// A "group" is one machine running one OS — the container for its runs. Identity is the
-// HARDWARE + OS: (cpu, cores, ram_gb, os). The hostname is NOT part of the key — it's recorded
-// as the anonymized jac313-<group_id> label (so matching on it would desync), and "same
-// hardware + same OS" is exactly what we want to call the same group. Internally it's group_id
-// (NOT NULL); externally it renders as Run_NNN. Older DBs get the column added and every row
-// backfilled — one id per (hardware, os) identity, first-seen.
-void ensure_group_schema(jac313::Qlite::v002::Sqlite& db) {
-    std::int64_t has = 0;
-    { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('bench_run') WHERE name='group_id'");
-      if (st.step()) st.get(has); }
-    if (has == 0) db.exec("ALTER TABLE bench_run ADD COLUMN group_id INTEGER");
-    struct Id { std::string cpu; std::int64_t cores, ram; std::string os; };
-    std::vector<Id> pending;
-    { auto st = db.prepare("SELECT cpu, cores, ram_gb, os FROM bench_run WHERE group_id IS NULL "
-                           "GROUP BY cpu, cores, ram_gb, os ORDER BY MIN(id)");
-      while (st.step()) { Id id; st.get(id.cpu, id.cores, id.ram, id.os); pending.push_back(id); } }
-    for (const auto& id : pending) {
-        std::int64_t next = 1;
-        { auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM bench_run"); if (st.step()) st.get(next); }
-        db.exec("UPDATE bench_run SET group_id=? WHERE cpu=? AND cores=? AND ram_gb=? AND os=? "
-                "AND group_id IS NULL", next, id.cpu, id.cores, id.ram, id.os);
-    }
-}
-
-// testType: a small reference/dimension table naming the runner's test kinds, so results can be
-// categorized by type. Created + seeded idempotently (CREATE IF NOT EXISTS + INSERT OR IGNORE), so
-// it's safe to call on every DB open and never disturbs existing rows.
-void ensure_testtype_schema(jac313::Qlite::v002::Sqlite& db) {
-    db.exec("CREATE TABLE IF NOT EXISTS testType ("
-            "id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, description TEXT)");
-    db.exec("INSERT OR IGNORE INTO testType(name, description) VALUES"
-            " ('ctest',       'ctest unit suite'),"
-            " ('smoke',       'persist x output smoke matrix'),"
-            " ('bench',       'throughput benchmark suite'),"
-            " ('verify-lite', 'valgrind memcheck gate'),"
-            " ('verify',      'valgrind memcheck + helgrind + DRD')");
-
-    // testList: the catalog of individual tests (id + name). store_bench seeds its own 7 bench
-    // suite configs here; jac313_test_cli seeds the discovered ctest/smoke names. INSERT OR IGNORE
-    // means both sources merge and re-runs are no-ops. (The @10M durable runs reuse jtext/sql/binary
-    // with a larger event count — same test, a scale parameter, so they are not separate entries.)
-    db.exec("CREATE TABLE IF NOT EXISTS testList ("
-            "id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL)");
-    db.exec("INSERT OR IGNORE INTO testList(name) VALUES"
-            " ('0 flags, non-durable'),"
-            " ('2 flags, non-durable'),"
-            " ('4 flags, non-durable'),"
-            " ('6 flags, non-durable'),"
-            " ('durable jtext'),"
-            " ('durable sql'),"
-            " ('durable binary')");
-
-    // Link results to their type: bench_run.test_type_id -> testType.id. Add the column on older
-    // DBs and backfill existing rows to 'bench' (the only kind that records today). Idempotent;
-    // guarded on bench_run existing (a brand-new DB creates the column in CREATE TABLE).
-    std::int64_t has_tbl = 0;
-    { auto st = db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='bench_run'");
-      if (st.step()) st.get(has_tbl); }
-    if (has_tbl == 0) return;
-    std::int64_t has_col = 0;
-    { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('bench_run') WHERE name='test_type_id'");
-      if (st.step()) st.get(has_col); }
-    if (has_col == 0) db.exec("ALTER TABLE bench_run ADD COLUMN test_type_id INTEGER");
-    db.exec("UPDATE bench_run SET test_type_id=(SELECT id FROM testType WHERE name='bench') "
-            "WHERE test_type_id IS NULL");
-}
-
-// Resolve the group_id for this machine's (hardware, os) identity: a plain compare against the
-// recorded groups — reuse the match, else allocate the next. No hostname, no side registry.
-std::int64_t group_id_for(jac313::Qlite::v002::Sqlite& db, const HostInfo& h) {
-    std::int64_t gid = 0;
-    { auto st = db.prepare("SELECT group_id FROM bench_run WHERE cpu=? AND cores=? AND ram_gb=? AND os=? "
-                           "AND group_id IS NOT NULL LIMIT 1");
-      st.bind(h.cpu, h.cores, h.ram_gb, h.os); if (st.step()) st.get(gid); }
-    if (gid == 0) { auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM bench_run"); if (st.step()) st.get(gid); }
-    return gid;
-}
-
 // ============================================================================
 // results.db — the unified, normalized results database. The schema and the compiler/lookup/run
 // helpers live in jac313_results_db.hpp (jac313::results — shared with the test CLI, single source
-// of truth). The wrappers below just adapt store_bench's HostInfo to that shared API. store_bench
-// writes here IN ADDITION to the legacy bench_run table during the port-over.
+// of truth). The wrappers below just adapt store_bench's HostInfo to that shared API — results.db
+// is the only thing store_bench writes (the legacy bench_run table is retired).
 // ============================================================================
 std::string host_label_for(std::int64_t gid) { return jac313::results::host_label(gid); }
 
@@ -552,20 +469,6 @@ void record_to_db(const Params& p, const BenchSummary& s) {
 void record_to_db(const Params&, const BenchSummary&) {}   // built without SQL persist -> no DB
 #endif
 
-// ---- shared formatting ----
-std::string commafy(std::uint64_t n) {
-    std::string s = std::to_string(n), out; int c = 0;
-    for (int i = static_cast<int>(s.size()) - 1; i >= 0; --i) {
-        out.push_back(s[i]);
-        if (++c % 3 == 0 && i > 0) out.push_back(',');
-    }
-    std::reverse(out.begin(), out.end());
-    return out;
-}
-std::string milstr(std::uint64_t n) { char b[32]; std::snprintf(b, sizeof b, "%.2fM", n / 1e6); return b; }
-std::string milint(std::uint64_t n) { return std::to_string(n / 1000000) + "M"; }   // clean "10M" for headers
-
-// ---- the curated suite (replaces the old bench_suite.sh driver) ----
 // Two scales of the SAME 10 configs:
 //   full  (--suite)         — the big numbers; the recorded throughput benchmark (Release).
 //   smoke (--suite --smoke) — the same 10 capped to <=10k events, run as a CORRECTNESS GATE:
