@@ -2,7 +2,7 @@
 
 _Generated from `results.db`. Cell = median ops/sec; latest run per compiler._
 
-| config | [clang21](Run_008.md) | [gcc15](Run_007.md) |
+| config | [clang21](Run_008.md)<br>ops/sec | [gcc15](Run_007.md)<br>ops/sec |
 |---|--:|--:|
 | 0 flags, non-durable @10M | 6030096 | 6079996 |
 | 2 flags, non-durable @10M | 6011908 | 6098843 |

@@ -431,6 +431,19 @@ std::string run_label_md(std::int64_t run_id) {
 }
 std::string dash(const std::string& s) { return s.empty() ? "-" : s; }
 
+// Human-readable byte size: "0 B", "1.234 KB", "12.345 MB", "1.500 GB" (1024-based, 3 decimals).
+std::string human_bytes(std::int64_t b) {
+    if (b <= 0) return "0 B";
+    static const char* unit[] = {"B", "KB", "MB", "GB", "TB"};
+    double v = static_cast<double>(b);
+    int i = 0;
+    while (v >= 1024.0 && i < 4) { v /= 1024.0; ++i; }
+    char buf[32];
+    if (i == 0) std::snprintf(buf, sizeof buf, "%lld B", static_cast<long long>(b));
+    else        std::snprintf(buf, sizeof buf, "%.3f %s", v, unit[i]);
+    return buf;
+}
+
 void write_compiler_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     std::error_code ec; fs::create_directories(out / "compiler", ec);
     std::ofstream md(out / "compiler" / "README.md");
@@ -569,7 +582,7 @@ void write_bench_detail(jac313::Qlite::v002::Sqlite& db, const fs::path& dir, st
         std::string name, per; std::int64_t events = 0, med = 0, low = 0, high = 0, bytes = 0;
         st.get(name, per, events, med, low, high, bytes);
         det << "| " << name << " | " << dash(per) << " | " << events << " | " << med << " | "
-            << low << "–" << high << " | " << bytes << " |\n";
+            << low << "–" << high << " | " << human_bytes(bytes) << " |\n";
     }
 }
 
@@ -609,7 +622,7 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
         std::ofstream md(out / "bench" / "README.md");
         md << "# bench — compiler comparison\n\n_Generated from `results.db`. Cell = median ops/sec; "
               "latest run per compiler._\n\n| config";
-        for (const auto& c : comps) md << " | [" << c.first << "](" << run_label_md(c.second) << ".md)";
+        for (const auto& c : comps) md << " | [" << c.first << "](" << run_label_md(c.second) << ".md)<br>ops/sec";
         md << " |\n|---";
         for (std::size_t i = 0; i < comps.size(); ++i) md << "|--:";
         md << "|\n";
