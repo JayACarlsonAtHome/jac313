@@ -12,6 +12,7 @@ Implementation lives **in this package** under `jac313::Store::v002` (migrated f
 Store is the largest part of jac313 — documented one feature at a time (each doc ends with honest
 strengths + weaknesses; a good target for AI-assisted exploration against your workload):
 
+- [**Use cases**](../docs/store/use-cases.md) — when & for what: metric count = event dimensionality (robot 3-D / fleet 2-D / pure logging 0-D), the Event as intent, and a gallery of domains
 - [**Logging**](../docs/store/logging.md) — the core: event/record model, exact int/float field counts, the lock-free hot path
 - [**Categories**](../docs/store/categories.md) — `bounded_string`, UTF-8 codepoint sizing of category + payload
 - [**Flags**](../docs/store/flags.md) — the complete `StoreFlags` catalog: every bit + meaning + honest wired/advisory/placeholder status
