@@ -124,11 +124,11 @@ int run_list_command(const GlobalOptions& global) {
     return 0;
 }
 
-// Seed the discovered test names into the shared testList catalog (bench_results.db). Best-effort:
+// Seed the discovered test names into the shared testList catalog in results.db. Best-effort:
 // the catalog is a convenience, never block a run on it. CREATE IF NOT EXISTS + INSERT OR IGNORE,
 // so it merges with store_bench's bench-config entries and a re-run writes nothing (no DB churn).
 void seed_test_catalog(const fs::path& source_dir, const std::vector<TestEntry>& tests) {
-    const fs::path db_path = source_dir / "test-summary" / "bench_results.db";
+    const fs::path db_path = source_dir / "test-summary" / "results.db";
     std::error_code ec;
     if (!fs::exists(db_path.parent_path(), ec)) {
         return;   // no test-summary/ -> nothing to catalog into
@@ -561,6 +561,23 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     }
 }
 
+// Top-level landing index: test-summary/README.md, linking to the compiler page and every test
+// type that has data (with its run/row counts).
+void write_index_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
+    std::ofstream md(out / "README.md");
+    md << "# Test results\n\n_Generated from `results.db` by `jac313_test_cli --report`._\n\n"
+          "| area | runs | rows |\n|---|--:|--:|\n"
+          "| [compilers](compiler/README.md) | — | — |\n";
+    for (const char* t : {"ctest", "smoke", "bench", "verify-lite", "verify"}) {
+        std::int64_t runs = 0, rows = 0;
+        { auto st = db.prepare("SELECT COUNT(DISTINCT tr.run_id), COUNT(*) FROM testRun tr "
+                               "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name=?");
+          st.bind(std::string(t)); if (st.step()) st.get(runs, rows); }
+        if (rows == 0) continue;
+        md << "| [" << t << "](" << t << "/README.md) | " << runs << " | " << rows << " |\n";
+    }
+}
+
 int run_report_command(const fs::path& source_dir) {
     const fs::path db_path = source_dir / "test-summary" / "results.db";
     std::error_code ec;
@@ -572,7 +589,8 @@ int run_report_command(const fs::path& source_dir) {
         write_compiler_page(db, out);
         for (const char* t : {"ctest", "smoke", "verify-lite", "verify"}) write_type_pages(db, out, t);
         write_bench_pages(db, out);
-        std::cout << "[report] wrote test-summary/{compiler,ctest,smoke,verify-lite,verify,bench}/ from results.db\n";
+        write_index_page(db, out);
+        std::cout << "[report] wrote test-summary/README.md + {compiler,ctest,smoke,verify-lite,verify,bench}/ from results.db\n";
         return 0;
     } catch (const std::exception& e) { std::cerr << "report failed: " << e.what() << "\n"; return 1; }
 }
@@ -592,7 +610,7 @@ std::int64_t cli_parameter_id_ctest(jac313::Qlite::v002::Sqlite& db, std::int64_
     std::int64_t id = find();
     if (id == 0) {
         db.exec("INSERT INTO parameter(compiler_id,build_type,modules,import_std,size,persist,output_mode,threads,"
-                "events_per_thread,runs,batch,flag_count) VALUES(?,?,?,?,NULL,NULL,NULL,NULL,NULL,NULL,NULL)",
+                "events_per_thread,runs,batch,flag_count) VALUES(?,?,?,?,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL)",
                 compiler_id, build_type, modules, import_std);
         id = find();
     }
@@ -1282,7 +1300,7 @@ int run_group_id_command(GlobalOptions global, ConfigureOptions configure_opts, 
     std::cout.flush();   // flush buffered cout before the child writes to the inherited fd
     std::cerr.flush();
     const std::string cmd = "cd \"" + root.string() + "\" && \"" + bench.string()
-                          + "\" --group-id --db test-summary/bench_results.db";
+                          + "\" --group-id --db test-summary/results.db";
     const int rc = std::system(cmd.c_str());
     return WIFEXITED(rc) ? WEXITSTATUS(rc) : 1;
 }
