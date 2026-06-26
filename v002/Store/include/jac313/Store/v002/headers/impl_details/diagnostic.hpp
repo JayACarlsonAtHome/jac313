@@ -3,7 +3,6 @@
 // Updated: uses ansi:: colors, centered boxes, safe for large numbers
 
 #pragma once
-//#include "test_constants.hpp"
 
 inline void diagnose_failures(size_t max_report = std::numeric_limits<size_t>::max()) const
 {
@@ -51,7 +50,7 @@ inline void diagnose_failures(size_t max_report = std::numeric_limits<size_t>::m
         jac313_rt_print("{}[DIAGNOSE] Thread: {:>{}}{}{} | {}", ansi::magenta(),  f.thread_id, w, ansi::reset(), ansi::gray(), ansi::reset() );
         jac313_rt_print("{}[DIAGNOSE] Event:  {:>{}}{}{} | {}", ansi::magenta(),  f.event_id,  e, ansi::reset(), ansi::gray(), ansi::reset() );
         std::println("{}     Actual   (len {:>4} Payload: {}{})", ansi::yellow(),  f.payload.size(), f.payload,  ansi::reset() );
-        std::println("{}     Expected (len {:>4} Payload: {}{})", ansi::yellow(),  f.payload.size(), f.expected, ansi::reset() );
+        std::println("{}     Expected (len {:>4} Payload: {}{})", ansi::yellow(),  f.expected.size(), f.expected, ansi::reset() );
         std::println("");
     }
 

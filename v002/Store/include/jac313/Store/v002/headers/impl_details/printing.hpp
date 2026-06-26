@@ -1,5 +1,5 @@
 // ts_store/ts_store_headers/impl_details/printing.hpp
-// Updated for std::string-based storage (dynamic allocation)
+// bounded_string storage (fixed inline buffer — no per-row allocation)
 // Converted to std::print / std::println (C++23) — no std::ostream parameter
 
 #pragma once
@@ -117,19 +117,6 @@ void print_summary(size_t total, size_t rows_printed, bool early_exit) const
 }
 
 public:
-void debug_print_widths() const {
-    auto w = set_effective_widths();
-    std::cout << "  id     = " << w.id << "\n"
-              << "  time   = " << w.time << "\n"
-              << "  type   = " << w.type << "\n"
-              << "  cat    = " << w.category << "\n"
-              << "  thread = " << w.thread << "\n"
-              << "  event  = " << w.event << "   ← ← ← this is usually the problem\n"
-              << "  payload= " << w.payload << "\n"
-              << "  total  ≈ " << w.total() << "\n"
-              << "  events_per_thread_ raw = " << get_max_events() << "\n"
-              << "  expected_size      = " << expected_size() << "\n\n";
-}
 
 //================================================================================================
 //
@@ -156,10 +143,6 @@ inline void print(size_t max_rows = 10'000) const
     for (size_t i = 0; i < rows_.size(); ++i) {
         ids.push_back(i);
     }
-
-    //const size_t total = ids.size();
-
-
 
     std::println("{}ts_store <{}", ansi::bold_white(), ansi::reset());
     std::println("   Threads    = {}", get_max_threads());

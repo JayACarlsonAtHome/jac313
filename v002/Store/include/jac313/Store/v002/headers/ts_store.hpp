@@ -1,5 +1,5 @@
 // ts_store/ts_store_headers/ts_store.hpp
-// C++23 — GCC 15 — December 2025
+// C++26 (uses std::mul_sat / std::add_sat) — GCC 15 / Clang 21
 #pragma once
 
 #include "includes.hpp"
@@ -82,7 +82,8 @@ public:
     }
     void clear() {
         next_id_.store(0, std::memory_order_relaxed);
-        // Remove any rows_.clear() if present
+        // rows_ is intentionally NOT cleared — next_id_=0 is the logical reset; the fixed buffer is
+        // reused (entries are overwritten on the next write), avoiding reallocation.
     }
 
     /// Attach a DoubleBufferedWriter (with any IEventSink: JTextEventSink, BinaryEventSink, or future SQL).

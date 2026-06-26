@@ -103,9 +103,7 @@ inline auto select(size_t id) const
     return std::pair{true, rows_[id].value_storage.view()};
 }
 
-// get_all_ids
-// Storage is now a dense vector<row_data> (id == index).
-// Return 0..N-1 (the allocated slots). This was left over from map-based storage.
+// get_all_ids — return 0..N-1, the dense slot indices (storage is vector<row_data>, id == index).
 inline std::vector<size_t> get_all_ids() const
 {
     std::vector<size_t> ids;
