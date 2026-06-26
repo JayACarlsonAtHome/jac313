@@ -6,4 +6,4 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 |---|--:|--:|
 | [compilers](compiler/README.md) | — | — |
 | [bench](bench/README.md) | 1 | 8 |
-| [build](build/README.md) | 12 | 12 |
+| [build](build/README.md) | 18 | 18 |

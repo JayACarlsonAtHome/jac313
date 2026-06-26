@@ -3,6 +3,10 @@ build/
 build-*/
 **/build/
 
+# Throwaway build-matrix trees + their logs (tools/build_matrix.sh) — one place, wholesale-deletable
+/tmp_build/
+/tmp_build*
+
 # Compiled objects and archives
 *.o
 *.a
