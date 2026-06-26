@@ -326,10 +326,7 @@ constexpr int kBuildPhaseFailed = 2;
 
 // ---- results.db (CLI side): capture functional smoke results as testRun rows ----
 // NOTE: this schema MUST match store_bench's ensure_results_schema (two writers, one DB).
-// TODO: factor the shared schema/resolution into a common header to remove the duplication.
 // Schema + lookup live in jac313_results_db.hpp (shared with store_bench, single source of truth).
-void cli_ensure_results_schema(jac313::Qlite::v002::Sqlite& db) { jac313::results::ensure_schema(db); }
-
 std::int64_t cli_results_id(jac313::Qlite::v002::Sqlite& db, const char* sql, const std::string& name) {
     return jac313::results::lookup_id(db, sql, name);
 }
