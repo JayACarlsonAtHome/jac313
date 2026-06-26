@@ -58,10 +58,10 @@ Everything regenerates from scratch, written under `v002/` only:
 cd ..              # the v002 root
 ./bootstrap.sh                       # sense toolchain → build the runner → drop the symlink
 ./jac313_test_cli --ctest --smoke    # functional base check (correctness)
-./jac313_test_cli --bench --report   # throughput → test-summary/bench_results.db + rendered pages
+./jac313_test_cli --bench --report   # throughput → test-summary/results.db + rendered pages
 ```
 
 Per-run throughput detail — clang-vs-gcc per machine — appears in the
-[test-summary hub](../test-summary/) and `test-summary/bench_results.db` as runs complete.
+[test-summary hub](../test-summary/) and `test-summary/results.db` as runs complete.
 
 Part of the [jac313](../../README.md) project.

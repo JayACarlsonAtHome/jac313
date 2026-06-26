@@ -42,14 +42,15 @@ heading. So we did it across all three libraries, each a different shape:
 | **jText** | compiled lib | interface unit + implementation unit over shared fragments (`jText.api.inc` / `jText.impl.inc`) |
 | **Store** | template + compiled sinks, POSIX-heavy, deps on Qlite **and** jText | one interface unit over ~24 headers + 4 `.cpp`, each made std-free by guarding its `#include <…>` + `namespace` behind `JAC313_STORE_IMPORT_STD`; POSIX/C-compat/Qlite/jText stay textual in the global module fragment |
 
-Each is opt-in and **gcc-only** (`-DJAC313_QLITE_IMPORT_STD=ON` / `_JTEXT_` / `_STORE_`), via
-CMake's native std-module support. That support is gated behind a **CMake-version-specific
-UUID**, so it needs the **exact pinned CMake (4.3.3)** — `≥ 3.30` is the floor where the
-feature exists but is **not sufficient**: any other version (older or newer) carries a
-different UUID and fails to configure (see the [UUID note](#the-curses-concrete-toolchain-friction) below and
+Each is opt-in (`-DJAC313_QLITE_IMPORT_STD=ON` / `_JTEXT_` / `_STORE_`), validated on **GNU
+(g++-15) and Clang (clang-21 + libstdc++)**, via CMake's native std-module support. That support
+is gated behind a **CMake-version-specific UUID**, so it needs the **exact pinned CMake (4.3.3)** —
+`≥ 3.30` is the floor where the feature exists but is **not sufficient**: any other version (older
+or newer) carries a different UUID and fails to configure (see the [UUID note](#the-curses-concrete-toolchain-friction) below and
 [Setup.md](Setup.md#newer-cmake-only-for-import-std); empirically confirmed in
-[Results.md → CMake 3.31.8 vs 4.3.3](Results.md#cmake-3318-vs-433)). Clang keeps the textual
-modules.
+[Results.md → CMake 3.31.8 vs 4.3.3](Results.md#cmake-3318-vs-433)). Clang builds these with
+`import std` too — validated on clang-21 + libstdc++; `import std` is a *compile-time* cost (the
+std-module BMI), **not** a binary-size one (stripped exe sizes are identical to textual).
 
 ### The blessing: it works, and it's measured
 

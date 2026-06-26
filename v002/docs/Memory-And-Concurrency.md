@@ -21,7 +21,7 @@ threads coordinate correctly?" — two different questions, two different tools.
 - **valgrind 3.22.0**, gcc-15 **Debug** binaries (symbols, no optimization — the right
   target for these tools).
 - Binaries were driven **directly** with a `/tmp` working directory so nothing in the repo
-  was touched — not the tracked results DB (`test-summary/bench_results.db`), not the
+  was touched — not the tracked results DB (`test-summary/results.db`), not the
   committed `persist_*` sample artifacts at the repo root.
 - The matrix tests are the real concurrency surface (each spins multiple writer threads);
   they were exercised on both the **lock-free path** (`--persist=none`) and the
@@ -148,41 +148,42 @@ valgrind --tool=helgrind build-hg/Store/tests/matrix/jac313_store_003_TS --no-in
 The real data race is fixed and verified; the cosmetic dubious-notify is fixed; and the
 tool blind-spot on lock-free atomics is annotated away. (Commit `ee0058c`.)
 
-## The gate (`cleancheck`)
+## The gate (`verify-lite` / `verify`)
 
 Having found a real race, the rule is: re-run these tools before every push. That's a
-`jac313_test_cli` subcommand and an installed pre-push hook — not a manual ritual to
-remember.
+`jac313_test_cli` gate and an installed pre-push hook — not a manual ritual to remember.
 
 ```bash
-jac313_test_cli cleancheck            # auto-detect compiler
-jac313_test_cli cleancheck --gcc15    # pick a toolchain
+jac313_test_cli --verify-lite     # valgrind memcheck (the pre-push gate)
+jac313_test_cli --verify          # memcheck + helgrind + DRD (the full gate)
 ```
 
-`cleancheck` self-builds a dedicated **annotated** Debug tree
-(`-DJAC313_STORE_HELGRIND_ANNOTATE=ON`, so helgrind/DRD see the lock-free handoff), then
-runs the representative set at **smoke scale**: memcheck over the full memory surface, and
-helgrind + DRD over the multithreaded tests (003/006 lock-free + 001 across the
-persistence sinks). It runs each binary from a `/tmp` scratch dir — nothing in the repo is
-touched, no results DB, no committed artifact. Output is verdict-first: a per-check
-clean/error line, a `CLEANCHECK PASS`/`FAIL` summary, and a **non-zero exit on any error**.
-If valgrind isn't installed it stops with install instructions (it's a hard prerequisite).
+`--verify` self-builds a dedicated **annotated** Debug tree
+(`-DJAC313_STORE_HELGRIND_ANNOTATE=ON`, so helgrind/DRD see the lock-free handoff), then runs
+the representative set at **smoke scale**: memcheck over the full memory surface, and helgrind +
+DRD over the multithreaded tests (003/006 lock-free + 001 across the persistence sinks).
+**`--verify-lite`** is the memcheck-only subset — the lighter pre-push gate. Each result is
+recorded into `test-summary/results.db` (the report's `verify/` page shows it, clang ↔ gcc); known
+**false positives are scrubbed first** via `suppressions/jac313.supp` (the std::atomic helgrind/DRD
+blind spot — see below), so only real errors reach the DB. Output is verdict-first: a per-check
+clean/error line, a `verify PASS`/`FAIL` summary, and a **non-zero exit on any error**. If valgrind
+isn't installed it stops with install instructions (it's a hard prerequisite).
 
 **Enforcement.** `bootstrap.sh` installs `tools/hooks/pre-push` into `.git/hooks/pre-push`
 (git hooks are local and not version-controlled, so they're installed per clone). It runs
-`cleancheck` before every push and blocks a dirty one. Bypass a single push with
-`git push --no-verify`.
+`version-check` then **`matrix verify-lite`** before every push and blocks a dirty one. Bypass a
+single push with `git push --no-verify`.
 
 ## Honest limits — what this does **not** cover
 
 - **Smoke scale only** (e.g. 5 threads × 20 events). Scale-dependent races — ring-buffer
   wraparound, buffer growth, persist spillover — would not necessarily surface here. A
   full-matrix run under these tools would be far slower but more thorough.
-- **gcc-15 Debug only** — no clang, no Release. Optimized builds can reorder in ways Debug
-  does not.
+- **The pre-push gate is gcc-15 Debug** — no Release. (`--verify` accepts `--clang` for an
+  on-demand clang pass; the *hook* runs gcc.) Optimized builds can reorder in ways Debug does not.
 - **A representative subset**, not every test × every sink combination. Every *code path*
   (hot path, each sink, each reader) was hit; the full combinatorial grid was not.
-- **The gate is smoke + representative, by design.** `cleancheck` (above) runs before every
+- **The gate is smoke + representative, by design.** `matrix verify-lite` (above) runs before every
   push, but at smoke scale and over a representative subset — not the full matrix, not every
   test × sink. It's a fast tripwire, not an exhaustive sweep; a deeper periodic run (full
   scale, more scenarios) is still a manual exercise.

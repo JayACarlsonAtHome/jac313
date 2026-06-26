@@ -124,13 +124,13 @@ recorded identity dimension, so Debug and Release results never conflate.
 
 > **Run the whole battery at once:** [RunAllTests.md](RunAllTests.md) is the copy-paste
 > runbook — gcc15 + clang, smoke + full Debug + full Release (modules + no-modules), plus
-> the optional valgrind `cleancheck` gate (no gcc14).
+> plus the valgrind `--verify-lite` (pre-push) / `--verify` (full) gates.
 
 ### Tiers (not the same thing)
 
 | Tier | Command | What runs | Wall-clock | Purpose |
 |------|---------|-----------|-----------|---------|
-| **ctest** | `all` / `release-check` (step 3) | registered tests: store units, matrix bins 001–008 (one persist path each), module smoke, RunIdentity + OS-dedup regression | seconds | Compile/link sanity; one path per binary |
+| **ctest** | `--ctest` (preset) / `run` (explicit) | registered tests: store units, matrix bins 001–008 (one persist path each), module smoke, RunIdentity + OS-dedup regression | seconds | Compile/link sanity; one path per binary |
 | **Smoke matrix** | `matrix run` | **115 scenarios**: each matrix test × persist backend (binary, jText, SQL, inmem, flags, unit) × on/off | ~15 s | Daily gate; full persist grid, minimal scale |
 | **Full matrix** | `matrix run --params tests/test_params_full.txt` | same 115 with ts_store stress scaling | **~9–10 min/compiler** | Correctness under load |
 
@@ -138,7 +138,7 @@ The Smoke/Full matrix above is the **functional/correctness** suite (unchanged) 
 every persist backend stays correct across scale. **It is not how you benchmark throughput.**
 
 **ctest is not the matrix.** ctest runs each matrix binary once; the matrix re-runs them many
-times with different persist backends and CLI scaling. `release-check` runs ctest **then** the
+times with different persist backends and CLI scaling. `--ctest --smoke` runs ctest **then** the
 smoke matrix (115), not the full matrix.
 
 ### Throughput benchmark (separate)
@@ -156,15 +156,15 @@ A curated 10-config suite (non-durable flag sweep + durable jText/SQL/binary at 
 
 ### Everything at once
 
-From a fresh clone, one command does the lot — bootstrap, every gate on both compilers, the
-build-time matrix, then render the report:
+After `./bootstrap.sh`, one command runs the lot — every gate on both compilers, the build-time
+matrix, then render the report:
 
 ```bash
-tools/run_all.sh        # then open test-summary/README.md
+./jac313_test_cli --run-everything      # then open test-summary/README.md
 ```
 
-It's the full battery (slow — valgrind verify + bench on two compilers). For day-to-day work,
-run individual gates below.
+It's the full battery (slow — valgrind verify + bench on two compilers), orchestrated **in code**
+(per-step exit codes + a failure summary at the end). For day-to-day work, run individual gates below.
 
 ### Gate commands — copy-paste (preset, and the explicit equivalent)
 
@@ -191,11 +191,11 @@ expands to. Copy either. Default compiler is **gcc15** — swap `--gcc15`→`--c
 ./jac313_test_cli build       --build-dir build-gcc15
 ./jac313_test_cli matrix run  --build-dir build-gcc15 --params tests/test_params_full.txt
 
-# ── verify-lite — valgrind memcheck (the pre-push gate) ──────────────
+# ── verify-lite — memcheck + helgrind + DRD over a REPRESENTATIVE set (the pre-push gate) ──
 ./jac313_test_cli --verify-lite                                # preset
 ./jac313_test_cli matrix verify-lite                           # explicit
 
-# ── verify — valgrind memcheck + helgrind + DRD ──────────────────────
+# ── verify — same three tools, FULL sink coverage ───────────────────
 ./jac313_test_cli --verify                                     # preset
 ./jac313_test_cli matrix verify                                # explicit
 

@@ -4,6 +4,12 @@
 
 # Forward — open threads
 
+> ⚠️ **Superseded (2026-06-26).** This doc describes the older store_bench-centric reporting
+> (`store_bench --report`, `bench_results.db`, per-group `Run_NNN.md` clang-vs-gcc tables). The
+> reporting has since been **unified**: every gate records to `test-summary/results.db`, and
+> `jac313_test_cli --report` renders the per-area comparison pages (clang ↔ gcc side by side).
+> See [Setup.md](Setup.md) and [Benchmarks.md](Benchmarks.md). Kept below for history.
+
 This session made **store_bench the test driver** (the 10 curated configs *are* the tests)
 and **retired the old matrix reporting**. State at close, then what's next.
 

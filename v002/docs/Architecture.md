@@ -92,21 +92,21 @@ flowchart LR
     D --> E[test-results/.../logs]
 ```
 
-The functional matrix is a **pass/fail correctness gate** — it records no database. Throughput is a
-separate pipeline: `store_bench --suite --db test-summary/bench_results.db` → `--report` →
-`test-summary/*.md`.
+Every gate records into the unified `test-summary/results.db`; throughput comes through the same
+pipeline: `store_bench --suite --db test-summary/results.db` → `jac313_test_cli --report` →
+`test-summary/` comparison pages.
 
 1. **ctest** — one invocation per registered test; module smokes + a single path per matrix binary.
-2. **Smoke matrix (116, functional)** — full persist × output-mode grid at minimal scale; used by `release-check`.
+2. **Smoke matrix (116, functional)** — full persist × output-mode grid at minimal scale; the daily gate (preset `--smoke`).
 3. **Full matrix (116, functional)** — same grid with ts_store stress scaling; correctness under load.
-4. **Multi-toolchain** — `release-check-all` runs the standard set per host: **gcc15 + clang**.
+4. **Multi-toolchain** — run the presets on both **gcc15 + clang**; the report compares them side by side.
 
 The matrix is the **functional/correctness** suite. Throughput is no longer read as "peak ops/sec"
 from test logs — it now comes from a separate `store_bench --suite` (curated 10-config run, headline =
 median + low–high band). See [Benchmarks.md](Benchmarks.md).
 
-Throughput metrics are **DB-only** (`test-summary/bench_results.db`, tracked) — there are no file
-side-channels; the markdown `Run_NNN.md` pages render from DB views via `store_bench --report`. See
+Throughput metrics are **DB-only** (`test-summary/results.db`, tracked) — there are no file
+side-channels; the per-area comparison pages render from `results.db` via `jac313_test_cli --report`. See
 [Benchmarks.md](Benchmarks.md) for commands and the per-run results layout.
 
 ### Testing without CI theatre

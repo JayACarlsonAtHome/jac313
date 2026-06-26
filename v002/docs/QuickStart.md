@@ -48,9 +48,10 @@ and get baked into the generated script.
 
 ## `--bench --report` and the host label
 
-`--bench --report` records throughput into the tracked `test-summary/bench_results.db` and renders
-`test-summary/README.md` + `Run_NNN.md`. The machine label is **auto-resolved** — no manual
-`host_label.local` step:
+`--bench --report` records throughput into the tracked `test-summary/results.db` and renders the
+`test-summary/` comparison pages (a top-level `README.md` index → `compiler/`, `ctest/`, `smoke/`,
+`bench/`, `verify/`, `build/`, clang ↔ gcc side by side). The machine label is **auto-resolved** —
+no manual `host_label.local` step:
 
 - A run's group is its **hardware + OS** identity — `(cpu, cores, ram_gb, os)`. The recorder
   compares that against the existing groups in the DB: same hardware+OS **reuses** its group; new

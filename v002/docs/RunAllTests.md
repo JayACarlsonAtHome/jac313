@@ -23,7 +23,7 @@ script; it's left in place so you can re-run it with `bash run_latest_config.sh`
 > the explicit **`runner`** subcommand for the cells presets don't cover.
 
 > The old `matrix run-all` / `matrix render` / `jac313_results.db` were **retired** — throughput and
-> the committed report now live in the benchmark + `test-summary/bench_results.db`. See [Forward.md](Forward.md).
+> the committed report now live in the benchmark + `test-summary/results.db`. See [Forward.md](Forward.md).
 
 See also: [QuickStart.md](QuickStart.md) · [Setup.md](Setup.md) · [Benchmarks.md](Benchmarks.md) · [README.md](../README.md)
 
@@ -99,7 +99,7 @@ The heavy `--size full` cells are I/O-intensive — start day-to-day with `--cte
 ```bash
 ./jac313_test_cli --group-id         # PRECHECK: existing groups + this machine's proposed group_id (read-only)
 ./jac313_test_cli --bench            # build Release, run the curated suite — numbers to stdout, NOT recorded
-./jac313_test_cli --bench --report   # record → test-summary/bench_results.db + render README + Run_NNN.md
+./jac313_test_cli --bench --report   # record → test-summary/results.db + render the comparison pages
 ```
 
 Run `--group-id` first to see whether recording reuses an existing group or creates a new one (a
@@ -113,9 +113,9 @@ identity `(cpu, cores, ram_gb, os)`, compared against the recorded groups: same 
 its `jac313-<group_id>`, new hardware/OS gets the next number — so no real hostname ever enters the
 DB. A `host_label.local` / `$JAC313_HOST_LABEL` still overrides. Preview with `--group-id`.
 
-**A second compiler:** add `--clang`, re-run `--bench --report` into the same DB — the `compiler`
-column splits the rows and the report renders the clang-vs-gcc tables. No automatic gcc+clang sweep
-(manual by decision — the suite is short).
+**A second compiler:** add `--clang`, re-run `--bench --report` into the same DB — the report's
+bench page then shows **clang ↔ gcc head-to-head** (median ops/sec · band · size per compiler). No
+automatic gcc+clang sweep (manual by decision — the suite is short).
 
 > Under the hood this drives `store_bench` (`--suite` / `--suite --db …` / `--report --db …`); see
 > [Benchmarks.md](Benchmarks.md) to run a single config or use `--dry-run` / `--anonymize` directly.
@@ -148,5 +148,5 @@ Verdict-only (no DB write) — non-zero exit on any error. `--verify-lite` is th
 | Memory/thread | `--verify-lite` / `--verify` | valgrind memcheck + helgrind/DRD |
 
 Functional and valgrind gates are pass/fail only — they record nothing. The only persisted results
-are the throughput numbers in the tracked `test-summary/bench_results.db` and the markdown pages
+are the throughput numbers in the tracked `test-summary/results.db` and the markdown pages
 rendered from it.

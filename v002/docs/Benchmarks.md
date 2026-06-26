@@ -27,7 +27,7 @@ The easy way, from `v002/` — the runner builds Release and drives the suite fo
 
 ```bash
 ./jac313_test_cli --bench            # run the curated suite — numbers to stdout, NOT recorded
-./jac313_test_cli --bench --report   # record → test-summary/bench_results.db + render the report
+./jac313_test_cli --bench --report   # record → test-summary/results.db + render the report
 ```
 
 `--bench --report` auto-resolves the machine label (see *group identity* below) — no manual
@@ -40,8 +40,7 @@ config, `--dry-run`, or `--anonymize`.
 ```bash
 ./jac313_store_bench --suite --dry-run         # print the copy-paste command list
 ./jac313_store_bench --suite --db results.db   # run the curated 10 and record each
-./jac313_store_bench --clear  --db results.db  # wipe THIS host+OS's rows (re-measure clean); other machines/OSes untouched
-./jac313_store_bench --report --db results.db  # write the index + per-run pages from the DB
+./jac313_test_cli --report                     # render the comparison pages from results.db
 ```
 
 `--db <path>` appends one row per config to a SQLite database (written via
@@ -56,19 +55,17 @@ this machine's `(cpu, cores, ram_gb, os)` against the recorded groups — same
 hardware+OS reuses its group, anything new gets the next number. The recorded
 `host` is the anonymized **`jac313-<group_id>`**, so no real hostname ever enters
 the DB and no manual label step is needed. A `host_label.local` /
-`$JAC313_HOST_LABEL` override still pins a specific label, and `--anonymize`
-remains for retroactively scrubbing any older rows recorded under a raw hostname.
-Use `jac313_test_cli --group-id` (or `store_bench --group-id --db <path>`) to
-preview the groups and which one this machine resolves to before recording.
+`$JAC313_HOST_LABEL` override still pins a specific label. Use
+`jac313_test_cli --group-id` to preview the existing groups and which one this
+machine resolves to before recording (read-only).
 
-`--report` reads the DB back and **writes files** (no stdout redirect): a
-summary **`README.md`** — one row per group (`group_id` · HW details ·
-`Run_NNN` link · max ops/sec, so you can see at a glance which machines to use
-or ignore) — plus one **`Run_NNN.md`** detail page per group (the full
-clang-vs-gcc tables). Pages land next to the DB by default, or in `--out <dir>`;
-a `Run_NNN.md` whose group was cleared is pruned automatically. Pass
-`--jtext-ver vX.Y` so the recorded row carries the jText version. Each config is
-also a standalone `store_bench` command (see below) for running one in isolation.
+`jac313_test_cli --report` reads `results.db` back and **writes files** (no stdout redirect): a
+top-level **`test-summary/README.md`** index linking to per-area **compiler-comparison** pages —
+`compiler/`, `ctest/`, `smoke/`, `bench/`, `verify/`, `build/`. The **bench** page is head-to-head
+per compiler — median ops/sec · low–high band · output size, clang ↔ gcc side by side, numbers
+locale-formatted. Re-run `--report` any time to refresh the pages. Pass `--jtext-ver vX.Y` on the
+`store_bench --suite` call so the recorded row carries the jText version. Each config is also a
+standalone `store_bench` command (see below) for running one in isolation.
 
 ## The 10 configs
 
