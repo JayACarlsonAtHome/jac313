@@ -2,7 +2,7 @@
 //
 // File and section structure parser.
 //
-// Implements SPEC v0.5 Section 2: file header and section layout.
+// Implements SPEC v0.6 Section 2: file header and section layout.
 //
 // This session handles the structural skeleton: the "=== ..." marker
 // lines, the grouping of numbered lines into header / fields / data /
