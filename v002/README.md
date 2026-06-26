@@ -35,6 +35,7 @@ self-describing, human-readable logs and **uses Qlite** to persist to SQL.
 Store is the largest part of jac313 — too much to absorb in one read, so it's documented by
 feature (and is a good candidate for AI-assisted exploration of its strengths and trade-offs):
 
+- [**Use cases**](docs/store/use-cases.md) — when & for what: metric count = event dimensionality (robot 3-D / fleet 2-D / pure logging 0-D), the Event as intent, and a gallery of domains
 - [**Logging**](docs/store/logging.md) — the core: the event/record model, exact int/float field counts, throughput (batching, double-buffering)
 - [**Categories**](docs/store/categories.md) — how events are categorized and sized (`bounded_string`, payload caps)
 - [**Flags**](docs/store/flags.md) — the complete `StoreFlags` catalog: every bit, its meaning, and an honest wired / advisory / placeholder status

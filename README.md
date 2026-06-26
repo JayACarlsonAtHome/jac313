@@ -56,6 +56,10 @@ routing model:
 
 Store is the largest part of the project and the thing the rest exists to serve.
 
+New here? **[Store use cases](v002/docs/store/use-cases.md)** is the best on-ramp — *when & for
+what*: the int/float metric count is the event's **dimensionality** (robot 3-D, fleet 2-D, pure
+logging 0-D) and the **Event** carries its intent, with a gallery of domains.
+
 ### The supporting sub-components
 
 | Component | What it is | Role |
