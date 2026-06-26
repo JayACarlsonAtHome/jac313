@@ -680,48 +680,49 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
 
 // Build page = a COMPILER COMPARISON pivot: rows = build config (build_type · front-end),
 // columns = compilers, cell = latest tree-compile wall-clock in seconds.
+// build = a compile-time MATRIX: rows = tests, columns = config (compiler × front-end:
+// headers/modules/import-std). Cell = that test's compile+link seconds · run pass/fail (latest build).
 void write_build_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
-    struct Comp { std::string label, name; std::int64_t major; };
-    std::vector<Comp> comps;
-    { auto st = db.prepare("SELECT DISTINCT c.name, c.major FROM testRun tr JOIN parameter p ON p.id=tr.parameter_id "
-        "JOIN compiler c ON c.id=p.compiler_id JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='build' "
-        "ORDER BY c.name, c.major");
-      while (st.step()) { std::string name; std::int64_t major = 0; st.get(name, major);
-          comps.push_back({comp_label(name, major), name, major}); } }
-    if (comps.empty()) return;
+    // columns: distinct (compiler, build_type, front-end). ORDER BY modules,import_std => hdr, mod, istd.
+    struct Config { std::string label, cname, bt, mod, imp; std::int64_t cmajor; };
+    std::vector<Config> configs;
+    { auto st = db.prepare("SELECT DISTINCT c.name, c.major, p.build_type, p.modules, p.import_std "
+        "FROM testRun tr JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
+        "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='build' "
+        "ORDER BY c.name, c.major, p.modules, p.import_std");
+      while (st.step()) { std::string cn, bt, mod, imp; std::int64_t cm = 0; st.get(cn, cm, bt, mod, imp);
+          const std::string fe = (mod != "on") ? "hdr" : (imp == "on" ? "istd" : "mod");
+          configs.push_back({comp_label(cn, cm) + "·" + fe, cn, bt, mod, imp, cm}); } }
+    if (configs.empty()) return;
     std::error_code ec; fs::create_directories(out / "build", ec);
 
-    struct Row { std::string key, bt, mod, imp; std::vector<std::string> cells; };
-    std::vector<Row> rows;
-    { auto st = db.prepare("SELECT DISTINCT p.build_type, p.modules, p.import_std FROM testRun tr "
-        "JOIN parameter p ON p.id=tr.parameter_id JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='build' "
-        "ORDER BY p.build_type, p.modules, p.import_std");
-      while (st.step()) { std::string bt, mod, imp; st.get(bt, mod, imp);
-          rows.push_back({bt + " · " + frontend_label(mod, imp), bt, mod, imp,
-                          std::vector<std::string>(comps.size(), "-")}); } }
-
-    for (auto& r : rows) {
-        for (std::size_t i = 0; i < comps.size(); ++i) {
-            auto st = db.prepare("SELECT IFNULL(tr.duration_ms,0) FROM testRun tr JOIN parameter p ON p.id=tr.parameter_id "
-                "JOIN compiler c ON c.id=p.compiler_id JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='build' "
-                "AND p.build_type=? AND p.modules=? AND p.import_std=? AND c.name=? AND c.major=? ORDER BY tr.run_id DESC LIMIT 1");
-            st.bind(r.bt, r.mod, r.imp, comps[i].name, comps[i].major);
-            if (st.step()) { std::int64_t ms = 0; st.get(ms);
-                char b[24]; std::snprintf(b, sizeof b, "%.1f s", static_cast<double>(ms) / 1000.0);
-                r.cells[i] = b; }
-        }
-    }
+    std::vector<std::string> tests;
+    { auto st = db.prepare("SELECT DISTINCT tl.name FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id "
+        "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='build' ORDER BY tl.name");
+      while (st.step()) { std::string n; st.get(n); tests.push_back(n); } }
 
     std::ofstream md(out / "build" / "README.md");
-    md << "# build — compiler comparison\n\n_Generated from `results.db`. Cell = tree compile wall-clock "
-          "(seconds); latest build per compiler._\n\n| config";
-    for (const auto& c : comps) md << " | " << c.label;
+    md << "# build — compile-time matrix\n\n_Generated from `results.db`. Cell = compile+link seconds · run "
+          "pass/fail (compile time only, not the run); per test × front-end × compiler, latest build._\n\n| test";
+    for (const auto& cf : configs) md << " | " << cf.label;
     md << " |\n|---";
-    for (std::size_t i = 0; i < comps.size(); ++i) md << "|--:";
+    for (std::size_t i = 0; i < configs.size(); ++i) md << "|:--:";
     md << "|\n";
-    for (const auto& r : rows) {
-        md << "| " << r.key;
-        for (const auto& cell : r.cells) md << " | " << cell;
+    for (const auto& t : tests) {
+        md << "| " << t;
+        for (const auto& cf : configs) {
+            std::string cell = "-";
+            auto st = db.prepare("SELECT IFNULL(tr.duration_ms,0), IFNULL(tr.status,'') FROM testRun tr "
+                "JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
+                "JOIN testList tl ON tl.id=tr.test_list_id JOIN testType tt ON tt.id=tr.test_type_id "
+                "WHERE tt.name='build' AND tl.name=? AND c.name=? AND c.major=? AND p.build_type=? "
+                "AND p.modules=? AND p.import_std=? ORDER BY tr.run_id DESC LIMIT 1");
+            st.bind(t, cf.cname, cf.cmajor, cf.bt, cf.mod, cf.imp);
+            if (st.step()) { std::int64_t ms = 0; std::string status; st.get(ms, status);
+                char b[24]; std::snprintf(b, sizeof b, "%.1fs", static_cast<double>(ms) / 1000.0);
+                cell = std::string(b) + " · " + (status.empty() ? "-" : status); }
+            md << " | " << cell;
+        }
         md << " |\n";
     }
 }
@@ -819,7 +820,10 @@ std::int64_t cli_parameter_id_verify(jac313::Qlite::v002::Sqlite& db, std::int64
 
 // Record a build wall-clock (ms) into results.db as a 'build' testRun, keyed by the build's
 // compiler + build_type + front-end (same parameter projection as ctest). Best-effort.
-void record_build_time(const fs::path& source_dir, const fs::path& build_dir, std::int64_t ms) {
+// Record one build-matrix cell: a test's compile+link wall-clock (build_ms, NOT including the run)
+// plus its run status (pass/fail), keyed by compiler + build_type + front-end (headers/modules/import-std).
+void record_build_test(const fs::path& source_dir, const fs::path& build_dir,
+                       const std::string& test, std::int64_t build_ms, const std::string& status) {
     const fs::path db_path = source_dir / "test-summary" / "results.db";
     std::error_code ec;
     if (!fs::exists(db_path.parent_path(), ec)) return;
@@ -831,14 +835,14 @@ void record_build_time(const fs::path& source_dir, const fs::path& build_dir, st
         const BuildFeatures bf = read_build_features(build_dir);
         const std::int64_t param_id = cli_parameter_id_ctest(db, comp_id, bf.build_type,
                                                              bf.modules ? "on" : "off", read_import_std(build_dir));
-        const std::string tree = build_dir.filename().string();
-        db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", tree);
-        const std::int64_t list_id = cli_results_id(db, "SELECT id FROM testList WHERE name=?", tree);
+        db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", test);
+        const std::int64_t list_id = cli_results_id(db, "SELECT id FROM testList WHERE name=?", test);
         db.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms) "
-                "VALUES(?,?,?,?,?,?)", run_id, type_id, list_id, param_id, std::string("built"), ms);
-        std::cout << "[results] recorded build time " << ms << " ms (run " << run_id << ")\n";
+                "VALUES(?,?,?,?,?,?)", run_id, type_id, list_id, param_id, status, build_ms);
+        std::cout << "[results] build-matrix: " << test << "  build=" << build_ms << "ms  run=" << status
+                  << "  (run " << run_id << ")\n";
     } catch (const std::exception& e) {
-        std::cerr << "[results] build-time record failed: " << e.what() << "\n";
+        std::cerr << "[results] build-test record failed: " << e.what() << "\n";
     }
 }
 
@@ -1523,6 +1527,20 @@ int main(int argc, char** argv) {
         print_usage();
         return 0;
     }
+    if (command == "record-build-test") {   // build-matrix cell ingest: --build-dir --test --build-ms --status
+        GlobalOptions g; g.source_dir = ".";
+        std::string test, status; std::int64_t bms = 0;
+        for (int i = 2; i < argc; ++i) {
+            const std::string a = argv[i];
+            if (a == "--build-dir" && i + 1 < argc) g.build_dir = argv[++i];
+            else if (a == "--source-dir" && i + 1 < argc) g.source_dir = argv[++i];
+            else if (a == "--test" && i + 1 < argc) test = argv[++i];
+            else if (a == "--build-ms" && i + 1 < argc) bms = std::stoll(argv[++i]);
+            else if (a == "--status" && i + 1 < argc) status = argv[++i];
+        }
+        record_build_test(g.source_dir, g.build_dir, test, bms, status);
+        return 0;
+    }
     if (command.rfind('-', 0) == 0) {
         command = "run";
         argi = 1;
@@ -1788,14 +1806,7 @@ int main(int argc, char** argv) {
         return run_configure_command(global, configure_opts);
     }
     if (command == "build") {
-        const auto t0 = std::chrono::steady_clock::now();
-        const int rc = run_build_command(global, build_opts);
-        if (rc == 0) {
-            const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                std::chrono::steady_clock::now() - t0).count();
-            record_build_time(global.source_dir, global.build_dir, static_cast<std::int64_t>(ms));
-        }
-        return rc;
+        return run_build_command(global, build_opts);
     }
     print_usage();
     return 1;
