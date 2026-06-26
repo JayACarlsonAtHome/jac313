@@ -1367,52 +1367,6 @@ struct PresetOptions {
     bool run_everything{false}; // the full battery on both compilers + matrix + report (C++ orchestrated)
 };
 
-// --run-everything: the full battery, orchestrated IN CODE (per-step exit codes, continue-on-error,
-// a failure summary) rather than a shell script. Re-invokes this CLI's own subcommands per step so
-// each gate's recording/reporting path is identical to running it by hand. Run from v002/.
-int run_everything_command(const GlobalOptions& global) {
-    namespace fs = std::filesystem;
-    std::error_code ec;
-    if (!global.source_dir.empty()) fs::current_path(global.source_dir, ec);
-    const std::string CLI = "./jac313_test_cli";
-    std::cout << "######## run-everything: full battery on both compilers ########\n";
-    fs::remove("test-summary/results.db", ec);   // fresh dataset (regenerable)
-
-    std::vector<std::string> failures;
-    auto step = [&](const std::string& label, const std::string& cmd) {
-        std::cout << "\n===== " << label << " =====\n" << std::flush;
-        const int raw = std::system(cmd.c_str());
-        const int rc = WIFEXITED(raw) ? WEXITSTATUS(raw) : 1;
-        std::cout << "[exit " << rc << "] " << label << "\n";
-        if (rc != 0) failures.push_back(label + " (exit " + std::to_string(rc) + ")");
-    };
-
-    for (const std::string cc : {std::string("gcc15"), std::string("clang")}) {
-        const std::string dir = "build-" + cc;
-        step("configure " + cc, CLI + " configure --build-dir " + dir + " --" + cc);
-        step("build " + cc,     CLI + " build --build-dir " + dir);
-        step("ctest " + cc,     CLI + " run --build-dir " + dir);
-        step("smoke " + cc,     CLI + " matrix run --build-dir " + dir);
-    }
-    for (const std::string cc : {std::string("gcc15"), std::string("clang")}) {
-        const std::string dir = "build-bench-" + cc;
-        step("configure bench " + cc, CLI + " configure --release --build-dir " + dir + " --" + cc);
-        step("build bench " + cc,     "cmake --build " + dir + " --target jac313_store_bench");
-        step("bench " + cc, dir + "/Store/tests/matrix/jac313_store_bench --suite "
-                            "--db test-summary/results.db --jtext-ver v002.002");
-    }
-    step("verify gcc15", CLI + " matrix verify --gcc15");
-    step("verify clang", CLI + " matrix verify --clang");
-    step("build matrix", "tools/build_matrix.sh");
-    step("report",       CLI + " --report");
-
-    std::cout << "\n######## run-everything DONE — open test-summary/README.md ########\n";
-    if (failures.empty()) { std::cout << "ALL GREEN.\n"; return 0; }
-    std::cout << failures.size() << " step(s) had a non-zero exit (results recorded for what ran):\n";
-    for (const auto& f : failures) std::cout << "  - " << f << "\n";
-    return 1;
-}
-
 int run_preset_command(const GlobalOptions& global, const ConfigureOptions& configure_opts,
                        const PresetOptions& preset)
 {
@@ -1630,6 +1584,69 @@ void write_compiler_pins(const fs::path& source_dir, const std::vector<CompilerP
     for (const auto& r : rows)
         out << r.label << '\t' << r.cpu << '\t' << r.cores << '\t' << r.ram_gb << '\t'
             << r.os << '\t' << r.gcc_label << '\t' << r.clang_label << '\n';
+}
+
+// {gcc_label, clang_label} for this machine: the committed pin if present, else highest-available.
+std::pair<std::string, std::string> pinned_or_highest_labels(const fs::path& source_dir) {
+    const HostHardwareRecord hw = collect_host_hardware_record("");
+    const auto rows = read_compiler_pins(source_dir);
+    if (const CompilerPinRow* row = find_pin_for_host(rows, hw))
+        return {row->gcc_label, row->clang_label};
+    const auto probes = probe_compilers(source_dir);
+    return {highest_toolchain_label(probes, "gcc"), highest_toolchain_label(probes, "clang")};
+}
+
+// --run-everything: the full battery, orchestrated IN CODE (per-step exit codes, continue-on-error,
+// a failure summary). Re-invokes this CLI's own subcommands per step. Uses THIS machine's PINNED
+// gcc/clang (Setup/compilers.pin) so the run is deterministic. Run from v002/.
+int run_everything_command(const GlobalOptions& global) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    if (!global.source_dir.empty()) fs::current_path(global.source_dir, ec);
+    const std::string CLI = "./jac313_test_cli";
+    const auto [gcc_label, clang_label] = pinned_or_highest_labels(".");
+    if (gcc_label.empty() || clang_label.empty()) {
+        std::cerr << "run-everything: could not resolve this machine's pinned/highest compilers "
+                     "(run `jac313_test_cli pin --ensure`)\n";
+        return 1;
+    }
+    std::cout << "######## run-everything: full battery — gcc=" << gcc_label
+              << "  clang=" << clang_label << "  (pinned) ########\n";
+    fs::remove("test-summary/results.db", ec);   // fresh dataset (regenerable)
+
+    std::vector<std::string> failures;
+    auto step = [&](const std::string& label, const std::string& cmd) {
+        std::cout << "\n===== " << label << " =====\n" << std::flush;
+        const int raw = std::system(cmd.c_str());
+        const int rc = WIFEXITED(raw) ? WEXITSTATUS(raw) : 1;
+        std::cout << "[exit " << rc << "] " << label << "\n";
+        if (rc != 0) failures.push_back(label + " (exit " + std::to_string(rc) + ")");
+    };
+
+    for (const std::string& cc : {gcc_label, clang_label}) {
+        const std::string dir = "build-" + cc;
+        step("configure " + cc, CLI + " configure --build-dir " + dir + " --compiler " + cc);
+        step("build " + cc,     CLI + " build --build-dir " + dir);
+        step("ctest " + cc,     CLI + " run --build-dir " + dir);
+        step("smoke " + cc,     CLI + " matrix run --build-dir " + dir);
+    }
+    for (const std::string& cc : {gcc_label, clang_label}) {
+        const std::string dir = "build-bench-" + cc;
+        step("configure bench " + cc, CLI + " configure --release --build-dir " + dir + " --compiler " + cc);
+        step("build bench " + cc,     "cmake --build " + dir + " --target jac313_store_bench");
+        step("bench " + cc, dir + "/Store/tests/matrix/jac313_store_bench --suite "
+                            "--db test-summary/results.db --jtext-ver v002.002");
+    }
+    step("verify gcc",   CLI + " matrix verify --compiler " + gcc_label);
+    step("verify clang", CLI + " matrix verify --compiler " + clang_label);
+    step("build matrix", "tools/build_matrix.sh");
+    step("report",       CLI + " --report");
+
+    std::cout << "\n######## run-everything DONE — open test-summary/README.md ########\n";
+    if (failures.empty()) { std::cout << "ALL GREEN.\n"; return 0; }
+    std::cout << failures.size() << " step(s) had a non-zero exit (results recorded for what ran):\n";
+    for (const auto& f : failures) std::cout << "  - " << f << "\n";
+    return 1;
 }
 
 } // namespace
