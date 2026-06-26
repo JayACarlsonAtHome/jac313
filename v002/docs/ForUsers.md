@@ -74,6 +74,8 @@ Ideas that serve consumers, not the harness — captured, not committed:
 4. **More drop-in examples + a 5-minute quickstart per library** — the fastest path from `#include` to
    working code, without reading the test docs.
 5. **An amalgamated / single-header option** for quick drop-in evaluation.
+6. **A GUI editor for jText files** — a visual open / edit / *validate* tool (against the section +
+   template schema), so jText files aren't only hand-edited text. *(Parked — not near-term.)*
 
 ---
 

@@ -14,8 +14,15 @@
 # NOT part of the verify/verify-lite pre-push gate.
 set -u
 cd "$(dirname "$0")/.." || exit 1
-GXX=/opt/rh/gcc-toolset-15/root/usr/bin/g++
-CLXX=/usr/bin/clang++
+# Compilers: override via env on a machine where these paths differ (the fresh-VM case). Defaults are
+# this author's gcc-toolset-15 + system clang. build_matrix is a deliberate local measurement, so it
+# names the compilers explicitly rather than going through the compilers.conf registry — but fail
+# fast with a clear message instead of a cryptic cmake error if a path is wrong.
+GXX="${JAC313_MATRIX_GXX:-/opt/rh/gcc-toolset-15/root/usr/bin/g++}"
+CLXX="${JAC313_MATRIX_CLXX:-/usr/bin/clang++}"
+for cc in "$GXX" "$CLXX"; do
+  [ -x "$cc" ] || { echo "build_matrix: compiler not found: $cc  (override with JAC313_MATRIX_GXX / JAC313_MATRIX_CLXX)" >&2; exit 1; }
+done
 ISTD="-DJAC313_BUILD_MODULES=ON -DJAC313_QLITE_IMPORT_STD=ON -DJAC313_JTEXT_IMPORT_STD=ON -DJAC313_STORE_IMPORT_STD=ON"
 TESTS="${*:-jac313_store_001_TS jac313_store_002_TS}"
 CLI=./jac313_test_cli
