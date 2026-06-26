@@ -1,5 +1,9 @@
 # jac313
 
+> 🚧 **Work in progress — `dev-work`.** We're moving from **cluster-yuck to work of art**.
+> Right now it's still in-work (the test/results reporting is actively being rebuilt), so
+> please **be patient** — expect rough edges and things shifting under you for a bit.
+
 A versioned **C++23 umbrella** over a small family of in-tree libraries. Each package
 re-exports a clean, namespaced API under `jac313::<Name>::v002`; together they're more
 than their parts — a real **time-series logging store** with a complete local **testing
