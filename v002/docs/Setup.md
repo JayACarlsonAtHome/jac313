@@ -154,6 +154,18 @@ root:
 A curated 10-config suite (non-durable flag sweep + durable jText/SQL/binary at 1M and 10M). The headline is the
 **median + low–high band** over N runs, not a single "peak". See [Benchmarks.md](Benchmarks.md).
 
+### Everything at once
+
+From a fresh clone, one command does the lot — bootstrap, every gate on both compilers, the
+build-time matrix, then render the report:
+
+```bash
+tools/run_all.sh        # then open test-summary/README.md
+```
+
+It's the full battery (slow — valgrind verify + bench on two compilers). For day-to-day work,
+run individual gates below.
+
 ### Gate commands — copy-paste (preset, and the explicit equivalent)
 
 Run from `v002/` — `bootstrap.sh` creates the `./jac313_test_cli` symlink. Each gate has a
