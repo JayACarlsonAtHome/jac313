@@ -27,11 +27,20 @@ why the build matrix shows `clang·istd = NA`. Watch: Clang release notes + the 
 `import std` support matrix. (Alternative: point our clang build at libc++ to get it today.)
 
 ## Sources (fetch these to re-check)
-- Clang language:   https://clang.llvm.org/cxx_status.html
-- libc++ C++23:     https://libcxx.llvm.org/Status/Cxx23.html
-- libc++ C++26:     https://libcxx.llvm.org/Status/Cxx26.html
-- GCC language:     https://gcc.gnu.org/projects/cxx-status.html
-- libstdc++:        https://gcc.gnu.org/onlinedocs/libstdc++/manual/status.html
+Language and library are **separate pages** — the compiler/language pages do NOT list library
+features (`import std`, `std::print`, `std::expected`), so those come from the library pages.
+
+Language (the compiler):
+- Clang:  https://clang.llvm.org/cxx_status.html
+- GCC:    https://gcc.gnu.org/projects/cxx-status.html
+
+Library (where import std / print / expected actually live):
+- libc++ C++23:  https://libcxx.llvm.org/Status/Cxx23.html
+- libc++ C++26:  https://libcxx.llvm.org/Status/Cxx26.html
+- libstdc++:     https://gcc.gnu.org/onlinedocs/libstdc++/manual/status.html
+
+(cppreference's own pages have both a language and a library section, but it 403s bots — the
+vendor pages above are what it aggregates.)
 
 ## How to run it
 When you're online, say **"check conformance"** — Claude fetches the sources above, diffs each
