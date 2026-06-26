@@ -94,8 +94,17 @@ public:
         file_size_ = initial_map;
     }
 
-    ~BinaryEventLog() {
-        finalize();
+    ~BinaryEventLog() noexcept {
+        // A destructor must never throw (that calls std::terminate). finalize() may throw to report a
+        // truncate failure to an explicit caller; here we swallow it after logging. finalize() has
+        // already released the fd + mapping regardless, so swallowing leaks nothing.
+        try {
+            finalize();
+        } catch (const std::exception& e) {
+            const std::string msg =
+                "BinaryEventLog: finalize failed in destructor: " + std::string(e.what()) + "\n";
+            [[maybe_unused]] const auto written = ::write(2, msg.data(), msg.size());  // fd 2 = stderr
+        }
     }
 
     void append_event(size_t event_id,
@@ -191,14 +200,19 @@ public:
             ::munmap(mapped_, file_size_);
             mapped_ = nullptr;
         }
+        bool truncate_failed = false;
         if (fd_ >= 0) {
-            if (::ftruncate(fd_, static_cast<off_t>(write_pos_)) != 0) {
-                throw std::runtime_error("BinaryEventLog: finalize ftruncate failed");
-            }
+            // Always release the fd — even if ftruncate fails — so it can never leak. Report the
+            // failure by throwing AFTER cleanup, so an explicit finalize() caller still learns of it
+            // while the destructor's try/catch can safely swallow it.
+            truncate_failed = (::ftruncate(fd_, static_cast<off_t>(write_pos_)) != 0);
             ::close(fd_);
             fd_ = -1;
         }
         finalized_ = true;
+        if (truncate_failed) {
+            throw std::runtime_error("BinaryEventLog: finalize ftruncate failed");
+        }
     }
 
     [[nodiscard]] const BinaryEventLogStats& stats() const { return stats_; }

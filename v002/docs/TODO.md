@@ -7,14 +7,13 @@
 Parked during the 2026-06-26 cleanup pass (simple, no-cascade fixes were done inline; these were not).
 Each item says *why* it's deferred. Surfaced by an independent review of the libraries.
 
-## Correctness — address first
-- [ ] **Throwing destructor.** `Store/.../persistence/BinaryEventLog.hpp` — `finalize()` throws
-      `std::runtime_error` on `ftruncate` failure and is called from `~BinaryEventLog()` (≈:98), so a
-      flush failure during destruction risks `std::terminate`. *Deferred:* the fix is a design choice
-      (make the dtor `noexcept` and log/swallow, vs. require an explicit `close()` that may throw).
-      `int_count_`/`dbl_count_` are also stored but `[[maybe_unused]]` (constructor params that do nothing).
-
 ## Dead / inert code — needs care to remove
+- [ ] **BinaryEventLog dead ctor params.** `int_count_`/`dbl_count_` are stored but `[[maybe_unused]]`
+      (constructor params that do nothing). *Deferred:* removing them changes the constructor signature
+      (cascade to call sites).
+      *(The throwing-destructor risk in this file was FIXED 2026-06-26: `~BinaryEventLog()` is now
+      `noexcept` and swallows+logs; `finalize()` releases the fd even when ftruncate fails, and throws
+      only after cleanup so an explicit caller still learns of it. Verified textual + import-std.)*
 - [ ] **Dead enum kinds (jText).** 4 declared-but-never-emitted kinds overstate the taxonomy:
       `file_error_kind::{unknown_section_state, multiline_sentinel_empty_body, unterminated_section}`
       (`section.hpp`) and `issue_kind::field_position_out_of_range` (`validator.hpp`). *Deferred:*
