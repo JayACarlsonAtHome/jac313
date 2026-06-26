@@ -9,3 +9,4 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 | [smoke](smoke/README.md) | 2 | 232 |
 | [bench](bench/README.md) | 1 | 10 |
 | [verify](verify/README.md) | 1 | 60 |
+| [build](build/README.md) | 1 | 1 |

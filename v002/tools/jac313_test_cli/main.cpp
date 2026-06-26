@@ -26,6 +26,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <chrono>
 
 #include <sys/wait.h>
 
@@ -622,6 +623,54 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     for (const auto& c : comps) write_bench_detail(db, out / "bench", c.second);
 }
 
+// Build page = a COMPILER COMPARISON pivot: rows = build config (build_type · front-end),
+// columns = compilers, cell = latest tree-compile wall-clock in seconds.
+void write_build_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
+    struct Comp { std::string label, name; std::int64_t major; };
+    std::vector<Comp> comps;
+    { auto st = db.prepare("SELECT DISTINCT c.name, c.major FROM testRun tr JOIN parameter p ON p.id=tr.parameter_id "
+        "JOIN compiler c ON c.id=p.compiler_id JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='build' "
+        "ORDER BY c.name, c.major");
+      while (st.step()) { std::string name; std::int64_t major = 0; st.get(name, major);
+          comps.push_back({comp_label(name, major), name, major}); } }
+    if (comps.empty()) return;
+    std::error_code ec; fs::create_directories(out / "build", ec);
+
+    struct Row { std::string key, bt, mod, imp; std::vector<std::string> cells; };
+    std::vector<Row> rows;
+    { auto st = db.prepare("SELECT DISTINCT p.build_type, p.modules, p.import_std FROM testRun tr "
+        "JOIN parameter p ON p.id=tr.parameter_id JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='build' "
+        "ORDER BY p.build_type, p.modules, p.import_std");
+      while (st.step()) { std::string bt, mod, imp; st.get(bt, mod, imp);
+          rows.push_back({bt + " · " + frontend_label(mod, imp), bt, mod, imp,
+                          std::vector<std::string>(comps.size(), "-")}); } }
+
+    for (auto& r : rows) {
+        for (std::size_t i = 0; i < comps.size(); ++i) {
+            auto st = db.prepare("SELECT IFNULL(tr.duration_ms,0) FROM testRun tr JOIN parameter p ON p.id=tr.parameter_id "
+                "JOIN compiler c ON c.id=p.compiler_id JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='build' "
+                "AND p.build_type=? AND p.modules=? AND p.import_std=? AND c.name=? AND c.major=? ORDER BY tr.run_id DESC LIMIT 1");
+            st.bind(r.bt, r.mod, r.imp, comps[i].name, comps[i].major);
+            if (st.step()) { std::int64_t ms = 0; st.get(ms);
+                char b[24]; std::snprintf(b, sizeof b, "%.1f s", static_cast<double>(ms) / 1000.0);
+                r.cells[i] = b; }
+        }
+    }
+
+    std::ofstream md(out / "build" / "README.md");
+    md << "# build — compiler comparison\n\n_Generated from `results.db`. Cell = tree compile wall-clock "
+          "(seconds); latest build per compiler._\n\n| config";
+    for (const auto& c : comps) md << " | " << c.label;
+    md << " |\n|---";
+    for (std::size_t i = 0; i < comps.size(); ++i) md << "|--:";
+    md << "|\n";
+    for (const auto& r : rows) {
+        md << "| " << r.key;
+        for (const auto& cell : r.cells) md << " | " << cell;
+        md << " |\n";
+    }
+}
+
 // Top-level landing index: test-summary/README.md, linking to the compiler page and every test
 // type that has data (with its run/row counts).
 void write_index_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
@@ -629,7 +678,7 @@ void write_index_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     md << "# Test results\n\n_Generated from `results.db` by `jac313_test_cli --report`._\n\n"
           "| area | runs | rows |\n|---|--:|--:|\n"
           "| [compilers](compiler/README.md) | — | — |\n";
-    for (const char* t : {"ctest", "smoke", "bench", "verify-lite", "verify"}) {
+    for (const char* t : {"ctest", "smoke", "bench", "verify-lite", "verify", "build"}) {
         std::int64_t runs = 0, rows = 0;
         { auto st = db.prepare("SELECT COUNT(DISTINCT tr.run_id), COUNT(*) FROM testRun tr "
                                "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name=?");
@@ -650,8 +699,9 @@ int run_report_command(const fs::path& source_dir) {
         write_compiler_page(db, out);
         for (const char* t : {"ctest", "smoke", "verify-lite", "verify"}) write_type_pages(db, out, t);
         write_bench_pages(db, out);
+        write_build_pages(db, out);
         write_index_page(db, out);
-        std::cout << "[report] wrote test-summary/README.md + {compiler,ctest,smoke,verify-lite,verify,bench}/ from results.db\n";
+        std::cout << "[report] wrote test-summary/README.md + {compiler,ctest,smoke,verify-lite,verify,bench,build}/ from results.db\n";
         return 0;
     } catch (const std::exception& e) { std::cerr << "report failed: " << e.what() << "\n"; return 1; }
 }
@@ -710,6 +760,31 @@ std::int64_t cli_parameter_id_verify(jac313::Qlite::v002::Sqlite& db, std::int64
         id = find();
     }
     return id;
+}
+
+// Record a build wall-clock (ms) into results.db as a 'build' testRun, keyed by the build's
+// compiler + build_type + front-end (same parameter projection as ctest). Best-effort.
+void record_build_time(const fs::path& source_dir, const fs::path& build_dir, std::int64_t ms) {
+    const fs::path db_path = source_dir / "test-summary" / "results.db";
+    std::error_code ec;
+    if (!fs::exists(db_path.parent_path(), ec)) return;
+    try {
+        jac313::Qlite::v002::Sqlite db(db_path.string());
+        const std::int64_t run_id  = cli_begin_run(db);
+        const std::int64_t type_id = cli_results_id(db, "SELECT id FROM testType WHERE name=?", std::string("build"));
+        const std::int64_t comp_id = cli_compiler_id(db, read_compiler_info(build_dir));
+        const BuildFeatures bf = read_build_features(build_dir);
+        const std::int64_t param_id = cli_parameter_id_ctest(db, comp_id, bf.build_type,
+                                                             bf.modules ? "on" : "off", read_import_std(build_dir));
+        const std::string tree = build_dir.filename().string();
+        db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", tree);
+        const std::int64_t list_id = cli_results_id(db, "SELECT id FROM testList WHERE name=?", tree);
+        db.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms) "
+                "VALUES(?,?,?,?,?,?)", run_id, type_id, list_id, param_id, std::string("built"), ms);
+        std::cout << "[results] recorded build time " << ms << " ms (run " << run_id << ")\n";
+    } catch (const std::exception& e) {
+        std::cerr << "[results] build-time record failed: " << e.what() << "\n";
+    }
 }
 
 // Record one testRun row per ctest unit test into results.db.
@@ -1653,7 +1728,14 @@ int main(int argc, char** argv) {
         return run_configure_command(global, configure_opts);
     }
     if (command == "build") {
-        return run_build_command(global, build_opts);
+        const auto t0 = std::chrono::steady_clock::now();
+        const int rc = run_build_command(global, build_opts);
+        if (rc == 0) {
+            const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::steady_clock::now() - t0).count();
+            record_build_time(global.source_dir, global.build_dir, static_cast<std::int64_t>(ms));
+        }
+        return rc;
     }
     print_usage();
     return 1;
