@@ -447,118 +447,179 @@ void write_compiler_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     }
 }
 
-void write_type_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out, const std::string& type) {
-    std::int64_t n = 0;
-    { auto st = db.prepare("SELECT COUNT(*) FROM testRun tr JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name=?");
-      st.bind(type); if (st.step()) st.get(n); }
-    if (n == 0) return;
-    std::error_code ec; fs::create_directories(out / type, ec);
+// Compilers present for a type, each with its LATEST run_id; ordered by name so clang sorts left, gcc right.
+std::vector<std::pair<std::string, std::int64_t>> compilers_latest(jac313::Qlite::v002::Sqlite& db, const std::string& type) {
+    std::vector<std::pair<std::string, std::int64_t>> v;
+    auto st = db.prepare(
+        "SELECT c.name, c.major, MAX(tr.run_id) FROM testRun tr JOIN parameter p ON p.id=tr.parameter_id "
+        "JOIN compiler c ON c.id=p.compiler_id JOIN testType tt ON tt.id=tr.test_type_id "
+        "WHERE tt.name=? GROUP BY c.id ORDER BY c.name, c.major");
+    st.bind(type);
+    while (st.step()) { std::string name; std::int64_t major = 0, run = 0; st.get(name, major, run);
+        v.push_back({comp_label(name, major), run}); }
+    return v;
+}
 
-    // --- summary: one row per run ---
-    std::vector<std::int64_t> run_ids;
-    {
-        std::ofstream sum(out / type / "README.md");
-        sum << "# " << type << " — runs\n\n_Generated from `results.db`._\n\n"
-               "| Run | compiler | build | front-end | size | total | pass | fail | skip | total ms |\n"
-               "|---|---|---|---|---|--:|--:|--:|--:|--:|\n";
-        auto st = db.prepare(
-            "SELECT tr.run_id, c.name, c.major, p.build_type, p.modules, p.import_std, IFNULL(p.size,''), "
-            "COUNT(*), SUM(tr.status='pass'), SUM(tr.status='fail'), SUM(tr.status='skip'), SUM(IFNULL(tr.duration_ms,0)) "
-            "FROM testRun tr JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id "
-            "JOIN compiler c ON c.id=p.compiler_id JOIN testType tt ON tt.id=tr.test_type_id "
-            "WHERE tt.name=? GROUP BY tr.run_id ORDER BY tr.run_id");
-        st.bind(type);
-        while (st.step()) {
-            std::int64_t run_id = 0, major = 0, total = 0, passed = 0, failed = 0, skipped = 0, dur = 0;
-            std::string name, bt, mod, imp, size;
-            st.get(run_id, name, major, bt, mod, imp, size, total, passed, failed, skipped, dur);
-            run_ids.push_back(run_id);
-            const std::string rl = run_label_md(run_id);
-            sum << "| [" << rl << "](" << rl << ".md) | " << comp_label(name, major) << " | " << bt << " | "
-                << frontend_label(mod, imp) << " | " << dash(size) << " | " << total << " | " << passed << " | "
-                << failed << " | " << skipped << " | " << dur << " |\n";
-        }
-    }
-
-    // --- detail: one page per run ---
-    for (std::int64_t run_id : run_ids) {
-        const std::string rl = run_label_md(run_id);
-        std::ofstream det(out / type / (rl + ".md"));
-        det << "# " << type << " — " << rl << "\n\n[← back](README.md)\n\n";
-        { auto st = db.prepare(
-            "SELECT r.host, c.name, c.version, p.build_type, p.modules, p.import_std, IFNULL(p.size,''), r.ts_utc "
-            "FROM testRun tr JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id "
-            "JOIN compiler c ON c.id=p.compiler_id WHERE tr.run_id=? LIMIT 1");
-          st.bind(run_id);
-          if (st.step()) { std::string host, name, version, bt, mod, imp, size, ts;
-              st.get(host, name, version, bt, mod, imp, size, ts);
-              det << "_" << host << " · " << name << " " << version << " · " << bt << " · "
-                  << frontend_label(mod, imp) << (size.empty() ? "" : (" · " + size)) << " · " << ts << "_\n\n"; } }
-        det << "| test | persist | mode | tool | status | ms |\n|---|---|---|---|---|--:|\n";
-        auto st = db.prepare(
-            "SELECT tl.name, IFNULL(p.persist,''), IFNULL(p.output_mode,''), IFNULL(p.valgrind_tool,''), "
-            "tr.status, IFNULL(tr.duration_ms,0) FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id "
-            "JOIN parameter p ON p.id=tr.parameter_id JOIN testType tt ON tt.id=tr.test_type_id "
-            "WHERE tr.run_id=? AND tt.name=? ORDER BY tl.name");
-        st.bind(run_id, type);
-        while (st.step()) {
-            std::string t, per, mode, tool, status; std::int64_t ms = 0;
-            st.get(t, per, mode, tool, status, ms);
-            det << "| " << t << " | " << dash(per) << " | " << dash(mode) << " | " << dash(tool) << " | "
-                << status << " | " << ms << " |\n";
-        }
+// Per-run detail page (one compiler's run): every scenario with persist/mode/tool + status + ms.
+void write_run_detail(jac313::Qlite::v002::Sqlite& db, const fs::path& dir, const std::string& type, std::int64_t run_id) {
+    const std::string rl = run_label_md(run_id);
+    std::ofstream det(dir / (rl + ".md"));
+    det << "# " << type << " — " << rl << "\n\n[← back](README.md)\n\n";
+    { auto st = db.prepare(
+        "SELECT r.host, c.name, c.version, p.build_type, p.modules, p.import_std, IFNULL(p.size,''), r.ts_utc "
+        "FROM testRun tr JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id "
+        "JOIN compiler c ON c.id=p.compiler_id WHERE tr.run_id=? LIMIT 1");
+      st.bind(run_id);
+      if (st.step()) { std::string host, name, version, bt, mod, imp, size, ts;
+          st.get(host, name, version, bt, mod, imp, size, ts);
+          det << "_" << host << " · " << name << " " << version << " · " << bt << " · "
+              << frontend_label(mod, imp) << (size.empty() ? "" : (" · " + size)) << " · " << ts << "_\n\n"; } }
+    det << "| test | persist | mode | tool | status | ms |\n|---|---|---|---|---|--:|\n";
+    auto st = db.prepare(
+        "SELECT tl.name, IFNULL(p.persist,''), IFNULL(p.output_mode,''), IFNULL(p.valgrind_tool,''), "
+        "tr.status, IFNULL(tr.duration_ms,0) FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id "
+        "JOIN parameter p ON p.id=tr.parameter_id JOIN testType tt ON tt.id=tr.test_type_id "
+        "WHERE tr.run_id=? AND tt.name=? ORDER BY tl.name");
+    st.bind(run_id, type);
+    while (st.step()) {
+        std::string t, per, mode, tool, status; std::int64_t ms = 0;
+        st.get(t, per, mode, tool, status, ms);
+        det << "| " << t << " | " << dash(per) << " | " << dash(mode) << " | " << dash(tool) << " | "
+            << status << " | " << ms << " |\n";
     }
 }
 
-// Bench pages: bench rows carry ops stats (median/band/bytes), not status/duration — its own format.
-void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
-    std::int64_t n = 0;
-    { auto st = db.prepare("SELECT COUNT(*) FROM testRun tr JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench'");
-      if (st.step()) st.get(n); }
-    if (n == 0) return;
-    std::error_code ec; fs::create_directories(out / "bench", ec);
-    std::vector<std::int64_t> run_ids;
+// Per-type page = a COMPILER COMPARISON pivot: scenario rows x compiler columns (clang left -> gcc right),
+// cell = ms (pass) or the status. Each column header links to that compiler's per-run detail page.
+void write_type_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out, const std::string& type) {
+    const auto comps = compilers_latest(db, type);
+    if (comps.empty()) return;
+    std::error_code ec; fs::create_directories(out / type, ec);
+
+    std::string inlist;
+    for (const auto& c : comps) { if (!inlist.empty()) inlist += ","; inlist += std::to_string(c.second); }
+    auto col_for = [&](std::int64_t run) -> int {
+        for (std::size_t i = 0; i < comps.size(); ++i) if (comps[i].second == run) return static_cast<int>(i);
+        return -1; };
+
+    struct Row { std::string key; std::vector<std::string> cells; };
+    std::vector<Row> rows;
     {
-        std::ofstream sum(out / "bench" / "README.md");
-        sum << "# bench — runs\n\n_Generated from `results.db`._\n\n"
-               "| Run | compiler | build | configs | max ops/sec |\n|---|---|---|--:|--:|\n";
         auto st = db.prepare(
-            "SELECT tr.run_id, c.name, c.major, p.build_type, COUNT(*), MAX(IFNULL(tr.median_ops,0)) "
-            "FROM testRun tr JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
-            "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' GROUP BY tr.run_id ORDER BY tr.run_id");
+            "SELECT tr.run_id, tl.name, IFNULL(p.persist,''), IFNULL(p.output_mode,''), IFNULL(p.valgrind_tool,''), "
+            "tr.status, IFNULL(tr.duration_ms,0) FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id "
+            "JOIN parameter p ON p.id=tr.parameter_id JOIN testType tt ON tt.id=tr.test_type_id "
+            "WHERE tt.name=? AND tr.run_id IN (" + inlist + ") ORDER BY tl.name, p.persist, p.output_mode, p.valgrind_tool");
+        st.bind(type);
         while (st.step()) {
-            std::int64_t run_id = 0, major = 0, configs = 0, maxops = 0; std::string name, bt;
-            st.get(run_id, name, major, bt, configs, maxops);
-            run_ids.push_back(run_id);
-            const std::string rl = run_label_md(run_id);
-            sum << "| [" << rl << "](" << rl << ".md) | " << comp_label(name, major) << " | " << bt << " | "
-                << configs << " | " << maxops << " |\n";
+            std::int64_t run = 0, ms = 0; std::string t, per, mode, tool, status;
+            st.get(run, t, per, mode, tool, status, ms);
+            std::string key = t;
+            if (!per.empty())  key += " · " + per;
+            if (!mode.empty()) key += " · " + mode;
+            if (!tool.empty()) key += " · " + tool;
+            Row* r = nullptr;
+            for (auto& rr : rows) if (rr.key == key) { r = &rr; break; }
+            if (!r) { rows.push_back({key, std::vector<std::string>(comps.size(), "-")}); r = &rows.back(); }
+            const int col = col_for(run);
+            if (col >= 0) r->cells[static_cast<std::size_t>(col)] =
+                (status == "pass") ? (ms ? std::to_string(ms) : std::string("pass")) : status;
         }
     }
-    for (std::int64_t run_id : run_ids) {
-        const std::string rl = run_label_md(run_id);
-        std::ofstream det(out / "bench" / (rl + ".md"));
-        det << "# bench — " << rl << "\n\n[← back](README.md)\n\n";
-        { auto st = db.prepare("SELECT r.host, c.name, c.version, p.build_type, r.ts_utc FROM testRun tr "
-            "JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
-            "WHERE tr.run_id=? LIMIT 1");
-          st.bind(run_id);
-          if (st.step()) { std::string host, name, ver, bt, ts; st.get(host, name, ver, bt, ts);
-              det << "_" << host << " · " << name << " " << ver << " · " << bt << " · " << ts << "_\n\n"; } }
-        det << "| config | persist | events | median ops/sec | band (low–high) | bytes |\n|---|---|--:|--:|---|--:|\n";
+
+    {
+        std::ofstream md(out / type / "README.md");
+        md << "# " << type << " — compiler comparison\n\n_Generated from `results.db`. Columns are compilers "
+              "(latest run each); cell = ms (pass) or status._\n\n| scenario";
+        for (const auto& c : comps) md << " | [" << c.first << "](" << run_label_md(c.second) << ".md)";
+        md << " |\n|---";
+        for (std::size_t i = 0; i < comps.size(); ++i) md << "|--:";
+        md << "|\n";
+        for (const auto& r : rows) {
+            md << "| " << r.key;
+            for (const auto& cell : r.cells) md << " | " << cell;
+            md << " |\n";
+        }
+    }
+
+    for (const auto& c : comps) write_run_detail(db, out / type, type, c.second);
+}
+
+// Bench pages: bench rows carry ops stats (median/band/bytes), not status/duration — its own format.
+// Bench per-run detail (ops format): each config with persist/events + median/band/bytes.
+void write_bench_detail(jac313::Qlite::v002::Sqlite& db, const fs::path& dir, std::int64_t run_id) {
+    const std::string rl = run_label_md(run_id);
+    std::ofstream det(dir / (rl + ".md"));
+    det << "# bench — " << rl << "\n\n[← back](README.md)\n\n";
+    { auto st = db.prepare("SELECT r.host, c.name, c.version, p.build_type, r.ts_utc FROM testRun tr "
+        "JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
+        "WHERE tr.run_id=? LIMIT 1");
+      st.bind(run_id);
+      if (st.step()) { std::string host, name, ver, bt, ts; st.get(host, name, ver, bt, ts);
+          det << "_" << host << " · " << name << " " << ver << " · " << bt << " · " << ts << "_\n\n"; } }
+    det << "| config | persist | events | median ops/sec | band (low–high) | bytes |\n|---|---|--:|--:|---|--:|\n";
+    auto st = db.prepare(
+        "SELECT tl.name, IFNULL(p.persist,''), IFNULL(p.threads*p.events_per_thread,0), "
+        "IFNULL(tr.median_ops,0), IFNULL(tr.low_ops,0), IFNULL(tr.high_ops,0), IFNULL(tr.bytes,0) "
+        "FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id JOIN parameter p ON p.id=tr.parameter_id "
+        "JOIN testType tt ON tt.id=tr.test_type_id WHERE tr.run_id=? AND tt.name='bench' ORDER BY IFNULL(tr.median_ops,0) DESC");
+    st.bind(run_id);
+    while (st.step()) {
+        std::string name, per; std::int64_t events = 0, med = 0, low = 0, high = 0, bytes = 0;
+        st.get(name, per, events, med, low, high, bytes);
+        det << "| " << name << " | " << dash(per) << " | " << events << " | " << med << " | "
+            << low << "–" << high << " | " << bytes << " |\n";
+    }
+}
+
+// Bench page = a COMPILER COMPARISON pivot: config rows (config @scale) x compiler columns, cell = median ops/sec.
+void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
+    const auto comps = compilers_latest(db, "bench");
+    if (comps.empty()) return;
+    std::error_code ec; fs::create_directories(out / "bench", ec);
+
+    std::string inlist;
+    for (const auto& c : comps) { if (!inlist.empty()) inlist += ","; inlist += std::to_string(c.second); }
+    auto col_for = [&](std::int64_t run) -> int {
+        for (std::size_t i = 0; i < comps.size(); ++i) if (comps[i].second == run) return static_cast<int>(i);
+        return -1; };
+
+    struct Row { std::string key; std::vector<std::string> cells; };
+    std::vector<Row> rows;
+    {
         auto st = db.prepare(
-            "SELECT tl.name, IFNULL(p.persist,''), IFNULL(p.threads*p.events_per_thread,0), "
-            "IFNULL(tr.median_ops,0), IFNULL(tr.low_ops,0), IFNULL(tr.high_ops,0), IFNULL(tr.bytes,0) "
+            "SELECT tr.run_id, tl.name, IFNULL(p.threads*p.events_per_thread,0), IFNULL(tr.median_ops,0) "
             "FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id JOIN parameter p ON p.id=tr.parameter_id "
-            "JOIN testType tt ON tt.id=tr.test_type_id WHERE tr.run_id=? AND tt.name='bench' ORDER BY IFNULL(tr.median_ops,0) DESC");
-        st.bind(run_id);
+            "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' AND tr.run_id IN (" + inlist + ") "
+            "ORDER BY tl.name, p.threads*p.events_per_thread");
         while (st.step()) {
-            std::string name, per; std::int64_t events = 0, med = 0, low = 0, high = 0, bytes = 0;
-            st.get(name, per, events, med, low, high, bytes);
-            det << "| " << name << " | " << dash(per) << " | " << events << " | " << med << " | "
-                << low << "–" << high << " | " << bytes << " |\n";
+            std::int64_t run = 0, events = 0, med = 0; std::string name;
+            st.get(run, name, events, med);
+            const std::string key = events ? (name + " @" + std::to_string(events / 1000000) + "M") : name;
+            Row* r = nullptr;
+            for (auto& rr : rows) if (rr.key == key) { r = &rr; break; }
+            if (!r) { rows.push_back({key, std::vector<std::string>(comps.size(), "-")}); r = &rows.back(); }
+            const int col = col_for(run);
+            if (col >= 0) r->cells[static_cast<std::size_t>(col)] = std::to_string(med);
         }
     }
+
+    {
+        std::ofstream md(out / "bench" / "README.md");
+        md << "# bench — compiler comparison\n\n_Generated from `results.db`. Cell = median ops/sec; "
+              "latest run per compiler._\n\n| config";
+        for (const auto& c : comps) md << " | [" << c.first << "](" << run_label_md(c.second) << ".md)";
+        md << " |\n|---";
+        for (std::size_t i = 0; i < comps.size(); ++i) md << "|--:";
+        md << "|\n";
+        for (const auto& r : rows) {
+            md << "| " << r.key;
+            for (const auto& cell : r.cells) md << " | " << cell;
+            md << " |\n";
+        }
+    }
+
+    for (const auto& c : comps) write_bench_detail(db, out / "bench", c.second);
 }
 
 // Top-level landing index: test-summary/README.md, linking to the compiler page and every test

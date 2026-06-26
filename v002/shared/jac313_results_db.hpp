@@ -22,7 +22,7 @@ inline void ensure_schema(Sqlite& db) {
     db.exec("INSERT OR IGNORE INTO testType(name, description) VALUES"
             " ('ctest','ctest unit suite'),('smoke','persist x output smoke matrix'),"
             " ('bench','throughput benchmark suite'),('verify-lite','valgrind memcheck gate'),"
-            " ('verify','valgrind memcheck + helgrind + DRD')");
+            " ('verify','valgrind memcheck + helgrind + DRD'),('build','tree compile wall-clock')");
     db.exec("CREATE TABLE IF NOT EXISTS testList (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL)");
     db.exec("CREATE TABLE IF NOT EXISTS compiler ("
             "id INTEGER PRIMARY KEY, name TEXT, version TEXT, major INTEGER, UNIQUE(name, version))");
