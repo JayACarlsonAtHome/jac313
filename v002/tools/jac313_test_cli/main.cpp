@@ -1575,6 +1575,63 @@ int run_group_id_command(const GlobalOptions& global) {
     }
 }
 
+// ---- compiler pin (Setup/compilers.pin): committed, per-machine {gcc,clang} toolchain labels so the
+// choice is DETERMINISTIC — no "highest changes when a newer compiler lands" drift. Keyed on the
+// hardware identity (the group_id tuple), labeled jac313-###. bootstrap does find-or-create; you
+// change a row by editing it or `pin --gcc <label> --clang <label>`. No pin -> highest-available. ----
+struct CompilerPinRow {
+    std::string label, cpu, os, gcc_label, clang_label;
+    int cores = 0, ram_gb = 0;
+};
+fs::path compiler_pin_path(const fs::path& source_dir) { return source_dir / "Setup" / "compilers.pin"; }
+
+std::vector<CompilerPinRow> read_compiler_pins(const fs::path& source_dir) {
+    std::vector<CompilerPinRow> rows;
+    std::ifstream in(compiler_pin_path(source_dir));
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        std::vector<std::string> f; std::string cur;
+        for (char c : line) { if (c == '\t') { f.push_back(cur); cur.clear(); } else cur += c; }
+        f.push_back(cur);
+        if (f.size() < 7) continue;
+        CompilerPinRow r; r.label = f[0]; r.cpu = f[1];
+        try { r.cores = std::stoi(f[2]); r.ram_gb = std::stoi(f[3]); } catch (...) {}
+        r.os = f[4]; r.gcc_label = f[5]; r.clang_label = f[6];
+        rows.push_back(r);
+    }
+    return rows;
+}
+
+const CompilerPinRow* find_pin_for_host(const std::vector<CompilerPinRow>& rows, const HostHardwareRecord& hw) {
+    for (const auto& r : rows)
+        if (r.cpu == hw.cpu_model && r.cores == hw.cpu_cores && r.ram_gb == hw.ram_gb && r.os == hw.os_pretty)
+            return &r;
+    return nullptr;
+}
+
+// "sense the highest": the highest-version available toolchain label of a kind from the live probe.
+std::string highest_toolchain_label(const std::vector<ResolvedToolchain>& probes, const std::string& kind) {
+    const ResolvedToolchain* best = nullptr;
+    for (const auto& p : probes) {
+        if (!p.available || p.spec.kind != kind) continue;
+        if (best == nullptr || p.detected_major > best->detected_major) best = &p;
+    }
+    return best ? best->spec.label : std::string{};
+}
+
+void write_compiler_pins(const fs::path& source_dir, const std::vector<CompilerPinRow>& rows) {
+    std::ofstream out(compiler_pin_path(source_dir));
+    out << "# Committed per-machine compiler pin. One row per machine, keyed on the hardware identity\n"
+           "# (cpu / cores / ram_gb / os), labeled jac313-###. bootstrap find-or-creates a row; the\n"
+           "# chosen gcc/clang are then DETERMINISTIC across runs. Change by editing a row, or:\n"
+           "#   jac313_test_cli pin --gcc <label> --clang <label>   (labels are from Setup/compilers.conf)\n"
+           "# TAB-separated: label  cpu_model  cores  ram_gb  os_pretty  gcc_label  clang_label\n";
+    for (const auto& r : rows)
+        out << r.label << '\t' << r.cpu << '\t' << r.cores << '\t' << r.ram_gb << '\t'
+            << r.os << '\t' << r.gcc_label << '\t' << r.clang_label << '\n';
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -1597,18 +1654,82 @@ int main(int argc, char** argv) {
         print_usage();
         return 0;
     }
-    if (command == "resolve-compiler") {   // print the registry-resolved compiler path (for tools/build_matrix.sh)
-        fs::path src = ".";
-        CompilerResolveRequest request;
+    if (command == "pin") {   // committed per-machine compiler pin (Setup/compilers.pin); find-or-create
+        fs::path src = "."; bool ensure = false; std::string set_gcc, set_clang;
+        for (int i = 2; i < argc; ++i) {
+            const std::string a = argv[i];
+            if (a == "--ensure") ensure = true;
+            else if (a == "--gcc" && i + 1 < argc) set_gcc = argv[++i];
+            else if (a == "--clang" && i + 1 < argc) set_clang = argv[++i];
+            else if (a == "--source-dir" && i + 1 < argc) src = argv[++i];
+        }
+        const HostHardwareRecord hw = collect_host_hardware_record("");
+        auto rows = read_compiler_pins(src);
+        const CompilerPinRow* existing = find_pin_for_host(rows, hw);
+        if (!ensure && set_gcc.empty() && set_clang.empty()) {   // default: show this machine's pin
+            if (existing) std::cout << "pinned " << existing->label << ": gcc=" << existing->gcc_label
+                                    << " clang=" << existing->clang_label << "  (" << hw.cpu_model << ")\n";
+            else std::cout << "no pin for this machine (" << hw.cpu_model
+                           << ") — run: jac313_test_cli pin --ensure\n";
+            return 0;
+        }
+        if (ensure && existing && set_gcc.empty() && set_clang.empty()) {   // find-or-create: never overwrite
+            std::cout << "pin exists " << existing->label << " (gcc=" << existing->gcc_label
+                      << " clang=" << existing->clang_label << ") — unchanged\n";
+            return 0;
+        }
+        const auto probes = probe_compilers(src);
+        const std::string gcc_label = !set_gcc.empty() ? set_gcc
+            : (existing ? existing->gcc_label : highest_toolchain_label(probes, "gcc"));
+        const std::string clang_label = !set_clang.empty() ? set_clang
+            : (existing ? existing->clang_label : highest_toolchain_label(probes, "clang"));
+        if (gcc_label.empty() && clang_label.empty()) {
+            std::cerr << "pin: no gcc or clang toolchain available to pin (see Setup/compilers.conf)\n"; return 1;
+        }
+        std::string row_label = existing ? existing->label : std::string{};
+        if (row_label.empty()) {
+            int maxn = 0;
+            for (const auto& r : rows)
+                if (r.label.rfind("jac313-", 0) == 0)
+                    try { maxn = std::max(maxn, std::stoi(r.label.substr(7))); } catch (...) {}
+            char buf[24]; std::snprintf(buf, sizeof buf, "jac313-%03d", maxn + 1); row_label = buf;
+        }
+        bool updated = false;
+        for (auto& r : rows)
+            if (r.cpu == hw.cpu_model && r.cores == hw.cpu_cores && r.ram_gb == hw.ram_gb && r.os == hw.os_pretty) {
+                r.gcc_label = gcc_label; r.clang_label = clang_label; updated = true; break;
+            }
+        if (!updated)
+            rows.push_back({row_label, hw.cpu_model, hw.os_pretty, gcc_label, clang_label, hw.cpu_cores, hw.ram_gb});
+        write_compiler_pins(src, rows);
+        std::cout << (updated ? "updated " : "pinned ") << row_label << ": gcc=" << gcc_label
+                  << " clang=" << clang_label << "  (" << hw.cpu_model << ")\n";
+        return 0;
+    }
+
+    if (command == "resolve-compiler") {   // print the registry-resolved compiler path (for build_matrix.sh)
+        fs::path src = "."; CompilerResolveRequest request; bool pinned_gcc = false, pinned_clang = false;
         for (int i = 2; i < argc; ++i) {
             const std::string a = argv[i];
             if (a == "--gcc15") request.prefer_gcc15 = true;
             else if (a == "--clang") request.prefer_clang = true;
             else if (a == "--compiler" && i + 1 < argc) request.explicit_compiler = argv[++i];
+            else if (a == "--pinned-gcc") pinned_gcc = true;
+            else if (a == "--pinned-clang") pinned_clang = true;
             else if (a == "--source-dir" && i + 1 < argc) src = argv[++i];
         }
         request.source_dir = src;
         try {
+            if (pinned_gcc || pinned_clang) {   // resolve THIS machine's pinned label (or highest if unpinned)
+                const HostHardwareRecord hw = collect_host_hardware_record("");
+                const auto rows = read_compiler_pins(src);
+                const CompilerPinRow* row = find_pin_for_host(rows, hw);
+                std::string label = row ? (pinned_gcc ? row->gcc_label : row->clang_label)
+                                        : highest_toolchain_label(probe_compilers(src), pinned_gcc ? "gcc" : "clang");
+                if (label.empty()) { std::cerr << "resolve-compiler: no pinned/available "
+                                               << (pinned_gcc ? "gcc" : "clang") << "\n"; return 1; }
+                request.explicit_compiler = label;
+            }
             const CompilerSelection sel = resolve_compiler(request);
             std::cout << sel.cc_path << "\n";   // ONLY the path on stdout, for $(...) capture
             return 0;
