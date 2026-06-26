@@ -154,46 +154,71 @@ root:
 A curated 10-config suite (non-durable flag sweep + durable jText/SQL/binary at 1M and 10M). The headline is the
 **median + low–high band** over N runs, not a single "peak". See [Benchmarks.md](Benchmarks.md).
 
+### Gate commands — copy-paste (preset, and the explicit equivalent)
+
+Run from `v002/` — `bootstrap.sh` creates the `./jac313_test_cli` symlink. Each gate has a
+one-line **preset** (it writes + runs `./run_latest_config.sh`) and the **explicit** commands it
+expands to. Copy either. Default compiler is **gcc15** — swap `--gcc15`→`--clang` and
+`build-gcc15`→`build-clang` for the second compiler.
+
 ```bash
-./build/tools/jac313_test_cli compilers                                  # probe toolchains
-./build/tools/jac313_test_cli all --modules                             # ctest only
-./build/tools/jac313_test_cli matrix run --gcc15                        # smoke matrix (115)
-./build/tools/jac313_test_cli matrix run --params tests/test_params_full.txt   # full matrix
-./build/tools/jac313_test_cli release-check --gcc15                     # ctest → smoke gate
-./build/tools/jac313_test_cli release-check-all                         # platform gate (gcc15 + clang)
-./build/tools/jac313_test_cli cleancheck --gcc15                        # valgrind gate (memcheck + helgrind/DRD)
-./build/tools/jac313_test_cli version-check                            # version() bump gate (git, no build)
-./build/tools/jac313_test_cli matrix run --filter sql                   # scenario filter
+# ── ctest — unit suite ───────────────────────────────────────────────
+./jac313_test_cli --ctest                                      # preset
+./jac313_test_cli configure --build-dir build-gcc15 --gcc15    # explicit:
+./jac313_test_cli build     --build-dir build-gcc15
+./jac313_test_cli run       --build-dir build-gcc15
+
+# ── smoke — persist × output matrix (115 scenarios) ──────────────────
+./jac313_test_cli --smoke                                      # preset
+./jac313_test_cli configure  --build-dir build-gcc15 --gcc15   # explicit:
+./jac313_test_cli build       --build-dir build-gcc15
+./jac313_test_cli matrix run  --build-dir build-gcc15
+
+# ── full — same matrix under stress scaling (no preset) ──────────────
+./jac313_test_cli configure  --build-dir build-gcc15 --gcc15
+./jac313_test_cli build       --build-dir build-gcc15
+./jac313_test_cli matrix run  --build-dir build-gcc15 --params tests/test_params_full.txt
+
+# ── verify-lite — valgrind memcheck (the pre-push gate) ──────────────
+./jac313_test_cli --verify-lite                                # preset
+./jac313_test_cli matrix verify-lite                           # explicit
+
+# ── verify — valgrind memcheck + helgrind + DRD ──────────────────────
+./jac313_test_cli --verify                                     # preset
+./jac313_test_cli matrix verify                                # explicit
+
+# ── bench — throughput; records to results.db + renders the report ───
+./jac313_test_cli --bench --report                             # preset
+./jac313_test_cli configure --release --build-dir build-bench --gcc15   # explicit:
+cmake --build build-bench --target jac313_store_bench
+build-bench/Store/tests/matrix/jac313_store_bench --suite --db test-summary/results.db
+./jac313_test_cli --report
+
+# ── build matrix — compile time · pass/fail · exe size, per test × (front-end × compiler) ──
+tools/build_matrix.sh                                          # default 2-test set
+tools/build_matrix.sh jac313_store_001_TS jac313_store_003_TS  # specific tests
 ```
 
 `version-check` is the **version gate**: each package (Qlite/jText/Store) exposes
-`jac313::<Pkg>::v002::version()` — its `"major.minor"` version (`"v002.001"` now; major = the
-`v002` API line). When a package's shipped code changes, its `version()` literal must be
-bumped; `version-check` (git-only, no build) fails if a bump is owed. It runs in the
-**pre-push hook before `cleancheck`** (cheap check first).
+`jac313::<Pkg>::v002::version()`; when its shipped code changes the literal must be bumped, and
+`version-check` (git-only, no build) fails if a bump is owed.
 
-`cleancheck` is the **valgrind gate**: it self-builds an annotated Debug tree and runs
-memcheck + helgrind/DRD over a representative smoke set, exiting non-zero on any error.
-`bootstrap.sh` installs it as a **pre-push hook** (`tools/hooks/pre-push` →
-`.git/hooks/pre-push`), so it runs before every push; bypass once with `git push
---no-verify`. Needs valgrind installed. Details in
-[docs/Memory-And-Concurrency.md](Memory-And-Concurrency.md).
+The **pre-push hook** (installed by `bootstrap.sh` at `.git/hooks/pre-push`) runs `version-check`
+then **`matrix verify-lite`** (valgrind memcheck); bypass once with `git push --no-verify`. Needs
+valgrind installed. The build matrix is a *deliberate, separately-run* measurement — it is **not**
+in the push path. Details in [docs/Memory-And-Concurrency.md](Memory-And-Concurrency.md).
 
 ### Results layout
 
 | Path | Tracked | Contents |
 |------|---------|----------|
 | `test-results/` | gitignored | Raw scenario logs from local matrix runs |
-| `test-summary/bench_results.db` | tracked | Source of truth for **throughput** metrics; `store_bench --report` renders the markdown. Groups are keyed by `(cpu, cores, ram_gb, os)` → `jac313-<group_id>` |
+| `test-summary/results.db` | tracked | The **unified** results DB — ctest / smoke / bench / verify / build, normalized (`testType`, `testList`, `compiler`, `parameter`, `run`, `testRun`). Machines keyed by `(cpu, cores, ram_gb, os)` → `jac313-<group_id>` |
+| `test-summary/<area>/` | tracked | Generated by `jac313_test_cli --report`: a top-level `README.md` index + per-area **compiler-comparison** pages — `compiler/`, `ctest/`, `smoke/`, `bench/`, `verify/`, `build/` (clang ↔ gcc side by side) |
 
-A run is keyed by its **RunIdentity** — `(os, compiler, build_type, disk, size)` — defined once
-in [`run_identity.hpp`](../tools/jac313_test_cli/) so DB keys, the results path, and rendered
-tables can't drift. `os` is the full sensed version (`rhel-10.2`, so `10.1 ≠ 10.2`). Runs that
-differ in any dimension never overwrite each other:
-
-```
-test-summary/<os>/<compiler>/<build_type>/<disk>/<size>/RUN.md
-```
+Every gate records into the one `results.db`; **`jac313_test_cli --report`** reads it back and
+(re)writes the markdown — run it any time to refresh the pages. The legacy `bench_results.db` is
+**retired** (bench now writes only `results.db`).
 
 ### Disk cost
 
