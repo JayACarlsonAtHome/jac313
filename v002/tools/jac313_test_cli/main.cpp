@@ -63,8 +63,8 @@ void print_usage() {
         "  --report             with --bench: also record the DB + render the report\n"
         "  --verify-lite        valgrind memcheck over the ctest + smoke surface\n"
         "  --verify             valgrind memcheck + helgrind + DRD\n"
-        "  --group-id           precheck: list bench groups + this machine's proposed group_id\n"
-        "  (everyday: --ctest --smoke ; recorded bench: --bench --report)\n\n"
+        "  --run-everything     the FULL battery: every gate on both compilers + build matrix + report\n"
+        "  (everyday: --ctest --smoke ; recorded bench: --bench --report ; all of it: --run-everything)\n\n"
         "Run options:\n"
         "  --filter <regex>     Run only matching tests (matrix: scenario filter)\n"
         "  --fail-fast          Stop on first failure\n"
@@ -1365,8 +1365,54 @@ struct PresetOptions {
     bool report{false};        // modifies --bench: also record the DB + render the report
     bool verify_lite{false};
     bool verify{false};
-    bool group_id{false};      // read-only bench-group precheck (standalone; no script written)
+    bool run_everything{false}; // the full battery on both compilers + matrix + report (C++ orchestrated)
 };
+
+// --run-everything: the full battery, orchestrated IN CODE (per-step exit codes, continue-on-error,
+// a failure summary) rather than a shell script. Re-invokes this CLI's own subcommands per step so
+// each gate's recording/reporting path is identical to running it by hand. Run from v002/.
+int run_everything_command(const GlobalOptions& global) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    if (!global.source_dir.empty()) fs::current_path(global.source_dir, ec);
+    const std::string CLI = "./jac313_test_cli";
+    std::cout << "######## run-everything: full battery on both compilers ########\n";
+    fs::remove("test-summary/results.db", ec);   // fresh dataset (regenerable)
+
+    std::vector<std::string> failures;
+    auto step = [&](const std::string& label, const std::string& cmd) {
+        std::cout << "\n===== " << label << " =====\n" << std::flush;
+        const int raw = std::system(cmd.c_str());
+        const int rc = WIFEXITED(raw) ? WEXITSTATUS(raw) : 1;
+        std::cout << "[exit " << rc << "] " << label << "\n";
+        if (rc != 0) failures.push_back(label + " (exit " + std::to_string(rc) + ")");
+    };
+
+    for (const std::string cc : {std::string("gcc15"), std::string("clang")}) {
+        const std::string dir = "build-" + cc;
+        step("configure " + cc, CLI + " configure --build-dir " + dir + " --" + cc);
+        step("build " + cc,     CLI + " build --build-dir " + dir);
+        step("ctest " + cc,     CLI + " run --build-dir " + dir);
+        step("smoke " + cc,     CLI + " matrix run --build-dir " + dir);
+    }
+    for (const std::string cc : {std::string("gcc15"), std::string("clang")}) {
+        const std::string dir = "build-bench-" + cc;
+        step("configure bench " + cc, CLI + " configure --release --build-dir " + dir + " --" + cc);
+        step("build bench " + cc,     "cmake --build " + dir + " --target jac313_store_bench");
+        step("bench " + cc, dir + "/Store/tests/matrix/jac313_store_bench --suite "
+                            "--db test-summary/results.db --jtext-ver v002.002");
+    }
+    step("verify gcc15", CLI + " matrix verify --gcc15");
+    step("verify clang", CLI + " matrix verify --clang");
+    step("build matrix", "tools/build_matrix.sh");
+    step("report",       CLI + " --report");
+
+    std::cout << "\n######## run-everything DONE — open test-summary/README.md ########\n";
+    if (failures.empty()) { std::cout << "ALL GREEN.\n"; return 0; }
+    std::cout << failures.size() << " step(s) had a non-zero exit (results recorded for what ran):\n";
+    for (const auto& f : failures) std::cout << "  - " << f << "\n";
+    return 1;
+}
 
 int run_preset_command(const GlobalOptions& global, const ConfigureOptions& configure_opts,
                        const PresetOptions& preset)
@@ -1487,30 +1533,8 @@ int run_preset_command(const GlobalOptions& global, const ConfigureOptions& conf
 // `--group-id` mode against the tracked DB — list existing groups + this machine's proposed
 // group_id, so you can see whether recording reuses a group or makes a new one. Inspection only:
 // it does NOT write run_latest_config.sh, so it won't clobber your last preset run.
-int run_group_id_command(GlobalOptions global, ConfigureOptions configure_opts, BuildOptions build_opts)
-{
-    const fs::path root = fs::absolute(global.source_dir);
-    configure_opts.build_type = "Release";
-    configure_opts.store_tests = true;
-    MatrixOptions matrix_opts;
-    if (!apply_compiler_resolution(global, configure_opts, matrix_opts)) {
-        return 1;
-    }
-    global.build_dir = root / "build-bench";
-    if (const int rc = run_configure_command(global, configure_opts); rc != 0) {
-        return rc;
-    }
-    if (const int rc = run_build_targets_command(global, build_opts, {"jac313_store_bench"}); rc != 0) {
-        return rc;
-    }
-    const fs::path bench = root / "build-bench" / "Store" / "tests" / "matrix" / "jac313_store_bench";
-    std::cout.flush();   // flush buffered cout before the child writes to the inherited fd
-    std::cerr.flush();
-    const std::string cmd = "cd \"" + root.string() + "\" && \"" + bench.string()
-                          + "\" --group-id --db test-summary/results.db";
-    const int rc = std::system(cmd.c_str());
-    return WIFEXITED(rc) ? WEXITSTATUS(rc) : 1;
-}
+// (run_group_id_command removed — the bench-group precheck was tied to the retired store_bench
+// --group-id / bench_run model. Groups now live in results.db's run table; see the report.)
 
 } // namespace
 
@@ -1596,8 +1620,8 @@ int main(int argc, char** argv) {
                 preset.verify = true;
             } else if (arg == "--verify-lite") {
                 preset.verify_lite = true;
-            } else if (arg == "--group-id") {
-                preset.group_id = true;
+            } else if (arg == "--run-everything") {
+                preset.run_everything = true;
             } else if (arg == "--params" && i + 1 < argc) {
                 matrix_opts.params_file = argv[++i];
             } else if (arg == "--dry-run") {
@@ -1636,8 +1660,8 @@ int main(int argc, char** argv) {
                 "  runner         Run ONE explicit config: --compiler --build-type --modules --size\n"
                 "  verify-lite    valgrind gate: ctest under memcheck + helgrind/DRD\n"
                 "  verify         valgrind gate: ctest + smoke matrix (full sink coverage)\n\n"
-                "A matrix run is a correctness gate only; throughput + the committed report come\n"
-                "from store_bench (--db bench_results.db / --report).\n\n"
+                "A matrix run is a correctness gate only. Throughput is the `--bench --report` gate,\n"
+                "and `jac313_test_cli --report` renders every result from test-summary/results.db.\n\n"
                 "matrix options:\n"
                 "  --params <file>   Params file (default: tests/test_params.txt)\n"
                 "  --dry-run         List scenarios only\n"
@@ -1646,8 +1670,8 @@ int main(int argc, char** argv) {
                 "  --failsafe <sec>  Kill stuck scenario after N seconds (smoke: "
                 + std::to_string(kSmokeFailsafeSec) + ", full: " + std::to_string(kFullFailsafeSec)
                 + ", 0=off)\n"
-                "  --clang           Force clang++-20 for results path / auto build dir\n"
-                "  --compiler <cxx>  Explicit compiler (skips auto-detect; clang min 20)\n";
+                "  --clang           Force the clang toolchain (registry-resolved) for results path / build dir\n"
+                "  --compiler <cxx>  Explicit compiler (skips auto-detect; any compilers.conf label)\n";
             return argc < 3 ? 1 : 0;
         }
         const std::string sub = argv[2];
@@ -1790,8 +1814,8 @@ int main(int argc, char** argv) {
         return run_list_command(global);
     }
     if (command == "run") {
-        if (preset.group_id) {
-            return run_group_id_command(global, configure_opts, build_opts);
+        if (preset.run_everything) {
+            return run_everything_command(global);
         }
         const bool any_preset = preset.ctest || preset.smoke || preset.bench
                              || preset.report || preset.verify_lite || preset.verify;
