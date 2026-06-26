@@ -3,7 +3,8 @@
 # record the COMPILE time (only) + run pass/fail + exe size. Renders via `jac313_test_cli --report`
 # into test-summary/build/.
 #
-#   usage:  tools/build_matrix.sh [test ...]      # default: a 2-test smoke set
+#   usage:  tools/build_matrix.sh [--dry-run] [test ...]   # default tests: a 2-test smoke set
+#           --dry-run prints the resolved compilers + the exact per-config commands; builds nothing.
 #
 # ALL build trees live under  v002/tmp_build/<config>  so cleanup is a single `rm -rf tmp_build`.
 # Each config's tree is also dropped right after it records (peak disk = one config). Every delete
@@ -25,7 +26,10 @@ for cc in "$GXX" "$CLXX"; do
   { [ -n "$cc" ] && [ -x "$cc" ]; } || { echo "build_matrix: could not resolve a compiler ('$cc') — run ./bootstrap.sh first (or set JAC313_MATRIX_GXX / JAC313_MATRIX_CLXX)" >&2; exit 1; }
 done
 ISTD="-DJAC313_BUILD_MODULES=ON -DJAC313_QLITE_IMPORT_STD=ON -DJAC313_JTEXT_IMPORT_STD=ON -DJAC313_STORE_IMPORT_STD=ON"
-TESTS="${*:-jac313_store_001_TS jac313_store_002_TS}"
+# Args: --dry-run (print the commands, build nothing) anywhere; the rest is the explicit test list.
+DRY=0; ARGS=()
+for a in "$@"; do case "$a" in --dry-run) DRY=1 ;; *) ARGS+=("$a") ;; esac; done
+TESTS="${ARGS[*]:-jac313_store_001_TS jac313_store_002_TS}"
 BUILD_ROOT="tmp_build"
 
 # Safety: only ever delete tmp_build or something inside it. Refuse anything else (a source dir,
@@ -40,6 +44,15 @@ safe_rmdir() {
 build_config() {
   local cc="$1"; local name="$2"; shift 2; local feflags="$*"
   local dir="$BUILD_ROOT/$name"
+  if [ "$DRY" = 1 ]; then
+    echo "===== CONFIG $name   (compiler: $cc) ====="
+    echo "  cmake -G Ninja -S . -B $dir -DCMAKE_CXX_COMPILER=$cc -DCMAKE_BUILD_TYPE=Debug -DJAC313_BUILD_STORE_TESTS=ON $feflags"
+    for t in $TESTS; do
+      echo "  cmake --build $dir --target $t        # timed compile/link -> ctest -> $CLI record-build-test"
+    done
+    echo "  safe_rmdir $dir                          # drop this config's tree after recording"
+    return
+  fi
   echo "===== CONFIG $name ====="
   safe_rmdir "$dir"
   # logs are SIBLING files under tmp_build, so per-config cleanup leaves them for debugging;
@@ -63,7 +76,7 @@ build_config() {
   safe_rmdir "$dir"   # results are in the DB; drop this config's tree
 }
 
-mkdir -p "$BUILD_ROOT"
+[ "$DRY" = 1 ] || mkdir -p "$BUILD_ROOT"
 build_config "$GXX"  gcc-hdr
 build_config "$GXX"  gcc-mod    -DJAC313_BUILD_MODULES=ON
 build_config "$GXX"  gcc-istd   $ISTD
@@ -71,6 +84,10 @@ build_config "$CLXX" clang-hdr
 build_config "$CLXX" clang-mod  -DJAC313_BUILD_MODULES=ON
 build_config "$CLXX" clang-istd $ISTD
 
+if [ "$DRY" = 1 ]; then
+  echo "######## DRY-RUN — commands shown above; nothing built or recorded, tmp_build untouched ########"
+  exit 0
+fi
 "$CLI" --report
 safe_rmdir "$BUILD_ROOT"   # final wholesale sweep — one place, all gone
 echo "######## BUILD-MATRIX DONE ########"
