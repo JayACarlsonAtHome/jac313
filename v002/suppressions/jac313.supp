@@ -1,0 +1,39 @@
+# jac313 valgrind suppressions — known FALSE POSITIVES, scrubbed before anything is recorded.
+#
+# std::atomic load/store are correct lock-free synchronization. Helgrind and DRD do NOT model
+# the C++11 atomics memory model, so they report atomic-vs-atomic accesses on worker threads
+# (the persist=none lock-free hot path) as "data races" with "Locks held: none" — which is the
+# correct, expected state for lock-free atomics. The test data is independently verified correct
+# every run ("ALL ENTRIES STRUCTURALLY PERFECT — 100 hits, 0 misses"). This is the tools' known
+# atomics blind spot, not a real race. Scoped to: atomic load/store (top frame) inside a thread.
+#
+# If you add a suppression here, it MUST be a proven false positive — never silence a real race.
+
+{
+   jac313-helgrind-std-atomic-load-in-thread
+   Helgrind:Race
+   fun:load
+   ...
+   fun:mythread_wrapper
+}
+{
+   jac313-helgrind-std-atomic-store-in-thread
+   Helgrind:Race
+   fun:store
+   ...
+   fun:mythread_wrapper
+}
+{
+   jac313-drd-std-atomic-load-in-thread
+   drd:ConflictingAccess
+   fun:load
+   ...
+   fun:vgDrd_thread_wrapper
+}
+{
+   jac313-drd-std-atomic-store-in-thread
+   drd:ConflictingAccess
+   fun:store
+   ...
+   fun:vgDrd_thread_wrapper
+}

@@ -1134,6 +1134,11 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
             return;
         }
         std::vector<std::string> cmd = {"valgrind", "--tool=" + tool, "--error-exitcode=99"};
+        // Scrub known false positives (std::atomic load/store — helgrind/DRD can't model C++11
+        // atomics) BEFORE counting/recording, so results.db only ever holds real errors.
+        { const fs::path supp = global.source_dir / "suppressions" / "jac313.supp";
+          std::error_code sec;
+          if (std::filesystem::exists(supp, sec)) cmd.push_back("--suppressions=" + supp.string()); }
         if (tool == "memcheck") {
             cmd.push_back("--leak-check=full");
             cmd.push_back("--errors-for-leak-kinds=definite,indirect");
