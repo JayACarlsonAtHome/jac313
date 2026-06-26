@@ -27,6 +27,8 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <locale>
+#include <sstream>
 
 #include <sys/wait.h>
 
@@ -431,6 +433,30 @@ std::string run_label_md(std::int64_t run_id) {
 }
 std::string dash(const std::string& s) { return s.empty() ? "-" : s; }
 
+// Locale-aware integer formatting — thousands separators per the locale of whoever runs --report
+// ("6,030,096" en_US, "6.030.096" de_DE). Falls back to plain digits if the locale is unavailable.
+std::string fmt_num(std::int64_t n) {
+    try {
+        std::ostringstream ss;
+        ss.imbue(std::locale(""));
+        ss << n;
+        return ss.str();
+    } catch (...) { return std::to_string(n); }
+}
+
+// Human-readable count, 2 decimals: 6,251,809 -> "6.25M", 5,515 -> "5.52K", small stays as-is.
+std::string human_ops(std::int64_t n) {
+    if (n <= 0) return "0";
+    double v = static_cast<double>(n);
+    const char* suf = "";
+    if (n >= 1000000000)   { v = n / 1e9; suf = "G"; }
+    else if (n >= 1000000) { v = n / 1e6; suf = "M"; }
+    else if (n >= 1000)    { v = n / 1e3; suf = "K"; }
+    else return std::to_string(n);
+    char b[32]; std::snprintf(b, sizeof b, "%.2f%s", v, suf);
+    return b;
+}
+
 // Human-readable byte size: "0 B", "1.234 KB", "12.345 MB", "1.500 GB" (1024-based, 3 decimals).
 std::string human_bytes(std::int64_t b) {
     if (b <= 0) return "0 B";
@@ -499,7 +525,7 @@ void write_run_detail(jac313::Qlite::v002::Sqlite& db, const fs::path& dir, cons
         std::string t, per, mode, tool, status; std::int64_t ms = 0;
         st.get(t, per, mode, tool, status, ms);
         det << "| " << t << " | " << dash(per) << " | " << dash(mode) << " | " << dash(tool) << " | "
-            << status << " | " << ms << " |\n";
+            << status << " | " << fmt_num(ms) << " |\n";
     }
 }
 
@@ -537,7 +563,7 @@ void write_type_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out, cons
             if (!r) { rows.push_back({key, std::vector<std::string>(comps.size(), "-")}); r = &rows.back(); }
             const int col = col_for(run);
             if (col >= 0) r->cells[static_cast<std::size_t>(col)] =
-                (status == "pass") ? (ms ? std::to_string(ms) : std::string("pass")) : status;
+                (status == "pass") ? (ms ? fmt_num(ms) : std::string("pass")) : status;
         }
     }
 
@@ -581,8 +607,8 @@ void write_bench_detail(jac313::Qlite::v002::Sqlite& db, const fs::path& dir, st
     while (st.step()) {
         std::string name, per; std::int64_t events = 0, med = 0, low = 0, high = 0, bytes = 0;
         st.get(name, per, events, med, low, high, bytes);
-        det << "| " << name << " | " << dash(per) << " | " << events << " | " << med << " | "
-            << low << "–" << high << " | " << human_bytes(bytes) << " |\n";
+        det << "| " << name << " | " << dash(per) << " | " << fmt_num(events) << " | " << fmt_num(med) << " | "
+            << human_ops(low) << "–" << human_ops(high) << " | " << human_bytes(bytes) << " |\n";
     }
 }
 
@@ -598,37 +624,44 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
         for (std::size_t i = 0; i < comps.size(); ++i) if (comps[i].second == run) return static_cast<int>(i);
         return -1; };
 
-    struct Row { std::string key; std::vector<std::string> cells; };
+    // Head-to-head: each compiler contributes a (median, band) pair per config row.
+    struct Cell { std::string median = "-", band = "-"; };
+    struct Row { std::string key; std::vector<Cell> cells; };
     std::vector<Row> rows;
     {
         auto st = db.prepare(
-            "SELECT tr.run_id, tl.name, IFNULL(p.threads*p.events_per_thread,0), IFNULL(tr.median_ops,0) "
+            "SELECT tr.run_id, tl.name, IFNULL(p.threads*p.events_per_thread,0), IFNULL(tr.median_ops,0), "
+            "IFNULL(tr.low_ops,0), IFNULL(tr.high_ops,0) "
             "FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id JOIN parameter p ON p.id=tr.parameter_id "
             "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' AND tr.run_id IN (" + inlist + ") "
             "ORDER BY tl.name, p.threads*p.events_per_thread");
         while (st.step()) {
-            std::int64_t run = 0, events = 0, med = 0; std::string name;
-            st.get(run, name, events, med);
+            std::int64_t run = 0, events = 0, med = 0, low = 0, high = 0; std::string name;
+            st.get(run, name, events, med, low, high);
             const std::string key = events ? (name + " @" + std::to_string(events / 1000000) + "M") : name;
             Row* r = nullptr;
             for (auto& rr : rows) if (rr.key == key) { r = &rr; break; }
-            if (!r) { rows.push_back({key, std::vector<std::string>(comps.size(), "-")}); r = &rows.back(); }
+            if (!r) { rows.push_back({key, std::vector<Cell>(comps.size())}); r = &rows.back(); }
             const int col = col_for(run);
-            if (col >= 0) r->cells[static_cast<std::size_t>(col)] = std::to_string(med);
+            if (col >= 0) { r->cells[static_cast<std::size_t>(col)].median = fmt_num(med);
+                            r->cells[static_cast<std::size_t>(col)].band = human_ops(low) + "–" + human_ops(high); }
         }
     }
 
     {
         std::ofstream md(out / "bench" / "README.md");
-        md << "# bench — compiler comparison\n\n_Generated from `results.db`. Cell = median ops/sec; "
-              "latest run per compiler._\n\n| config";
-        for (const auto& c : comps) md << " | [" << c.first << "](" << run_label_md(c.second) << ".md)<br>ops/sec";
+        md << "# bench — compiler comparison\n\n_Generated from `results.db`. Per compiler: median ops/sec and "
+              "the low–high band, head to head; latest run per compiler._\n\n| config";
+        for (const auto& c : comps) {
+            const std::string rl = run_label_md(c.second);
+            md << " | [" << c.first << "](" << rl << ".md)<br>median ops/sec | " << c.first << "<br>band";
+        }
         md << " |\n|---";
-        for (std::size_t i = 0; i < comps.size(); ++i) md << "|--:";
+        for (std::size_t i = 0; i < comps.size(); ++i) md << "|--:|:--:";
         md << "|\n";
         for (const auto& r : rows) {
             md << "| " << r.key;
-            for (const auto& cell : r.cells) md << " | " << cell;
+            for (const auto& cell : r.cells) md << " | " << cell.median << " | " << cell.band;
             md << " |\n";
         }
     }

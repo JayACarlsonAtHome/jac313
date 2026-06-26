@@ -30,13 +30,13 @@ _Generated from `results.db`. Columns are compilers (latest run each); cell = ms
 | jac313_store_008_XS | 50 | 50 |
 | jac313_store_bench_smoke | 50 | 50 |
 | jac313_store_binary_persist_smoke | 50 | 50 |
-| jac313_store_binary_reader_test | 50 | - |
+| jac313_store_binary_reader_test | 50 | 50 |
 | jac313_store_binary_to_jtext_smoke | 50 | 50 |
 | jac313_store_flag_routing_smoke | 50 | 50 |
 | jac313_store_flags | 50 | 50 |
 | jac313_store_jtext_persist_smoke | 50 | 50 |
 | jac313_store_metric_view | 50 | 50 |
-| jac313_store_metric_view_test | 50 | - |
-| jac313_store_saturating_capacity_test | 50 | - |
+| jac313_store_metric_view_test | 50 | 50 |
+| jac313_store_saturating_capacity_test | 50 | 50 |
 | jac313_store_sql_persist_smoke | 50 | 50 |
-| jac313_store_v002_test | 50 | - |
+| jac313_store_v002_test | 50 | 50 |

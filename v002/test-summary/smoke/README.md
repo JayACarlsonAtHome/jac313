@@ -44,7 +44,7 @@ _Generated from `results.db`. Columns are compilers (latest run each); cell = ms
 | jac313_store_003_TS · none · on | 401 | 401 |
 | jac313_store_003_TS · sql · off | 351 | 351 |
 | jac313_store_003_TS · sql · on | 401 | 401 |
-| jac313_store_003_XS · binary · off | 351 | 351 |
+| jac313_store_003_XS · binary · off | 350 | 350 |
 | jac313_store_003_XS · binary · on | 401 | 401 |
 | jac313_store_003_XS · jtext · off | 351 | 351 |
 | jac313_store_003_XS · jtext · on | 401 | 401 |
@@ -89,14 +89,14 @@ _Generated from `results.db`. Columns are compilers (latest run each); cell = ms
 | jac313_store_006_TS · jtext · off | 351 | 351 |
 | jac313_store_006_TS · jtext · on | 401 | 401 |
 | jac313_store_006_TS · none · off | 351 | 351 |
-| jac313_store_006_TS · none · on | 401 | 401 |
+| jac313_store_006_TS · none · on | 400 | 401 |
 | jac313_store_006_TS · sql · off | 351 | 351 |
 | jac313_store_006_TS · sql · on | 401 | 401 |
 | jac313_store_006_XS · binary · off | 351 | 351 |
 | jac313_store_006_XS · binary · on | 401 | 401 |
 | jac313_store_006_XS · jtext · off | 351 | 351 |
 | jac313_store_006_XS · jtext · on | 401 | 401 |
-| jac313_store_006_XS · none · off | 351 | 351 |
+| jac313_store_006_XS · none · off | 350 | 351 |
 | jac313_store_006_XS · none · on | 401 | 401 |
 | jac313_store_006_XS · sql · off | 351 | 351 |
 | jac313_store_006_XS · sql · on | 401 | 401 |
