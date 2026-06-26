@@ -720,7 +720,7 @@ void write_build_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
             st.bind(t, cf.cname, cf.cmajor, cf.bt, cf.mod, cf.imp);
             if (st.step()) { std::int64_t ms = 0; std::string status; st.get(ms, status);
                 if (status == "NA") { cell = "NA"; }   // config not built by design (e.g. clang import-std)
-                else { char b[24]; std::snprintf(b, sizeof b, "%.1fs", static_cast<double>(ms) / 1000.0);
+                else { char b[24]; std::snprintf(b, sizeof b, "%.2fs", static_cast<double>(ms) / 1000.0);
                        cell = std::string(b) + " · " + (status.empty() ? "-" : status); } }
             md << " | " << cell;
         }
