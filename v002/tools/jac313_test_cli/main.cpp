@@ -63,6 +63,7 @@ void print_usage() {
         "  --report             with --bench: also record the DB + render the report\n"
         "  --verify-lite        valgrind memcheck over the ctest + smoke surface\n"
         "  --verify             valgrind memcheck + helgrind + DRD\n"
+        "  --group-id           read-only precheck: which jac313-<group_id> this machine records under\n"
         "  --run-everything     the FULL battery: every gate on both compilers + build matrix + report\n"
         "  (everyday: --ctest --smoke ; recorded bench: --bench --report ; all of it: --run-everything)\n\n"
         "Run options:\n"
@@ -1365,6 +1366,7 @@ struct PresetOptions {
     bool report{false};        // modifies --bench: also record the DB + render the report
     bool verify_lite{false};
     bool verify{false};
+    bool group_id{false};      // read-only precheck: which jac313-<group_id> this machine records under
     bool run_everything{false}; // the full battery on both compilers + matrix + report (C++ orchestrated)
 };
 
@@ -1533,8 +1535,48 @@ int run_preset_command(const GlobalOptions& global, const ConfigureOptions& conf
 // `--group-id` mode against the tracked DB — list existing groups + this machine's proposed
 // group_id, so you can see whether recording reuses a group or makes a new one. Inspection only:
 // it does NOT write run_latest_config.sh, so it won't clobber your last preset run.
-// (run_group_id_command removed — the bench-group precheck was tied to the retired store_bench
-// --group-id / bench_run model. Groups now live in results.db's run table; see the report.)
+// --group-id precheck (read-only): list the machine groups already in results.db, then resolve and
+// show which group_id / jac313-<id> label THIS machine would record under (matched on cpu+cores+ram+os,
+// hostname never used) and whether that REUSES an existing group or creates a new one. Writes nothing.
+int run_group_id_command(const GlobalOptions& global) {
+    const fs::path db_path = global.source_dir / "test-summary" / "results.db";
+    try {
+        jac313::Qlite::v002::Sqlite db(db_path.string());
+        jac313::results::ensure_schema(db);
+        const auto hw = collect_host_hardware_record("");
+        const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
+                                        static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty};
+        std::cout << "=== group-id precheck (read-only — test-summary/results.db) ===\n\n"
+                     "Existing machine groups (from the run table):\n"
+                     "  gid | host       | hardware                          | os\n"
+                     "  ----+------------+-----------------------------------+----------------------\n";
+        std::int64_t db_max = 0; bool any = false;
+        { auto st = db.prepare("SELECT DISTINCT group_id, host, cpu, cores, ram_gb, os FROM run ORDER BY group_id");
+          while (st.step()) {
+              std::int64_t gid = 0, cores = 0, ram = 0; std::string host, cpu, os;
+              st.get(gid, host, cpu, cores, ram, os);
+              if (gid > db_max) db_max = gid; any = true;
+              const std::string hwd = cpu + " (" + std::to_string(cores) + "c/" + std::to_string(ram) + "G)";
+              char line[480];
+              std::snprintf(line, sizeof line, "  %3lld | %-10.10s | %-33.33s | %-.21s\n",
+                            static_cast<long long>(gid), host.c_str(), hwd.c_str(), os.c_str());
+              std::cout << line;
+          } }
+        if (!any) std::cout << "  (none yet)\n";
+        const std::int64_t proposed = jac313::results::group_id(db, h);   // read-only resolve (SELECT, or MAX+1)
+        const std::string label = jac313::results::host_label(proposed);
+        std::cout << "\nThis machine:\n  cpu:   " << h.cpu << "\n  cores: " << h.cores
+                  << "    ram_gb: " << h.ram_gb << "\n  os:    " << h.os
+                  << "\n  recorded as: " << label << "   (matched on cpu+cores+ram+os; hostname not used)\n"
+                  << "\nProposed group_id: " << proposed << "   (" << label << ")\n"
+                  << (proposed <= db_max
+                        ? "  -> REUSES an existing group: recording ADDS rows under " + label + ".\n"
+                        : "  -> NEW group: recording creates a fresh group; nothing existing is touched.\n");
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "group-id precheck failed: " << e.what() << "\n"; return 1;
+    }
+}
 
 } // namespace
 
@@ -1620,6 +1662,8 @@ int main(int argc, char** argv) {
                 preset.verify = true;
             } else if (arg == "--verify-lite") {
                 preset.verify_lite = true;
+            } else if (arg == "--group-id") {
+                preset.group_id = true;
             } else if (arg == "--run-everything") {
                 preset.run_everything = true;
             } else if (arg == "--params" && i + 1 < argc) {
@@ -1814,6 +1858,9 @@ int main(int argc, char** argv) {
         return run_list_command(global);
     }
     if (command == "run") {
+        if (preset.group_id) {
+            return run_group_id_command(global);
+        }
         if (preset.run_everything) {
             return run_everything_command(global);
         }
