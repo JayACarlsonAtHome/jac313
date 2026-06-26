@@ -1597,6 +1597,27 @@ int main(int argc, char** argv) {
         print_usage();
         return 0;
     }
+    if (command == "resolve-compiler") {   // print the registry-resolved compiler path (for tools/build_matrix.sh)
+        fs::path src = ".";
+        CompilerResolveRequest request;
+        for (int i = 2; i < argc; ++i) {
+            const std::string a = argv[i];
+            if (a == "--gcc15") request.prefer_gcc15 = true;
+            else if (a == "--clang") request.prefer_clang = true;
+            else if (a == "--compiler" && i + 1 < argc) request.explicit_compiler = argv[++i];
+            else if (a == "--source-dir" && i + 1 < argc) src = argv[++i];
+        }
+        request.source_dir = src;
+        try {
+            const CompilerSelection sel = resolve_compiler(request);
+            std::cout << sel.cc_path << "\n";   // ONLY the path on stdout, for $(...) capture
+            return 0;
+        } catch (const std::exception& e) {
+            std::cerr << "resolve-compiler: " << e.what() << "\n";
+            return 1;
+        }
+    }
+
     if (command == "record-build-test") {   // build-matrix cell ingest: --build-dir --test --build-ms --status
         GlobalOptions g; g.source_dir = ".";
         std::string test, status, modules_ov, istd_ov; std::int64_t bms = 0, ebytes = 0;

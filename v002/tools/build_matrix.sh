@@ -14,18 +14,18 @@
 # NOT part of the verify/verify-lite pre-push gate.
 set -u
 cd "$(dirname "$0")/.." || exit 1
-# Compilers: override via env on a machine where these paths differ (the fresh-VM case). Defaults are
-# this author's gcc-toolset-15 + system clang. build_matrix is a deliberate local measurement, so it
-# names the compilers explicitly rather than going through the compilers.conf registry — but fail
-# fast with a clear message instead of a cryptic cmake error if a path is wrong.
-GXX="${JAC313_MATRIX_GXX:-/opt/rh/gcc-toolset-15/root/usr/bin/g++}"
-CLXX="${JAC313_MATRIX_CLXX:-/usr/bin/clang++}"
+CLI=./jac313_test_cli
+
+# Compilers come from the SAME registry bootstrap senses and the CLI gates use — NO hardcoded paths.
+# `jac313_test_cli resolve-compiler --gcc15 / --clang` prints the resolved absolute compiler path, so a
+# fresh VM needs nothing beyond ./bootstrap.sh. (An env override still wins if you want to force one.)
+GXX="${JAC313_MATRIX_GXX:-$("$CLI" resolve-compiler --gcc15)}"
+CLXX="${JAC313_MATRIX_CLXX:-$("$CLI" resolve-compiler --clang)}"
 for cc in "$GXX" "$CLXX"; do
-  [ -x "$cc" ] || { echo "build_matrix: compiler not found: $cc  (override with JAC313_MATRIX_GXX / JAC313_MATRIX_CLXX)" >&2; exit 1; }
+  { [ -n "$cc" ] && [ -x "$cc" ]; } || { echo "build_matrix: could not resolve a compiler ('$cc') — run ./bootstrap.sh first (or set JAC313_MATRIX_GXX / JAC313_MATRIX_CLXX)" >&2; exit 1; }
 done
 ISTD="-DJAC313_BUILD_MODULES=ON -DJAC313_QLITE_IMPORT_STD=ON -DJAC313_JTEXT_IMPORT_STD=ON -DJAC313_STORE_IMPORT_STD=ON"
 TESTS="${*:-jac313_store_001_TS jac313_store_002_TS}"
-CLI=./jac313_test_cli
 BUILD_ROOT="tmp_build"
 
 # Safety: only ever delete tmp_build or something inside it. Refuse anything else (a source dir,
