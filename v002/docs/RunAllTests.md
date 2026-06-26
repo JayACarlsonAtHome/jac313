@@ -23,7 +23,7 @@ script; it's left in place so you can re-run it with `bash run_latest_config.sh`
 > the explicit **`runner`** subcommand for the cells presets don't cover.
 
 > The old `matrix run-all` / `matrix render` / `jac313_results.db` were **retired** — throughput and
-> the committed report now live in the benchmark + `test-summary/results.db`. See [Forward.md](Forward.md).
+> the committed report now live in the unified `test-summary/results.db` (`jac313_test_cli --report`).
 
 See also: [QuickStart.md](QuickStart.md) · [Setup.md](Setup.md) · [Benchmarks.md](Benchmarks.md) · [README.md](../README.md)
 
