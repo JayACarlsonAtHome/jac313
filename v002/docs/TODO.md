@@ -41,6 +41,10 @@ Each item says *why* it's deferred. Surfaced by an independent review of the lib
       standard C++17 inserter — latent ambiguity risk. Confirm removable (currently compiles).
 - [ ] **Qlite `Sqlite.hpp` doc note** "Header-only friendly" vs. the actual include-fragment + module
       design — minor doc drift to reconcile.
+- [ ] **CLI report pivot scaffold** (`main.cpp`) — `write_type_pages` / `write_bench_pages` /
+      `write_build_pages` each rebuild the same `comps` / `inlist` / `col_for` compiler-column setup.
+      A shared "column scaffold" helper would dedup ~4 lines × 3 (low priority; the cell logic differs
+      per type, so it needs parameterizing). Otherwise the report code reviewed clean.
 
 ## Not from the review
 - [ ] **Port `tools/build_matrix.sh` to the CLI** (code over shell, per project preference) — would let
