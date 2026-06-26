@@ -42,7 +42,7 @@ test-results/
 /persist*
 
 # store_bench durable output at the v002 root (cwd-relative: bench.bin / .jtext / .sql / .db)
-# Note: only root-level — the tracked test-summary/bench_results.db is unaffected.
+# Note: only root-level — the tracked test-summary/results.db is unaffected.
 /bench*
 
 # Auto-generated, per-machine sensed-environment snapshot (informational only)

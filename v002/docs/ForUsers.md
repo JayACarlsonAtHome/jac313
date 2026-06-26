@@ -18,6 +18,26 @@ valgrind gates, or anything in [Setup.md](Setup.md)'s testing section. This page
 
 They compose — Store uses Qlite + jText under the hood — but you can take just the one you need.
 
+## What could I use this for?
+
+**Store** — timestamped `{floats/ints + category + event-name}` records, persisted (binary / jText / SQL / in-mem):
+- **Robot arm** — joint angles + gripper state · cat `manipulation` · *"Moving arm to weld seam 3"*
+- **AGV / fleet, 2D map** — x, y, heading, load_id · cat `logistics` · *"Forklift picking up load at dock 7"*, *"Truck arrived, gate 4"*
+- **Drone / vehicle telemetry** — lat/lon/alt, or rpm/speed/temp · *"Waypoint 5 reached"*, *"Hard brake −0.8 g"*
+- **Manufacturing / lab** — sensor values + counts · *"Station 4 cycle complete"*, *"Sample 12 measured"*
+
+**jText** — structured text you write fast *and* parse + validate: audit/app logging that's greppable by a
+human yet machine-parseable; small config/DSL formats with validation; log normalization into one record
+shape; a human-readable export of a Store stream.
+
+**Qlite** — a thin, safe SQLite wrapper: local app state/settings; a results/analytics DB (it's exactly what
+jac313 does to itself — `results.db`, reviewed in a tool like DataGrip); an SQL query layer over recorded
+Store events.
+
+**They compose.** A forklift logs `{x, y, load_id}` + events to **Store** → persisted via **Qlite** (SQL) so
+you can ask "how long did dock 7 take this week?" → exported via **jText** as a human shift report. One
+capture path, three consumption shapes.
+
 ## Using one in your build
 
 Everything is **in-tree** (no sibling checkouts) and exposed as a namespaced CMake target. The only
