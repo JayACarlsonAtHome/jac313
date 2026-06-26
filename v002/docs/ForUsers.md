@@ -38,6 +38,11 @@ Store events.
 you can ask "how long did dock 7 take this week?" → exported via **jText** as a human shift report. One
 capture path, three consumption shapes.
 
+**Your data isn't locked in.** Store's `sql` backend writes a standard **SQLite 3** database (`persist.db`) —
+open it as-is in **DataGrip, DBeaver, or the `sqlite3` CLI**, no export step — alongside a human-readable
+`.sql` schema sidecar. (jac313's own `results.db` is the same format; it's literally how these report pages
+get reviewed.)
+
 ## Using one in your build
 
 Everything is **in-tree** (no sibling checkouts) and exposed as a namespaced CMake target. The only
