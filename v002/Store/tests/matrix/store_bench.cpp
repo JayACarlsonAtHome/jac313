@@ -544,59 +544,9 @@ void record_to_results_db(const Params& p, const BenchSummary& s) {
     }
 }
 
+// bench_results.db / bench_run is retired — store_bench writes only the unified results.db.
 void record_to_db(const Params& p, const BenchSummary& s) {
-    if (p.db_path.empty()) return;
-    try {
-        jac313::Qlite::v002::Sqlite db(p.db_path);
-        db.exec(R"SQL(
-CREATE TABLE IF NOT EXISTS bench_run (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    group_id          INTEGER NOT NULL,
-    test_type_id      INTEGER,
-    ts_utc            TEXT NOT NULL,
-    host TEXT, cpu TEXT, cores INTEGER, ram_gb INTEGER, os TEXT, compiler TEXT,
-    store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT,
-    label TEXT, threads INTEGER, events_per_thread INTEGER, persist TEXT, flag_count INTEGER,
-    runs INTEGER, events INTEGER, bytes INTEGER,
-    median_ops INTEGER, high_ops INTEGER, low_ops INTEGER, avg_ops INTEGER, stddev_ops INTEGER
-)
-)SQL");
-        ensure_group_schema(db);          // migrate older DBs: add + backfill group_id
-        ensure_testtype_schema(db);       // reference table of test kinds
-        HostInfo h = sense_host();
-        const std::int64_t group_id = group_id_for(db, h);
-        // Record the anonymized jac313-<group_id> as host (no real hostname in the committed DB)
-        // unless an explicit host_label.local / $JAC313_HOST_LABEL is pinned.
-        if (host_label_override().empty()) h.host = host_label_for(group_id);
-        const std::int64_t bytes = (p.persist == "none") ? 0
-                                 : static_cast<std::int64_t>(measure_output_bytes(p.base_name));
-        db.exec(
-            "INSERT INTO bench_run(group_id, test_type_id, ts_utc, host, cpu, cores, ram_gb, os, compiler, store_ver, qlite_ver, jtext_ver, "
-            "label, threads, events_per_thread, persist, flag_count, runs, events, bytes, "
-            "median_ops, high_ops, low_ops, avg_ops, stddev_ops) VALUES("
-            "?, (SELECT id FROM testType WHERE name='bench'), strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?, ?, ?,?,?, ?,?,?,?,?, ?,?, ?, ?,?,?,?,?)",
-            group_id, h.host, h.cpu, h.cores, h.ram_gb, h.os, compiler_id(),
-            std::string(jac313::Store::v002::version()),
-            std::string(jac313::Qlite::v002::version()),
-            p.jtext_ver,
-            p.label,
-            static_cast<std::int64_t>(p.threads),
-            static_cast<std::int64_t>(p.events_per_thread),
-            p.persist,
-            static_cast<std::int64_t>(set_flag_count(p.flags)),
-            static_cast<std::int64_t>(s.runs),
-            static_cast<std::int64_t>(s.events_per_run),
-            bytes,
-            static_cast<std::int64_t>(s.median),
-            static_cast<std::int64_t>(s.high),
-            static_cast<std::int64_t>(s.low),
-            static_cast<std::int64_t>(s.avg),
-            static_cast<std::int64_t>(s.stddev));
-        std::cerr << "[db] recorded 1 row (" << run_label(group_id) << ") -> " << p.db_path << "\n";
-    } catch (const std::exception& e) {
-        std::cerr << "[db] record failed: " << e.what() << "\n";
-    }
-    record_to_results_db(p, s);   // also write the normalized results.db (port-over target)
+    record_to_results_db(p, s);
 }
 #else
 void record_to_db(const Params&, const BenchSummary&) {}   // built without SQL persist -> no DB

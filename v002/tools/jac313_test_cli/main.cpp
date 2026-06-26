@@ -510,6 +510,57 @@ void write_type_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out, cons
     }
 }
 
+// Bench pages: bench rows carry ops stats (median/band/bytes), not status/duration — its own format.
+void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
+    std::int64_t n = 0;
+    { auto st = db.prepare("SELECT COUNT(*) FROM testRun tr JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench'");
+      if (st.step()) st.get(n); }
+    if (n == 0) return;
+    std::error_code ec; fs::create_directories(out / "bench", ec);
+    std::vector<std::int64_t> run_ids;
+    {
+        std::ofstream sum(out / "bench" / "README.md");
+        sum << "# bench — runs\n\n_Generated from `results.db`._\n\n"
+               "| Run | compiler | build | configs | max ops/sec |\n|---|---|---|--:|--:|\n";
+        auto st = db.prepare(
+            "SELECT tr.run_id, c.name, c.major, p.build_type, COUNT(*), MAX(IFNULL(tr.median_ops,0)) "
+            "FROM testRun tr JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
+            "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' GROUP BY tr.run_id ORDER BY tr.run_id");
+        while (st.step()) {
+            std::int64_t run_id = 0, major = 0, configs = 0, maxops = 0; std::string name, bt;
+            st.get(run_id, name, major, bt, configs, maxops);
+            run_ids.push_back(run_id);
+            const std::string rl = run_label_md(run_id);
+            sum << "| [" << rl << "](" << rl << ".md) | " << comp_label(name, major) << " | " << bt << " | "
+                << configs << " | " << maxops << " |\n";
+        }
+    }
+    for (std::int64_t run_id : run_ids) {
+        const std::string rl = run_label_md(run_id);
+        std::ofstream det(out / "bench" / (rl + ".md"));
+        det << "# bench — " << rl << "\n\n[← back](README.md)\n\n";
+        { auto st = db.prepare("SELECT r.host, c.name, c.version, p.build_type, r.ts_utc FROM testRun tr "
+            "JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
+            "WHERE tr.run_id=? LIMIT 1");
+          st.bind(run_id);
+          if (st.step()) { std::string host, name, ver, bt, ts; st.get(host, name, ver, bt, ts);
+              det << "_" << host << " · " << name << " " << ver << " · " << bt << " · " << ts << "_\n\n"; } }
+        det << "| config | persist | events | median ops/sec | band (low–high) | bytes |\n|---|---|--:|--:|---|--:|\n";
+        auto st = db.prepare(
+            "SELECT tl.name, IFNULL(p.persist,''), IFNULL(p.threads*p.events_per_thread,0), "
+            "IFNULL(tr.median_ops,0), IFNULL(tr.low_ops,0), IFNULL(tr.high_ops,0), IFNULL(tr.bytes,0) "
+            "FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id JOIN parameter p ON p.id=tr.parameter_id "
+            "JOIN testType tt ON tt.id=tr.test_type_id WHERE tr.run_id=? AND tt.name='bench' ORDER BY IFNULL(tr.median_ops,0) DESC");
+        st.bind(run_id);
+        while (st.step()) {
+            std::string name, per; std::int64_t events = 0, med = 0, low = 0, high = 0, bytes = 0;
+            st.get(name, per, events, med, low, high, bytes);
+            det << "| " << name << " | " << dash(per) << " | " << events << " | " << med << " | "
+                << low << "–" << high << " | " << bytes << " |\n";
+        }
+    }
+}
+
 int run_report_command(const fs::path& source_dir) {
     const fs::path db_path = source_dir / "test-summary" / "results.db";
     std::error_code ec;
@@ -520,7 +571,8 @@ int run_report_command(const fs::path& source_dir) {
         const fs::path out = source_dir / "test-summary";
         write_compiler_page(db, out);
         for (const char* t : {"ctest", "smoke", "verify-lite", "verify"}) write_type_pages(db, out, t);
-        std::cout << "[report] wrote test-summary/{compiler,ctest,smoke,verify-lite,verify}/ from results.db\n";
+        write_bench_pages(db, out);
+        std::cout << "[report] wrote test-summary/{compiler,ctest,smoke,verify-lite,verify,bench}/ from results.db\n";
         return 0;
     } catch (const std::exception& e) { std::cerr << "report failed: " << e.what() << "\n"; return 1; }
 }
@@ -1166,9 +1218,9 @@ int run_preset_command(const GlobalOptions& global, const ConfigureOptions& conf
         emit("cmake --build build-bench --target jac313_store_bench");
         emit("BENCH=\"build-bench/Store/tests/matrix/jac313_store_bench\"");
         if (preset.report) {
-            emit("# record numbers + render the committed report (host label auto-resolved)");
-            emit("\"$BENCH\" --suite --db test-summary/bench_results.db --jtext-ver v002.002");
-            emit("\"$BENCH\" --report --db test-summary/bench_results.db");
+            emit("# record numbers to results.db, then render the report from it (host label auto-resolved)");
+            emit("\"$BENCH\" --suite --db test-summary/results.db --jtext-ver v002.002");
+            emit("./jac313_test_cli --report");
         } else {
             emit("\"$BENCH\" --suite");                          // numbers to stdout only
         }
