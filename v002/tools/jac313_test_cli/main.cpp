@@ -719,8 +719,9 @@ void write_build_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
                 "AND p.modules=? AND p.import_std=? ORDER BY tr.run_id DESC LIMIT 1");
             st.bind(t, cf.cname, cf.cmajor, cf.bt, cf.mod, cf.imp);
             if (st.step()) { std::int64_t ms = 0; std::string status; st.get(ms, status);
-                char b[24]; std::snprintf(b, sizeof b, "%.1fs", static_cast<double>(ms) / 1000.0);
-                cell = std::string(b) + " · " + (status.empty() ? "-" : status); }
+                if (status == "NA") { cell = "NA"; }   // config not built by design (e.g. clang import-std)
+                else { char b[24]; std::snprintf(b, sizeof b, "%.1fs", static_cast<double>(ms) / 1000.0);
+                       cell = std::string(b) + " · " + (status.empty() ? "-" : status); } }
             md << " | " << cell;
         }
         md << " |\n";
@@ -823,7 +824,8 @@ std::int64_t cli_parameter_id_verify(jac313::Qlite::v002::Sqlite& db, std::int64
 // Record one build-matrix cell: a test's compile+link wall-clock (build_ms, NOT including the run)
 // plus its run status (pass/fail), keyed by compiler + build_type + front-end (headers/modules/import-std).
 void record_build_test(const fs::path& source_dir, const fs::path& build_dir,
-                       const std::string& test, std::int64_t build_ms, const std::string& status) {
+                       const std::string& test, std::int64_t build_ms, const std::string& status,
+                       const std::string& modules_override = "", const std::string& import_std_override = "") {
     const fs::path db_path = source_dir / "test-summary" / "results.db";
     std::error_code ec;
     if (!fs::exists(db_path.parent_path(), ec)) return;
@@ -833,8 +835,11 @@ void record_build_test(const fs::path& source_dir, const fs::path& build_dir,
         const std::int64_t type_id = cli_results_id(db, "SELECT id FROM testType WHERE name=?", std::string("build"));
         const std::int64_t comp_id = cli_compiler_id(db, read_compiler_info(build_dir));
         const BuildFeatures bf = read_build_features(build_dir);
-        const std::int64_t param_id = cli_parameter_id_ctest(db, comp_id, bf.build_type,
-                                                             bf.modules ? "on" : "off", read_import_std(build_dir));
+        // Overrides let us record a config we did NOT build (clang import-std = NA) by reading the
+        // compiler from any of that compiler's dirs while pinning the front-end explicitly.
+        const std::string modules = modules_override.empty() ? (bf.modules ? "on" : "off") : modules_override;
+        const std::string istd    = import_std_override.empty() ? read_import_std(build_dir) : import_std_override;
+        const std::int64_t param_id = cli_parameter_id_ctest(db, comp_id, bf.build_type, modules, istd);
         db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", test);
         const std::int64_t list_id = cli_results_id(db, "SELECT id FROM testList WHERE name=?", test);
         db.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms) "
@@ -1529,7 +1534,7 @@ int main(int argc, char** argv) {
     }
     if (command == "record-build-test") {   // build-matrix cell ingest: --build-dir --test --build-ms --status
         GlobalOptions g; g.source_dir = ".";
-        std::string test, status; std::int64_t bms = 0;
+        std::string test, status, modules_ov, istd_ov; std::int64_t bms = 0;
         for (int i = 2; i < argc; ++i) {
             const std::string a = argv[i];
             if (a == "--build-dir" && i + 1 < argc) g.build_dir = argv[++i];
@@ -1537,8 +1542,10 @@ int main(int argc, char** argv) {
             else if (a == "--test" && i + 1 < argc) test = argv[++i];
             else if (a == "--build-ms" && i + 1 < argc) bms = std::stoll(argv[++i]);
             else if (a == "--status" && i + 1 < argc) status = argv[++i];
+            else if (a == "--modules" && i + 1 < argc) modules_ov = argv[++i];
+            else if (a == "--import-std" && i + 1 < argc) istd_ov = argv[++i];
         }
-        record_build_test(g.source_dir, g.build_dir, test, bms, status);
+        record_build_test(g.source_dir, g.build_dir, test, bms, status, modules_ov, istd_ov);
         return 0;
     }
     if (command.rfind('-', 0) == 0) {

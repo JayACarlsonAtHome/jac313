@@ -46,5 +46,13 @@ build_config "$GXX"  build-mx-gcc-istd  $ISTD
 build_config "$CLXX" build-mx-clang-hdr
 build_config "$CLXX" build-mx-clang-mod -DJAC313_BUILD_MODULES=ON
 
+# clang import-std: a g++-15 pilot only, so clang can't build it yet -> record NA so the column
+# still appears. WHEN CLANG GAINS import-std, replace this loop with:
+#   build_config "$CLXX" build-mx-clang-istd $ISTD
+echo "===== CONFIG clang import-std (NA — not built by design) ====="
+for t in $TESTS; do
+  "$CLI" record-build-test --build-dir build-mx-clang-hdr --test "$t" --build-ms 0 --status NA --modules on --import-std on
+done
+
 "$CLI" --report
 echo "######## BUILD-MATRIX DONE ########"
