@@ -562,8 +562,14 @@ void write_type_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out, cons
             for (auto& rr : rows) if (rr.key == key) { r = &rr; break; }
             if (!r) { rows.push_back({key, std::vector<std::string>(comps.size(), "-")}); r = &rows.back(); }
             const int col = col_for(run);
-            if (col >= 0) r->cells[static_cast<std::size_t>(col)] =
-                (status == "pass") ? (ms ? fmt_num(ms) : std::string("pass")) : status;
+            if (col >= 0) {
+                // verify is a pass/fail gate — show pass/fail explicitly (+ms). smoke/ctest stay ms-only.
+                const bool is_verify = (type == "verify" || type == "verify-lite");
+                r->cells[static_cast<std::size_t>(col)] =
+                    (status == "pass")
+                        ? (is_verify ? ("pass · " + fmt_num(ms)) : (ms ? fmt_num(ms) : std::string("pass")))
+                        : status;
+            }
         }
     }
 
