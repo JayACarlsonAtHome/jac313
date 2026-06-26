@@ -4,3 +4,4 @@
 #   jac313_test_cli pin --gcc <label> --clang <label>   (labels are from Setup/compilers.conf)
 # TAB-separated: label  cpu_model  cores  ram_gb  os_pretty  gcc_label  clang_label
 jac313-001	Intel(R) Core(TM) Ultra 7 265	20	62	Red Hat Enterprise Linux 9.8 (Plow)	gcc15	clang
+jac313-002	Intel(R) Core(TM) Ultra 7 265	12	23	Fedora Linux 44 (Workstation Edition)	gcc16	clang
