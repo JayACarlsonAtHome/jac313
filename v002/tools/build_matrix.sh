@@ -17,11 +17,12 @@ set -u
 cd "$(dirname "$0")/.." || exit 1
 CLI=./jac313_test_cli
 
-# Compilers come from the SAME registry bootstrap senses and the CLI gates use — NO hardcoded paths.
-# `jac313_test_cli resolve-compiler --gcc15 / --clang` prints the resolved absolute compiler path, so a
-# fresh VM needs nothing beyond ./bootstrap.sh. (An env override still wins if you want to force one.)
-GXX="${JAC313_MATRIX_GXX:-$("$CLI" resolve-compiler --gcc15)}"
-CLXX="${JAC313_MATRIX_CLXX:-$("$CLI" resolve-compiler --clang)}"
+# Compilers come from this machine's committed PIN (Setup/compilers.pin) — the highest gcc/clang that
+# bootstrap pinned on this box, deterministic across runs, no hardcoded paths. `resolve-compiler
+# --pinned-gcc/--pinned-clang` resolves the pinned label to a path (or highest-available if unpinned).
+# A fresh VM needs nothing beyond ./bootstrap.sh. (An env override still wins if you want to force one.)
+GXX="${JAC313_MATRIX_GXX:-$("$CLI" resolve-compiler --pinned-gcc)}"
+CLXX="${JAC313_MATRIX_CLXX:-$("$CLI" resolve-compiler --pinned-clang)}"
 for cc in "$GXX" "$CLXX"; do
   { [ -n "$cc" ] && [ -x "$cc" ]; } || { echo "build_matrix: could not resolve a compiler ('$cc') — run ./bootstrap.sh first (or set JAC313_MATRIX_GXX / JAC313_MATRIX_CLXX)" >&2; exit 1; }
 done
