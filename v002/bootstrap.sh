@@ -224,6 +224,14 @@ CLI="$BUILD/tools/jac313_test_cli"
 ln -sfn "build-bootstrap/tools/jac313_test_cli" "$ROOT/jac313_test_cli"
 echo "Linked ./jac313_test_cli -> build-bootstrap/tools/jac313_test_cli"
 
+# --- compiler pin (Setup/compilers.pin): find-or-create THIS machine's row ---
+# Already-pinned box -> no-op (the pin is never overwritten). New machine -> sense + pin the highest
+# available gcc + clang, so every later run uses the SAME compilers deterministically. Non-fatal: a
+# pin hiccup must never block bootstrap.
+echo
+echo "=== compiler pin (find-or-create) ==="
+$ACT "$CLI" pin --ensure --source-dir "$ROOT" || echo "(pin --ensure skipped — non-fatal)"
+
 # --- install the pre-push gate hook (git hooks are local, not version-controlled) ---
 # Runs the valgrind verify-lite before every push. Bypass once with: git push --no-verify
 # Under the v00N/ layout the repo's .git lives at the PARENT root (shared by every
