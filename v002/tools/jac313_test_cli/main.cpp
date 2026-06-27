@@ -692,15 +692,17 @@ void write_build_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
           const std::string fe = (mod != "on") ? "hdr" : (imp == "on" ? "istd" : "mod");
           configs.push_back({comp_label(cn, cm) + "·" + fe, cn, bt, mod, imp, cm}); } }
     if (configs.empty()) return;
-    std::error_code ec; fs::create_directories(out / "build", ec);
+    // Output dir is compiler-build-times/ (NOT build/) so the **/build/ ignore rule for
+    // CMake trees doesn't swallow this report page. testType name in the DB stays 'build'.
+    std::error_code ec; fs::create_directories(out / "compiler-build-times", ec);
 
     std::vector<std::string> tests;
     { auto st = db.prepare("SELECT DISTINCT tl.name FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id "
         "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='build' ORDER BY tl.name");
       while (st.step()) { std::string n; st.get(n); tests.push_back(n); } }
 
-    std::ofstream md(out / "build" / "README.md");
-    md << "# build — compile-time matrix\n\n_Generated from `results.db`. Cell = compile+link seconds · run "
+    std::ofstream md(out / "compiler-build-times" / "README.md");
+    md << "# Compiler build times\n\n_Generated from `results.db`. Cell = compile+link seconds · run "
           "pass/fail (compile time only, not the run); per test × front-end × compiler, latest build._\n\n| test";
     for (const auto& cf : configs) md << " | " << cf.label;
     md << " |\n|---";
@@ -734,13 +736,18 @@ void write_index_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     md << "# Test results\n\n_Generated from `results.db` by `jac313_test_cli --report`._\n\n"
           "| area | runs | rows |\n|---|--:|--:|\n"
           "| [compilers](compiler/README.md) | — | — |\n";
-    for (const char* t : {"ctest", "smoke", "bench", "verify-lite", "verify", "build"}) {
+    // testType name (DB) vs. output dir/link name (GitHub-facing): they match except for
+    // 'build', whose page lives in compiler-build-times/ to avoid the **/build/ ignore rule.
+    struct Area { const char* type; const char* dir; };
+    for (const Area a : {Area{"ctest", "ctest"}, {"smoke", "smoke"}, {"bench", "bench"},
+                         {"verify-lite", "verify-lite"}, {"verify", "verify"},
+                         {"build", "compiler-build-times"}}) {
         std::int64_t runs = 0, rows = 0;
         { auto st = db.prepare("SELECT COUNT(DISTINCT tr.run_id), COUNT(*) FROM testRun tr "
                                "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name=?");
-          st.bind(std::string(t)); if (st.step()) st.get(runs, rows); }
+          st.bind(std::string(a.type)); if (st.step()) st.get(runs, rows); }
         if (rows == 0) continue;
-        md << "| [" << t << "](" << t << "/README.md) | " << runs << " | " << rows << " |\n";
+        md << "| [" << a.dir << "](" << a.dir << "/README.md) | " << runs << " | " << rows << " |\n";
     }
 }
 
@@ -757,7 +764,7 @@ int run_report_command(const fs::path& source_dir) {
         write_bench_pages(db, out);
         write_build_pages(db, out);
         write_index_page(db, out);
-        std::cout << "[report] wrote test-summary/README.md + {compiler,ctest,smoke,verify-lite,verify,bench,build}/ from results.db\n";
+        std::cout << "[report] wrote test-summary/README.md + {compiler,ctest,smoke,verify-lite,verify,bench,compiler-build-times}/ from results.db\n";
         return 0;
     } catch (const std::exception& e) { std::cerr << "report failed: " << e.what() << "\n"; return 1; }
 }

@@ -9,5 +9,5 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 | [smoke](smoke/README.md) | 5 | 580 |
 | [bench](bench/README.md) | 5 | 50 |
 | [verify-lite](verify-lite/README.md) | 2 | 62 |
-| [verify](verify/README.md) | 3 | 180 |
-| [build](build/README.md) | 12 | 12 |
+| [verify](verify/README.md) | 4 | 240 |
+| [compiler-build-times](compiler-build-times/README.md) | 12 | 12 |
