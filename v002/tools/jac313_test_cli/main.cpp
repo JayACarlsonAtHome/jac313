@@ -50,6 +50,8 @@ void print_usage() {
         "  run         Run tests (default if command omitted)\n"
         "  configure   CMake configure (Ninja; auto-detect compiler)\n"
         "  build       Build the configured tree\n"
+        "  build-times compile-time matrix (smoke+bench x front-end x compiler), gap-filled per host\n"
+        "  pin         find-or-create this machine's committed compiler pin (Setup/compilers.pin)\n"
         "  compilers   Sense toolchains from the registry (writes FileCheckList.txt)\n"
         "  setup       Sense readiness; generate Setup.sh for missing prerequisites\n"
         "  version-check  check each package owes a version() bump (git, no build)\n"
@@ -67,7 +69,7 @@ void print_usage() {
         "  --verify-lite        valgrind memcheck over the ctest + smoke surface\n"
         "  --verify             valgrind memcheck + helgrind + DRD\n"
         "  --group-id           read-only precheck: which jac313-<group_id> this machine records under\n"
-        "  --run-everything     the FULL battery: every gate on both compilers + build matrix + report\n"
+        "  --run-everything     the FULL battery: every gate on both compilers + build-times + report\n"
         "  (everyday: --ctest --smoke ; recorded bench: --bench --report ; all of it: --run-everything)\n\n"
         "Run options:\n"
         "  --filter <regex>     Run only matching tests (matrix: scenario filter)\n"
@@ -503,19 +505,6 @@ void write_compiler_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     }
 }
 
-// Compilers present for a type, each with its LATEST run_id; ordered by name so clang sorts left, gcc right.
-std::vector<std::pair<std::string, std::int64_t>> compilers_latest(jac313::Qlite::v002::Sqlite& db, const std::string& type) {
-    std::vector<std::pair<std::string, std::int64_t>> v;
-    auto st = db.prepare(
-        "SELECT c.name, c.major, MAX(tr.run_id) FROM testRun tr JOIN parameter p ON p.id=tr.parameter_id "
-        "JOIN compiler c ON c.id=p.compiler_id JOIN testType tt ON tt.id=tr.test_type_id "
-        "WHERE tt.name=? GROUP BY c.id ORDER BY c.name, c.major");
-    st.bind(type);
-    while (st.step()) { std::string name; std::int64_t major = 0, run = 0; st.get(name, major, run);
-        v.push_back({comp_label(name, major), run}); }
-    return v;
-}
-
 // Per-run detail page (one compiler's run): every scenario with persist/mode/tool + status + ms.
 void write_run_detail(jac313::Qlite::v002::Sqlite& db, const fs::path& dir, const std::string& type, std::int64_t run_id) {
     const std::string rl = run_label_md(run_id);
@@ -545,54 +534,71 @@ void write_run_detail(jac313::Qlite::v002::Sqlite& db, const fs::path& dir, cons
     }
 }
 
-// Per-type page = a COMPILER COMPARISON pivot: scenario rows x compiler columns (clang left -> gcc right),
-// cell = ms (pass) or the status. Each column header links to that compiler's per-run detail page.
+// Per-type page = a HOST-SCOPED compiler comparison: each machine (jac313-###) is its own section
+// with a hardware header (cpu/cores/ram/os) and its OWN compiler columns. Scenario rows × compiler
+// columns; cell = ms (pass) or status. (ctest/smoke = ms; verify/verify-lite = pass·ms.)
 void write_type_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out, const std::string& type) {
-    const auto comps = compilers_latest(db, type);
-    if (comps.empty()) return;
+    std::vector<std::int64_t> groups;
+    { auto st = db.prepare("SELECT DISTINCT r.group_id FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
+        "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name=? ORDER BY r.group_id");
+      st.bind(type); while (st.step()) { std::int64_t g = 0; st.get(g); groups.push_back(g); } }
+    if (groups.empty()) return;
     std::error_code ec; fs::create_directories(out / type, ec);
+    std::ofstream md(out / type / "README.md");
+    md << "# " << type << " — by machine\n\n_Generated from `results.db`. Each machine (`jac313-###`) is its "
+          "own section. Columns are that host's compilers (latest run each); cell = ms (pass) or status._\n";
 
-    std::string inlist;
-    for (const auto& c : comps) { if (!inlist.empty()) inlist += ","; inlist += std::to_string(c.second); }
-    auto col_for = [&](std::int64_t run) -> int {
-        for (std::size_t i = 0; i < comps.size(); ++i) if (comps[i].second == run) return static_cast<int>(i);
-        return -1; };
+    const bool is_verify = (type == "verify" || type == "verify-lite");
+    for (const std::int64_t g : groups) {
+        std::vector<std::pair<std::string, std::int64_t>> comps;   // this host's compilers (latest run each)
+        { auto st = db.prepare(
+            "SELECT c.name, c.major, MAX(tr.run_id) FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
+            "JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
+            "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name=? AND r.group_id=? "
+            "GROUP BY c.id ORDER BY c.name, c.major");
+          st.bind(type, g);
+          while (st.step()) { std::string name; std::int64_t major = 0, run = 0; st.get(name, major, run);
+              comps.push_back({comp_label(name, major), run}); } }
+        if (comps.empty()) continue;
 
-    struct Row { std::string key; std::vector<std::string> cells; };
-    std::vector<Row> rows;
-    {
-        auto st = db.prepare(
+        std::string cpu, os; std::int64_t cores = 0, ram = 0;
+        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os FROM run WHERE group_id=? LIMIT 1");
+          st.bind(g); if (st.step()) st.get(cpu, cores, ram, os); }
+        md << "\n## " << jac313::results::host_label(g) << " — " << dash(cpu) << " · " << cores
+           << " cores · " << ram << " GB · " << dash(os) << "\n\n";
+
+        std::string inlist;
+        for (const auto& c : comps) { if (!inlist.empty()) inlist += ","; inlist += std::to_string(c.second); }
+        auto col_for = [&](std::int64_t run) -> int {
+            for (std::size_t i = 0; i < comps.size(); ++i) if (comps[i].second == run) return static_cast<int>(i);
+            return -1; };
+
+        struct Row { std::string key; std::vector<std::string> cells; };
+        std::vector<Row> rows;
+        { auto st = db.prepare(
             "SELECT tr.run_id, tl.name, IFNULL(p.persist,''), IFNULL(p.output_mode,''), IFNULL(p.valgrind_tool,''), "
             "tr.status, IFNULL(tr.duration_ms,0) FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id "
             "JOIN parameter p ON p.id=tr.parameter_id JOIN testType tt ON tt.id=tr.test_type_id "
             "WHERE tt.name=? AND tr.run_id IN (" + inlist + ") ORDER BY tl.name, p.persist, p.output_mode, p.valgrind_tool");
-        st.bind(type);
-        while (st.step()) {
-            std::int64_t run = 0, ms = 0; std::string t, per, mode, tool, status;
-            st.get(run, t, per, mode, tool, status, ms);
-            std::string key = t;
-            if (!per.empty())  key += " · " + per;
-            if (!mode.empty()) key += " · " + mode;
-            if (!tool.empty()) key += " · " + tool;
-            Row* r = nullptr;
-            for (auto& rr : rows) if (rr.key == key) { r = &rr; break; }
-            if (!r) { rows.push_back({key, std::vector<std::string>(comps.size(), "-")}); r = &rows.back(); }
-            const int col = col_for(run);
-            if (col >= 0) {
-                // verify is a pass/fail gate — show pass/fail explicitly (+ms). smoke/ctest stay ms-only.
-                const bool is_verify = (type == "verify" || type == "verify-lite");
-                r->cells[static_cast<std::size_t>(col)] =
-                    (status == "pass")
-                        ? (is_verify ? ("pass · " + fmt_num(ms)) : (ms ? fmt_num(ms) : std::string("pass")))
-                        : status;
-            }
-        }
-    }
+          st.bind(type);
+          while (st.step()) {
+              std::int64_t run = 0, ms = 0; std::string t, per, mode, tool, status;
+              st.get(run, t, per, mode, tool, status, ms);
+              std::string key = t;
+              if (!per.empty())  key += " · " + per;
+              if (!mode.empty()) key += " · " + mode;
+              if (!tool.empty()) key += " · " + tool;
+              Row* r = nullptr;
+              for (auto& rr : rows) if (rr.key == key) { r = &rr; break; }
+              if (!r) { rows.push_back({key, std::vector<std::string>(comps.size(), "-")}); r = &rows.back(); }
+              const int col = col_for(run);
+              if (col >= 0)
+                  r->cells[static_cast<std::size_t>(col)] =
+                      (status == "pass")
+                          ? (is_verify ? ("pass · " + fmt_num(ms)) : (ms ? fmt_num(ms) : std::string("pass")))
+                          : status; } }
 
-    {
-        std::ofstream md(out / type / "README.md");
-        md << "# " << type << " — compiler comparison\n\n_Generated from `results.db`. Columns are compilers "
-              "(latest run each); cell = ms (pass) or status._\n\n| scenario";
+        md << "| scenario";
         for (const auto& c : comps) md << " | [" << c.first << "](" << run_label_md(c.second) << ".md)";
         md << " |\n|---";
         for (std::size_t i = 0; i < comps.size(); ++i) md << "|--:";
@@ -602,9 +608,8 @@ void write_type_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out, cons
             for (const auto& cell : r.cells) md << " | " << cell;
             md << " |\n";
         }
+        for (const auto& c : comps) write_run_detail(db, out / type, type, c.second);
     }
-
-    for (const auto& c : comps) write_run_detail(db, out / type, type, c.second);
 }
 
 // Bench pages: bench rows carry ops stats (median/band/bytes), not status/duration — its own format.

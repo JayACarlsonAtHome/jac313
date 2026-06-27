@@ -41,9 +41,10 @@ Each item says *why* it's deferred. Surfaced by an independent review of the lib
 - [ ] **Qlite `Sqlite.hpp` doc note** "Header-only friendly" vs. the actual include-fragment + module
       design — minor doc drift to reconcile.
 - [ ] **CLI report pivot scaffold** (`main.cpp`) — `write_type_pages` / `write_bench_pages` /
-      `write_build_pages` each rebuild the same `comps` / `inlist` / `col_for` compiler-column setup.
-      A shared "column scaffold" helper would dedup ~4 lines × 3 (low priority; the cell logic differs
-      per type, so it needs parameterizing). Otherwise the report code reviewed clean.
+      `write_build_pages` now each repeat the SAME host-scoping skeleton: groups query, per-host
+      hardware header, group-scoped `comps` query, `inlist` / `col_for`. The duplication GREW with the
+      2026-06-27 host-scoping (deficiency #1) — a shared "per-host section + column scaffold" helper
+      would dedup ~15 lines × 3. Low priority; the cell logic differs per type, so it needs parameterizing.
 
 ## Not from the review
 - [x] **Port `tools/build_matrix.sh` to the CLI** — DONE 2026-06-27. Folded into `jac313_test_cli
@@ -51,3 +52,25 @@ Each item says *why* it's deferred. Surfaced by an independent review of the lib
       host-scoped report (per `jac313-###` with hardware), gap-filled per host, wired into the
       pre-push hook (no-op when complete). `build_matrix.sh` + the `resolve-compiler` /
       `record-build-test` shims deleted.
+
+## Reporting deficiency list
+North star: reports should *yield a conclusion*, not hand over facts to derive one from.
+- [x] **#1 Hardware spec in reports** — DONE 2026-06-27. `compiler-build-times`, `bench`, AND
+      `ctest`/`smoke`/`verify`/`verify-lite` are now host-scoped: one section per `jac313-###` with its
+      cpu/cores/ram/os header and only that host's compiler columns. Un-conflates hosts; throughput and
+      compile times are now interpretable.
+- [x] **#5 build-times report 404'd on GitHub** — DONE. Was rendered into `test-summary/build/`, which
+      the `**/build/` .gitignore rule (for CMake trees) swallowed; moved to `compiler-build-times/`.
+- [ ] **#2 No end-of-run summary for `--bench --report`** — prints each config's tail but never rolls
+      up. Need (a) a consolidated all-tests block + (b) a one-line headline verdict (a "N passed,
+      M failed … *** ALL PASSED ***" rollup like the build-times gate's end-of-run summary).
+- [ ] **#3 `--report` is overloaded** — standalone = render-only; WITH `--bench` it also gates whether
+      data is recorded (passes `--db`). Plain `--bench` persists nothing. Same flag, two jobs.
+- [ ] **#4 verify-lite pollutes `results.db`** — the pre-push valgrind gate records its run into the
+      tracked DB, dirtying the tree on every push (discarded by hand each time). Forward doc says it's
+      "verdict-only, no DB" — behavior drifted. Gate runs shouldn't write the results table.
+- [ ] **#6 verify / verify-lite per-run detail pages render EMPTY** — `Run_NNN.md` shows the header
+      with zero scenario rows even though the aggregate page references it with values.
+- [ ] **#7 committed `results.db` drifts ahead of rendered pages** — gates record runs but don't
+      re-render, so a commit can ship a DB with runs the pages don't show. Render should follow a DB
+      write (or the gate shouldn't write — see #4).

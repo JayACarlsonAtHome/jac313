@@ -1,6 +1,8 @@
-# verify-lite — compiler comparison
+# verify-lite — by machine
 
-_Generated from `results.db`. Columns are compilers (latest run each); cell = ms (pass) or status._
+_Generated from `results.db`. Each machine (`jac313-###`) is its own section. Columns are that host's compilers (latest run each); cell = ms (pass) or status._
+
+## jac313-002 — Intel(R) Core(TM) Ultra 7 265 · 12 cores · 38 GB · Red Hat Enterprise Linux 10.2 (Coughlan)
 
 | scenario | [gcc15](Run_026.md) |
 |---|--:|
