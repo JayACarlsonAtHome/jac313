@@ -634,48 +634,69 @@ void write_bench_detail(jac313::Qlite::v002::Sqlite& db, const fs::path& dir, st
     }
 }
 
-// Bench page = a COMPILER COMPARISON pivot: config rows (config @scale) x compiler columns, cell = median ops/sec.
+// Bench page = a HOST-SCOPED compiler comparison: throughput is hardware-specific, so each machine
+// (jac313-###) is its own section with a hardware header (cpu/cores/ram/os) and its OWN compiler
+// columns. Config rows (config @scale) × compiler columns; cell = median ops/sec · low–high band ·
+// footprint (latest run per compiler, for that host).
 void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
-    const auto comps = compilers_latest(db, "bench");
-    if (comps.empty()) return;
+    std::vector<std::int64_t> groups;
+    { auto st = db.prepare("SELECT DISTINCT r.group_id FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
+        "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' ORDER BY r.group_id");
+      while (st.step()) { std::int64_t g = 0; st.get(g); groups.push_back(g); } }
+    if (groups.empty()) return;
     std::error_code ec; fs::create_directories(out / "bench", ec);
+    std::ofstream md(out / "bench" / "README.md");
+    md << "# bench — throughput by machine\n\n_Generated from `results.db`. Throughput is hardware-specific, "
+          "so each machine (`jac313-###`) is its own section. Per compiler: median ops/sec, the low–high band, "
+          "and footprint; latest run per compiler._\n";
 
-    std::string inlist;
-    for (const auto& c : comps) { if (!inlist.empty()) inlist += ","; inlist += std::to_string(c.second); }
-    auto col_for = [&](std::int64_t run) -> int {
-        for (std::size_t i = 0; i < comps.size(); ++i) if (comps[i].second == run) return static_cast<int>(i);
-        return -1; };
-
-    // Head-to-head: each compiler contributes a (median, band) pair per config row.
     struct Cell { std::string median = "-", band = "-", size = "-"; };
     struct Row { std::string key; std::vector<Cell> cells; };
-    std::vector<Row> rows;
-    {
-        auto st = db.prepare(
+    for (const std::int64_t g : groups) {
+        std::vector<std::pair<std::string, std::int64_t>> comps;   // this host's compilers (latest run each)
+        { auto st = db.prepare(
+            "SELECT c.name, c.major, MAX(tr.run_id) FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
+            "JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
+            "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' AND r.group_id=? "
+            "GROUP BY c.id ORDER BY c.name, c.major");
+          st.bind(g);
+          while (st.step()) { std::string name; std::int64_t major = 0, run = 0; st.get(name, major, run);
+              comps.push_back({comp_label(name, major), run}); } }
+        if (comps.empty()) continue;
+
+        std::string cpu, os; std::int64_t cores = 0, ram = 0;
+        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os FROM run WHERE group_id=? LIMIT 1");
+          st.bind(g); if (st.step()) st.get(cpu, cores, ram, os); }
+        md << "\n## " << jac313::results::host_label(g) << " — " << dash(cpu) << " · " << cores
+           << " cores · " << ram << " GB · " << dash(os) << "\n\n";
+
+        std::string inlist;
+        for (const auto& c : comps) { if (!inlist.empty()) inlist += ","; inlist += std::to_string(c.second); }
+        auto col_for = [&](std::int64_t run) -> int {
+            for (std::size_t i = 0; i < comps.size(); ++i) if (comps[i].second == run) return static_cast<int>(i);
+            return -1; };
+
+        std::vector<Row> rows;
+        { auto st = db.prepare(
             "SELECT tr.run_id, tl.name, IFNULL(p.threads*p.events_per_thread,0), IFNULL(tr.median_ops,0), "
             "IFNULL(tr.low_ops,0), IFNULL(tr.high_ops,0), IFNULL(tr.bytes,0) "
             "FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id JOIN parameter p ON p.id=tr.parameter_id "
             "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' AND tr.run_id IN (" + inlist + ") "
             "ORDER BY tl.name, p.threads*p.events_per_thread");
-        while (st.step()) {
-            std::int64_t run = 0, events = 0, med = 0, low = 0, high = 0, bytes = 0; std::string name;
-            st.get(run, name, events, med, low, high, bytes);
-            const std::string key = events ? (name + " @" + std::to_string(events / 1000000) + "M") : name;
-            Row* r = nullptr;
-            for (auto& rr : rows) if (rr.key == key) { r = &rr; break; }
-            if (!r) { rows.push_back({key, std::vector<Cell>(comps.size())}); r = &rows.back(); }
-            const int col = col_for(run);
-            if (col >= 0) { Cell& cell = r->cells[static_cast<std::size_t>(col)];
-                            cell.median = fmt_num(med);
-                            cell.band   = human_ops(low) + "–" + human_ops(high);
-                            cell.size   = human_bytes(bytes); }
-        }
-    }
+          while (st.step()) {
+              std::int64_t run = 0, events = 0, med = 0, low = 0, high = 0, bytes = 0; std::string name;
+              st.get(run, name, events, med, low, high, bytes);
+              const std::string key = events ? (name + " @" + std::to_string(events / 1000000) + "M") : name;
+              Row* r = nullptr;
+              for (auto& rr : rows) if (rr.key == key) { r = &rr; break; }
+              if (!r) { rows.push_back({key, std::vector<Cell>(comps.size())}); r = &rows.back(); }
+              const int col = col_for(run);
+              if (col >= 0) { Cell& cell = r->cells[static_cast<std::size_t>(col)];
+                              cell.median = fmt_num(med);
+                              cell.band   = human_ops(low) + "–" + human_ops(high);
+                              cell.size   = human_bytes(bytes); } } }
 
-    {
-        std::ofstream md(out / "bench" / "README.md");
-        md << "# bench — compiler comparison\n\n_Generated from `results.db`. Per compiler: median ops/sec and "
-              "the low–high band, head to head; latest run per compiler._\n\n| config";
+        md << "| config";
         for (const auto& c : comps) {
             const std::string rl = run_label_md(c.second);
             md << " | [" << c.first << "](" << rl << ".md)<br>median ops/sec | " << c.first << "<br>band | "
@@ -689,9 +710,8 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
             for (const auto& cell : r.cells) md << " | " << cell.median << " | " << cell.band << " | " << cell.size;
             md << " |\n";
         }
+        for (const auto& c : comps) write_bench_detail(db, out / "bench", c.second);
     }
-
-    for (const auto& c : comps) write_bench_detail(db, out / "bench", c.second);
 }
 
 // build = a HOST-SCOPED compile-time matrix: compile time is hardware-specific, so each machine
@@ -1008,7 +1028,7 @@ bool build_row_exists(jac313::Qlite::v002::Sqlite& db, std::int64_t gid, std::in
 
 struct BuildTimesCfg { std::string label, cc; std::vector<std::string> feflags; std::string mod, istd; };
 
-int run_build_times_gate(const fs::path& source_dir, bool dry_run) {
+int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = false) {
     const std::string gcc_cc = resolve_pinned_cc(source_dir, true);
     const std::string clang_cc = resolve_pinned_cc(source_dir, false);
     if (gcc_cc.empty() && clang_cc.empty()) {
@@ -1055,7 +1075,7 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run) {
     // for this host AND they all carry the same target count, the machine is complete — return
     // without configuring anything. (A newly-added test, absent from all configs alike, won't be
     // detected here; a normal run's capture-on-build or a forced re-run fills it.)
-    if (!new_setup) {
+    if (!new_setup && !force) {
         const int expected = (gcc_cc.empty() ? 0 : 3) + (clang_cc.empty() ? 0 : 3);
         int combos = 0; std::int64_t lo = -1, hi = 0;
         auto st = db.prepare(
@@ -1092,7 +1112,7 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run) {
         const std::int64_t comp_id = cli_compiler_id(db, read_compiler_info(dir));
         std::vector<std::string> missing;
         for (const auto& t : targets)
-            if (!build_row_exists(db, gid, comp_id, c.mod, c.istd, t)) missing.push_back(t);
+            if (force || !build_row_exists(db, gid, comp_id, c.mod, c.istd, t)) missing.push_back(t);
         if (missing.empty()) {
             std::cout << "  " << c.label << ": complete (" << targets.size() << " targets) — skip\n";
             safe_rmdir(source_dir, dir); ++skipped; continue;
@@ -2000,11 +2020,12 @@ int main(int argc, char** argv) {
 
     if (command == "build-times") {   // the folded-in build_matrix.sh: gap-filled compile-time matrix
         fs::path src = ".";
-        bool dry = false;
+        bool dry = false, force = false;
         for (int i = 2; i < argc; ++i) { const std::string a = argv[i];
             if (a == "--dry-run") dry = true;
+            else if (a == "--force") force = true;   // rebuild everything (ignore fast-skip + gap-query)
             else if (a == "--source-dir" && i + 1 < argc) src = argv[++i]; }
-        return run_build_times_gate(src, dry);
+        return run_build_times_gate(src, dry, force);
     }
     if (command.rfind('-', 0) == 0) {
         command = "run";

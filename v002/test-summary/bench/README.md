@@ -1,16 +1,48 @@
-# bench — compiler comparison
+# bench — throughput by machine
 
-_Generated from `results.db`. Per compiler: median ops/sec and the low–high band, head to head; latest run per compiler._
+_Generated from `results.db`. Throughput is hardware-specific, so each machine (`jac313-###`) is its own section. Per compiler: median ops/sec, the low–high band, and footprint; latest run per compiler._
 
-| config | [clang20](Run_033.md)<br>median ops/sec | clang20<br>band | clang20<br>size | [clang22](Run_006.md)<br>median ops/sec | clang22<br>band | clang22<br>size | [gcc15](Run_025.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size | [gcc15](Run_032.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size | [gcc16](Run_005.md)<br>median ops/sec | gcc16<br>band | gcc16<br>size |
-|---|--:|:--:|--:|--:|:--:|--:|--:|:--:|--:|--:|:--:|--:|--:|:--:|--:|
-| 0 flags, non-durable @10M | 1,124,988 | 1.07M–1.13M | 0 B | 7,033,660 | 6.96M–7.13M | 0 B | 11,628,331 | 11.03M–11.86M | 0 B | 2,090,158 | 2.03M–2.10M | 0 B | 7,138,792 | 6.86M–7.29M | 0 B |
-| 2 flags, non-durable @10M | 1,124,985 | 1.11M–1.13M | 0 B | 7,134,671 | 6.88M–7.26M | 0 B | 11,708,883 | 11.30M–11.91M | 0 B | 2,048,436 | 2.01M–2.09M | 0 B | 7,201,516 | 7.08M–7.25M | 0 B |
-| 4 flags, non-durable @10M | 1,126,950 | 1.09M–1.13M | 0 B | 7,106,454 | 6.96M–7.17M | 0 B | 11,555,651 | 10.94M–11.75M | 0 B | 2,091,304 | 2.04M–2.10M | 0 B | 7,254,559 | 7.01M–7.34M | 0 B |
-| 6 flags, non-durable @10M | 1,087,979 | 1.08M–1.11M | 0 B | 7,116,311 | 6.99M–7.25M | 0 B | 11,567,481 | 11.18M–11.87M | 0 B | 2,090,020 | 2.06M–2.10M | 0 B | 7,224,176 | 7.15M–7.33M | 0 B |
-| durable binary @1M | 565,212 | 555.18K–566.66K | 83.78 MB | 588,036 | 490.05K–651.77K | 83.78 MB | 860,273 | 848.98K–884.47K | 83.78 MB | 651,458 | 650.99K–651.75K | 83.78 MB | 620,283 | 481.40K–621.00K | 83.78 MB |
-| durable binary @10M | 566,015 | 560.81K–572.99K | 837.80 MB | 705,718 | 635.19K–731.20K | 837.80 MB | 916,563 | 915.05K–926.97K | 837.80 MB | 636,714 | 636.59K–637.84K | 837.80 MB | 687,806 | 668.96K–731.62K | 837.80 MB |
-| durable jtext @1M | 137,475 | 136.32K–137.67K | 83.91 MB | 1,917,505 | 1.86M–2.01M | 82.96 MB | 1,951,162 | 1.85M–2.15M | 82.96 MB | 131,922 | 127.98K–132.06K | 83.91 MB | 1,999,568 | 1.82M–2.04M | 82.96 MB |
-| durable jtext @10M | 136,112 | 133.17K–136.88K | 858.15 MB | 1,999,038 | 2.00M–2.10M | 848.61 MB | 2,394,138 | 2.39M–2.41M | 848.61 MB | 130,365 | 127.66K–132.32K | 858.15 MB | 2,089,665 | 2.03M–2.14M | 848.61 MB |
-| durable sql @1M | 370,311 | 350.75K–375.04K | 76.02 MB | 423,097 | 386.04K–439.49K | 76.11 MB | 553,369 | 540.43K–563.55K | 76.12 MB | 402,737 | 398.06K–408.50K | 76.10 MB | 429,445 | 364.05K–441.83K | 76.10 MB |
-| durable sql @10M | 356,195 | 345.07K–363.24K | 781.82 MB | 688,596 | 675.38K–708.79K | 783.04 MB | 744,592 | 734.99K–746.07K | 783.09 MB | 394,429 | 391.96K–395.34K | 782.98 MB | 705,190 | 691.28K–713.28K | 782.93 MB |
+## jac313-001 — Intel(R) Core(TM) Ultra 7 265 · 12 cores · 23 GB · Fedora Linux 44 (Workstation Edition)
+
+| config | [clang22](Run_006.md)<br>median ops/sec | clang22<br>band | clang22<br>size | [gcc16](Run_005.md)<br>median ops/sec | gcc16<br>band | gcc16<br>size |
+|---|--:|:--:|--:|--:|:--:|--:|
+| 0 flags, non-durable @10M | 7,033,660 | 6.96M–7.13M | 0 B | 7,138,792 | 6.86M–7.29M | 0 B |
+| 2 flags, non-durable @10M | 7,134,671 | 6.88M–7.26M | 0 B | 7,201,516 | 7.08M–7.25M | 0 B |
+| 4 flags, non-durable @10M | 7,106,454 | 6.96M–7.17M | 0 B | 7,254,559 | 7.01M–7.34M | 0 B |
+| 6 flags, non-durable @10M | 7,116,311 | 6.99M–7.25M | 0 B | 7,224,176 | 7.15M–7.33M | 0 B |
+| durable binary @1M | 588,036 | 490.05K–651.77K | 83.78 MB | 620,283 | 481.40K–621.00K | 83.78 MB |
+| durable binary @10M | 705,718 | 635.19K–731.20K | 837.80 MB | 687,806 | 668.96K–731.62K | 837.80 MB |
+| durable jtext @1M | 1,917,505 | 1.86M–2.01M | 82.96 MB | 1,999,568 | 1.82M–2.04M | 82.96 MB |
+| durable jtext @10M | 1,999,038 | 2.00M–2.10M | 848.61 MB | 2,089,665 | 2.03M–2.14M | 848.61 MB |
+| durable sql @1M | 423,097 | 386.04K–439.49K | 76.11 MB | 429,445 | 364.05K–441.83K | 76.10 MB |
+| durable sql @10M | 688,596 | 675.38K–708.79K | 783.04 MB | 705,190 | 691.28K–713.28K | 782.93 MB |
+
+## jac313-002 — Intel(R) Core(TM) Ultra 7 265 · 12 cores · 38 GB · Red Hat Enterprise Linux 10.2 (Coughlan)
+
+| config | [gcc15](Run_025.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
+|---|--:|:--:|--:|
+| 0 flags, non-durable @10M | 11,628,331 | 11.03M–11.86M | 0 B |
+| 2 flags, non-durable @10M | 11,708,883 | 11.30M–11.91M | 0 B |
+| 4 flags, non-durable @10M | 11,555,651 | 10.94M–11.75M | 0 B |
+| 6 flags, non-durable @10M | 11,567,481 | 11.18M–11.87M | 0 B |
+| durable binary @1M | 860,273 | 848.98K–884.47K | 83.78 MB |
+| durable binary @10M | 916,563 | 915.05K–926.97K | 837.80 MB |
+| durable jtext @1M | 1,951,162 | 1.85M–2.15M | 82.96 MB |
+| durable jtext @10M | 2,394,138 | 2.39M–2.41M | 848.61 MB |
+| durable sql @1M | 553,369 | 540.43K–563.55K | 76.12 MB |
+| durable sql @10M | 744,592 | 734.99K–746.07K | 783.09 MB |
+
+## jac313-003 — Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz · 8 cores · 31 GB · Linux Mint 22.3
+
+| config | [clang20](Run_033.md)<br>median ops/sec | clang20<br>band | clang20<br>size | [gcc15](Run_032.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
+|---|--:|:--:|--:|--:|:--:|--:|
+| 0 flags, non-durable @10M | 1,124,988 | 1.07M–1.13M | 0 B | 2,090,158 | 2.03M–2.10M | 0 B |
+| 2 flags, non-durable @10M | 1,124,985 | 1.11M–1.13M | 0 B | 2,048,436 | 2.01M–2.09M | 0 B |
+| 4 flags, non-durable @10M | 1,126,950 | 1.09M–1.13M | 0 B | 2,091,304 | 2.04M–2.10M | 0 B |
+| 6 flags, non-durable @10M | 1,087,979 | 1.08M–1.11M | 0 B | 2,090,020 | 2.06M–2.10M | 0 B |
+| durable binary @1M | 565,212 | 555.18K–566.66K | 83.78 MB | 651,458 | 650.99K–651.75K | 83.78 MB |
+| durable binary @10M | 566,015 | 560.81K–572.99K | 837.80 MB | 636,714 | 636.59K–637.84K | 837.80 MB |
+| durable jtext @1M | 137,475 | 136.32K–137.67K | 83.91 MB | 131,922 | 127.98K–132.06K | 83.91 MB |
+| durable jtext @10M | 136,112 | 133.17K–136.88K | 858.15 MB | 130,365 | 127.66K–132.32K | 858.15 MB |
+| durable sql @1M | 370,311 | 350.75K–375.04K | 76.02 MB | 402,737 | 398.06K–408.50K | 76.10 MB |
+| durable sql @10M | 356,195 | 345.07K–363.24K | 781.82 MB | 394,429 | 391.96K–395.34K | 782.98 MB |
