@@ -1,11 +1,7 @@
 add_executable(jac313_test_cli
     jac313_test_cli/main.cpp
     jac313_test_cli/manifest.cpp
-    jac313_test_cli/matrix_manifest.cpp
     jac313_test_cli/host_hardware.cpp
-    jac313_test_cli/matrix_log_metrics.cpp
-    jac313_test_cli/results_db.cpp
-    jac313_test_cli/test_summary_render.cpp
     jac313_test_cli/runner.cpp
     jac313_test_cli/report.cpp
     jac313_test_cli/process.cpp
@@ -14,10 +10,10 @@ add_executable(jac313_test_cli
     jac313_test_cli/params.cpp
     jac313_test_cli/matrix.cpp
     jac313_test_cli/build_pipeline.cpp
-    jac313_test_cli/build_benchmark.cpp
     jac313_test_cli/run_identity.cpp
 )
 target_compile_features(jac313_test_cli PRIVATE cxx_std_23)
+target_include_directories(jac313_test_cli PRIVATE ${CMAKE_SOURCE_DIR}/shared)   # jac313_results_db.hpp
 if(TARGET jac313::Setup)
     target_link_libraries(jac313_test_cli PRIVATE jac313::Setup)
 endif()

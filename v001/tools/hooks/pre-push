@@ -2,7 +2,7 @@
 #
 # jac313 pre-push gate — run the valgrind verify-lite before every push.
 #
-# Layout-aware: the repo holds self-contained major versions (v001/, v002/, ...),
+# Layout-aware: the repo holds self-contained major versions (v002/, v002/, ...),
 # each with its OWN build tree and runner. This gate inspects the push's commit
 # range, determines which v00N world(s) actually changed, and runs the gate only
 # for those. A change to shared/root files (anything outside a v00N/) verifies
@@ -85,6 +85,8 @@ verify_world() {
     fi
     echo "[pre-push:$vdir] version-check (sub_version bumps) ..."
     "$driver" version-check || return $?
+    echo "[pre-push:$vdir] build-times (compile-time matrix; gap-filled, no-op when complete) ..."
+    "$driver" build-times || return $?
     echo "[pre-push:$vdir] valgrind verify-lite via $driver  (bypass: git push --no-verify)"
     "$driver" matrix verify-lite || return $?
 }
