@@ -12,6 +12,13 @@ results.
 > standards, a real persistence story, and a real test matrix — so the parts actually
 > exercise each other.
 
+> 📊 **Reports are being refreshed (in progress).** The test/reporting framework was just
+> rebuilt — host-scoped report pages (one section per machine, with its hardware) and a
+> folded-in compile-time matrix (`build-times`) — and the same framework now runs in **both**
+> v001 and v002. We're **re-running all the measurements across the machine fleet** to
+> populate the newer reports freshly, so numbers under `test-summary/` are landing and
+> changing as those runs complete.
+
 ---
 
 ## 🔬 It found a real compiler bug
