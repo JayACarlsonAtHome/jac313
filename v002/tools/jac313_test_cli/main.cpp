@@ -29,6 +29,9 @@
 #include <chrono>
 #include <locale>
 #include <sstream>
+#include <map>
+#include <unordered_map>
+#include <iomanip>
 
 #include <sys/wait.h>
 
@@ -455,7 +458,7 @@ std::string human_ops(std::int64_t n) {
     return b;
 }
 
-// Human-readable byte size: "0 B", "1.234 KB", "12.345 MB", "1.500 GB" (1024-based, 3 decimals).
+// Human-readable byte size: "0 B", "1.23 KB", "12.35 MB", "1.50 GB" (1024-based, 2 decimals).
 std::string human_bytes(std::int64_t b) {
     if (b <= 0) return "0 B";
     static const char* unit[] = {"B", "KB", "MB", "GB", "TB"};
@@ -464,8 +467,23 @@ std::string human_bytes(std::int64_t b) {
     while (v >= 1024.0 && i < 4) { v /= 1024.0; ++i; }
     char buf[32];
     if (i == 0) std::snprintf(buf, sizeof buf, "%lld B", static_cast<long long>(b));
-    else        std::snprintf(buf, sizeof buf, "%.3f %s", v, unit[i]);
+    else        std::snprintf(buf, sizeof buf, "%.2f %s", v, unit[i]);
     return buf;
+}
+
+// Build/compile wall-clock as locale-grouped seconds, 2 decimals — same locale mechanism as
+// fmt_num, so build times group like every other number: 10576 ms -> "10.58s",
+// 1234567 ms -> "1,234.57s". Falls back to ungrouped digits if the locale is unavailable.
+std::string fmt_build_seconds(std::int64_t ms) {
+    const double secs = static_cast<double>(ms) / 1000.0;
+    try {
+        std::ostringstream ss;
+        ss.imbue(std::locale(""));
+        ss << std::fixed << std::setprecision(2) << secs;
+        return ss.str() + "s";
+    } catch (...) {
+        char b[32]; std::snprintf(b, sizeof b, "%.2fs", secs); return b;
+    }
 }
 
 void write_compiler_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
@@ -676,56 +694,73 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     for (const auto& c : comps) write_bench_detail(db, out / "bench", c.second);
 }
 
-// Build page = a COMPILER COMPARISON pivot: rows = build config (build_type · front-end),
-// columns = compilers, cell = latest tree-compile wall-clock in seconds.
-// build = a compile-time MATRIX: rows = tests, columns = config (compiler × front-end:
-// headers/modules/import-std). Cell = that test's compile+link seconds · run pass/fail (latest build).
+// build = a HOST-SCOPED compile-time matrix: compile time is hardware-specific, so each machine
+// (jac313-###) is its own section with a hardware header (cpu/cores/ram/os) and its OWN config
+// columns (different boxes run different compilers). Rows = tests, columns = config (compiler ×
+// front-end: hdr/mod/istd). Cell = compile+link seconds · status · binary size (latest build).
 void write_build_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
-    // columns: distinct (compiler, build_type, front-end). ORDER BY modules,import_std => hdr, mod, istd.
-    struct Config { std::string label, cname, bt, mod, imp; std::int64_t cmajor; };
-    std::vector<Config> configs;
-    { auto st = db.prepare("SELECT DISTINCT c.name, c.major, p.build_type, p.modules, p.import_std "
-        "FROM testRun tr JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
-        "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='build' "
-        "ORDER BY c.name, c.major, p.modules, p.import_std");
-      while (st.step()) { std::string cn, bt, mod, imp; std::int64_t cm = 0; st.get(cn, cm, bt, mod, imp);
-          const std::string fe = (mod != "on") ? "hdr" : (imp == "on" ? "istd" : "mod");
-          configs.push_back({comp_label(cn, cm) + "·" + fe, cn, bt, mod, imp, cm}); } }
-    if (configs.empty()) return;
-    // Output dir is compiler-build-times/ (NOT build/) so the **/build/ ignore rule for
-    // CMake trees doesn't swallow this report page. testType name in the DB stays 'build'.
+    std::vector<std::int64_t> groups;
+    { auto st = db.prepare("SELECT DISTINCT r.group_id FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
+        "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='build' ORDER BY r.group_id");
+      while (st.step()) { std::int64_t g = 0; st.get(g); groups.push_back(g); } }
+    if (groups.empty()) return;
+    // Output dir is compiler-build-times/ (NOT build/) so the **/build/ ignore rule for CMake trees
+    // doesn't swallow this report page. testType name in the DB stays 'build'.
     std::error_code ec; fs::create_directories(out / "compiler-build-times", ec);
-
-    std::vector<std::string> tests;
-    { auto st = db.prepare("SELECT DISTINCT tl.name FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id "
-        "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='build' ORDER BY tl.name");
-      while (st.step()) { std::string n; st.get(n); tests.push_back(n); } }
-
     std::ofstream md(out / "compiler-build-times" / "README.md");
-    md << "# Compiler build times\n\n_Generated from `results.db`. Cell = compile+link seconds · run "
-          "pass/fail (compile time only, not the run); per test × front-end × compiler, latest build._\n\n| test";
-    for (const auto& cf : configs) md << " | " << cf.label;
-    md << " |\n|---";
-    for (std::size_t i = 0; i < configs.size(); ++i) md << "|:--:";
-    md << "|\n";
-    for (const auto& t : tests) {
-        md << "| " << t;
-        for (const auto& cf : configs) {
-            std::string cell = "-";
-            auto st = db.prepare("SELECT IFNULL(tr.duration_ms,0), IFNULL(tr.status,''), IFNULL(tr.bytes,0) "
-                "FROM testRun tr JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
-                "JOIN testList tl ON tl.id=tr.test_list_id JOIN testType tt ON tt.id=tr.test_type_id "
-                "WHERE tt.name='build' AND tl.name=? AND c.name=? AND c.major=? AND p.build_type=? "
-                "AND p.modules=? AND p.import_std=? ORDER BY tr.run_id DESC LIMIT 1");
-            st.bind(t, cf.cname, cf.cmajor, cf.bt, cf.mod, cf.imp);
-            if (st.step()) { std::int64_t ms = 0, bytes = 0; std::string status; st.get(ms, status, bytes);
-                if (status == "NA") { cell = "NA"; }   // config not built by design
-                else { char b[24]; std::snprintf(b, sizeof b, "%.2fs", static_cast<double>(ms) / 1000.0);
-                       cell = std::string(b) + " · " + (status.empty() ? "-" : status)
-                              + (bytes ? (" · " + human_bytes(bytes)) : std::string()); } }
-            md << " | " << cell;
+    md << "# Compiler build times\n\n_Generated from `results.db`. Compile time is hardware-specific, so "
+          "each machine (`jac313-###`) is its own section. Cell = compile+link seconds · status · binary "
+          "size (latest build); per test × front-end × compiler._\n";
+
+    struct Config { std::string label, cname, bt, mod, imp; std::int64_t cmajor; };
+    for (const std::int64_t g : groups) {
+        std::string cpu, os; std::int64_t cores = 0, ram = 0;
+        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os FROM run WHERE group_id=? LIMIT 1");
+          st.bind(g); if (st.step()) st.get(cpu, cores, ram, os); }
+        md << "\n## " << jac313::results::host_label(g) << " — " << dash(cpu) << " · " << cores
+           << " cores · " << ram << " GB · " << dash(os) << "\n\n";
+
+        std::vector<Config> configs;
+        { auto st = db.prepare("SELECT DISTINCT c.name, c.major, p.build_type, p.modules, p.import_std "
+            "FROM testRun tr JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id "
+            "JOIN compiler c ON c.id=p.compiler_id JOIN testType tt ON tt.id=tr.test_type_id "
+            "WHERE tt.name='build' AND r.group_id=? ORDER BY c.name, c.major, p.modules, p.import_std");
+          st.bind(g);
+          while (st.step()) { std::string cn, bt, mod, imp; std::int64_t cm = 0; st.get(cn, cm, bt, mod, imp);
+              const std::string fe = (mod != "on") ? "hdr" : (imp == "on" ? "istd" : "mod");
+              configs.push_back({comp_label(cn, cm) + "·" + fe, cn, bt, mod, imp, cm}); } }
+        if (configs.empty()) continue;
+
+        std::vector<std::string> tests;
+        { auto st = db.prepare("SELECT DISTINCT tl.name FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
+            "JOIN testList tl ON tl.id=tr.test_list_id JOIN testType tt ON tt.id=tr.test_type_id "
+            "WHERE tt.name='build' AND r.group_id=? ORDER BY tl.name");
+          st.bind(g); while (st.step()) { std::string n; st.get(n); tests.push_back(n); } }
+
+        md << "| test";
+        for (const auto& cf : configs) md << " | " << cf.label;
+        md << " |\n|---";
+        for (std::size_t i = 0; i < configs.size(); ++i) md << "|:--:";
+        md << "|\n";
+        for (const auto& t : tests) {
+            md << "| " << t;
+            for (const auto& cf : configs) {
+                std::string cell = "-";
+                auto st = db.prepare("SELECT IFNULL(tr.duration_ms,0), IFNULL(tr.status,''), IFNULL(tr.bytes,0) "
+                    "FROM testRun tr JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id "
+                    "JOIN compiler c ON c.id=p.compiler_id JOIN testList tl ON tl.id=tr.test_list_id "
+                    "JOIN testType tt ON tt.id=tr.test_type_id "
+                    "WHERE tt.name='build' AND r.group_id=? AND tl.name=? AND c.name=? AND c.major=? "
+                    "AND p.build_type=? AND p.modules=? AND p.import_std=? ORDER BY tr.run_id DESC LIMIT 1");
+                st.bind(g, t, cf.cname, cf.cmajor, cf.bt, cf.mod, cf.imp);
+                if (st.step()) { std::int64_t ms = 0, bytes = 0; std::string status; st.get(ms, status, bytes);
+                    if (status == "NA") { cell = "NA"; }   // config not built by design
+                    else if (ms > 0) { cell = fmt_build_seconds(ms) + " · " + (status.empty() ? "-" : status)
+                                  + (bytes ? (" · " + human_bytes(bytes)) : std::string()); } }
+                md << " | " << cell;
+            }
+            md << " |\n";
         }
-        md << " |\n";
     }
 }
 
@@ -825,37 +860,255 @@ std::int64_t cli_parameter_id_verify(jac313::Qlite::v002::Sqlite& db, std::int64
     return id;
 }
 
-// Record a build wall-clock (ms) into results.db as a 'build' testRun, keyed by the build's
-// compiler + build_type + front-end (same parameter projection as ctest). Best-effort.
-// Record one build-matrix cell: a test's compile+link wall-clock (build_ms, NOT including the run)
-// plus its run status (pass/fail), keyed by compiler + build_type + front-end (headers/modules/import-std).
-void record_build_test(const fs::path& source_dir, const fs::path& build_dir,
-                       const std::string& test, std::int64_t build_ms, const std::string& status,
-                       std::int64_t exe_bytes = 0,
-                       const std::string& modules_override = "", const std::string& import_std_override = "") {
+// Parse ninja's build log (.ninja_log lines: "start_ms<TAB>end_ms<TAB>mtime<TAB>output<TAB>hash")
+// and aggregate compile+link wall-clock per target: a target's time = sum of its object edges
+// (output paths containing "<target>.dir/") + its link edge (output whose filename == target).
+// The LAST entry per output wins (ninja appends on rebuild). Single-source targets — which is
+// every report test binary — sum exactly to wall-clock; multi-source targets over-count (their
+// objects compile in parallel). A target with no edges in the log maps to 0 (not built this round).
+std::map<std::string, std::int64_t> parse_ninja_build_times(const fs::path& build_dir,
+                                                            const std::vector<std::string>& targets) {
+    std::map<std::string, std::int64_t> out;
+    for (const auto& t : targets) out[t] = 0;
+    std::ifstream in(build_dir / ".ninja_log");
+    if (!in) return out;
+    std::unordered_map<std::string, std::int64_t> edge_ms;   // output path -> ms (last entry wins)
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        const std::size_t p1 = line.find('\t');
+        const std::size_t p2 = p1 == std::string::npos ? p1 : line.find('\t', p1 + 1);
+        const std::size_t p3 = p2 == std::string::npos ? p2 : line.find('\t', p2 + 1);
+        const std::size_t p4 = p3 == std::string::npos ? p3 : line.find('\t', p3 + 1);
+        if (p4 == std::string::npos) continue;
+        const std::int64_t start = std::strtoll(line.c_str(), nullptr, 10);
+        const std::int64_t end   = std::strtoll(line.c_str() + p1 + 1, nullptr, 10);
+        edge_ms[line.substr(p3 + 1, p4 - p3 - 1)] = end - start;
+    }
+    for (auto& [t, ms] : out) {
+        const std::string dirtag = t + ".dir/";
+        for (const auto& [output, d] : edge_ms)
+            if (output.find(dirtag) != std::string::npos || fs::path(output).filename() == t) ms += d;
+    }
+    return out;
+}
+
+// Size (bytes) of the built executable named `target` under build_dir (0 if not found). Mirrors
+// build_matrix.sh's `find -name <target>` — robust to CMake's per-target output layout.
+std::int64_t exe_size_in_tree(const fs::path& build_dir, const std::string& target) {
+    std::error_code ec;
+    for (fs::recursive_directory_iterator it(build_dir, ec), end; it != end; it.increment(ec)) {
+        if (ec) { ec.clear(); continue; }
+        if (it->is_regular_file(ec) && it->path().filename() == target)
+            return static_cast<std::int64_t>(fs::file_size(it->path(), ec));
+    }
+    return 0;
+}
+
+// Capture compile+link times from a freshly-built tree's .ninja_log and UPSERT them as 'build'
+// rows for THIS host (group). Banks every target that actually built, so a normal ctest/smoke
+// build records its times for free. Front-end (modules/import-std) is read from the tree unless
+// overridden. Group-scoped upsert: a prior row for the same (this host, config, test) is replaced;
+// other hosts' rows (same config, different group_id) are left intact.
+void capture_build_times(const fs::path& source_dir, const fs::path& build_dir,
+                         const std::string& modules_override = "",
+                         const std::string& import_std_override = "") {
     const fs::path db_path = source_dir / "test-summary" / "results.db";
     std::error_code ec;
     if (!fs::exists(db_path.parent_path(), ec)) return;
+    std::vector<std::string> names;
+    for (const auto& t : discover_tests(build_dir)) names.push_back(t.name);
+    // jac313_store_bench is a real build target but NOT a ctest test, so discover_tests misses it.
+    // Add it explicitly so its compile time is banked whenever the tree actually built it.
+    if (std::find(names.begin(), names.end(), "jac313_store_bench") == names.end())
+        names.push_back("jac313_store_bench");
+    if (names.empty()) return;
+    const auto times = parse_ninja_build_times(build_dir, names);
     try {
         jac313::Qlite::v002::Sqlite db(db_path.string());
-        const std::int64_t run_id  = cli_begin_run(db);
+        const std::int64_t run_id  = cli_begin_run(db);   // one run for the whole capture batch
+        std::int64_t gid = 0;
+        { auto st = db.prepare("SELECT group_id FROM run WHERE run_id=?"); st.bind(run_id); if (st.step()) st.get(gid); }
         const std::int64_t type_id = cli_results_id(db, "SELECT id FROM testType WHERE name=?", std::string("build"));
         const std::int64_t comp_id = cli_compiler_id(db, read_compiler_info(build_dir));
         const BuildFeatures bf = read_build_features(build_dir);
-        // Overrides let us record a config we did NOT build (clang import-std = NA) by reading the
-        // compiler from any of that compiler's dirs while pinning the front-end explicitly.
         const std::string modules = modules_override.empty() ? (bf.modules ? "on" : "off") : modules_override;
         const std::string istd    = import_std_override.empty() ? read_import_std(build_dir) : import_std_override;
         const std::int64_t param_id = cli_parameter_id_ctest(db, comp_id, bf.build_type, modules, istd);
-        db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", test);
-        const std::int64_t list_id = cli_results_id(db, "SELECT id FROM testList WHERE name=?", test);
-        db.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms, bytes) "
-                "VALUES(?,?,?,?,?,?,?)", run_id, type_id, list_id, param_id, status, build_ms, exe_bytes);
-        std::cout << "[results] build-matrix: " << test << "  build=" << build_ms << "ms  run=" << status
-                  << "  size=" << exe_bytes << "  (run " << run_id << ")\n";
+        int banked = 0;
+        for (const auto& [t, ms] : times) {
+            if (ms <= 0) continue;   // not built in this tree — leave any prior row intact
+            db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", t);
+            const std::int64_t list_id = cli_results_id(db, "SELECT id FROM testList WHERE name=?", t);
+            const std::int64_t bytes = exe_size_in_tree(build_dir, t);
+            db.exec("DELETE FROM testRun WHERE test_type_id=? AND test_list_id=? AND parameter_id=? "
+                    "AND run_id IN (SELECT run_id FROM run WHERE group_id=?)", type_id, list_id, param_id, gid);
+            db.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms, bytes) "
+                    "VALUES(?,?,?,?,?,?,?)", run_id, type_id, list_id, param_id, std::string("built"), ms, bytes);
+            ++banked;
+        }
+        const std::string fe = (modules == "on") ? (istd == "on" ? "istd" : "mod") : "hdr";
+        std::cout << "[results] build-times: banked " << banked << " target(s) under "
+                  << jac313::results::host_label(gid) << " " << read_compiler_info(build_dir).name
+                  << "·" << fe << " (run " << run_id << ")\n";
     } catch (const std::exception& e) {
-        std::cerr << "[results] build-test record failed: " << e.what() << "\n";
+        std::cerr << "[results] build-times capture failed: " << e.what() << "\n";
     }
+}
+
+// Build, then on success bank this tree's compile times (capture-on-build). Use in place of
+// run_build_command wherever the CLI builds the test tree, so a normal run records times for free.
+int build_and_capture(const GlobalOptions& global, const BuildOptions& build_opts) {
+    const int rc = run_build_command(global, build_opts);
+    if (rc == 0) capture_build_times(global.source_dir, global.build_dir);
+    return rc;
+}
+
+// ---- build-times gate (the folded-in build_matrix.sh) ----------------------------------------
+// The compile-time matrix: smoke + bench targets × {hdr, mod, istd} front-ends × {gcc, clang},
+// gap-filled per host. A target is in scope if it's a store matrix (smoke) test or the bench bin.
+bool is_smoke_or_bench_target(const std::string& name) {
+    if (name == "jac313_store_bench") return true;                 // bench
+    if (name == "jac313_store_flags" || name == "jac313_store_metric_view") return true;  // smoke matrix
+    constexpr std::string_view pre = "jac313_store_";              // jac313_store_<NNN>_<TS|XS>
+    if (!name.starts_with(pre)) return false;
+    const std::string rest = name.substr(pre.size());
+    return rest.size() == 6 && std::isdigit(static_cast<unsigned char>(rest[0]))
+           && (rest.ends_with("_TS") || rest.ends_with("_XS"));
+}
+
+// Refuse to delete anything not under <source>/tmp_build (ported from build_matrix.sh safe_rmdir).
+void safe_rmdir(const fs::path& source_dir, const fs::path& target) {
+    std::error_code ec;
+    const fs::path root = fs::weakly_canonical(source_dir / "tmp_build", ec);
+    const fs::path t    = fs::weakly_canonical(target, ec);
+    if (t != root && t.string().rfind(root.string() + "/", 0) != 0) {
+        std::cerr << "REFUSING to delete '" << target.string() << "' (not under tmp_build)\n";
+        return;
+    }
+    fs::remove_all(t, ec);
+}
+
+// Resolve this machine's pinned gcc/clang to a compiler path — DEFINED below the pin helpers
+// (read_compiler_pins / CompilerPinRow live further down in this file).
+std::string resolve_pinned_cc(const fs::path& src, bool want_gcc);
+
+// Does a 'build' row already exist for (this host group, compiler, front-end, target)?
+bool build_row_exists(jac313::Qlite::v002::Sqlite& db, std::int64_t gid, std::int64_t comp_id,
+                      const std::string& modules, const std::string& istd, const std::string& target) {
+    auto st = db.prepare(
+        "SELECT 1 FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
+        "JOIN testType tt ON tt.id=tr.test_type_id JOIN testList tl ON tl.id=tr.test_list_id "
+        "JOIN parameter p ON p.id=tr.parameter_id "
+        "WHERE tt.name='build' AND r.group_id=? AND p.compiler_id=? AND p.modules=? AND p.import_std=? "
+        "AND tl.name=? LIMIT 1");
+    st.bind(gid, comp_id, modules, istd, target);
+    return st.step();
+}
+
+struct BuildTimesCfg { std::string label, cc; std::vector<std::string> feflags; std::string mod, istd; };
+
+int run_build_times_gate(const fs::path& source_dir, bool dry_run) {
+    const std::string gcc_cc = resolve_pinned_cc(source_dir, true);
+    const std::string clang_cc = resolve_pinned_cc(source_dir, false);
+    if (gcc_cc.empty() && clang_cc.empty()) {
+        std::cerr << "build-times: no pinned compiler resolved — run ./bootstrap.sh first.\n";
+        return 1;
+    }
+    std::vector<BuildTimesCfg> cfgs;
+    const std::vector<std::string> istd_flags = {"-DJAC313_BUILD_MODULES=ON", "-DJAC313_QLITE_IMPORT_STD=ON",
+                                                 "-DJAC313_JTEXT_IMPORT_STD=ON", "-DJAC313_STORE_IMPORT_STD=ON"};
+    for (const auto& [name, cc] : {std::pair<std::string,std::string>{"gcc", gcc_cc}, {"clang", clang_cc}}) {
+        if (cc.empty()) continue;
+        cfgs.push_back({name + "-hdr",  cc, {}, "off", "off"});
+        cfgs.push_back({name + "-mod",  cc, {"-DJAC313_BUILD_MODULES=ON"}, "on", "off"});
+        cfgs.push_back({name + "-istd", cc, istd_flags, "on", "on"});
+    }
+
+    const fs::path db_path = source_dir / "test-summary" / "results.db";
+    std::error_code ec;
+    if (!fs::exists(db_path.parent_path(), ec)) { std::cerr << "build-times: no test-summary/.\n"; return 1; }
+    jac313::Qlite::v002::Sqlite db(db_path.string());
+    jac313::results::ensure_schema(db);
+    const HostHardwareRecord hw = collect_host_hardware_record("");
+    const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
+                                    static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty};
+    bool new_setup = false;
+    { auto st = db.prepare("SELECT 1 FROM run WHERE cpu=? AND cores=? AND ram_gb=? AND os=? LIMIT 1");
+      st.bind(h.cpu, h.cores, h.ram_gb, h.os); new_setup = !st.step(); }
+    const std::int64_t gid = jac313::results::group_id(db, h);
+    const std::string host = jac313::results::host_label(gid);
+    std::cout << "=== build-times gate — " << host << (new_setup ? "  *** NEW SETUP (full collection) ***" : "")
+              << " ===\n";
+    if (dry_run) {
+        std::cout << cfgs.size() << " configs (smoke+bench × {hdr,mod,istd} × {gcc,clang}); per config:\n";
+        for (const auto& c : cfgs) {
+            std::string flags; for (const auto& f : c.feflags) flags += " " + f;
+            std::cout << "  cmake -G Ninja -S . -B tmp_build/" << c.label << " -DCMAKE_CXX_COMPILER=" << c.cc
+                      << " -DCMAKE_BUILD_TYPE=Debug -DJAC313_BUILD_STORE_TESTS=ON" << flags << "\n";
+        }
+        std::cout << "(builds only the gap targets per config; configs already complete for " << host << " are skipped)\n";
+        return 0;
+    }
+
+    // Fast-skip (keeps the pre-push hook cheap): if every expected config already has build rows
+    // for this host AND they all carry the same target count, the machine is complete — return
+    // without configuring anything. (A newly-added test, absent from all configs alike, won't be
+    // detected here; a normal run's capture-on-build or a forced re-run fills it.)
+    if (!new_setup) {
+        const int expected = (gcc_cc.empty() ? 0 : 3) + (clang_cc.empty() ? 0 : 3);
+        int combos = 0; std::int64_t lo = -1, hi = 0;
+        auto st = db.prepare(
+            "SELECT COUNT(DISTINCT tr.test_list_id) FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
+            "JOIN testType tt ON tt.id=tr.test_type_id JOIN parameter p ON p.id=tr.parameter_id "
+            "JOIN compiler c ON c.id=p.compiler_id WHERE tt.name='build' AND r.group_id=? "
+            "GROUP BY c.name, c.major, p.modules, p.import_std");
+        st.bind(gid);
+        while (st.step()) { std::int64_t n = 0; st.get(n); ++combos; if (lo < 0 || n < lo) lo = n; if (n > hi) hi = n; }
+        if (combos >= expected && lo == hi && lo > 0) {
+            std::cout << "  complete: " << combos << " configs × " << lo << " targets already recorded for "
+                      << host << " — nothing to build.\n";
+            return 0;
+        }
+    }
+
+    std::vector<std::string> targets;   // smoke+bench target names, discovered once
+    int built_total = 0, skipped = 0;
+    for (const auto& c : cfgs) {
+        const fs::path dir = source_dir / "tmp_build" / c.label;
+        safe_rmdir(source_dir, dir);
+        std::vector<std::string> conf = {"cmake", "-G", "Ninja", "-S", ".", "-B", "tmp_build/" + c.label,
+            "-DCMAKE_CXX_COMPILER=" + c.cc, "-DCMAKE_BUILD_TYPE=Debug", "-DJAC313_BUILD_STORE_TESTS=ON"};
+        conf.insert(conf.end(), c.feflags.begin(), c.feflags.end());
+        if (run_process(conf, 0, source_dir.string()).exit_code != 0) {
+            std::cout << "  " << c.label << ": CONFIGURE FAILED — skipped\n";
+            safe_rmdir(source_dir, dir); continue;
+        }
+        if (targets.empty()) {
+            for (const auto& t : discover_tests(dir)) if (is_smoke_or_bench_target(t.name)) targets.push_back(t.name);
+            if (std::find(targets.begin(), targets.end(), "jac313_store_bench") == targets.end())
+                targets.push_back("jac313_store_bench");
+        }
+        const std::int64_t comp_id = cli_compiler_id(db, read_compiler_info(dir));
+        std::vector<std::string> missing;
+        for (const auto& t : targets)
+            if (!build_row_exists(db, gid, comp_id, c.mod, c.istd, t)) missing.push_back(t);
+        if (missing.empty()) {
+            std::cout << "  " << c.label << ": complete (" << targets.size() << " targets) — skip\n";
+            safe_rmdir(source_dir, dir); ++skipped; continue;
+        }
+        std::cout << "  " << c.label << ": building " << missing.size() << " of " << targets.size() << " targets...\n";
+        std::vector<std::string> build = {"cmake", "--build", "tmp_build/" + c.label};
+        for (const auto& m : missing) { build.push_back("--target"); build.push_back(m); }
+        run_process(build, 0, source_dir.string());   // ignore rc: capture records whatever built
+        capture_build_times(source_dir, dir, c.mod, c.istd);
+        built_total += static_cast<int>(missing.size());
+        safe_rmdir(source_dir, dir);
+    }
+    safe_rmdir(source_dir, source_dir / "tmp_build");
+    std::cout << "build-times gate: " << built_total << " target-builds recorded, " << skipped
+              << " config(s) already complete for " << host << ".\n";
+    return 0;
 }
 
 // Record one testRun row per ctest unit test into results.db.
@@ -1351,7 +1604,7 @@ int execute_matrix_run(GlobalOptions& global, ConfigureOptions& configure_opts,
         if (const int rc = run_configure_command(global, configure_opts); rc != 0) {
             return kBuildPhaseFailed;   // configure failed -> tests skipped
         }
-        if (const int rc = run_build_command(global, build_opts); rc != 0) {
+        if (const int rc = build_and_capture(global, build_opts); rc != 0) {
             return kBuildPhaseFailed;   // build failed -> tests skipped
         }
     }
@@ -1581,6 +1834,20 @@ std::string highest_toolchain_label(const std::vector<ResolvedToolchain>& probes
     return best ? best->spec.label : std::string{};
 }
 
+// Resolve this machine's pinned gcc/clang to a compiler path (highest-available if unpinned).
+// Forward-declared up by the build-times gate; defined here, after the pin helpers it needs.
+std::string resolve_pinned_cc(const fs::path& src, bool want_gcc) {
+    CompilerResolveRequest request; request.source_dir = src;
+    const HostHardwareRecord hw = collect_host_hardware_record("");
+    const auto rows = read_compiler_pins(src);
+    const CompilerPinRow* row = find_pin_for_host(rows, hw);
+    std::string label = row ? (want_gcc ? row->gcc_label : row->clang_label)
+                            : highest_toolchain_label(probe_compilers(src), want_gcc ? "gcc" : "clang");
+    if (label.empty()) return {};
+    request.explicit_compiler = label;
+    try { return resolve_compiler(request).cc_path; } catch (...) { return {}; }
+}
+
 void write_compiler_pins(const fs::path& source_dir, const std::vector<CompilerPinRow>& rows) {
     std::ofstream out(compiler_pin_path(source_dir));
     out << "# Committed per-machine compiler pin. One row per machine, keyed on the hardware identity\n"
@@ -1646,7 +1913,7 @@ int run_everything_command(const GlobalOptions& global) {
     }
     step("verify gcc",   CLI + " matrix verify --compiler " + gcc_label);
     step("verify clang", CLI + " matrix verify --compiler " + clang_label);
-    step("build matrix", "tools/build_matrix.sh");
+    step("build-times", CLI + " build-times");
     step("report",       CLI + " --report");
 
     std::cout << "\n######## run-everything DONE — open test-summary/README.md ########\n";
@@ -1731,54 +1998,13 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    if (command == "resolve-compiler") {   // print the registry-resolved compiler path (for build_matrix.sh)
-        fs::path src = "."; CompilerResolveRequest request; bool pinned_gcc = false, pinned_clang = false;
-        for (int i = 2; i < argc; ++i) {
-            const std::string a = argv[i];
-            if (a == "--gcc15") request.prefer_gcc15 = true;
-            else if (a == "--clang") request.prefer_clang = true;
-            else if (a == "--compiler" && i + 1 < argc) request.explicit_compiler = argv[++i];
-            else if (a == "--pinned-gcc") pinned_gcc = true;
-            else if (a == "--pinned-clang") pinned_clang = true;
-            else if (a == "--source-dir" && i + 1 < argc) src = argv[++i];
-        }
-        request.source_dir = src;
-        try {
-            if (pinned_gcc || pinned_clang) {   // resolve THIS machine's pinned label (or highest if unpinned)
-                const HostHardwareRecord hw = collect_host_hardware_record("");
-                const auto rows = read_compiler_pins(src);
-                const CompilerPinRow* row = find_pin_for_host(rows, hw);
-                std::string label = row ? (pinned_gcc ? row->gcc_label : row->clang_label)
-                                        : highest_toolchain_label(probe_compilers(src), pinned_gcc ? "gcc" : "clang");
-                if (label.empty()) { std::cerr << "resolve-compiler: no pinned/available "
-                                               << (pinned_gcc ? "gcc" : "clang") << "\n"; return 1; }
-                request.explicit_compiler = label;
-            }
-            const CompilerSelection sel = resolve_compiler(request);
-            std::cout << sel.cc_path << "\n";   // ONLY the path on stdout, for $(...) capture
-            return 0;
-        } catch (const std::exception& e) {
-            std::cerr << "resolve-compiler: " << e.what() << "\n";
-            return 1;
-        }
-    }
-
-    if (command == "record-build-test") {   // build-matrix cell ingest: --build-dir --test --build-ms --status
-        GlobalOptions g; g.source_dir = ".";
-        std::string test, status, modules_ov, istd_ov; std::int64_t bms = 0, ebytes = 0;
-        for (int i = 2; i < argc; ++i) {
-            const std::string a = argv[i];
-            if (a == "--build-dir" && i + 1 < argc) g.build_dir = argv[++i];
-            else if (a == "--source-dir" && i + 1 < argc) g.source_dir = argv[++i];
-            else if (a == "--test" && i + 1 < argc) test = argv[++i];
-            else if (a == "--build-ms" && i + 1 < argc) bms = std::stoll(argv[++i]);
-            else if (a == "--status" && i + 1 < argc) status = argv[++i];
-            else if (a == "--bytes" && i + 1 < argc) ebytes = std::stoll(argv[++i]);
-            else if (a == "--modules" && i + 1 < argc) modules_ov = argv[++i];
-            else if (a == "--import-std" && i + 1 < argc) istd_ov = argv[++i];
-        }
-        record_build_test(g.source_dir, g.build_dir, test, bms, status, ebytes, modules_ov, istd_ov);
-        return 0;
+    if (command == "build-times") {   // the folded-in build_matrix.sh: gap-filled compile-time matrix
+        fs::path src = ".";
+        bool dry = false;
+        for (int i = 2; i < argc; ++i) { const std::string a = argv[i];
+            if (a == "--dry-run") dry = true;
+            else if (a == "--source-dir" && i + 1 < argc) src = argv[++i]; }
+        return run_build_times_gate(src, dry);
     }
     if (command.rfind('-', 0) == 0) {
         command = "run";
@@ -2050,7 +2276,7 @@ int main(int argc, char** argv) {
         return run_configure_command(global, configure_opts);
     }
     if (command == "build") {
-        return run_build_command(global, build_opts);
+        return build_and_capture(global, build_opts);
     }
     print_usage();
     return 1;

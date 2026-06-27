@@ -46,7 +46,8 @@ Each item says *why* it's deferred. Surfaced by an independent review of the lib
       per type, so it needs parameterizing). Otherwise the report code reviewed clean.
 
 ## Not from the review
-- [ ] **Port `tools/build_matrix.sh` to the CLI** (code over shell, per project preference). *Partly done
-      2026-06-26:* it no longer hardcodes compiler paths — it resolves them from the registry via
-      `jac313_test_cli resolve-compiler --gcc15/--clang` (the same path bootstrap senses), so a fresh VM
-      needs nothing but `./bootstrap.sh`. Remaining: port the build/timing/recording loop itself into the CLI.
+- [x] **Port `tools/build_matrix.sh` to the CLI** — DONE 2026-06-27. Folded into `jac313_test_cli
+      build-times`: `.ninja_log` per-target timing, group-scoped upsert, capture-on-build hook,
+      host-scoped report (per `jac313-###` with hardware), gap-filled per host, wired into the
+      pre-push hook (no-op when complete). `build_matrix.sh` + the `resolve-compiler` /
+      `record-build-test` shims deleted.

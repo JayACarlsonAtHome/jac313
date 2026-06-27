@@ -206,19 +206,19 @@ cmake --build build-bench --target jac313_store_bench
 build-bench/Store/tests/matrix/jac313_store_bench --suite --db test-summary/results.db
 ./jac313_test_cli --report
 
-# ── build matrix — compile time · pass/fail · exe size, per test × (front-end × compiler) ──
-tools/build_matrix.sh                                          # default 2-test set
-tools/build_matrix.sh jac313_store_001_TS jac313_store_003_TS  # specific tests
+# ── compile-time matrix — per smoke+bench test × (front-end × compiler), host-scoped ──
+./jac313_test_cli build-times            # gap-filled: builds only what THIS host (jac313-###) lacks
+./jac313_test_cli build-times --dry-run  # show the 6-config plan, build nothing
 ```
 
 `version-check` is the **version gate**: each package (Qlite/jText/Store) exposes
 `jac313::<Pkg>::v002::version()`; when its shipped code changes the literal must be bumped, and
 `version-check` (git-only, no build) fails if a bump is owed.
 
-The **pre-push hook** (installed by `bootstrap.sh` at `.git/hooks/pre-push`) runs `version-check`
-then **`matrix verify-lite`** (valgrind memcheck); bypass once with `git push --no-verify`. Needs
-valgrind installed. The build matrix is a *deliberate, separately-run* measurement — it is **not**
-in the push path. Details in [docs/Memory-And-Concurrency.md](Memory-And-Concurrency.md).
+The **pre-push hook** (installed by `bootstrap.sh` at `.git/hooks/pre-push`) runs `version-check`,
+then **`build-times`** (the gap-filled compile-time matrix — a no-op once this host is complete, a
+full build on a fresh machine), then **`matrix verify-lite`** (valgrind memcheck); bypass once with
+`git push --no-verify`. Needs valgrind installed. Details in [docs/Memory-And-Concurrency.md](Memory-And-Concurrency.md).
 
 ### Results layout
 

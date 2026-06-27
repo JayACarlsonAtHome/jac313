@@ -23,10 +23,11 @@ Here's what changed so far.
 
 ## New axes / features
 - **`import_std`** captured — the build front-end is now *headers / modules / modules+import-std*.
-- **Build-time matrix** (`build/`): per ctest test, the **compile+link time** (compile only,
-  not the run) across **(front-end × compiler)**. clang import-std shows **NA** (a g++-15
-  pilot only today, by design — fills in automatically when clang supports it). Drive it with
-  `tools/build_matrix.sh [tests…]`. It is **separate from the pre-push gate** — never runs on push.
+- **Compile-time matrix** (`compiler-build-times/`): per smoke+bench test, the **compile+link
+  time** · status · binary size across **(front-end × compiler)**, **host-scoped** (one section
+  per `jac313-###` with its cpu/cores/ram/os). Folded into the CLI as `jac313_test_cli build-times`
+  — `.ninja_log` timing, gap-filled per host (builds only what's missing), and it **runs at push**
+  (a no-op once this host is complete).
 
 ## Verify / valgrind
 - Known **false positives are scrubbed before recording** via `suppressions/jac313.supp`

@@ -85,6 +85,8 @@ verify_world() {
     fi
     echo "[pre-push:$vdir] version-check (sub_version bumps) ..."
     "$driver" version-check || return $?
+    echo "[pre-push:$vdir] build-times (compile-time matrix; gap-filled, no-op when complete) ..."
+    "$driver" build-times || return $?
     echo "[pre-push:$vdir] valgrind verify-lite via $driver  (bypass: git push --no-verify)"
     "$driver" matrix verify-lite || return $?
 }
