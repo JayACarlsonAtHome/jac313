@@ -7,11 +7,13 @@ README](../README.md) is the overview; this is the how-to.
 
 ## 1. Toolchain
 
-C++23 is required (jText needs `<print>`; modules need a recent GCC and **Ninja ≥ 1.11**).
+C++23 is the baseline; the v002 libraries (Store, jText) build at **C++26** — the goal for this
+world — while Qlite needs only C++20 and the test framework (`jac313_test_cli`) stays
+C++23-compatible (jText needs `<print>`; modules need a recent GCC and **Ninja ≥ 1.11**).
 
-**`g++-15` and Clang 20 are the standard toolchains** on both Linux Mint and RHEL-family.
-`g++-14` is no longer required — it stays available as a conservative option
-(`--force-gcc14`), but it is not part of the readiness gate.
+**`g++-15` and Clang 20 are the standard toolchains** on both Linux Mint and RHEL-family. On Linux
+Mint we install the `g++-15` PPA (it becomes the distro default within a few months); `g++-14` is no
+longer used.
 
 ### Getting g++-15
 

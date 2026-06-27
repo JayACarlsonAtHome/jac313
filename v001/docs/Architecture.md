@@ -90,22 +90,22 @@ flowchart LR
     B --> C[expand persist grid]
     C --> D[run each scenario]
     D --> E[test-results/.../logs]
-    D --> F[jac313_results.db]
+    D --> F[results.db]
     F --> G[test-summary/*.md]
 ```
 
 1. **ctest** — one invocation per registered test; module smokes + a single path per matrix binary.
-2. **Smoke matrix (116, functional)** — full persist × output-mode grid at minimal scale; used by `release-check`.
+2. **Smoke matrix (116, functional)** — full persist × output-mode grid at minimal scale; the `--smoke` gate.
 3. **Full matrix (116, functional)** — same grid with ts_store stress scaling; correctness under load.
-4. **Multi-toolchain** — `release-check-all` runs the standard set per host: **gcc15 + clang**.
+4. **Multi-toolchain** — `--run-everything` runs the standard set per host: **gcc15 + clang**.
 
 The matrix is the **functional/correctness** suite. Throughput is no longer read as "peak ops/sec"
-from test logs — it now comes from a separate `bench_suite` (curated 7-config run, headline =
+from test logs — it now comes from the `--bench` suite (curated run, headline =
 median + low–high band). See [Benchmarks.md](Benchmarks.md).
 
-Metrics are **DB-only** (`jac313_results.db`, tracked) — there are no file side-channels; the
-markdown RUN.md pages render from DB views. See [Setup.md](Setup.md#4-testing) for commands and
-the RunIdentity results layout.
+Metrics are **DB-only** (`results.db`, tracked) — there are no file side-channels; the host-scoped
+markdown pages render from it. See [Setup.md](Setup.md#4-testing) for commands and the RunIdentity
+results layout.
 
 ### Testing without CI theatre
 

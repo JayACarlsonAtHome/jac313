@@ -1,12 +1,14 @@
 //File:    docs/RunAllTests.md
 //Date:    2026-06-19
-//Purpose: One-stop runbook — the full jac313 test battery via `matrix run-all`
+//Purpose: One-stop runbook — the full jac313 test battery via `--run-everything`
 
 # RunAllTests — the full jac313 test battery
 
-**One command runs everything:** `matrix run-all` builds + runs every *missing* combo of
-**{compiler} × {build_type} × {modules} × {size}** for this host, then renders the results.
-It's **idempotent and resumable** — re-run it and it only does what's still missing.
+**One command runs the battery:** `--run-everything` configures, builds, and gates **both**
+toolchains (gcc15 + clang) — ctest, smoke matrix, throughput bench, valgrind verify, and the
+`build-times` compile-time matrix — then renders the host-scoped report. The `build-times` step
+is **gap-filled per host** (builds only the compile-time cells this machine lacks); the rest
+re-runs each time.
 
 > **gcc14 is excluded by design** — gcc15 + clang are the gate on every platform.
 
@@ -34,25 +36,24 @@ repo lives on, so there's nothing to set per machine.
 
 ---
 
-## 1. Run everything — `matrix run-all`
+## 1. Run everything — `--run-everything`
 
 ```bash
-$ACT $CLI matrix run-all              # every MISSING combo for this host
-$ACT $CLI matrix run-all --dry-run    # list what WOULD run, then stop
-$ACT $CLI matrix run-all --no-full    # smoke combos only (skip the heavy xFull)
-$ACT $CLI matrix run-all --force      # re-run everything, ignore what's already done
+$ACT $CLI --run-everything    # the full battery on both compilers, then render the report
+$ACT $CLI --ctest --smoke     # quick green first: ctest + smoke, ~20 s
 ```
 
-`run-all` diffs the desired matrix against the results DB
-(`v_desired_matrix LEFT JOIN runs WHERE r.id IS NULL`) and runs the gap. Kill it mid-sweep
-and re-run — it picks up the remainder. The full sweep (16 combos incl. xFull builds) is a
-~2 hr "leave-it-running" job; start with `--dry-run` to see the plan.
+`--run-everything` runs configure → build → ctest → smoke → bench for **both** gcc15 and clang,
+then valgrind verify, the `build-times` compile-time matrix, and `--report`. It's a
+"leave-it-running" job; do `--ctest --smoke` first for a fast green. (There's no `run-all`
+gap-fill composer anymore — to fill the full **16-combo** Debug/Release × modules × smoke/full
+sweep, run the `matrix runner` grid in §3; `build-times` is the only step that gap-fills.)
 
 ---
 
 ## 2. Run ONE configuration — `matrix runner`
 
-To test a single thing, use the `runner` primitive (the same unit `run-all` composes).
+To test a single thing, use the `runner` primitive (the explicit-config unit the §3 grid uses).
 Every dimension is explicit and the build dir is auto-named:
 
 ```bash
@@ -74,7 +75,7 @@ That builds `build-gcc15-debug-textual`, runs the smoke matrix, and records
 
 ## 3. Every combo, spelled out (copy-paste any one line)
 
-These are the **16 invocations `run-all` composes** — grab a line to test exactly one cell:
+These are the **16 `matrix runner` invocations** for the full sweep — grab a line to test exactly one cell:
 
 ```bash
 # --- gcc15 ---
@@ -104,12 +105,14 @@ RunIdentity dimension keeps module vs textual from colliding).
 
 ---
 
-## 4. Render the summary
+## 4. Render the report
 
 ```bash
-$CLI matrix render --all     # regenerate every RUN.md + the hub README from the DB
+$CLI --report     # regenerate the host-scoped pages from results.db
 ```
-`run-all` renders as it goes; this is for a manual refresh.
+`--run-everything` renders at the end; `--report` is for a manual refresh. Pages land under
+`test-summary/{ctest,smoke,bench,verify,verify-lite,compiler-build-times}/README.md`, each split
+into `## jac313-###` sections per machine.
 
 ---
 
@@ -131,10 +134,11 @@ Verdict-only (no DB write) — non-zero exit on any error. `verify-lite` is the 
 
 | Tier | Command | Scope |
 |------|---------|-------|
-| Functional | `matrix run-all` | every combo, ctest + smoke + full, recorded to the DB |
+| Full battery | `--run-everything` | both compilers: ctest + smoke + bench + verify + build-times + report |
 | One cell | `matrix runner …` | a single explicit config |
-| Render | `matrix render --all` | DB → `test-summary/` pages |
+| Compile times | `build-times` | the compile-time matrix, gap-filled per host |
+| Render | `--report` | results.db → `test-summary/` host-scoped pages |
 | Memory/thread | `matrix verify[-lite]` | valgrind memcheck + helgrind/DRD |
 
-Results land under `test-summary/<os>/<compiler>/<build_type>/<disk>/<size>/<modules>/`,
-with metrics in the tracked `test-summary/jac313_results.db`.
+Results render to `test-summary/{type}/README.md`, each host-scoped into `## jac313-###`
+sections, with metrics in the tracked `test-summary/results.db`.

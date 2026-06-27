@@ -7,11 +7,12 @@ README](../README.md) is the overview; this is the how-to.
 
 ## 1. Toolchain
 
-C++23 is required (jText needs `<print>`; modules need a recent GCC and **Ninja ≥ 1.11**).
+C++23 throughout — libraries and test framework alike (jText needs `<print>`; modules need a recent
+GCC and **Ninja ≥ 1.11**). v001 is the proven C++23 baseline; the C++26 work lives in v002.
 
-**`g++-15` and Clang 20 are the standard toolchains** on both Linux Mint and RHEL-family.
-`g++-14` is no longer required — it stays available as a conservative option
-(`--force-gcc14`), but it is not part of the readiness gate.
+**`g++-15` and Clang 20 are the standard toolchains** on both Linux Mint and RHEL-family. On Linux
+Mint we install the `g++-15` PPA (it becomes the distro default within a few months); `g++-14` is no
+longer used.
 
 ### Getting g++-15
 
@@ -124,13 +125,13 @@ recorded identity dimension, so Debug and Release results never conflate.
 
 > **Run the whole battery at once:** [RunAllTests.md](RunAllTests.md) is the copy-paste
 > runbook — gcc15 + clang, smoke + full Debug + full Release (modules + no-modules), plus
-> the optional valgrind `cleancheck` gate (no gcc14).
+> the optional valgrind `--verify-lite` / `--verify` gates.
 
 ### Tiers (not the same thing)
 
 | Tier | Command | What runs | Wall-clock | Purpose |
 |------|---------|-----------|-----------|---------|
-| **ctest** | `all` / `release-check` (step 3) | registered tests: store units, matrix bins 001–008 (one persist path each), module smoke, RunIdentity + OS-dedup regression | seconds | Compile/link sanity; one path per binary |
+| **ctest** | `--ctest` (preset) | registered tests: store units, matrix bins 001–008 (one persist path each), module smoke, RunIdentity + OS-dedup regression | seconds | Compile/link sanity; one path per binary |
 | **Smoke matrix** | `matrix run` | **115 scenarios**: each matrix test × persist backend (binary, jText, SQL, inmem, flags, unit) × on/off | ~15 s | Daily gate; full persist grid, minimal scale |
 | **Full matrix** | `matrix run --params tests/test_params_full.txt` | same 115 with ts_store stress scaling | **~9–10 min/compiler** | Correctness under load |
 
@@ -138,7 +139,7 @@ The Smoke/Full matrix above is the **functional/correctness** suite (unchanged) 
 every persist backend stays correct across scale. **It is not how you benchmark throughput.**
 
 **ctest is not the matrix.** ctest runs each matrix binary once; the matrix re-runs them many
-times with different persist backends and CLI scaling. `release-check` runs ctest **then** the
+times with different persist backends and CLI scaling. `--ctest --smoke` runs ctest **then** the
 smoke matrix (115), not the full matrix.
 
 ### Throughput benchmark (separate)
@@ -147,8 +148,8 @@ Throughput now has its own runner — it has moved **out** of the functional mat
 root:
 
 ```bash
-bash Store/tests/matrix/bench_suite.sh            # curated 7-config suite (~90 s)
-bash Store/tests/matrix/bench_suite.sh --dry-run  # print the copy-paste command list
+./build/tools/jac313_test_cli --bench             # curated suite, numbers to stdout
+./build/tools/jac313_test_cli --bench --report    # record → results.db + render the report
 ```
 
 A curated 7-config suite (non-durable flag sweep + durable jText/SQL/binary). The headline is the
@@ -156,12 +157,12 @@ A curated 7-config suite (non-durable flag sweep + durable jText/SQL/binary). Th
 
 ```bash
 ./build/tools/jac313_test_cli compilers                                  # probe toolchains
-./build/tools/jac313_test_cli all --modules                             # ctest only
-./build/tools/jac313_test_cli matrix run --gcc15                        # smoke matrix (115)
+./build/tools/jac313_test_cli --ctest --smoke                           # ctest + smoke gate (~20 s)
 ./build/tools/jac313_test_cli matrix run --params tests/test_params_full.txt   # full matrix
-./build/tools/jac313_test_cli release-check --gcc15                     # ctest → smoke gate
-./build/tools/jac313_test_cli release-check-all                         # platform gate (gcc15 + clang)
-./build/tools/jac313_test_cli cleancheck --gcc15                        # valgrind gate (memcheck + helgrind/DRD)
+./build/tools/jac313_test_cli --bench --report                          # throughput → results.db + render
+./build/tools/jac313_test_cli build-times                               # compile-time matrix (gap-filled per host)
+./build/tools/jac313_test_cli --verify-lite                             # valgrind memcheck gate (pre-push hook)
+./build/tools/jac313_test_cli --run-everything                          # full battery: both compilers + report
 ./build/tools/jac313_test_cli version-check                            # version() bump gate (git, no build)
 ./build/tools/jac313_test_cli matrix run --filter sql                   # scenario filter
 ```
@@ -169,22 +170,22 @@ A curated 7-config suite (non-durable flag sweep + durable jText/SQL/binary). Th
 `version-check` is the **version gate**: each package (Qlite/jText/Store) exposes
 `jac313::<Pkg>::v001::version()` — its `"major.minor"` version (`"v001.001"` now; major = the
 `v001` API line). When a package's shipped code changes, its `version()` literal must be
-bumped; `version-check` (git-only, no build) fails if a bump is owed. It runs in the
-**pre-push hook before `cleancheck`** (cheap check first).
+bumped; `version-check` (git-only, no build) fails if a bump is owed. It runs **first** in the
+pre-push hook (cheap check before the heavier gates).
 
-`cleancheck` is the **valgrind gate**: it self-builds an annotated Debug tree and runs
-memcheck + helgrind/DRD over a representative smoke set, exiting non-zero on any error.
-`bootstrap.sh` installs it as a **pre-push hook** (`tools/hooks/pre-push` →
-`.git/hooks/pre-push`), so it runs before every push; bypass once with `git push
---no-verify`. Needs valgrind installed. Details in
-[docs/Memory-And-Concurrency.md](Memory-And-Concurrency.md).
+`--verify-lite` is the **valgrind gate**: it self-builds an annotated Debug tree and runs
+memcheck + helgrind/DRD over a representative smoke set, exiting non-zero on any error
+(`--verify` covers the full sink set). `bootstrap.sh` installs the **pre-push hook**
+(`tools/hooks/pre-push` → `.git/hooks/pre-push`), which runs `version-check → build-times →
+verify-lite` before every push; bypass once with `git push --no-verify`. Needs valgrind
+installed. Details in [docs/Memory-And-Concurrency.md](Memory-And-Concurrency.md).
 
 ### Results layout
 
 | Path | Tracked | Contents |
 |------|---------|----------|
 | `test-results/` | gitignored | Raw scenario logs from local matrix runs |
-| `test-summary/jac313_results.db` | tracked | Source of truth for metrics; markdown renders from DB views |
+| `test-summary/results.db` | tracked | Source of truth for metrics; host-scoped markdown pages render from it |
 
 A run is keyed by its **RunIdentity** — `(os, compiler, build_type, disk, size)` — defined once
 in [`run_identity.hpp`](../tools/jac313_test_cli/) so DB keys, the results path, and rendered
