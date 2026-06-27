@@ -218,6 +218,11 @@ $ACT cmake -G Ninja -S "$ROOT" -B "$BUILD" \
 $ACT cmake --build "$BUILD" --target jac313_test_cli
 CLI="$BUILD/tools/jac313_test_cli"
 
+# Convenience symlink at the version root so everyday commands read `./jac313_test_cli ...`
+# (target lives in the gitignored build-bootstrap/; the symlink itself is gitignored too).
+ln -sfn "build-bootstrap/tools/jac313_test_cli" "$ROOT/jac313_test_cli"
+echo "Linked ./jac313_test_cli -> build-bootstrap/tools/jac313_test_cli"
+
 # --- install the pre-push gate hook (git hooks are local, not version-controlled) ---
 # Runs the valgrind verify-lite before every push. Bypass once with: git push --no-verify
 # Under the v00N/ layout the repo's .git lives at the PARENT root (shared by every
