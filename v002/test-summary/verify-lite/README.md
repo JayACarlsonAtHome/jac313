@@ -1,0 +1,37 @@
+# verify-lite — compiler comparison
+
+_Generated from `results.db`. Columns are compilers (latest run each); cell = ms (pass) or status._
+
+| scenario | [gcc15](Run_023.md) |
+|---|--:|
+| jac313_store_001_TS · binary · drd | pass · 602 |
+| jac313_store_001_TS · binary · helgrind | pass · 601 |
+| jac313_store_001_TS · binary · memcheck | pass · 752 |
+| jac313_store_001_TS · jtext · drd | pass · 602 |
+| jac313_store_001_TS · jtext · helgrind | pass · 601 |
+| jac313_store_001_TS · jtext · memcheck | pass · 752 |
+| jac313_store_001_TS · none · memcheck | pass · 601 |
+| jac313_store_001_TS · sql · drd | pass · 652 |
+| jac313_store_001_TS · sql · helgrind | pass · 1,557 |
+| jac313_store_001_TS · sql · memcheck | pass · 1,610 |
+| jac313_store_002_TS · binary · memcheck | pass · 601 |
+| jac313_store_003_TS · binary · memcheck | pass · 752 |
+| jac313_store_003_TS · none · drd | pass · 551 |
+| jac313_store_003_TS · none · helgrind | pass · 552 |
+| jac313_store_004_TS · binary · memcheck | pass · 703 |
+| jac313_store_005_TS · binary · memcheck | pass · 551 |
+| jac313_store_006_TS · binary · memcheck | pass · 702 |
+| jac313_store_006_TS · none · drd | pass · 501 |
+| jac313_store_006_TS · none · helgrind | pass · 501 |
+| jac313_store_007_TS · binary · memcheck | pass · 552 |
+| jac313_store_008_TS · binary · memcheck | pass · 1,204 |
+| jac313_store_binary_persist_smoke · memcheck | pass · 401 |
+| jac313_store_binary_reader_test · memcheck | pass · 752 |
+| jac313_store_binary_to_jtext_smoke · memcheck | pass · 450 |
+| jac313_store_flag_routing_smoke · memcheck | pass · 904 |
+| jac313_store_flags · memcheck | pass · 251 |
+| jac313_store_jtext_persist_smoke · memcheck | pass · 400 |
+| jac313_store_metric_view · memcheck | pass · 352 |
+| jac313_store_sql_persist_smoke · memcheck | pass · 853 |
+| jac313_store_v002_example · memcheck | pass · 251 |
+| jac313_store_v002_test · memcheck | pass · 451 |
