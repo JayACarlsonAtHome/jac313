@@ -49,3 +49,15 @@ test-results/
 # Generated, per-machine provisioning script + local recipe override
 /Setup.sh
 /recipes.local.conf
+
+# Convenience symlink to the bootstrap-built runner (target lives in a gitignored build dir)
+/jac313_test_cli
+
+# Generated, re-runnable preset script (overwritten each preset invocation)
+/run_latest_config.sh
+
+# store_bench durable output at the v001 root (cwd-relative: bench.bin / .jtext / .sql / .db)
+/bench*
+
+# build-times gate's transient per-config trees (safe_rmdir'd after each, but ignore if interrupted)
+/tmp_build/
