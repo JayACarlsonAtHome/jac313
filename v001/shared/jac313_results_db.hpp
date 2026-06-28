@@ -54,20 +54,20 @@ inline void ensure_schema(Sqlite& db) {
             "COALESCE(size,''), COALESCE(persist,''), COALESCE(output_mode,''), COALESCE(threads,-1), "
             "COALESCE(events_per_thread,-1), COALESCE(runs,-1), COALESCE(batch,-1), COALESCE(flag_count,-1), "
             "COALESCE(valgrind_tool,''))");
+    // run = per-run metadata only. The hardware lives in host_spec (one row per machine), so it is
+    // NOT duplicated across every run; run references the machine via group_id.
     db.exec("CREATE TABLE IF NOT EXISTS run ("
-            "run_id INTEGER PRIMARY KEY, ts_utc TEXT, group_id INTEGER, host TEXT, cpu TEXT, cores INTEGER, "
-            "ram_gb INTEGER, os TEXT, disk TEXT, p_cores INTEGER, cpu_mhz_min INTEGER, cpu_mhz_max INTEGER, "
+            "run_id INTEGER PRIMARY KEY, ts_utc TEXT, group_id INTEGER, host TEXT, "
             "store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
-    // Migrate older run tables. disk is part of the host identity (x7k/10k/ssd on the same box ->
-    // distinct group_id). p_cores/cpu_mhz_min/cpu_mhz_max are display-only (the machines table).
-    for (const char* col : {"disk TEXT", "p_cores INTEGER", "cpu_mhz_min INTEGER", "cpu_mhz_max INTEGER"}) {
-        const std::string spec(col);
-        const std::string name = spec.substr(0, spec.find(' '));
-        std::int64_t has = 0;
-        { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('run') WHERE name=?");
-          st.bind(name); if (st.step()) st.get(has); }
-        if (has == 0) db.exec(std::string("ALTER TABLE run ADD COLUMN ") + col);
-    }
+    // host_spec = the hardware identity, ONE row per machine (group_id). cpu/cores/ram_gb/os/disk are
+    // the group_id key (disk in the key: x7k vs 10k vs ssd on one box -> distinct groups, durable
+    // throughput being disk-bound); p_cores / cpu_mhz_min / cpu_mhz_max are display-only (machines table).
+    db.exec("CREATE TABLE IF NOT EXISTS host_spec ("
+            "group_id INTEGER PRIMARY KEY, cpu TEXT, cores INTEGER, p_cores INTEGER, ram_gb INTEGER, "
+            "cpu_mhz_min INTEGER, cpu_mhz_max INTEGER, disk TEXT, os TEXT)");
+    // current_host = the single row naming which machine THIS checkout is (group_id). bootstrap/CLI
+    // set it when they sense; store_bench READS it instead of self-sensing.
+    db.exec("CREATE TABLE IF NOT EXISTS current_host (id INTEGER PRIMARY KEY CHECK(id=1), group_id INTEGER)");
     db.exec("CREATE TABLE IF NOT EXISTS testRun ("
             "id INTEGER PRIMARY KEY, run_id INTEGER, test_type_id INTEGER, test_list_id INTEGER, parameter_id INTEGER, "
             "status TEXT, duration_ms INTEGER, median_ops INTEGER, low_ops INTEGER, high_ops INTEGER, "
@@ -104,9 +104,34 @@ inline std::string host_label(std::int64_t group_id) {
 // disk-bound). Both writers must build HostId identically so a machine resolves to one group.
 inline std::int64_t group_id(Sqlite& db, const HostId& h) {
     std::int64_t gid = 0;
-    { auto st = db.prepare("SELECT group_id FROM run WHERE cpu=? AND cores=? AND ram_gb=? AND os=? AND disk=? LIMIT 1");
+    { auto st = db.prepare("SELECT group_id FROM host_spec WHERE cpu=? AND cores=? AND ram_gb=? AND os=? AND disk=? LIMIT 1");
       st.bind(h.cpu, h.cores, h.ram_gb, h.os, h.disk); if (st.step()) st.get(gid); }
-    if (gid == 0) { auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM run"); if (st.step()) st.get(gid); }
+    if (gid == 0) { auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM host_spec"); if (st.step()) st.get(gid); }
+    return gid;
+}
+
+// Upsert this machine's hardware row (one per group_id).
+inline void upsert_host_spec(Sqlite& db, std::int64_t gid, const HostId& h) {
+    db.exec("INSERT OR REPLACE INTO host_spec(group_id, cpu, cores, p_cores, ram_gb, cpu_mhz_min, cpu_mhz_max, disk, os) "
+            "VALUES(?,?,?,?,?,?,?,?,?)",
+            gid, h.cpu, h.cores, h.p_cores, h.ram_gb, h.cpu_mhz_min, h.cpu_mhz_max, h.disk, h.os);
+}
+// Pin which machine THIS checkout is (the single current_host row).
+inline void set_current_host(Sqlite& db, std::int64_t gid) {
+    db.exec("INSERT OR REPLACE INTO current_host(id, group_id) VALUES(1, ?)", gid);
+}
+// Read the pinned group_id (0 if not yet set).
+inline std::int64_t current_host(Sqlite& db) {
+    std::int64_t gid = 0;
+    { auto st = db.prepare("SELECT group_id FROM current_host WHERE id=1"); if (st.step()) st.get(gid); }
+    return gid;
+}
+// Resolve this machine: find-or-assign group_id, write host_spec + current_host, return group_id.
+// The CLI/bootstrap call this when they sense; store_bench just reads current_host().
+inline std::int64_t pin_host(Sqlite& db, const HostId& h) {
+    const std::int64_t gid = group_id(db, h);
+    upsert_host_spec(db, gid, h);
+    set_current_host(db, gid);
     return gid;
 }
 
@@ -118,13 +143,11 @@ inline std::int64_t next_run_id(Sqlite& db) {
 
 // Insert a run row (idempotent on run_id). store_ver/qlite_ver/jtext_ver default empty (functional runs).
 inline void insert_run(Sqlite& db, std::int64_t run_id, std::int64_t gid, const std::string& host,
-                       const HostId& h, const std::string& store_ver = "",
+                       const std::string& store_ver = "",
                        const std::string& qlite_ver = "", const std::string& jtext_ver = "") {
-    db.exec("INSERT OR IGNORE INTO run(run_id, ts_utc, group_id, host, cpu, cores, ram_gb, os, disk, "
-            "p_cores, cpu_mhz_min, cpu_mhz_max, store_ver, qlite_ver, jtext_ver) "
-            "VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?,?,?, ?,?,?, ?,?,?)",
-            run_id, gid, host, h.cpu, h.cores, h.ram_gb, h.os, h.disk,
-            h.p_cores, h.cpu_mhz_min, h.cpu_mhz_max, store_ver, qlite_ver, jtext_ver);
+    db.exec("INSERT OR IGNORE INTO run(run_id, ts_utc, group_id, host, store_ver, qlite_ver, jtext_ver) "
+            "VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?)",
+            run_id, gid, host, store_ver, qlite_ver, jtext_ver);
 }
 
 } // namespace jac313::results

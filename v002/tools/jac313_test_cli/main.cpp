@@ -157,6 +157,25 @@ void seed_test_catalog(const fs::path& source_dir, const std::vector<TestEntry>&
 void record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
                           const std::vector<TestResult>& results);
 
+// "jac313-### · compiler · disk" — the host/compiler/disk line shown above each summary's pass/fail.
+// compiler comes from the build dir (build-gcc15 -> gcc15); jac313-### is resolved against host_spec.
+inline std::string summary_context_line(const GlobalOptions& global) {
+    const auto hw = collect_host_hardware_record(detect_disk_type("."));
+    std::string cc = global.build_dir.filename().string();
+    if (cc.rfind("build-", 0) == 0) cc = cc.substr(6);
+    std::string label = "jac313-???";
+    try {
+        jac313::Qlite::v002::Sqlite db((global.source_dir / "test-summary" / "results.db").string());
+        jac313::results::ensure_schema(db);
+        const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
+            static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label,
+            static_cast<std::int64_t>(hw.p_cores), static_cast<std::int64_t>(hw.cpu_mhz_min),
+            static_cast<std::int64_t>(hw.cpu_mhz_max)};
+        label = jac313::results::host_label(jac313::results::group_id(db, h));
+    } catch (...) {}
+    return label + "  ·  " + cc + "  ·  " + (hw.disk_type_label.empty() ? "?" : hw.disk_type_label);
+}
+
 int run_tests_command(const GlobalOptions& global, const RunOptions& opts,
                       const std::optional<fs::path>& report_path)
 {
@@ -184,7 +203,7 @@ int run_tests_command(const GlobalOptions& global, const RunOptions& opts,
         return 1;
     }
     const auto summary = summarize(results);
-    print_summary(summary, results);
+    print_summary(summary, results, summary_context_line(global));
 
     record_ctest_results(global.source_dir, global.build_dir, results);   // capture into results.db
 
@@ -376,9 +395,9 @@ std::int64_t cli_begin_run(jac313::Qlite::v002::Sqlite& db) {
     const auto hw = collect_host_hardware_record(detect_disk_type("."));
     const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
                                     static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label, static_cast<std::int64_t>(hw.p_cores), static_cast<std::int64_t>(hw.cpu_mhz_min), static_cast<std::int64_t>(hw.cpu_mhz_max)};
-    const std::int64_t group_id = jac313::results::group_id(db, h);
+    const std::int64_t group_id = jac313::results::pin_host(db, h);   // find-or-assign + write host_spec + current_host
     const std::int64_t run_id   = jac313::results::next_run_id(db);
-    jac313::results::insert_run(db, run_id, group_id, jac313::results::host_label(group_id), h);
+    jac313::results::insert_run(db, run_id, group_id, jac313::results::host_label(group_id));
     return run_id;
 }
 
@@ -562,7 +581,7 @@ void write_type_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out, cons
         if (comps.empty()) continue;
 
         std::string cpu, os, disk; std::int64_t cores = 0, ram = 0;
-        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os, disk FROM run WHERE group_id=? LIMIT 1");
+        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os, disk FROM host_spec WHERE group_id=? LIMIT 1");
           st.bind(g); if (st.step()) st.get(cpu, cores, ram, os, disk); }
         md << "\n## " << jac313::results::host_label(g) << " — " << dash(cpu) << " · " << cores
            << " cores · " << ram << " GB · " << dash(os) << (disk.empty() ? std::string() : " · " + disk) << "\n\n";
@@ -670,7 +689,7 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
         if (comps.empty()) continue;
 
         std::string cpu, os, disk; std::int64_t cores = 0, ram = 0;
-        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os, disk FROM run WHERE group_id=? LIMIT 1");
+        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os, disk FROM host_spec WHERE group_id=? LIMIT 1");
           st.bind(g); if (st.step()) st.get(cpu, cores, ram, os, disk); }
         md << "\n## " << jac313::results::host_label(g) << " — " << dash(cpu) << " · " << cores
            << " cores · " << ram << " GB · " << dash(os) << (disk.empty() ? std::string() : " · " + disk) << "\n\n";
@@ -740,7 +759,7 @@ void write_build_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     struct Config { std::string label, cname, bt, mod, imp; std::int64_t cmajor; };
     for (const std::int64_t g : groups) {
         std::string cpu, os, disk; std::int64_t cores = 0, ram = 0;
-        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os, disk FROM run WHERE group_id=? LIMIT 1");
+        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os, disk FROM host_spec WHERE group_id=? LIMIT 1");
           st.bind(g); if (st.step()) st.get(cpu, cores, ram, os, disk); }
         md << "\n## " << jac313::results::host_label(g) << " — " << dash(cpu) << " · " << cores
            << " cores · " << ram << " GB · " << dash(os) << (disk.empty() ? std::string() : " · " + disk) << "\n\n";
@@ -799,8 +818,8 @@ void write_index_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     {
         bool any = false;
         auto st = db.prepare(
-            "SELECT group_id, cpu, cpu_mhz_min, cpu_mhz_max, p_cores, cores, ram_gb, disk, os FROM run r "
-            "WHERE run_id=(SELECT MAX(run_id) FROM run WHERE group_id=r.group_id) ORDER BY group_id");
+            "SELECT group_id, cpu, cpu_mhz_min, cpu_mhz_max, p_cores, cores, ram_gb, disk, os "
+            "FROM host_spec ORDER BY group_id");
         while (st.step()) {
             if (!any) { md << "## Machines\n\n| machine | CPU | Speed | P.Cores | T.Cores | RAM | Disk | OS |\n"
                               "|---|---|--:|--:|--:|--:|---|---|\n"; any = true; }
@@ -1082,9 +1101,9 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
     const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
                                     static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label, static_cast<std::int64_t>(hw.p_cores), static_cast<std::int64_t>(hw.cpu_mhz_min), static_cast<std::int64_t>(hw.cpu_mhz_max)};
     bool new_setup = false;
-    { auto st = db.prepare("SELECT 1 FROM run WHERE cpu=? AND cores=? AND ram_gb=? AND os=? LIMIT 1");
-      st.bind(h.cpu, h.cores, h.ram_gb, h.os); new_setup = !st.step(); }
-    const std::int64_t gid = jac313::results::group_id(db, h);
+    { auto st = db.prepare("SELECT 1 FROM host_spec WHERE cpu=? AND cores=? AND ram_gb=? AND os=? AND disk=? LIMIT 1");
+      st.bind(h.cpu, h.cores, h.ram_gb, h.os, h.disk); new_setup = !st.step(); }
+    const std::int64_t gid = jac313::results::pin_host(db, h);   // record host_spec + current_host
     const std::string host = jac313::results::host_label(gid);
     std::cout << "=== build-times gate — " << host << (new_setup ? "  *** NEW SETUP (full collection) ***" : "")
               << " ===\n";
@@ -1334,10 +1353,19 @@ int run_matrix_run_command(const GlobalOptions& global,
     }
 
     std::cout << "\n=== matrix summary ===\n";
-    std::cout << "Passed:  " << format_count(tally.passed) << '\n';
-    std::cout << "Failed:  " << format_count(tally.failed) << '\n';
-    std::cout << "Skipped: " << format_count(tally.skipped) << '\n';
-    std::cout << "Errors:  " << format_count(tally.errors) << '\n';
+    std::cout << summary_context_line(global) << '\n';   // jac313-### · compiler · disk
+    // Workload (constant per run) — shown once here, spelled out, instead of on every scenario line.
+    for (const auto& r : results) if (r.scenario.threads > 0) {
+        std::cout << "Workload: threads=" << format_count(r.scenario.threads)
+                  << "  events/thread=" << format_count(r.scenario.events_per_thread)
+                  << "  runs=" << format_count(r.scenario.runs) << '\n';
+        break;
+    }
+    std::cout << "Passed:  " << format_count_padded(tally.passed) << '\n';
+    std::cout << "Failed:  " << format_count_padded(tally.failed) << '\n';
+    std::cout << "Skipped: " << format_count_padded(tally.skipped) << '\n';
+    std::cout << "Errors:  " << format_count_padded(tally.errors) << '\n';
+    std::cout << "\n\n";   // two blank lines after the smoke summary
 
     // Capture this smoke run into results.db (one testRun row per scenario).
     record_matrix_results(global.source_dir, global.build_dir, results, build_type,
@@ -1799,14 +1827,15 @@ int run_group_id_command(const GlobalOptions& global) {
         const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
                                         static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label, static_cast<std::int64_t>(hw.p_cores), static_cast<std::int64_t>(hw.cpu_mhz_min), static_cast<std::int64_t>(hw.cpu_mhz_max)};
         std::cout << "=== group-id precheck (read-only — test-summary/results.db) ===\n\n"
-                     "Existing machine groups (from the run table):\n"
+                     "Existing machine groups (from host_spec):\n"
                      "  gid | host       | hardware                          | os\n"
                      "  ----+------------+-----------------------------------+----------------------\n";
         std::int64_t db_max = 0; bool any = false;
-        { auto st = db.prepare("SELECT DISTINCT group_id, host, cpu, cores, ram_gb, os FROM run ORDER BY group_id");
+        { auto st = db.prepare("SELECT group_id, cpu, cores, ram_gb, os FROM host_spec ORDER BY group_id");
           while (st.step()) {
-              std::int64_t gid = 0, cores = 0, ram = 0; std::string host, cpu, os;
-              st.get(gid, host, cpu, cores, ram, os);
+              std::int64_t gid = 0, cores = 0, ram = 0; std::string cpu, os;
+              st.get(gid, cpu, cores, ram, os);
+              const std::string host = jac313::results::host_label(gid);
               if (gid > db_max) db_max = gid; any = true;
               const std::string hwd = cpu + " (" + std::to_string(cores) + "c/" + std::to_string(ram) + "G)";
               char line[480];
@@ -2047,6 +2076,32 @@ int main(int argc, char** argv) {
             else if (a == "--force") force = true;   // rebuild everything (ignore fast-skip + gap-query)
             else if (a == "--source-dir" && i + 1 < argc) src = argv[++i]; }
         return run_build_times_gate(src, dry, force);
+    }
+    if (command == "host") {   // sense + pin THIS machine (host_spec + current_host) and show the grid
+        fs::path src = ".";
+        for (int i = 2; i < argc; ++i) { const std::string a = argv[i]; if (a == "--source-dir" && i + 1 < argc) src = argv[++i]; }
+        const fs::path db_path = src / "test-summary" / "results.db";
+        std::error_code ec;
+        if (!fs::exists(db_path.parent_path(), ec)) { std::cerr << "host: no test-summary/.\n"; return 1; }
+        jac313::Qlite::v002::Sqlite db(db_path.string());
+        jac313::results::ensure_schema(db);
+        const auto hw = collect_host_hardware_record(detect_disk_type("."));
+        const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
+            static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label,
+            static_cast<std::int64_t>(hw.p_cores), static_cast<std::int64_t>(hw.cpu_mhz_min),
+            static_cast<std::int64_t>(hw.cpu_mhz_max)};
+        const std::int64_t gid = jac313::results::pin_host(db, h);
+        char speed[40]; std::snprintf(speed, sizeof speed, "%.1f-%.1f GHz",
+            static_cast<double>(h.cpu_mhz_min) / 1000.0, static_cast<double>(h.cpu_mhz_max) / 1000.0);
+        std::cout << "=== host — " << jac313::results::host_label(gid) << " (pinned as current_host) ===\n"
+                  << "  CPU      " << h.cpu << "\n"
+                  << "  Speed    " << (h.cpu_mhz_max > 0 ? speed : "-") << "\n"
+                  << "  P.Cores  " << h.p_cores << "      T.Cores  " << h.cores << "\n"
+                  << "  RAM      " << h.ram_gb << " GB\n"
+                  << "  Disk     " << dash(h.disk) << "\n"
+                  << "  OS       " << h.os << "\n"
+                  << "  * P.Cores = Physical Cores; T.Cores = Threading Cores\n";
+        return 0;
     }
     if (command.rfind('-', 0) == 0) {
         command = "run";

@@ -192,17 +192,23 @@ std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
     const int total = static_cast<int>(selected.size());
     int index = 0;
 
+    // Right-pad the test name to the longest, and the index to the total's width, so the " ... PASS"
+    // column starts in the same spot for every test.
+    std::size_t name_w = 0;
+    for (const auto& t : selected) if (t.name.size() > name_w) name_w = t.name.size();
+    const std::size_t idx_w = format_count(total).size();
+
     for (const auto& test : selected) {
         ++index;
-        std::cout << "[" << format_count(index) << "/" << format_count(total) << "] "
-                  << test.name << " ... ";
+        std::cout << "[" << format_count_padded(index, idx_w) << "/" << format_count(total) << "] "
+                  << test.name << std::string(name_w - test.name.size(), ' ') << " ... ";
         std::cout.flush();
 
         TestResult result = run_test(test, verbose, effective_failsafe_sec(opts));
 
         switch (result.status) {
         case TestStatus::Passed:
-            std::cout << "PASS (" << format_count(result.duration.count()) << " ms)\n";
+            std::cout << "PASS (" << format_count_padded(result.duration.count()) << " ms)\n";
             break;
         case TestStatus::Skipped:
             std::cout << "SKIP";
@@ -216,7 +222,7 @@ std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
             if (!result.message.empty()) {
                 std::cout << " — " << result.message;
             }
-            std::cout << " (" << format_count(result.duration.count()) << " ms)\n";
+            std::cout << " (" << format_count_padded(result.duration.count()) << " ms)\n";
             if (!result.stdout_tail.empty()) {
                 std::cout << "--- stdout ---\n" << result.stdout_tail << '\n';
             }

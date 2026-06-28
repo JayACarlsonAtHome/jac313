@@ -50,8 +50,9 @@ test-results/
 /Setup.sh
 /recipes.local.conf
 
-# Convenience symlink to the bootstrap-built runner (target lives in a gitignored build dir)
+# Convenience symlinks to the bootstrap-built tools (targets live in a gitignored build dir)
 /jac313_test_cli
+/jac313_clean_slate
 
 # Generated, re-runnable preset script (overwritten each preset invocation)
 /run_latest_config.sh

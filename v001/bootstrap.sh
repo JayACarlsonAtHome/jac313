@@ -216,12 +216,15 @@ echo "=== building jac313_test_cli (one-time bootstrap compile) ==="
 $ACT cmake -G Ninja -S "$ROOT" -B "$BUILD" \
   -DCMAKE_CXX_COMPILER="$CXX" -DCMAKE_BUILD_TYPE=Debug
 $ACT cmake --build "$BUILD" --target jac313_test_cli
+$ACT cmake --build "$BUILD" --target jac313_clean_slate
 CLI="$BUILD/tools/jac313_test_cli"
 
-# Convenience symlink at the version root so everyday commands read `./jac313_test_cli ...`
-# (target lives in the gitignored build-bootstrap/; the symlink itself is gitignored too).
+# Convenience symlinks at the version root so everyday commands read `./jac313_test_cli ...` and
+# `./jac313_clean_slate ...` (targets live in the gitignored build-bootstrap/; the symlinks are gitignored too).
 ln -sfn "build-bootstrap/tools/jac313_test_cli" "$ROOT/jac313_test_cli"
+ln -sfn "build-bootstrap/tools/jac313_clean_slate" "$ROOT/jac313_clean_slate"
 echo "Linked ./jac313_test_cli -> build-bootstrap/tools/jac313_test_cli"
+echo "Linked ./jac313_clean_slate -> build-bootstrap/tools/jac313_clean_slate"
 
 # --- install the pre-push gate hook (git hooks are local, not version-controlled) ---
 # Runs the valgrind verify-lite before every push. Bypass once with: git push --no-verify
@@ -251,6 +254,11 @@ fi
 echo
 echo "=== handing off to jac313_test_cli ==="
 $ACT "$CLI" setup
+
+# Sense + pin THIS machine (host_spec + current_host) and show the hardware grid, so every later
+# gate records under the same jac313-### without re-sensing.
+echo
+$ACT "$CLI" host
 
 echo
 echo "Bootstrap complete. The tool now drives platform-aware builds — e.g.:"

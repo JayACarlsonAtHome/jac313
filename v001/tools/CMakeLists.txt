@@ -42,3 +42,12 @@ if(TARGET jac313::Qlite)
     target_link_libraries(jac313_identity_dedup_test PRIVATE jac313::Qlite)
 endif()
 add_test(NAME jac313_identity_dedup_test COMMAND jac313_identity_dedup_test)
+
+# jac313_clean_slate — standalone results.db reset tool (schema + testType enum kept;
+# data + host_spec + current_host pin cleared). Built by bootstrap; symlinked at the v001 root.
+add_executable(jac313_clean_slate jac313_clean_slate.cpp)
+target_compile_features(jac313_clean_slate PRIVATE cxx_std_23)
+target_include_directories(jac313_clean_slate PRIVATE ${CMAKE_SOURCE_DIR}/shared)   # jac313_results_db.hpp
+if(TARGET jac313::Qlite)
+    target_link_libraries(jac313_clean_slate PRIVATE jac313::Qlite)
+endif()

@@ -432,11 +432,16 @@ void record_to_results_db(const Params& p, const BenchSummary& s) {
     try {
         jac313::Qlite::v002::Sqlite db(results_db_path(p.db_path).string());
         ensure_results_schema(db);
-        HostInfo h = sense_host();
-        const std::int64_t group_id = results_group_id(db, h);
-        if (host_label_override().empty()) h.host = host_label_for(group_id);
+        // Read the pinned machine (set by the CLI/bootstrap). store_bench no longer self-senses the
+        // host, so it can't disagree on disk/cores and split the machine into a separate group.
+        const std::int64_t group_id = jac313::results::current_host(db);
+        if (group_id == 0) {
+            std::cerr << "[results] no current_host pinned (run a CLI gate or ./bootstrap.sh first) — "
+                         "not recording bench rows.\n";
+            return;
+        }
         const std::int64_t run_id = (p.run_id != 0) ? p.run_id : results_next_run_id(db);
-        jac313::results::insert_run(db, run_id, group_id, h.host, {h.cpu, h.cores, h.ram_gb, h.os},
+        jac313::results::insert_run(db, run_id, group_id, jac313::results::host_label(group_id),
                                     std::string(jac313::Store::v002::version()),
                                     std::string(jac313::Qlite::v002::version()), p.jtext_ver);
         std::string base = p.label;
@@ -544,6 +549,7 @@ int run_suite(Params base, bool dry, bool smoke) {
         emit_bench_stats(durations, total);
         record_to_db(p, compute_bench_summary(durations, total));
     }
+    std::cout << "\n\n";   // two blank lines after the bench suite, for visual separation
     return 0;
 }
 

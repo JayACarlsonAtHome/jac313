@@ -38,6 +38,14 @@ inline std::string format_count(T value) {
     }
 }
 
+// format_count, left-padded (right-justified with spaces) to a fixed field — default 7 = 6 digits +
+// 1 grouping comma — so a stacked column of counts / ms values lines up on the right.
+inline std::string format_count_padded(std::int64_t value, std::size_t width = 7) {
+    std::string s = format_count(value);
+    if (s.size() < width) s.insert(0, width - s.size(), ' ');
+    return s;
+}
+
 inline std::string format_duration_human(int ms) {
     if (ms < 0) {
         ms = 0;

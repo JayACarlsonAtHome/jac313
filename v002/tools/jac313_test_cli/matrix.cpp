@@ -297,11 +297,7 @@ void print_matrix_scenario_line(const MatrixScenario& scen,
     std::cout << "] " << ljust(scen.entry.name, static_cast<std::size_t>(name_width));
     if (scen.category == "matrix") {
         std::cout << " | " << ljust(scen.persist, 6) << " | " << ljust(scen.output_mode, 3);
-        if (scen.threads > 0) {
-            std::cout << " (t=" << format_count(scen.threads)
-                      << ", e=" << format_count(scen.events_per_thread)
-                      << ", r=" << format_count(scen.runs) << ')';
-        }
+        // workload (threads/events/runs) is constant per run — shown once in the matrix summary, not here.
     } else {
         std::cout << " (" << scen.package << '/' << scen.category << ')';
     }
@@ -441,7 +437,7 @@ std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scena
 
         switch (run.result.status) {
         case TestStatus::Passed:
-            std::cout << "PASS (" << format_count(run.result.duration.count()) << " ms)\n";
+            std::cout << "PASS (" << format_count_padded(run.result.duration.count()) << " ms)\n";
             break;
         case TestStatus::Skipped:
             std::cout << "SKIP";
@@ -452,7 +448,7 @@ std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scena
             break;
         case TestStatus::Failed:
             std::cout << "FAIL — " << run.result.message
-                      << " (" << format_count(run.result.duration.count()) << " ms)\n";
+                      << " (" << format_count_padded(run.result.duration.count()) << " ms)\n";
             if (run.result.message.find("failsafe timeout") != std::string::npos) {
                 std::cout << "  (killed — exceeded failsafe " << format_count(opts.failsafe_sec)
                           << "s)\n";

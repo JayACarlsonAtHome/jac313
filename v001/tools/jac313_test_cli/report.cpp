@@ -21,13 +21,15 @@ RunSummary summarize(const std::vector<TestResult>& results) {
     return summary;
 }
 
-void print_summary(const RunSummary& summary, const std::vector<TestResult>& results) {
+void print_summary(const RunSummary& summary, const std::vector<TestResult>& results,
+                   const std::string& context) {
     std::cout << "\n=== jac313 test summary ===\n";
-    std::cout << "Passed:  " << format_count(summary.passed) << '\n';
-    std::cout << "Failed:  " << format_count(summary.failed) << '\n';
-    std::cout << "Skipped: " << format_count(summary.skipped) << '\n';
-    std::cout << "Errors:  " << format_count(summary.errors) << '\n';
-    std::cout << "Time:    " << format_count(summary.total_duration.count()) << " ms\n";
+    if (!context.empty()) std::cout << context << '\n';   // jac313-### · compiler · disk
+    std::cout << "Passed:  " << format_count_padded(summary.passed) << '\n';
+    std::cout << "Failed:  " << format_count_padded(summary.failed) << '\n';
+    std::cout << "Skipped: " << format_count_padded(summary.skipped) << '\n';
+    std::cout << "Errors:  " << format_count_padded(summary.errors) << '\n';
+    std::cout << "Time:    " << format_count_padded(summary.total_duration.count()) << " ms\n";
 
     if (summary.failed > 0 || summary.errors > 0) {
         std::cout << "\nFailures:\n";
@@ -41,6 +43,7 @@ void print_summary(const RunSummary& summary, const std::vector<TestResult>& res
             }
         }
     }
+    std::cout << "\n\n";   // two blank lines after the summary, for visual separation
 }
 
 bool write_summary_file(const std::filesystem::path& path,

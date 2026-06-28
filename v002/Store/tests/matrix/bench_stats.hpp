@@ -105,9 +105,9 @@ inline void emit_bench_stats(const std::vector<std::size_t>& durations_us,
     std::cout << "             FINAL RESULT — " << bench_group_thousands(s.runs)
               << "-RUN STATISTICS\n";
     std::cout << "═══════════════════════════════════════════════════════════════\n";
-    std::cout << "  Median (headline)  : " << bench_group_thousands(s.median) << " ops/sec\n";
-    std::cout << "  Fastest run (high) : " << bench_group_thousands(s.high) << " ops/sec\n";
-    std::cout << "  Slowest run (low)  : " << bench_group_thousands(s.low) << " ops/sec\n";
+    std::cout << "  Median             : " << bench_group_thousands(s.median) << " ops/sec\n";
+    std::cout << "  Fastest run        : " << bench_group_thousands(s.high) << " ops/sec\n";
+    std::cout << "  Slowest run        : " << bench_group_thousands(s.low) << " ops/sec\n";
     std::cout << "  Average            : " << bench_group_thousands(s.avg) << " ops/sec\n";
     std::cout << "  Std deviation      : " << bench_group_thousands(s.stddev) << " ops/sec\n";
     std::cout << "  (" << bench_group_thousands(s.events_per_run)

@@ -216,13 +216,16 @@ echo "=== building jac313_test_cli (one-time bootstrap compile) ==="
 $ACT cmake -G Ninja -S "$ROOT" -B "$BUILD" \
   -DCMAKE_CXX_COMPILER="$CXX" -DCMAKE_BUILD_TYPE=Debug
 $ACT cmake --build "$BUILD" --target jac313_test_cli
+$ACT cmake --build "$BUILD" --target jac313_clean_slate
 CLI="$BUILD/tools/jac313_test_cli"
 
-# Convenience entry point: a symlink at the v002/ root so everyday use is ./jac313_test_cli
-# instead of the deep build path. Relative target survives a repo move; it's gitignored
-# (the target lives in the gitignored build-bootstrap/).
+# Convenience entry points: symlinks at the v002/ root so everyday use is ./jac313_test_cli and
+# ./jac313_clean_slate instead of the deep build path. Relative targets survive a repo move; both are
+# gitignored (the targets live in the gitignored build-bootstrap/).
 ln -sfn "build-bootstrap/tools/jac313_test_cli" "$ROOT/jac313_test_cli"
+ln -sfn "build-bootstrap/tools/jac313_clean_slate" "$ROOT/jac313_clean_slate"
 echo "Linked ./jac313_test_cli -> build-bootstrap/tools/jac313_test_cli"
+echo "Linked ./jac313_clean_slate -> build-bootstrap/tools/jac313_clean_slate"
 
 # --- compiler pin (Setup/compilers.pin): find-or-create THIS machine's row ---
 # Already-pinned box -> no-op (the pin is never overwritten). New machine -> sense + pin the highest
@@ -260,6 +263,11 @@ fi
 echo
 echo "=== handing off to jac313_test_cli ==="
 $ACT "$CLI" setup
+
+# Sense + pin THIS machine (host_spec + current_host) and show the hardware grid, so every later
+# gate — and store_bench — record under the same jac313-### without re-sensing.
+echo
+$ACT "$CLI" host
 
 echo
 echo "Bootstrap complete. Run the everyday base check from v002/:"

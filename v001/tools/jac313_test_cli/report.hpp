@@ -16,7 +16,8 @@ struct RunSummary {
 };
 
 RunSummary summarize(const std::vector<TestResult>& results);
-void print_summary(const RunSummary& summary, const std::vector<TestResult>& results);
+void print_summary(const RunSummary& summary, const std::vector<TestResult>& results,
+                   const std::string& context = "");
 bool write_summary_file(const std::filesystem::path& path,
                         const RunSummary& summary,
                         const std::vector<TestResult>& results);
