@@ -64,13 +64,14 @@ void print_usage() {
         "Preset gates (no subcommand — compose freely; writes & runs ./run_latest_config.sh):\n"
         "  --ctest              ctest unit suite\n"
         "  --smoke              persist x output smoke matrix\n"
-        "  --bench              throughput benchmark (numbers to stdout)\n"
-        "  --report             with --bench: also record the DB + render the report\n"
+        "  --bench              throughput benchmark (auto-records to results.db, like every gate)\n"
+        "  --report             render-only: (re)build the .md report pages from results.db\n"
         "  --verify-lite        valgrind memcheck over the ctest + smoke surface\n"
         "  --verify             valgrind memcheck + helgrind + DRD\n"
         "  --group-id           read-only precheck: which jac313-<group_id> this machine records under\n"
         "  --run-everything     the FULL battery: every gate on both compilers + build-times + report\n"
-        "  (everyday: --ctest --smoke ; recorded bench: --bench --report ; all of it: --run-everything)\n\n"
+        "  (every gate auto-records; --report only renders. everyday: --ctest --smoke ;\n"
+        "   bench: --bench ; render: --report ; all of it: --run-everything)\n\n"
         "Run options:\n"
         "  --filter <regex>     Run only matching tests (matrix: scenario filter)\n"
         "  --fail-fast          Stop on first failure\n"
@@ -1769,14 +1770,10 @@ int run_preset_command(const GlobalOptions& global, const ConfigureOptions& conf
             emit("\"$CLI\" configure --release --build-dir " + dir + " " + cc.flag);
             emit("cmake --build " + dir + " --target jac313_store_bench");
             emit("BENCH=\"" + dir + "/Store/tests/matrix/jac313_store_bench\"");
-            if (preset.report) {
-                emit("# record numbers to results.db (rendered once after both compilers, below)");
-                emit("\"$BENCH\" --suite --db test-summary/results.db --jtext-ver v001.002");
-            } else {
-                emit("\"$BENCH\" --suite");                      // numbers to stdout only
-            }
+            // bench auto-records like every other gate (no --report needed); --report only renders.
+            emit("\"$BENCH\" --suite --db test-summary/results.db --jtext-ver v001.002");
         }
-        if (preset.report) emit("\"$CLI\" --report");            // render ONCE after both compilers
+        if (preset.report) emit("\"$CLI\" --report");            // render-only, ONCE after both compilers
         emit("");
     }
 
