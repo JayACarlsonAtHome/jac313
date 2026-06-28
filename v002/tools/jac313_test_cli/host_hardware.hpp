@@ -7,9 +7,12 @@ namespace jac313::test_cli {
 struct HostHardwareRecord {
     std::string hostname;
     std::string cpu_model;
-    int cpu_cores{0};
+    int cpu_cores{0};        // logical/thread count (T.Cores)
+    int p_cores{0};          // physical cores (P.Cores)
     int ram_gb{0};
     int cpu_mhz{0};
+    int cpu_mhz_min{0};      // min/max clock for the Speed range (MHz)
+    int cpu_mhz_max{0};
     std::string storage_model;
     std::string disk_type_label;
     std::string os_pretty;

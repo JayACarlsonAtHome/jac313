@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <string>
 #include <sys/utsname.h>
@@ -86,6 +87,47 @@ std::optional<int> max_cpu_mhz() {
         }
     }
     return max_mhz > 0 ? std::optional<int>{max_mhz} : std::nullopt;
+}
+
+// Physical core count = (cpu cores per socket) × (distinct "physical id" sockets). Falls back to
+// nullopt (caller uses the logical/thread count) when /proc/cpuinfo omits the topology.
+std::optional<int> physical_core_count() {
+    std::ifstream in("/proc/cpuinfo");
+    if (!in) {
+        return std::nullopt;
+    }
+    int cores_per_socket = 0;
+    std::set<std::string> sockets;
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.starts_with("cpu cores")) {
+            const auto colon = line.find(':');
+            if (colon != std::string::npos) {
+                try { cores_per_socket = std::stoi(trim(line.substr(colon + 1))); } catch (const std::exception&) {}
+            }
+        } else if (line.starts_with("physical id")) {
+            const auto colon = line.find(':');
+            if (colon != std::string::npos) {
+                sockets.insert(trim(line.substr(colon + 1)));
+            }
+        }
+    }
+    if (cores_per_socket > 0) {
+        const int socket_count = sockets.empty() ? 1 : static_cast<int>(sockets.size());
+        return cores_per_socket * socket_count;
+    }
+    return std::nullopt;
+}
+
+// Min/max clock (MHz) from sysfs cpufreq (file values are kHz). nullopt if unavailable.
+std::optional<int> cpu_freq_mhz(const char* cpufreq_file) {
+    std::ifstream in(std::string("/sys/devices/system/cpu/cpu0/cpufreq/") + cpufreq_file);
+    if (!in) {
+        return std::nullopt;
+    }
+    long khz = 0;
+    in >> khz;
+    return khz > 0 ? std::optional<int>{static_cast<int>(khz / 1000)} : std::nullopt;
 }
 
 std::optional<std::string> first_cpu_model() {
@@ -347,10 +389,17 @@ HostHardwareRecord collect_host_hardware_record(const std::string& disk_type_lab
         record.cpu_model = *cpu;
     }
     if (const auto cores = cpu_core_count()) {
-        record.cpu_cores = *cores;
+        record.cpu_cores = *cores;          // logical/thread count (T.Cores)
     }
+    record.p_cores = physical_core_count().value_or(record.cpu_cores);  // physical (P.Cores); fall back to threads
     if (const auto mhz = max_cpu_mhz()) {
         record.cpu_mhz = *mhz;
+    }
+    if (const auto lo = cpu_freq_mhz("cpuinfo_min_freq")) {
+        record.cpu_mhz_min = *lo;
+    }
+    if (const auto hi = cpu_freq_mhz("cpuinfo_max_freq")) {
+        record.cpu_mhz_max = *hi;
     }
     if (const auto mem = mem_total_human()) {
         std::istringstream stream(*mem);

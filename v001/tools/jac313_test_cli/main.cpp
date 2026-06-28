@@ -375,7 +375,7 @@ std::int64_t cli_begin_run(jac313::Qlite::v001::Sqlite& db) {
     jac313::results::ensure_schema(db);
     const auto hw = collect_host_hardware_record(detect_disk_type("."));
     const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
-                                    static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label};
+                                    static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label, static_cast<std::int64_t>(hw.p_cores), static_cast<std::int64_t>(hw.cpu_mhz_min), static_cast<std::int64_t>(hw.cpu_mhz_max)};
     const std::int64_t group_id = jac313::results::group_id(db, h);
     const std::int64_t run_id   = jac313::results::next_run_id(db);
     jac313::results::insert_run(db, run_id, group_id, jac313::results::host_label(group_id), h);
@@ -793,8 +793,31 @@ void write_build_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
 // type that has data (with its run/row counts).
 void write_index_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
     std::ofstream md(out / "README.md");
-    md << "# Test results\n\n_Generated from `results.db` by `jac313_test_cli --report`._\n\n"
-          "| area | runs | rows |\n|---|--:|--:|\n"
+    md << "# Test results\n\n_Generated from `results.db` by `jac313_test_cli --report`._\n\n";
+
+    // Machines table — decodes each jac313-### (latest run per group) with its hardware spec.
+    {
+        bool any = false;
+        auto st = db.prepare(
+            "SELECT group_id, cpu, cpu_mhz_min, cpu_mhz_max, p_cores, cores, ram_gb, disk, os FROM run r "
+            "WHERE run_id=(SELECT MAX(run_id) FROM run WHERE group_id=r.group_id) ORDER BY group_id");
+        while (st.step()) {
+            if (!any) { md << "## Machines\n\n| machine | CPU | Speed | P.Cores | T.Cores | RAM | Disk | OS |\n"
+                              "|---|---|--:|--:|--:|--:|---|---|\n"; any = true; }
+            std::int64_t gid = 0, mhz_lo = 0, mhz_hi = 0, p_cores = 0, t_cores = 0, ram = 0;
+            std::string cpu, disk, os;
+            st.get(gid, cpu, mhz_lo, mhz_hi, p_cores, t_cores, ram, disk, os);
+            std::string speed = "-";
+            if (mhz_hi > 0) { char b[40]; std::snprintf(b, sizeof b, "%.1f–%.1f GHz",
+                              static_cast<double>(mhz_lo) / 1000.0, static_cast<double>(mhz_hi) / 1000.0); speed = b; }
+            md << "| " << jac313::results::host_label(gid) << " | " << dash(cpu) << " | " << speed
+               << " | " << p_cores << " | " << t_cores << " | " << ram << " GB | " << dash(disk)
+               << " | " << dash(os) << " |\n";
+        }
+        if (any) md << "\n\\* P.Cores = Physical Cores; T.Cores = Threading Cores\n\n";
+    }
+
+    md << "| area | runs | rows |\n|---|--:|--:|\n"
           "| [compilers](compiler/README.md) | — | — |\n";
     // testType name (DB) vs. output dir/link name (GitHub-facing): they match except for
     // 'build', whose page lives in compiler-build-times/ to avoid the **/build/ ignore rule.
@@ -1057,7 +1080,7 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
     jac313::results::ensure_schema(db);
     const HostHardwareRecord hw = collect_host_hardware_record(detect_disk_type("."));
     const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
-                                    static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label};
+                                    static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label, static_cast<std::int64_t>(hw.p_cores), static_cast<std::int64_t>(hw.cpu_mhz_min), static_cast<std::int64_t>(hw.cpu_mhz_max)};
     bool new_setup = false;
     { auto st = db.prepare("SELECT 1 FROM run WHERE cpu=? AND cores=? AND ram_gb=? AND os=? LIMIT 1");
       st.bind(h.cpu, h.cores, h.ram_gb, h.os); new_setup = !st.step(); }
@@ -1774,7 +1797,7 @@ int run_group_id_command(const GlobalOptions& global) {
         jac313::results::ensure_schema(db);
         const auto hw = collect_host_hardware_record(detect_disk_type("."));
         const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
-                                        static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty};
+                                        static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label, static_cast<std::int64_t>(hw.p_cores), static_cast<std::int64_t>(hw.cpu_mhz_min), static_cast<std::int64_t>(hw.cpu_mhz_max)};
         std::cout << "=== group-id precheck (read-only — test-summary/results.db) ===\n\n"
                      "Existing machine groups (from the run table):\n"
                      "  gid | host       | hardware                          | os\n"

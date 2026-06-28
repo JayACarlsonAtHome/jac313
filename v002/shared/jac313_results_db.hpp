@@ -56,14 +56,17 @@ inline void ensure_schema(Sqlite& db) {
             "COALESCE(valgrind_tool,''))");
     db.exec("CREATE TABLE IF NOT EXISTS run ("
             "run_id INTEGER PRIMARY KEY, ts_utc TEXT, group_id INTEGER, host TEXT, cpu TEXT, cores INTEGER, "
-            "ram_gb INTEGER, os TEXT, disk TEXT, store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
-    // Migrate older run tables: add disk. Disk tier is part of the host identity (x7k/10k/ssd on the
-    // same box -> distinct group_id), so existing DBs need the column before group_id() can key on it.
-    {
-        std::int64_t has_disk = 0;
-        { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('run') WHERE name='disk'");
-          if (st.step()) st.get(has_disk); }
-        if (has_disk == 0) db.exec("ALTER TABLE run ADD COLUMN disk TEXT");
+            "ram_gb INTEGER, os TEXT, disk TEXT, p_cores INTEGER, cpu_mhz_min INTEGER, cpu_mhz_max INTEGER, "
+            "store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
+    // Migrate older run tables. disk is part of the host identity (x7k/10k/ssd on the same box ->
+    // distinct group_id). p_cores/cpu_mhz_min/cpu_mhz_max are display-only (the machines table).
+    for (const char* col : {"disk TEXT", "p_cores INTEGER", "cpu_mhz_min INTEGER", "cpu_mhz_max INTEGER"}) {
+        const std::string spec(col);
+        const std::string name = spec.substr(0, spec.find(' '));
+        std::int64_t has = 0;
+        { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('run') WHERE name=?");
+          st.bind(name); if (st.step()) st.get(has); }
+        if (has == 0) db.exec(std::string("ALTER TABLE run ADD COLUMN ") + col);
     }
     db.exec("CREATE TABLE IF NOT EXISTS testRun ("
             "id INTEGER PRIMARY KEY, run_id INTEGER, test_type_id INTEGER, test_list_id INTEGER, parameter_id INTEGER, "
@@ -87,7 +90,10 @@ inline std::int64_t compiler_id(Sqlite& db, const CompilerInfo& c) {
 }
 
 // ---- machine identity + run ----
-struct HostId { std::string cpu; std::int64_t cores = 0; std::int64_t ram_gb = 0; std::string os; std::string disk; };
+// Identity (group_id key) = cpu, cores, ram_gb, os, disk. The trailing p_cores / cpu_mhz_min /
+// cpu_mhz_max are DISPLAY-ONLY (machines table) — carried here for convenience, NOT part of the key.
+struct HostId { std::string cpu; std::int64_t cores = 0; std::int64_t ram_gb = 0; std::string os; std::string disk;
+                std::int64_t p_cores = 0; std::int64_t cpu_mhz_min = 0; std::int64_t cpu_mhz_max = 0; };
 
 inline std::string host_label(std::int64_t group_id) {
     char b[24]; std::snprintf(b, sizeof b, "jac313-%03lld", static_cast<long long>(group_id)); return b;
@@ -115,8 +121,10 @@ inline void insert_run(Sqlite& db, std::int64_t run_id, std::int64_t gid, const 
                        const HostId& h, const std::string& store_ver = "",
                        const std::string& qlite_ver = "", const std::string& jtext_ver = "") {
     db.exec("INSERT OR IGNORE INTO run(run_id, ts_utc, group_id, host, cpu, cores, ram_gb, os, disk, "
-            "store_ver, qlite_ver, jtext_ver) VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?,?,?, ?,?,?)",
-            run_id, gid, host, h.cpu, h.cores, h.ram_gb, h.os, h.disk, store_ver, qlite_ver, jtext_ver);
+            "p_cores, cpu_mhz_min, cpu_mhz_max, store_ver, qlite_ver, jtext_ver) "
+            "VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?,?,?, ?,?,?, ?,?,?)",
+            run_id, gid, host, h.cpu, h.cores, h.ram_gb, h.os, h.disk,
+            h.p_cores, h.cpu_mhz_min, h.cpu_mhz_max, store_ver, qlite_ver, jtext_ver);
 }
 
 } // namespace jac313::results
