@@ -16,6 +16,11 @@ namespace jac313::results {
 
 using Sqlite = jac313::Qlite::v001::Sqlite;
 
+// Reusable scalar-query helpers live in Qlite (canonical, shared); surface them here for results code.
+using jac313::Qlite::v001::get_one_long;
+using jac313::Qlite::v001::get_one_string;
+using jac313::Qlite::v001::get_one_double;
+
 // ---- schema (the single source of truth for results.db) ----
 inline void ensure_schema(Sqlite& db) {
     db.exec("CREATE TABLE IF NOT EXISTS testType (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, description TEXT)");
@@ -72,11 +77,44 @@ inline void ensure_schema(Sqlite& db) {
             "id INTEGER PRIMARY KEY, run_id INTEGER, test_type_id INTEGER, test_list_id INTEGER, parameter_id INTEGER, "
             "status TEXT, duration_ms INTEGER, median_ops INTEGER, low_ops INTEGER, high_ops INTEGER, "
             "avg_ops INTEGER, stddev_ops INTEGER, bytes INTEGER)");
+    // safeness = per (machine x gate x compiler) pass/fail summary, recomputed from testRun at record
+    // time by rebuild_safeness() so the report + run-everything verdict READ it (never recount).
+    db.exec("CREATE TABLE IF NOT EXISTS safeness ("
+            "group_id INTEGER, gate TEXT, compiler TEXT, pass INTEGER, fail INTEGER, "
+            "PRIMARY KEY(group_id, gate, compiler))");
 }
 
 // single-id lookup (e.g. "SELECT id FROM testList WHERE name=?")
 inline std::int64_t lookup_id(Sqlite& db, const char* sql, const std::string& name) {
     std::int64_t id = 0; auto st = db.prepare(sql); st.bind(name); if (st.step()) st.get(id); return id;
+}
+
+// Recompute the safeness summary from testRun. Called at the END of every recorder so the report +
+// run-everything verdict just READ the table (never recount). compiler label = name||major (== comp_label).
+// NOTE: counts aggregate across ALL runs for a (group,gate,compiler); run-everything wipes the DB fresh
+// so that's one run each. (Incremental re-runs without a wipe would accumulate — acceptable for now.)
+inline void rebuild_safeness(Sqlite& db) {
+    db.exec("DELETE FROM safeness");
+    // pass/fail are NULL-safe: bench rows store throughput with status=NULL (a row exists only on
+    // success), so COALESCE(status,'pass') treats them as pass; only 'fail'/'error' count as failures.
+    db.exec("INSERT INTO safeness(group_id, gate, compiler, pass, fail) "
+            "SELECT r.group_id, tt.name, c.name||c.major, "
+            "SUM(CASE WHEN COALESCE(tr.status,'pass') IN ('fail','error') THEN 0 ELSE 1 END), "
+            "SUM(CASE WHEN COALESCE(tr.status,'pass') IN ('fail','error') THEN 1 ELSE 0 END) "
+            "FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
+            "JOIN testType tt ON tt.id=tr.test_type_id "
+            "JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
+            "WHERE tt.name IN ('ctest','smoke','bench') "
+            "GROUP BY r.group_id, tt.name, c.name||c.major");
+    db.exec("INSERT INTO safeness(group_id, gate, compiler, pass, fail) "
+            "SELECT r.group_id, p.valgrind_tool, c.name||c.major, "
+            "SUM(CASE WHEN COALESCE(tr.status,'pass') IN ('fail','error') THEN 0 ELSE 1 END), "
+            "SUM(CASE WHEN COALESCE(tr.status,'pass') IN ('fail','error') THEN 1 ELSE 0 END) "
+            "FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
+            "JOIN testType tt ON tt.id=tr.test_type_id "
+            "JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
+            "WHERE tt.name IN ('verify','verify-lite') AND p.valgrind_tool IS NOT NULL "
+            "GROUP BY r.group_id, p.valgrind_tool, c.name||c.major");
 }
 
 // ---- compiler dimension ----

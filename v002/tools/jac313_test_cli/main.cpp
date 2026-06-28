@@ -837,6 +837,44 @@ void write_index_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
         if (any) md << "\n\\* P.Cores = Physical Cores; T.Cores = Threading Cores\n\n";
     }
 
+    // Safeness — summary-of-summary verdict per machine, read from the `safeness` table (never recounts).
+    {
+        struct GatePF { std::int64_t pass = 0, fail = 0, ran = 0; };
+        auto gate_pf = [&](std::int64_t g, const char* gate) {
+            GatePF x; auto st = db.prepare("SELECT COALESCE(SUM(pass),0), COALESCE(SUM(fail),0), COUNT(*) "
+                                           "FROM safeness WHERE group_id=? AND gate=?");
+            st.bind(g, std::string(gate)); if (st.step()) st.get(x.pass, x.fail, x.ran); return x; };
+        auto pf_cell = [](const GatePF& x) { return x.ran ? (std::to_string(x.pass) + "/" + std::to_string(x.fail)) : std::string("-"); };
+        auto vg_cell = [](const GatePF& x) { return x.ran ? std::string(x.fail == 0 ? "✅" : "❌") : std::string("n/a"); };
+        std::vector<std::int64_t> groups;
+        { auto st = db.prepare("SELECT DISTINCT group_id FROM safeness ORDER BY group_id");
+          while (st.step()) { std::int64_t g = 0; st.get(g); groups.push_back(g); } }
+        if (!groups.empty()) {
+            md << "## Safeness\n\n| machine | verdict | ctest | smoke | bench | mem | hel | drd |\n"
+                  "|---|---|--:|--:|--:|:--:|:--:|:--:|\n";
+            for (const std::int64_t g : groups) {
+                const GatePF ct = gate_pf(g, "ctest"), sm = gate_pf(g, "smoke"), bn = gate_pf(g, "bench");
+                const GatePF me = gate_pf(g, "memcheck"), he = gate_pf(g, "helgrind"), dr = gate_pf(g, "drd");
+                const bool ran  = ct.ran && sm.ran && bn.ran && me.ran && he.ran && dr.ran;
+                const bool clean = (ct.fail + sm.fail + bn.fail + me.fail + he.fail + dr.fail) == 0;
+                md << "| " << jac313::results::host_label(g) << " | " << ((ran && clean) ? "✅ PRESUMED SAFE" : "❌ NOT SAFE")
+                   << " | " << pf_cell(ct) << " | " << pf_cell(sm) << " | " << pf_cell(bn)
+                   << " | " << vg_cell(me) << " | " << vg_cell(he) << " | " << vg_cell(dr) << " |\n";
+            }
+            md << "\n\\* ✅ PRESUMED SAFE = builds + ctest/smoke/bench 0-fail + memcheck/helgrind/drd clean, "
+                  "both compilers. Presumed, not proven.\n\n";
+            for (const std::int64_t g : groups) {
+                const GatePF ct = gate_pf(g, "ctest"), sm = gate_pf(g, "smoke"), bn = gate_pf(g, "bench");
+                const GatePF me = gate_pf(g, "memcheck"), he = gate_pf(g, "helgrind"), dr = gate_pf(g, "drd");
+                md << "### " << jac313::results::host_label(g) << " — gate detail\n\n"
+                      "| gate | pass | fail | memcheck | helgrind | drd |\n|---|--:|--:|:--:|:--:|:--:|\n"
+                   << "| ctest | " << ct.pass << " | " << ct.fail << " | " << vg_cell(me) << " | " << vg_cell(he) << " | " << vg_cell(dr) << " |\n"
+                   << "| smoke | " << sm.pass << " | " << sm.fail << " | n/a | n/a | n/a |\n"
+                   << "| bench | " << bn.pass << " | " << bn.fail << " | n/a | n/a | n/a |\n\n";
+            }
+        }
+    }
+
     md << "| area | runs | rows |\n|---|--:|--:|\n"
           "| [compilers](compiler/README.md) | — | — |\n";
     // testType name (DB) vs. output dir/link name (GitHub-facing): they match except for
@@ -1204,6 +1242,7 @@ void record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
                     run_id, type_id, list_id, param_id, std::string(matrix_status_str(r.status)),
                     static_cast<std::int64_t>(r.duration.count()));
         }
+        jac313::results::rebuild_safeness(db);   // refresh the safeness summary (read by report + verdict)
         std::cout << "[results] recorded " << results.size() << " ctest results (run " << run_id << ") -> "
                   << db_path.string() << '\n';
     } catch (const std::exception& e) {
@@ -1239,6 +1278,7 @@ void record_matrix_results(const fs::path& source_dir, const fs::path& build_dir
                     run_id, type_id, list_id, param_id, std::string(matrix_status_str(r.result.status)),
                     static_cast<std::int64_t>(r.result.duration.count()));
         }
+        jac313::results::rebuild_safeness(db);   // refresh the safeness summary (read by report + verdict)
         std::cout << "[results] recorded " << results.size() << " smoke results (run " << run_id << ") -> "
                   << db_path.string() << '\n';
     } catch (const std::exception& e) {
@@ -1606,6 +1646,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
                     rdb.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms) "
                              "VALUES(?,?,?,?,?,?)", run_id, type_id, list_id, param_id, v.status, v.dur_ms);
                 }
+                jac313::results::rebuild_safeness(rdb);   // refresh the safeness summary (read by report + verdict)
                 std::cout << "[results] recorded " << recs.size() << " " << name << " results (run " << run_id
                           << ") -> " << rpath.string() << '\n';
             } catch (const std::exception& e) {
@@ -1982,6 +2023,33 @@ int run_everything_command(const GlobalOptions& global) {
     step("verify clang", CLI + " matrix verify --compiler " + clang_label);
     step("build-times", CLI + " build-times");
     step("report",       CLI + " --report");
+
+    // PRESUMED-SAFE verdict block — read straight from the safeness summary (no recount).
+    try {
+        jac313::Qlite::v002::Sqlite db("test-summary/results.db");
+        const std::int64_t g = jac313::results::current_host(db);
+        if (g != 0) {
+            std::string cpu, os, disk;
+            { auto st = db.prepare("SELECT cpu, os, disk FROM host_spec WHERE group_id=?");
+              st.bind(g); if (st.step()) st.get(cpu, os, disk); }
+            struct PF { std::int64_t pass = 0, fail = 0, ran = 0; };
+            auto pf = [&](const char* gate) { PF x;
+                auto st = db.prepare("SELECT COALESCE(SUM(pass),0), COALESCE(SUM(fail),0), COUNT(*) "
+                                     "FROM safeness WHERE group_id=? AND gate=?");
+                st.bind(g, std::string(gate)); if (st.step()) st.get(x.pass, x.fail, x.ran); return x; };
+            const PF ct = pf("ctest"), sm = pf("smoke"), bn = pf("bench"),
+                     me = pf("memcheck"), he = pf("helgrind"), dr = pf("drd");
+            const std::int64_t vgfail = me.fail + he.fail + dr.fail;
+            const bool ran   = ct.ran && sm.ran && bn.ran && me.ran && he.ran && dr.ran;
+            const bool clean = (ct.fail + sm.fail + bn.fail + vgfail) == 0;
+            std::cout << "\n══════════ " << jac313::results::host_label(g) << " · " << gcc_label << "+" << clang_label
+                      << (os.empty() ? "" : " · " + os) << (disk.empty() ? "" : " · " + disk) << " ══════════\n"
+                      << ((ran && clean) ? "  ✅ PRESUMED SAFE\n" : "  ❌ NOT SAFE\n")
+                      << "    ctest " << ct.pass << "/" << ct.fail << " · smoke " << sm.pass << "/" << sm.fail
+                      << " · bench " << bn.pass << "/" << bn.fail << " · valgrind " << vgfail << " errors\n"
+                      << "════════════════════════════════════════════════════════\n";
+        }
+    } catch (...) {}
 
     std::cout << "\n######## run-everything DONE — open test-summary/README.md ########\n";
     if (failures.empty()) { std::cout << "ALL GREEN.\n"; return 0; }

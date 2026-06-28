@@ -461,6 +461,7 @@ void record_to_results_db(const Params& p, const BenchSummary& s) {
                 static_cast<std::int64_t>(s.median), static_cast<std::int64_t>(s.low),
                 static_cast<std::int64_t>(s.high), static_cast<std::int64_t>(s.avg),
                 static_cast<std::int64_t>(s.stddev), bytes);
+        jac313::results::rebuild_safeness(db);   // refresh the safeness summary (read by report + verdict)
     } catch (const std::exception& e) {
         std::cerr << "[results] record failed: " << e.what() << "\n";
     }
