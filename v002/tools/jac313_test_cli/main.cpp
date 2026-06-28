@@ -373,9 +373,9 @@ const char* matrix_status_str(TestStatus s) {
 // run row, and return its run_id. Shared by the smoke/ctest/verify recorders. Uses the shared helpers.
 std::int64_t cli_begin_run(jac313::Qlite::v002::Sqlite& db) {
     jac313::results::ensure_schema(db);
-    const auto hw = collect_host_hardware_record("");
+    const auto hw = collect_host_hardware_record(detect_disk_type("."));
     const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
-                                    static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty};
+                                    static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label};
     const std::int64_t group_id = jac313::results::group_id(db, h);
     const std::int64_t run_id   = jac313::results::next_run_id(db);
     jac313::results::insert_run(db, run_id, group_id, jac313::results::host_label(group_id), h);
@@ -561,11 +561,11 @@ void write_type_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out, cons
               comps.push_back({comp_label(name, major), run}); } }
         if (comps.empty()) continue;
 
-        std::string cpu, os; std::int64_t cores = 0, ram = 0;
-        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os FROM run WHERE group_id=? LIMIT 1");
-          st.bind(g); if (st.step()) st.get(cpu, cores, ram, os); }
+        std::string cpu, os, disk; std::int64_t cores = 0, ram = 0;
+        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os, disk FROM run WHERE group_id=? LIMIT 1");
+          st.bind(g); if (st.step()) st.get(cpu, cores, ram, os, disk); }
         md << "\n## " << jac313::results::host_label(g) << " — " << dash(cpu) << " · " << cores
-           << " cores · " << ram << " GB · " << dash(os) << "\n\n";
+           << " cores · " << ram << " GB · " << dash(os) << (disk.empty() ? std::string() : " · " + disk) << "\n\n";
 
         std::string inlist;
         for (const auto& c : comps) { if (!inlist.empty()) inlist += ","; inlist += std::to_string(c.second); }
@@ -669,11 +669,11 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
               comps.push_back({comp_label(name, major), run}); } }
         if (comps.empty()) continue;
 
-        std::string cpu, os; std::int64_t cores = 0, ram = 0;
-        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os FROM run WHERE group_id=? LIMIT 1");
-          st.bind(g); if (st.step()) st.get(cpu, cores, ram, os); }
+        std::string cpu, os, disk; std::int64_t cores = 0, ram = 0;
+        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os, disk FROM run WHERE group_id=? LIMIT 1");
+          st.bind(g); if (st.step()) st.get(cpu, cores, ram, os, disk); }
         md << "\n## " << jac313::results::host_label(g) << " — " << dash(cpu) << " · " << cores
-           << " cores · " << ram << " GB · " << dash(os) << "\n\n";
+           << " cores · " << ram << " GB · " << dash(os) << (disk.empty() ? std::string() : " · " + disk) << "\n\n";
 
         std::string inlist;
         for (const auto& c : comps) { if (!inlist.empty()) inlist += ","; inlist += std::to_string(c.second); }
@@ -739,11 +739,11 @@ void write_build_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
 
     struct Config { std::string label, cname, bt, mod, imp; std::int64_t cmajor; };
     for (const std::int64_t g : groups) {
-        std::string cpu, os; std::int64_t cores = 0, ram = 0;
-        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os FROM run WHERE group_id=? LIMIT 1");
-          st.bind(g); if (st.step()) st.get(cpu, cores, ram, os); }
+        std::string cpu, os, disk; std::int64_t cores = 0, ram = 0;
+        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os, disk FROM run WHERE group_id=? LIMIT 1");
+          st.bind(g); if (st.step()) st.get(cpu, cores, ram, os, disk); }
         md << "\n## " << jac313::results::host_label(g) << " — " << dash(cpu) << " · " << cores
-           << " cores · " << ram << " GB · " << dash(os) << "\n\n";
+           << " cores · " << ram << " GB · " << dash(os) << (disk.empty() ? std::string() : " · " + disk) << "\n\n";
 
         std::vector<Config> configs;
         { auto st = db.prepare("SELECT DISTINCT c.name, c.major, p.build_type, p.modules, p.import_std "
@@ -1055,9 +1055,9 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
     if (!fs::exists(db_path.parent_path(), ec)) { std::cerr << "build-times: no test-summary/.\n"; return 1; }
     jac313::Qlite::v002::Sqlite db(db_path.string());
     jac313::results::ensure_schema(db);
-    const HostHardwareRecord hw = collect_host_hardware_record("");
+    const HostHardwareRecord hw = collect_host_hardware_record(detect_disk_type("."));
     const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
-                                    static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty};
+                                    static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label};
     bool new_setup = false;
     { auto st = db.prepare("SELECT 1 FROM run WHERE cpu=? AND cores=? AND ram_gb=? AND os=? LIMIT 1");
       st.bind(h.cpu, h.cores, h.ram_gb, h.os); new_setup = !st.step(); }
@@ -1668,23 +1668,14 @@ int run_preset_command(const GlobalOptions& global, const ConfigureOptions& conf
         }
     }
 
-    // Forward compiler steering to the generated `configure` calls. The functional tree also
-    // honors --release / --modules; the bench tree is always Release.
-    std::string cc_flags;
-    if (configure_opts.compiler) {
-        cc_flags = " --compiler " + *configure_opts.compiler;
-    } else if (configure_opts.prefer_clang) {
-        cc_flags = " --clang";
-    } else if (configure_opts.prefer_gcc15) {
-        cc_flags = " --gcc15";
-    }
-    std::string func_flags = cc_flags;
-    if (configure_opts.build_type == "Release") {
-        func_flags += " --release";
-    }
-    if (configure_opts.modules) {
-        func_flags += " --modules";
-    }
+    // Preset gates run BOTH compilers, gcc first then clang, sequentially — each in its own build
+    // dir. Compiler-steering (--clang/--gcc15/--compiler) is IGNORED for presets (always both);
+    // --release/--modules still steer the functional tree.
+    std::string func_extra;
+    if (configure_opts.build_type == "Release") func_extra += " --release";
+    if (configure_opts.modules) func_extra += " --modules";
+    struct PresetCc { const char* flag; const char* label; };
+    const PresetCc preset_ccs[] = {{"--gcc15", "gcc15"}, {"--clang", "clang20"}};
 
     std::vector<std::string> lines;
     const auto emit = [&](std::string s) { lines.push_back(std::move(s)); };
@@ -1698,41 +1689,43 @@ int run_preset_command(const GlobalOptions& global, const ConfigureOptions& conf
     emit("");
 
     if (preset.ctest || preset.smoke) {
-        emit("# functional gate(s) — Debug tree build-gcc15, built once then run");
-        emit("\"$CLI\" configure --build-dir build-gcc15" + func_flags);
-        emit("\"$CLI\" build --build-dir build-gcc15");
-        if (preset.ctest) {
-            emit("\"$CLI\" run --build-dir build-gcc15");        // ctest unit suite
-        }
-        if (preset.smoke) {
-            emit("\"$CLI\" matrix run --build-dir build-gcc15"); // persist x output smoke grid
+        for (const auto& cc : preset_ccs) {
+            const std::string dir = std::string("build-") + cc.label;
+            emit("# functional gate — " + dir + " (Debug, built once then run)");
+            emit("\"$CLI\" configure --build-dir " + dir + " " + cc.flag + func_extra);
+            emit("\"$CLI\" build --build-dir " + dir);
+            if (preset.ctest) emit("\"$CLI\" run --build-dir " + dir);         // ctest unit suite
+            if (preset.smoke) emit("\"$CLI\" matrix run --build-dir " + dir);  // persist x output smoke grid
         }
         emit("");
     }
 
     if (preset.verify_lite) {
-        emit("# memory/thread gate — valgrind memcheck (ctest + smoke surface)");
-        emit("\"$CLI\" matrix verify-lite");
+        emit("# memory/thread gate — valgrind memcheck (ctest + smoke surface), both compilers");
+        for (const auto& cc : preset_ccs) emit(std::string("\"$CLI\" matrix verify-lite ") + cc.flag);
         emit("");
     }
     if (preset.verify) {
-        emit("# memory/thread gate — valgrind memcheck + helgrind + DRD");
-        emit("\"$CLI\" matrix verify");
+        emit("# memory/thread gate — valgrind memcheck + helgrind + DRD, both compilers");
+        for (const auto& cc : preset_ccs) emit(std::string("\"$CLI\" matrix verify ") + cc.flag);
         emit("");
     }
 
     if (preset.bench) {
-        emit("# throughput benchmark — Release tree build-bench, store_bench target only");
-        emit("\"$CLI\" configure --release --build-dir build-bench" + cc_flags);
-        emit("cmake --build build-bench --target jac313_store_bench");
-        emit("BENCH=\"build-bench/Store/tests/matrix/jac313_store_bench\"");
-        if (preset.report) {
-            emit("# record numbers to results.db, then render the report from it (host label auto-resolved)");
-            emit("\"$BENCH\" --suite --db test-summary/results.db --jtext-ver v002.002");
-            emit("./jac313_test_cli --report");
-        } else {
-            emit("\"$BENCH\" --suite");                          // numbers to stdout only
+        emit("# throughput benchmark — Release, store_bench target, both compilers");
+        for (const auto& cc : preset_ccs) {
+            const std::string dir = std::string("build-bench-") + cc.label;
+            emit("\"$CLI\" configure --release --build-dir " + dir + " " + cc.flag);
+            emit("cmake --build " + dir + " --target jac313_store_bench");
+            emit("BENCH=\"" + dir + "/Store/tests/matrix/jac313_store_bench\"");
+            if (preset.report) {
+                emit("# record numbers to results.db (rendered once after both compilers, below)");
+                emit("\"$BENCH\" --suite --db test-summary/results.db --jtext-ver v002.002");
+            } else {
+                emit("\"$BENCH\" --suite");                      // numbers to stdout only
+            }
         }
+        if (preset.report) emit("\"$CLI\" --report");            // render ONCE after both compilers
         emit("");
     }
 
@@ -1779,9 +1772,9 @@ int run_group_id_command(const GlobalOptions& global) {
     try {
         jac313::Qlite::v002::Sqlite db(db_path.string());
         jac313::results::ensure_schema(db);
-        const auto hw = collect_host_hardware_record("");
+        const auto hw = collect_host_hardware_record(detect_disk_type("."));
         const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
-                                        static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty};
+                                        static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label};
         std::cout << "=== group-id precheck (read-only — test-summary/results.db) ===\n\n"
                      "Existing machine groups (from the run table):\n"
                      "  gid | host       | hardware                          | os\n"
@@ -1863,7 +1856,7 @@ std::string highest_toolchain_label(const std::vector<ResolvedToolchain>& probes
 // Forward-declared up by the build-times gate; defined here, after the pin helpers it needs.
 std::string resolve_pinned_cc(const fs::path& src, bool want_gcc) {
     CompilerResolveRequest request; request.source_dir = src;
-    const HostHardwareRecord hw = collect_host_hardware_record("");
+    const HostHardwareRecord hw = collect_host_hardware_record(detect_disk_type("."));
     const auto rows = read_compiler_pins(src);
     const CompilerPinRow* row = find_pin_for_host(rows, hw);
     std::string label = row ? (want_gcc ? row->gcc_label : row->clang_label)
@@ -1887,7 +1880,7 @@ void write_compiler_pins(const fs::path& source_dir, const std::vector<CompilerP
 
 // {gcc_label, clang_label} for this machine: the committed pin if present, else highest-available.
 std::pair<std::string, std::string> pinned_or_highest_labels(const fs::path& source_dir) {
-    const HostHardwareRecord hw = collect_host_hardware_record("");
+    const HostHardwareRecord hw = collect_host_hardware_record(detect_disk_type("."));
     const auto rows = read_compiler_pins(source_dir);
     if (const CompilerPinRow* row = find_pin_for_host(rows, hw))
         return {row->gcc_label, row->clang_label};
@@ -1979,7 +1972,7 @@ int main(int argc, char** argv) {
             else if (a == "--clang" && i + 1 < argc) set_clang = argv[++i];
             else if (a == "--source-dir" && i + 1 < argc) src = argv[++i];
         }
-        const HostHardwareRecord hw = collect_host_hardware_record("");
+        const HostHardwareRecord hw = collect_host_hardware_record(detect_disk_type("."));
         auto rows = read_compiler_pins(src);
         const CompilerPinRow* existing = find_pin_for_host(rows, hw);
         if (!ensure && set_gcc.empty() && set_clang.empty()) {   // default: show this machine's pin

@@ -56,7 +56,15 @@ inline void ensure_schema(Sqlite& db) {
             "COALESCE(valgrind_tool,''))");
     db.exec("CREATE TABLE IF NOT EXISTS run ("
             "run_id INTEGER PRIMARY KEY, ts_utc TEXT, group_id INTEGER, host TEXT, cpu TEXT, cores INTEGER, "
-            "ram_gb INTEGER, os TEXT, store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
+            "ram_gb INTEGER, os TEXT, disk TEXT, store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
+    // Migrate older run tables: add disk. Disk tier is part of the host identity (x7k/10k/ssd on the
+    // same box -> distinct group_id), so existing DBs need the column before group_id() can key on it.
+    {
+        std::int64_t has_disk = 0;
+        { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('run') WHERE name='disk'");
+          if (st.step()) st.get(has_disk); }
+        if (has_disk == 0) db.exec("ALTER TABLE run ADD COLUMN disk TEXT");
+    }
     db.exec("CREATE TABLE IF NOT EXISTS testRun ("
             "id INTEGER PRIMARY KEY, run_id INTEGER, test_type_id INTEGER, test_list_id INTEGER, parameter_id INTEGER, "
             "status TEXT, duration_ms INTEGER, median_ops INTEGER, low_ops INTEGER, high_ops INTEGER, "
@@ -79,18 +87,19 @@ inline std::int64_t compiler_id(Sqlite& db, const CompilerInfo& c) {
 }
 
 // ---- machine identity + run ----
-struct HostId { std::string cpu; std::int64_t cores = 0; std::int64_t ram_gb = 0; std::string os; };
+struct HostId { std::string cpu; std::int64_t cores = 0; std::int64_t ram_gb = 0; std::string os; std::string disk; };
 
 inline std::string host_label(std::int64_t group_id) {
     char b[24]; std::snprintf(b, sizeof b, "jac313-%03lld", static_cast<long long>(group_id)); return b;
 }
 
-// group_id is keyed on hardware+os only (host is recorded as the anonymized label). Both writers must
-// build HostId identically (same /proc parsing) so a machine resolves to one group across the DB.
+// group_id is keyed on hardware+os+disk (host is recorded as the anonymized label). Disk tier is in
+// the key so the same box on x7k vs 10k vs ssd resolves to DISTINCT groups (durable throughput is
+// disk-bound). Both writers must build HostId identically so a machine resolves to one group.
 inline std::int64_t group_id(Sqlite& db, const HostId& h) {
     std::int64_t gid = 0;
-    { auto st = db.prepare("SELECT group_id FROM run WHERE cpu=? AND cores=? AND ram_gb=? AND os=? LIMIT 1");
-      st.bind(h.cpu, h.cores, h.ram_gb, h.os); if (st.step()) st.get(gid); }
+    { auto st = db.prepare("SELECT group_id FROM run WHERE cpu=? AND cores=? AND ram_gb=? AND os=? AND disk=? LIMIT 1");
+      st.bind(h.cpu, h.cores, h.ram_gb, h.os, h.disk); if (st.step()) st.get(gid); }
     if (gid == 0) { auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM run"); if (st.step()) st.get(gid); }
     return gid;
 }
@@ -105,9 +114,9 @@ inline std::int64_t next_run_id(Sqlite& db) {
 inline void insert_run(Sqlite& db, std::int64_t run_id, std::int64_t gid, const std::string& host,
                        const HostId& h, const std::string& store_ver = "",
                        const std::string& qlite_ver = "", const std::string& jtext_ver = "") {
-    db.exec("INSERT OR IGNORE INTO run(run_id, ts_utc, group_id, host, cpu, cores, ram_gb, os, "
-            "store_ver, qlite_ver, jtext_ver) VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?,?, ?,?,?)",
-            run_id, gid, host, h.cpu, h.cores, h.ram_gb, h.os, store_ver, qlite_ver, jtext_ver);
+    db.exec("INSERT OR IGNORE INTO run(run_id, ts_utc, group_id, host, cpu, cores, ram_gb, os, disk, "
+            "store_ver, qlite_ver, jtext_ver) VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?,?,?, ?,?,?)",
+            run_id, gid, host, h.cpu, h.cores, h.ram_gb, h.os, h.disk, store_ver, qlite_ver, jtext_ver);
 }
 
 } // namespace jac313::results
