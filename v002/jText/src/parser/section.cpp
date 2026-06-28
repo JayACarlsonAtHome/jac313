@@ -55,6 +55,23 @@ auto is_blank(std::string_view sv) -> bool
     return result;
 }
 
+auto is_standard_header_comment(std::string_view sv) -> bool
+{
+    auto s = trim(strip_eol(sv));
+    return s.starts_with("//File:") ||
+           s.starts_with("//File Name:") ||
+           s.starts_with("//Date:") ||
+           s.starts_with("//Purpose:") ||
+           s.starts_with("//Purpose -") ||
+           s.starts_with("//Related:") ||
+           s.starts_with("//Related Database:") ||
+           s.starts_with("//Related Table:") ||
+           s.starts_with("//Origin Date:") ||
+           s.starts_with("//Modified Date:") ||
+           s.starts_with("// Related Database") ||
+           s.starts_with("// Related Table");
+}
+
 auto err(file_error_kind k, std::size_t line_no, std::string msg)
     -> std::unexpected<file_error>
 {

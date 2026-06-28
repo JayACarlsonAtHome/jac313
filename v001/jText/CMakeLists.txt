@@ -16,6 +16,7 @@ project(jac313_jText VERSION 0.1.0 LANGUAGES CXX)
 
 option(JAC313_JTEXT_BUILD_EXAMPLES "Build example programs" ON)
 option(JAC313_JTEXT_BUILD_TESTS "Build and register tests" ON)
+option(JAC313_JTEXT_BUILD_TOOLS "Build the jText command-line tools (jtext_xtox_sql, jtext_from_sql)" ON)
 option(JAC313_JTEXT_BUILD_MODULES "Build jac313.jtext.v001 C++23 modules" OFF)
 # import-std pilot (g++-15 only). When ON, the module is built MODULE-NATIVE against
 # `import std;` (interface + implementation units over the shared jText.api.inc /
@@ -114,6 +115,10 @@ endif()
 
 if(JAC313_JTEXT_BUILD_EXAMPLES)
     add_subdirectory(examples)
+endif()
+
+if(JAC313_JTEXT_BUILD_TOOLS)
+    add_subdirectory(tools)
 endif()
 
 if(JAC313_JTEXT_BUILD_TESTS)

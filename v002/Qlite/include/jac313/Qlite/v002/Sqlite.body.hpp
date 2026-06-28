@@ -1,7 +1,7 @@
 // jac313::Qlite::v002 — SQLite wrapper IMPLEMENTATION BODY (single source of truth).
 //
 // This file is an include-fragment, NOT a standalone header: it has no include
-// guard, includes nothing itself, and must be included INSIDE the `Qlite::v002`
+// guard, includes nothing itself, and must be included INSIDE the `jac313::Qlite::v002`
 // namespace by exactly one of two front-ends:
 //
 //   * Sqlite.hpp        — textual header for non-module consumers. Provides the
@@ -420,3 +420,53 @@ private:
     sqlite3* db_ = nullptr;
     std::unordered_map<std::string, Statement> cache_;
 };
+
+// ---------------------------------------------------------------------------
+// Scalar "top-1" query helpers: wrap prepare/bind/step/get for a single value,
+// e.g. get_one_long(db, "SELECT n FROM t WHERE id=? LIMIT 1", id). Variadic binds.
+// No row -> the type default (0 / "" / 0.0). Genuine SQL/prepare errors PROPAGATE
+// (a malformed query must not silently read as a clean 0). The *_or variants take
+// an explicit default for the no-row case.
+// ---------------------------------------------------------------------------
+template<class... B>
+std::int64_t get_one_long(Sqlite& db, const char* sql, B&&... b) {
+    std::int64_t v = 0;
+    auto st = db.prepare(sql);
+    if constexpr (sizeof...(B) > 0) st.bind(std::forward<B>(b)...);
+    if (st.step()) st.get(v);
+    return v;
+}
+
+template<class... B>
+std::string get_one_string(Sqlite& db, const char* sql, B&&... b) {
+    std::string v;
+    auto st = db.prepare(sql);
+    if constexpr (sizeof...(B) > 0) st.bind(std::forward<B>(b)...);
+    if (st.step()) st.get(v);
+    return v;
+}
+
+template<class... B>
+double get_one_double(Sqlite& db, const char* sql, B&&... b) {
+    double v = 0.0;
+    auto st = db.prepare(sql);
+    if constexpr (sizeof...(B) > 0) st.bind(std::forward<B>(b)...);
+    if (st.step()) st.get(v);
+    return v;
+}
+
+template<class... B>
+std::int64_t get_one_long_or(Sqlite& db, const char* sql, std::int64_t deflt, B&&... b) {
+    auto st = db.prepare(sql);
+    if constexpr (sizeof...(B) > 0) st.bind(std::forward<B>(b)...);
+    if (st.step()) { std::int64_t v = 0; st.get(v); return v; }
+    return deflt;
+}
+
+template<class... B>
+std::string get_one_string_or(Sqlite& db, const char* sql, std::string deflt, B&&... b) {
+    auto st = db.prepare(sql);
+    if constexpr (sizeof...(B) > 0) st.bind(std::forward<B>(b)...);
+    if (st.step()) { std::string v; st.get(v); return v; }
+    return deflt;
+}
