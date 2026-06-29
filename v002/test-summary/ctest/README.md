@@ -2,12 +2,12 @@
 
 _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Columns are that host's compilers (latest run each); cell = ms (pass) or status._
 
-## jac313-001 — Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz · 8 cores · 31 GB · Linux Mint 22.3 · ssd
+## jac313-001 — Intel(R) Core(TM) Ultra 7 265 · 20 cores · 62 GB · Red Hat Enterprise Linux 9.8 (Plow) · ssd
 
-| scenario | [clang20](Run_005.md) | [gcc15](Run_002.md) |
+| scenario | [clang21](Run_005.md) | [gcc15](Run_002.md) |
 |---|--:|--:|
 | jac313_contracts_disabled_test | 50 | 50 |
-| jac313_contracts_enforce_test | 301 | 301 |
+| jac313_contracts_enforce_test | 100 | 100 |
 | jac313_contracts_test | 50 | 50 |
 | jac313_identity_dedup_test | 50 | 50 |
 | jac313_jtext_v002_parser_validator_test | 50 | 50 |
@@ -18,7 +18,7 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | jac313_store_001_XS | 50 | 50 |
 | jac313_store_002_TS | 50 | 50 |
 | jac313_store_002_XS | 50 | 50 |
-| jac313_store_003_TS | 51 | 50 |
+| jac313_store_003_TS | 50 | 50 |
 | jac313_store_003_XS | 50 | 50 |
 | jac313_store_004_TS | 50 | 50 |
 | jac313_store_004_XS | 50 | 50 |

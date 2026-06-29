@@ -4,5 +4,5 @@ _Generated from `results.db`._
 
 | label | name | version | major | runs |
 |---|---|---|--:|--:|
-| clang20 | clang | 20.1.2 | 20 | 7 |
-| gcc15 | gcc | 15.2.0 | 15 | 7 |
+| clang21 | clang | 21.1.8 | 21 | 7 |
+| gcc15 | gcc | 15.2.1 | 15 | 7 |

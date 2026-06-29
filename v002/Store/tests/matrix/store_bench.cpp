@@ -17,6 +17,12 @@
 // via bench_stats.hpp. Median is the headline (a tight median over many runs reads
 // as "consistently fast"); persist=none is the in-memory ceiling.
 //
+// PROCESS-LEVEL TIMING: each timed run is the FULL lifetime of a fresh child process
+// (the binary re-execs itself with --single-run). The clock spans fork/exec -> static
+// init -> store construction -> work -> finalize -> destructor teardown -> exit — i.e.
+// "time ./prog", what a user actually sees, setup and teardown included, not just the
+// hot loop. This is why the durable numbers count the real flush, not buffered bytes.
+//
 // Metric counts are compile-time (ts_store_config) — fixed here to the pure
 // payload+flags shape; metric variants would be separate compiled binaries.
 
@@ -34,6 +40,10 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#include <unistd.h>      // fork, execv, readlink, _exit, dup2  (POSIX; project is Linux-only)
+#include <sys/wait.h>    // waitpid, WIFEXITED, WEXITSTATUS
+#include <fcntl.h>       // open, O_WRONLY  (silence the worker's stdout)
 
 #include "test_common.hpp"
 #include "bench_stats.hpp"
@@ -175,12 +185,14 @@ void clean_output(const std::string& base) {
     } catch (...) {}
 }
 
-// One timed run of the full workload. Attaches persistence for THIS run when durable.
-std::optional<std::size_t> run_one(const Params& p, bool verify) {
-    if (p.persist != "none") clean_output(p.base_name);
-    // Time the FULL front edge: store construction (the threads×events buffer allocation),
-    // sink setup, and payload prep are all counted now — not trimmed. Honest end-to-end.
-    const auto start = high_resolution_clock::now();
+// The pure, user-visible workload: construct the store, attach persistence (durable),
+// drive every thread to completion, finalize the writer, then let the store fall out of
+// scope (its destructor — munmap / close / final sink teardown — runs before we return).
+// NO timing and NO output cleanup here: this is the body a freshly-exec'd child process
+// runs end to end, so the parent's process-level clock captures construction + work +
+// finalize + teardown exactly as a real program start->exit would. Returns false on
+// any failure (the child turns that into a non-zero exit).
+bool do_workload(const Params& p, bool verify) {
     LogxStore store(p.threads, p.events_per_thread);
 
     if (p.persist != "none") {
@@ -188,7 +200,7 @@ std::optional<std::size_t> run_one(const Params& p, bool verify) {
             store.attach_persistence(std::make_unique<DoubleBufferedWriter>(std::move(sink), p.batch));
         } else {
             std::cerr << "ERROR: persist='" << p.persist << "' unavailable (SQL needs JAC313_STORE_HAS_SQL_PERSIST)\n";
-            return std::nullopt;
+            return false;
         }
     }
 
@@ -213,18 +225,83 @@ std::optional<std::size_t> run_one(const Params& p, bool verify) {
         });
     }
     for (auto& th : ths) th.join();
-    // Durable honesty: drain + flush the persistence writer (and join its worker thread)
-    // INSIDE the timed region, so the durable rate counts bytes that actually reached the
-    // sink — not just bytes buffered. No-op when non-durable (no writer attached).
+    // Drain + flush the persistence writer (join its worker, finalize the sink). No-op when
+    // non-durable. The store destructor that follows at scope exit does the rest of teardown;
+    // both land inside the child's process lifetime, so both are counted.
     store.finalize_persistence();
-    const auto end = high_resolution_clock::now();
 
-    // Verification is correctness, not throughput — kept OUT of the timed region and run
-    // only when asked. The benchmark verifies the LAST run as a sanity net (O(N), so we
-    // don't pay it every run); full correctness lives in the small correctness tests.
+    // Verification is correctness, not throughput. It runs only when asked (the parent asks
+    // on the last run as a sanity net) and, because the child exits right after, its cost
+    // never lands in a recorded timing — only failing/non-failing matters.
     if (verify && !store.verify_level01()) {
         std::cerr << "STRUCTURAL VERIFICATION FAILED\n";
         store.diagnose_failures();
+        return false;
+    }
+    return true;
+}
+
+// Absolute path to the running benchmark binary (Linux). Empty on failure.
+std::string self_exe() {
+    char buf[4096];
+    const ssize_t n = ::readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    if (n <= 0) return {};
+    return std::string(buf, static_cast<std::size_t>(n));
+}
+
+// argv that re-invokes THIS binary as a single-shot worker for config p. Workers never
+// touch the results DB and never print stats — the parent owns measurement. --flags-raw
+// carries the exact flag mask so the child reproduces the parent's flags bit-for-bit.
+std::vector<std::string> worker_argv(const std::string& exe, const Params& p, bool verify) {
+    std::vector<std::string> a = {
+        exe, "--single-run",
+        "--threads",           std::to_string(p.threads),
+        "--events-per-thread", std::to_string(p.events_per_thread),
+        "--persist",           p.persist,
+        "--base-name",         p.base_name,
+        "--batch",             std::to_string(p.batch),
+        "--flags-raw",         std::to_string(p.flags),
+    };
+    if (verify) a.push_back("--verify");
+    return a;
+}
+
+// One timed run = the FULL lifetime of a fresh child process doing exactly one workload:
+// fork+exec -> dynamic link -> static init -> construct -> work -> finalize -> destructor
+// teardown -> exit. The parent's monotonic clock spans that whole arc, so the recorded
+// number is what a user actually sees when they launch the program ("time ./prog"), not
+// just the hot loop. Returns microseconds, or nullopt if the worker did not exit clean.
+std::optional<std::size_t> run_one(const Params& p, bool verify) {
+    static const std::string exe = self_exe();
+    if (exe.empty()) { std::cerr << "ERROR: cannot resolve /proc/self/exe for worker spawn\n"; return std::nullopt; }
+
+    // Clean prior output in the PARENT so the child's measured lifetime is pure workload
+    // (a real program doesn't delete leftovers first). No-op when non-durable.
+    if (p.persist != "none") clean_output(p.base_name);
+
+    const std::vector<std::string> sargs = worker_argv(exe, p, verify);
+    std::vector<char*> argv;
+    argv.reserve(sargs.size() + 1);
+    for (const auto& s : sargs) argv.push_back(const_cast<char*>(s.c_str()));
+    argv.push_back(nullptr);
+
+    const auto start = steady_clock::now();
+    const pid_t pid = ::fork();
+    if (pid < 0) { std::cerr << "ERROR: fork failed for worker spawn\n"; return std::nullopt; }
+    if (pid == 0) {
+        // Worker is silent on stdout (the parent owns all reporting); stderr stays for real errors.
+        const int devnull = ::open("/dev/null", O_WRONLY);
+        if (devnull >= 0) { ::dup2(devnull, STDOUT_FILENO); ::close(devnull); }
+        ::execv(exe.c_str(), argv.data());
+        std::perror("execv");          // only reached if exec itself failed
+        _exit(127);
+    }
+    int status = 0;
+    while (::waitpid(pid, &status, 0) < 0) { /* retry on EINTR */ }
+    const auto end = steady_clock::now();
+
+    if (!(WIFEXITED(status) && WEXITSTATUS(status) == 0)) {
+        std::cerr << "worker FAILED (config '" << p.label << "', persist=" << p.persist << ")\n";
         return std::nullopt;
     }
     return static_cast<std::size_t>(duration_cast<microseconds>(end - start).count());
@@ -475,6 +552,150 @@ void record_to_db(const Params& p, const BenchSummary& s) {
 void record_to_db(const Params&, const BenchSummary&) {}   // built without SQL persist -> no DB
 #endif
 
+// Two-phase batch schedule: fine resolution where the curve actually moves (small batches), coarse
+// in the flat tail — fine_step from lo up to knee, then coarse_step from knee up to hi. e.g.
+// (250,1000,250,5000,500) -> 250,500,750,1000, 1500,2000,...,5000. coarse continues from the last
+// fine point + coarse_step, so it stays clean even if fine_step doesn't land exactly on the knee.
+inline std::vector<std::size_t> build_batch_schedule(std::size_t lo, std::size_t knee,
+                                                     std::size_t fine_step, std::size_t hi,
+                                                     std::size_t coarse_step) {
+    std::vector<std::size_t> v;
+    if (lo == 0 || fine_step == 0 || coarse_step == 0 || hi < lo) return v;
+    std::size_t b = lo;
+    for (; b <= knee && b <= hi; b += fine_step) v.push_back(b);
+    if (!v.empty())
+        for (b = v.back() + coarse_step; b <= hi; b += coarse_step) v.push_back(b);
+    return v;
+}
+
+#ifdef JAC313_STORE_HAS_SQL_PERSIST
+// Per-machine durable-backend calibration. For each of binary/jtext/sql, sweep the double-buffer
+// record size (batch) over a schedule under the same process-level timing as everything else, then
+// distill a robust pick: the single peak is noisy, so we take the PLATEAU — every batch whose median
+// is within tol% of the peak — and use the MIDDLE of that band (snapped to the nearest swept point).
+// low_size / high_size (band edges), best_size/best_ops (raw peak) and useThis (the mid-band pick) all
+// land in io_best_fit for THIS machine. The recorded suite then runs each durable config at useThis.
+// Needs --db and a pinned current_host (./bootstrap.sh or a CLI gate).
+struct CalResult { std::string type; std::size_t low, high, best, use; std::uint64_t best_ops; };
+
+int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::size_t tol_pct,
+                    const std::string& sched_desc) {
+    if (base.db_path.empty()) { std::cerr << "ERROR: --calibrate needs --db <results.db>\n"; return 2; }
+    if (schedule.empty()) { std::cerr << "ERROR: empty calibrate schedule (check --cal-* range)\n"; return 2; }
+
+    std::int64_t gid = 0;
+    try {
+        jac313::Qlite::v002::Sqlite db(results_db_path(base.db_path).string());
+        ensure_results_schema(db);
+        gid = jac313::results::current_host(db);
+    } catch (const std::exception& e) { std::cerr << "[calibrate] DB error: " << e.what() << "\n"; return 1; }
+    if (gid == 0) {
+        std::cerr << "[calibrate] no current_host pinned (run ./bootstrap.sh or a CLI gate first)\n";
+        return 1;
+    }
+
+    std::cout << "\n===============================================================\n";
+    std::cout <<   "--- calibrating double buffer best size for this machine ---\n";
+    std::cout <<   "===============================================================\n";
+    std::cout << "host " << jac313::results::host_label(gid) << " (group " << gid << ")"
+              << "   threads=" << base.threads
+              << "  events/thread=" << bench_group_thousands(base.events_per_thread)
+              << "  runs=" << base.runs
+              << "  batch " << sched_desc << " (" << schedule.size() << " pts)"
+              << "  (plateau = within " << tol_pct << "% of peak)\n";
+
+    std::vector<CalResult> results;
+    for (const char* ty : {"binary", "jtext", "sql"}) {
+        Params p = base;
+        p.persist = ty;
+        p.flags = 0;
+        std::cout << "\n--- " << ty << " ---\n";
+        std::vector<std::uint64_t> medians;
+        std::uint64_t best_median = 0; std::size_t best_batch = schedule.front();
+        for (std::size_t b : schedule) {
+            p.batch = b;
+            auto durations = measure_set(p);
+            if (durations.empty()) { std::cerr << "  batch=" << b << "  FAILED\n"; return 1; }
+            const BenchSummary s = compute_bench_summary(durations,
+                static_cast<std::uint64_t>(p.threads) * p.events_per_thread);
+            std::cout << "  batch=" << bench_group_thousands(b) << "\t-> median "
+                      << bench_group_thousands(s.median) << " ops/sec\n";
+            medians.push_back(s.median);
+            if (s.median > best_median) { best_median = s.median; best_batch = b; }
+        }
+        // Plateau = every swept batch within tol% of the peak; band edges = its lowest/highest batch.
+        const std::uint64_t thresh = best_median - (best_median * tol_pct) / 100;
+        std::size_t low_b = best_batch, high_b = best_batch;
+        for (std::size_t i = 0; i < schedule.size(); ++i)
+            if (medians[i] >= thresh) { low_b = std::min(low_b, schedule[i]); high_b = std::max(high_b, schedule[i]); }
+        // useThis = middle of the band, snapped to the nearest batch we actually measured (so its
+        // throughput is known). With a non-uniform schedule there's no single grid to round to.
+        const std::size_t mid = low_b + (high_b - low_b) / 2;
+        std::size_t use = schedule.front(), best_d = static_cast<std::size_t>(-1);
+        for (std::size_t b : schedule) {
+            const std::size_t d = (b > mid) ? b - mid : mid - b;
+            if (d < best_d) { best_d = d; use = b; }
+        }
+        std::cout << "  band [" << bench_group_thousands(low_b) << ".." << bench_group_thousands(high_b)
+                  << "]  peak " << bench_group_thousands(best_median) << " @ batch "
+                  << bench_group_thousands(best_batch) << "  -> useThis " << bench_group_thousands(use) << "\n";
+        results.push_back({ty, low_b, high_b, best_batch, use, best_median});
+        try {
+            jac313::Qlite::v002::Sqlite db(results_db_path(base.db_path).string());
+            ensure_results_schema(db);
+            jac313::results::upsert_io_best_fit(db, gid, ty,
+                static_cast<std::int64_t>(low_b), static_cast<std::int64_t>(high_b),
+                static_cast<std::int64_t>(best_batch), static_cast<std::int64_t>(best_median),
+                static_cast<std::int64_t>(use));
+        } catch (const std::exception& e) { std::cerr << "[calibrate] record failed: " << e.what() << "\n"; return 1; }
+    }
+
+    std::cout << "\n===============================================================\n";
+    std::cout <<   "--- calibration summary: " << jac313::results::host_label(gid)
+              << " (group " << gid << ") ---\n";
+    std::cout <<   "===============================================================\n";
+    // Right-justify every number to its column's widest value so the columns line up.
+    auto rjust = [](const std::string& s, std::size_t w) {
+        return s.size() < w ? std::string(w - s.size(), ' ') + s : s;
+    };
+    std::size_t w_type = 0, w_use = 0, w_low = 0, w_high = 0, w_ops = 0, w_best = 0;
+    for (const auto& r : results) {
+        w_type = std::max(w_type, r.type.size());
+        w_use  = std::max(w_use,  bench_group_thousands(r.use).size());
+        w_low  = std::max(w_low,  bench_group_thousands(r.low).size());
+        w_high = std::max(w_high, bench_group_thousands(r.high).size());
+        w_ops  = std::max(w_ops,  bench_group_thousands(r.best_ops).size());
+        w_best = std::max(w_best, bench_group_thousands(r.best).size());
+    }
+    for (const auto& r : results)
+        std::cout << "  " << r.type << std::string(w_type - r.type.size(), ' ')
+                  << "   useThis= " << rjust(bench_group_thousands(r.use), w_use)
+                  << "   band[ "    << rjust(bench_group_thousands(r.low), w_low)
+                  << " .. "         << rjust(bench_group_thousands(r.high), w_high) << " ]"
+                  << "   peak "     << rjust(bench_group_thousands(r.best_ops), w_ops)
+                  << " @ "          << rjust(bench_group_thousands(r.best), w_best) << "\n";
+    std::cout << "io_best_fit updated.\n";
+    return 0;
+}
+
+// The calibrated batch (useThis) for a durable backend on this machine, or fallback if not calibrated.
+std::int64_t calibrated_use(const std::string& db_path, const std::string& type, std::int64_t fallback) {
+    if (db_path.empty()) return fallback;
+    try {
+        jac313::Qlite::v002::Sqlite db(results_db_path(db_path).string());
+        ensure_results_schema(db);
+        const std::int64_t gid = jac313::results::current_host(db);
+        if (gid == 0) return fallback;
+        return jac313::results::io_best_fit_use(db, gid, type, fallback);
+    } catch (...) { return fallback; }
+}
+#else
+int run_calibration(Params, const std::vector<std::size_t>&, std::size_t, const std::string&) {
+    std::cerr << "ERROR: --calibrate needs the SQL-persist build (JAC313_STORE_HAS_SQL_PERSIST)\n"; return 2;
+}
+std::int64_t calibrated_use(const std::string&, const std::string&, std::int64_t fb) { return fb; }
+#endif
+
 // Two scales of the SAME 10 configs:
 //   full  (--suite)         — the big numbers; the recorded throughput benchmark (Release).
 //   smoke (--suite --smoke) — the same 10 capped to <=10k events, run as a CORRECTNESS GATE:
@@ -539,11 +760,24 @@ int run_suite(Params base, bool dry, bool smoke) {
     // full: the recorded throughput benchmark. Allocate ONE results.db run_id up front so every
     // config in this suite shares it (that's what "ran together" means).
     if (!base.db_path.empty()) base.run_id = next_results_run_id(base.db_path);
+    // Announce the calibrated double-buffer sizes (io_best_fit.useThis) this run will use per durable
+    // backend — so the recorded numbers are tied to a visible batch (falls back to the default if a
+    // backend isn't calibrated yet; run --calibrate to populate io_best_fit).
+    std::cout << "durable batch (io_best_fit.useThis):";
+    for (const char* ty : {"jtext", "sql", "binary"})
+        std::cout << "  " << ty << "=" << bench_group_thousands(
+            static_cast<std::uint64_t>(calibrated_use(base.db_path, ty, static_cast<std::int64_t>(base.batch))));
+    std::cout << std::endl;   // flush: surface the chosen batches promptly (before the long runs)
     for (const auto& cf : cfgs) {
         Params p = base;
         p.persist = cf.persist; p.flags = flags_by_count(cf.flags); p.label = cf.label;
         p.events_per_thread = cf.evt; p.runs = cf.runs;
-        std::cout << "\n=== " << cf.label << " ===\n";
+        // Durable configs run at this machine's calibrated double-buffer size (io_best_fit.useThis);
+        // falls back to the default batch when uncalibrated. Non-durable has no writer, so batch is moot.
+        if (cf.persist != "none") p.batch = static_cast<std::size_t>(calibrated_use(base.db_path, cf.persist, static_cast<std::int64_t>(base.batch)));
+        std::cout << "\n=== " << cf.label << " ===";
+        if (cf.persist != "none") std::cout << "  (batch " << bench_group_thousands(p.batch) << ")";
+        std::cout << "\n";
         auto durations = measure_set(p);
         if (durations.empty()) { std::cerr << "FAILED: " << cf.label << "\n"; return 1; }
         const std::uint64_t total = static_cast<std::uint64_t>(p.threads) * p.events_per_thread;
@@ -562,23 +796,40 @@ int main(int argc, char** argv) {
     p.flags = default_flags();
     std::optional<Sweep> sweep;
     bool do_suite = false, dry = false, smoke = false;
+    bool single_run = false, verify_flag = false;   // worker mode (internal: re-exec by run_one)
+    bool do_calibrate = false;                       // --calibrate: per-machine batch best-fit -> io_best_fit
+    // Two-phase sweep: fine (cal_step) from cal_lo up to cal_knee, then coarse (cal_step2) up to cal_hi.
+    // Default: 250,500,750,1000, then 1500..5000:500 — fine where the curve moves, coarse in the flat tail.
+    std::size_t cal_lo = 250, cal_knee = 1000, cal_step = 250, cal_step2 = 500, cal_hi = 5000;
+    std::size_t cal_tol = 3;                          // plateau = within cal_tol% of peak (band -> middle = useThis)
+    bool threads_set = false, runs_set = false;      // so --calibrate can apply its own defaults
 
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         auto next = [&]() -> std::string { return (i + 1 < argc) ? argv[++i] : std::string{}; };
-        if (a == "--threads") p.threads = std::stoull(next());
+        if (a == "--threads") { p.threads = std::stoull(next()); threads_set = true; }
         else if (a == "--events-per-thread") p.events_per_thread = std::stoull(next());
-        else if (a == "--runs") p.runs = std::stoull(next());
+        else if (a == "--runs") { p.runs = std::stoull(next()); runs_set = true; }
         else if (a == "--batch") p.batch = std::stoull(next());
         else if (a == "--persist") p.persist = next();
         else if (a == "--base-name") p.base_name = next();
         else if (a == "--flags") p.flags = parse_flags(next());
+        else if (a == "--flags-raw") p.flags = std::stoull(next());   // exact mask (worker re-exec)
         else if (a == "--flag-count") p.flags = flags_by_count(std::stoull(next()));
+        else if (a == "--single-run") single_run = true;              // worker mode (one workload, no stats/DB)
+        else if (a == "--verify") verify_flag = true;                 // worker: structural-verify this run
         else if (a == "--db") p.db_path = next();
         else if (a == "--label") p.label = next();
         else if (a == "--jtext-ver") p.jtext_ver = next();
         else if (a == "--suite") do_suite = true;
         else if (a == "--smoke") { do_suite = true; smoke = true; }   // smoke = the suite as a pass/fail gate
+        else if (a == "--calibrate") do_calibrate = true;            // sweep batch per durable backend -> io_best_fit
+        else if (a == "--cal-lo")    cal_lo = std::stoull(next());
+        else if (a == "--cal-knee")  cal_knee = std::stoull(next());     // fine->coarse transition
+        else if (a == "--cal-hi")    cal_hi = std::stoull(next());
+        else if (a == "--cal-step")  cal_step = std::stoull(next());     // fine step (lo..knee)
+        else if (a == "--cal-step2") cal_step2 = std::stoull(next());    // coarse step (knee..hi)
+        else if (a == "--cal-tol")   cal_tol = std::stoull(next());
         else if (a == "--dry-run") dry = true;
         else if (a == "--sweep") { sweep = parse_sweep(next()); if (!sweep) { std::cerr << "bad --sweep (want AXIS=LO..HI:STEP)\n"; return 2; } }
         else if (!arg_value(a, "--sweep").empty()) { sweep = parse_sweep(arg_value(a, "--sweep")); }
@@ -588,6 +839,22 @@ int main(int argc, char** argv) {
             // retired flag like the old --clear-all).
             std::cerr << "unknown option: " << a << "\n"; return 2;
         }
+    }
+
+    // Worker mode: do exactly one workload and exit. The parent (run_one) times this whole
+    // process from fork to exit, so nothing is printed and nothing is recorded here.
+    if (single_run) return do_workload(p, verify_flag) ? 0 : 1;
+
+    if (do_calibrate) {
+        // Calibration defaults to the durable 1M config's shape (50 threads, 1M events, 3 runs)
+        // unless the user overrode them — so the best-fit batch is found at the scale it's used.
+        if (!threads_set) p.threads = 50;
+        if (!runs_set)    p.runs = 3;
+        const auto schedule = build_batch_schedule(cal_lo, cal_knee, cal_step, cal_hi, cal_step2);
+        std::string desc = bench_group_thousands(cal_lo) + ".." + bench_group_thousands(cal_knee)
+                         + ":" + bench_group_thousands(cal_step) + ", then .." + bench_group_thousands(cal_hi)
+                         + ":" + bench_group_thousands(cal_step2);
+        return run_calibration(p, schedule, cal_tol, desc);
     }
 
     if (do_suite)  return run_suite(p, dry, smoke);

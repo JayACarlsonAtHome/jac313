@@ -82,6 +82,15 @@ inline void ensure_schema(Sqlite& db) {
     db.exec("CREATE TABLE IF NOT EXISTS safeness ("
             "group_id INTEGER, gate TEXT, compiler TEXT, pass INTEGER, fail INTEGER, "
             "PRIMARY KEY(group_id, gate, compiler))");
+    // io_best_fit = the per-machine durable double-buffer calibration for each backend. The peak of a
+    // batch sweep is noisy, so we record the PLATEAU: low_size/high_size are the batch sizes at the
+    // bottom/top of the near-peak band, and useThis is a robust pick in the MIDDLE of that band (what
+    // the recorded bench actually runs at). best_size/best_ops are the raw peak (batch + median ops/sec)
+    // kept for reference. One row per (group_id, type).
+    db.exec("CREATE TABLE IF NOT EXISTS io_best_fit ("
+            "id INTEGER PRIMARY KEY, group_id INTEGER, type TEXT, "
+            "low_size INTEGER, high_size INTEGER, best_size INTEGER, best_ops INTEGER, useThis INTEGER, "
+            "UNIQUE(group_id, type))");
 }
 
 // single-id lookup (e.g. "SELECT id FROM testList WHERE name=?")
@@ -186,6 +195,28 @@ inline void insert_run(Sqlite& db, std::int64_t run_id, std::int64_t gid, const 
     db.exec("INSERT OR IGNORE INTO run(run_id, ts_utc, group_id, host, store_ver, qlite_ver, jtext_ver) "
             "VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?)",
             run_id, gid, host, store_ver, qlite_ver, jtext_ver);
+}
+
+// ---- io_best_fit (per-machine durable-backend batch calibration) ----
+// Record (or refresh) one backend's calibration on this machine: the plateau band [low_size,high_size],
+// the raw peak (best_size + best_ops), and useThis = the chosen mid-band operating size.
+inline void upsert_io_best_fit(Sqlite& db, std::int64_t gid, const std::string& type,
+                               std::int64_t low_size, std::int64_t high_size,
+                               std::int64_t best_size, std::int64_t best_ops, std::int64_t use_this) {
+    db.exec("INSERT INTO io_best_fit(group_id, type, low_size, high_size, best_size, best_ops, useThis) "
+            "VALUES(?,?,?,?,?,?,?) "
+            "ON CONFLICT(group_id, type) DO UPDATE SET low_size=excluded.low_size, high_size=excluded.high_size, "
+            "best_size=excluded.best_size, best_ops=excluded.best_ops, useThis=excluded.useThis",
+            gid, type, low_size, high_size, best_size, best_ops, use_this);
+}
+
+// Read this machine's chosen batch (useThis) for a backend; returns fallback if not yet calibrated.
+inline std::int64_t io_best_fit_use(Sqlite& db, std::int64_t gid, const std::string& type,
+                                    std::int64_t fallback) {
+    std::int64_t v = 0;
+    { auto st = db.prepare("SELECT useThis FROM io_best_fit WHERE group_id=? AND type=?");
+      st.bind(gid, type); if (st.step()) st.get(v); }
+    return v > 0 ? v : fallback;
 }
 
 } // namespace jac313::results
