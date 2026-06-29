@@ -2,12 +2,12 @@
 
 _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Columns are that host's compilers (latest run each); cell = ms (pass) or status._
 
-## jac313-001 — Intel(R) Core(TM) Ultra 7 265 · 20 cores · 62 GB · Red Hat Enterprise Linux 9.8 (Plow) · ssd
+## jac313-001 — Intel(R) Core(TM) Ultra 7 265 · 12 cores · 23 GB · Fedora Linux 44 (Workstation Edition) · x7k
 
-| scenario | [clang21](Run_005.md) | [gcc15](Run_002.md) |
+| scenario | [clang22](Run_005.md) | [gcc16](Run_002.md) |
 |---|--:|--:|
 | jac313_contracts_disabled_test | 50 | 50 |
-| jac313_contracts_enforce_test | 100 | 100 |
+| jac313_contracts_enforce_test | 1,103 | 1,053 |
 | jac313_contracts_test | 50 | 50 |
 | jac313_identity_dedup_test | 50 | 50 |
 | jac313_jtext_v002_parser_validator_test | 50 | 50 |
@@ -28,10 +28,10 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | jac313_store_006_XS | 50 | 50 |
 | jac313_store_007_TS | 50 | 50 |
 | jac313_store_007_XS | 50 | 50 |
-| jac313_store_008_TS | 50 | 50 |
-| jac313_store_008_XS | 50 | 50 |
+| jac313_store_008_TS | 251 | 752 |
+| jac313_store_008_XS | 250 | 200 |
 | jac313_store_bench_smoke | 50 | 50 |
-| jac313_store_binary_persist_smoke | 50 | 50 |
+| jac313_store_binary_persist_smoke | 50 | 51 |
 | jac313_store_binary_reader_test | 50 | 50 |
 | jac313_store_binary_to_jtext_smoke | 50 | 50 |
 | jac313_store_flag_routing_smoke | 50 | 50 |

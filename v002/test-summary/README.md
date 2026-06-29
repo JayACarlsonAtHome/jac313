@@ -6,7 +6,7 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 
 | machine | CPU | Speed | P.Cores | T.Cores | RAM | Disk | OS |
 |---|---|--:|--:|--:|--:|---|---|
-| jac313-001 | Intel(R) Core(TM) Ultra 7 265 | 0.8–5.3 GHz | 20 | 20 | 62 GB | ssd | Red Hat Enterprise Linux 9.8 (Plow) |
+| jac313-001 | Intel(R) Core(TM) Ultra 7 265 | - | 12 | 12 | 23 GB | x7k | Fedora Linux 44 (Workstation Edition) |
 
 \* P.Cores = Physical Cores; T.Cores = Threading Cores
 
