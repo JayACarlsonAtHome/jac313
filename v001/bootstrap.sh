@@ -8,9 +8,11 @@
 # and then hands off to.
 #
 #   1. Detect the OS family (minimal mirror of Setup::sense_host).
-#   2. Find a C++23 g++ (+ activation prefix), Ninja >= 1.11, and CMake.
-#   3. If any baseline is missing -> generate a reviewable Setup.sh from
-#      Setup/recipes.conf and stop, so you run it (with sudo) by hand.
+#   2. Find a C++23 g++ (+ activation prefix), clang, Ninja >= 1.11, CMake, the sqlite3
+#      dev header, and valgrind with the memcheck/helgrind/DRD dev headers — the full set
+#      needed to build AND run the gates, so a fresh box is provisioned in ONE pass.
+#   3. If any baseline is missing -> hand off to the committed Setup/jac313_setup
+#      provisioner (reads Setup/.setup_handoff), or fall back to a generated Setup.sh.
 #   3b. If the present CMake is not the EXACT version the `import std` pilot is pinned to
 #      (PINNED_CMAKE_VER), OFFER a no-sudo CMake install into ~/.local (y/N). The pilot's
 #      gate UUID is version-specific, so >= 3.30 is necessary but NOT sufficient. Baseline
@@ -169,12 +171,21 @@ try_cxx "" g++-15 \
   || try_cxx "" g++ \
   || true
 
-# --- 3. baseline check; generate Setup.sh if anything is missing ---
+# --- 3. baseline check; provision (exe or Setup.sh) if anything is missing ---
+# The valgrind check requires the memcheck header AND the helgrind + DRD headers: the
+# annotated verify tree (-DJAC313_STORE_HELGRIND_ANNOTATE=ON) #includes <valgrind/helgrind.h>
+# and the DRD annotations, which ship in valgrind-devel (Debian bundles them in `valgrind`).
+# So baseline can't pass with a partial valgrind that would break the verify/verify-lite gate.
 missing=""
-[ -n "$CXX" ]                  || missing="$missing gcc15"
+[ -n "$CXX" ]                    || missing="$missing gcc15"
+command -v clang >/dev/null 2>&1 || missing="$missing clang"
 command -v cmake >/dev/null 2>&1 || missing="$missing cmake"
-ninja_ok                       || missing="$missing ninja"
-[ -e /usr/include/sqlite3.h ]  || missing="$missing sqlite"
+ninja_ok                         || missing="$missing ninja"
+[ -e /usr/include/sqlite3.h ]    || missing="$missing sqlite"
+{ command -v valgrind >/dev/null 2>&1 \
+    && [ -e /usr/include/valgrind/valgrind.h ] \
+    && [ -e /usr/include/valgrind/helgrind.h ] \
+    && [ -e /usr/include/valgrind/drd.h ]; }  || missing="$missing valgrind"
 
 if [ -n "$missing" ]; then
   echo "Baseline missing:$missing"
