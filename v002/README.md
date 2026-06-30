@@ -4,6 +4,12 @@
 > Right now it's still in-work (the test/results reporting is actively being rebuilt), so
 > please **be patient** — expect rough edges and things shifting under you for a bit.
 
+> 🔁 **Heavy results churn — next few days (as of 2026-06-29).** We're tweaking settings and
+> running the **full battery repeatedly across the fleet, including fresh virtual machines**,
+> so expect frequent **runs and DB wipes**: `test-summary/results.db` and the rendered pages
+> change often, and machines come and go (via the `jac313_wipe_all` / `wipe_one` / `wipe_jac`
+> tools). Treat anything under `test-summary/` as **in flux** until this settles.
+
 A versioned **C++23 umbrella** over a small family of in-tree libraries. Each package
 re-exports a clean, namespaced API under `jac313::<Name>::v002`; together they're more
 than their parts — a real **time-series logging store** with a complete local **testing

@@ -19,6 +19,13 @@ results.
 > populate the newer reports freshly, so numbers under `test-summary/` are landing and
 > changing as those runs complete.
 
+> 🔁 **Heavy results churn — next few days (as of 2026-06-29).** We're tweaking settings and
+> running the **full battery repeatedly across the machine fleet, including fresh virtual
+> machines**, so expect frequent **runs and DB wipes**: `test-summary/results.db` and the
+> rendered pages will change often, and machines come and go (added/removed via the
+> `jac313_wipe_all` / `jac313_wipe_one` / `jac313_wipe_jac` tools). Treat anything under
+> `test-summary/` as **in flux** until this settles.
+
 ---
 
 ## 🔬 It found a real compiler bug

@@ -5,6 +5,13 @@ re-exports a clean, namespaced API under `jac313::<Name>::v001`; together they'r
 than their parts — a real **time-series logging store** with a complete local **testing
 framework** and a worked example of **C++23 modules + `import std;`**.
 
+> 🔁 **Heavy results churn — next few days (as of 2026-06-29).** We're tweaking settings and
+> running the **full battery repeatedly across the fleet, including fresh virtual machines**, so
+> expect frequent **runs and DB wipes**. v001 currently tracks only `test-summary/results.db`;
+> the `.md` report pages are rendered on demand by `jac313_test_cli --report` (and may start
+> landing here as runs settle). Machines come and go via the `jac313_wipe_all` / `wipe_one` /
+> `wipe_jac` tools — treat anything under `test-summary/` as **in flux** until this settles.
+
 > **The whole is bigger than the parts.** Two small libraries (Qlite, jText) compose into
 > the headline feature (Store), all validated by a from-scratch testing/benchmark harness,
 > and the whole thing doubles as a reproducible example for toolchain implementers (see
