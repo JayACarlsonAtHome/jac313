@@ -1550,12 +1550,27 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
     struct VerifyRec { std::string tool, test, persist, status; std::int64_t dur_ms; };
     std::vector<VerifyRec> recs;   // one per (tool x task) — captured into results.db below
 
-    auto run_one = [&](const std::string& tool, const VgTask& t) {
+    // Aligned console output (match the ctest/smoke runners): pad the tool and the task
+    // label to fixed columns — label to the widest across ALL tasks (mem ∪ thr), so every
+    // section lines up in the same column — and right-pad the index + duration so numbers stack.
+    std::size_t label_w = 0;
+    for (const auto& t : mem) label_w = std::max(label_w, t.label.size());
+    for (const auto& t : thr) label_w = std::max(label_w, t.label.size());
+    const std::size_t tool_w = 8;  // widest of memcheck / helgrind / drd
+    const auto ljust = [](const std::string& s, std::size_t w) {
+        return s.size() < w ? s + std::string(w - s.size(), ' ') : s;
+    };
+
+    auto run_one = [&](const std::string& tool, const VgTask& t,
+                       const std::size_t idx, const std::size_t tot) {
+        const std::size_t iw = format_count(static_cast<std::int64_t>(tot)).size();
         std::string persist;
         for (const auto& a : t.args) if (a.rfind("--persist=", 0) == 0) persist = a.substr(10);
         const std::string test = t.bin.filename().string();
         if (!fs::exists(t.bin)) {
-            std::cout << "  [" << tool << "] " << t.label << " — MISSING BINARY\n";
+            std::cout << "  [" << format_count_padded(static_cast<std::int64_t>(idx), iw) << "/" << tot
+                      << "] [" << ljust(tool, tool_w) << "] " << ljust(t.label, label_w)
+                      << " ... MISSING BINARY\n";
             ++testfail;
             failures.push_back(tool + " " + t.label + " [missing]");
             recs.push_back({tool, test, persist, "error", 0});
@@ -1598,20 +1613,23 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
             ++clean;
         }
         recs.push_back({tool, test, persist, status, static_cast<std::int64_t>(dur_ms)});
-        std::cout << "  [" << tool << "] " << t.label << " — " << verdict << '\n';
+        std::cout << "  [" << format_count_padded(static_cast<std::int64_t>(idx), iw) << "/" << tot
+                  << "] [" << ljust(tool, tool_w) << "] " << ljust(t.label, label_w)
+                  << " ... " << verdict
+                  << " (" << format_count_padded(static_cast<std::int64_t>(dur_ms)) << " ms)\n";
     };
 
     std::cout << "--- memcheck (" << mem.size() << ") ---\n";
-    for (const auto& t : mem) {
-        run_one("memcheck", t);
+    for (std::size_t i = 0; i < mem.size(); ++i) {
+        run_one("memcheck", mem[i], i + 1, mem.size());
     }
     std::cout << "\n--- helgrind (" << thr.size() << ") ---\n";
-    for (const auto& t : thr) {
-        run_one("helgrind", t);
+    for (std::size_t i = 0; i < thr.size(); ++i) {
+        run_one("helgrind", thr[i], i + 1, thr.size());
     }
     std::cout << "\n--- drd (" << thr.size() << ") ---\n";
-    for (const auto& t : thr) {
-        run_one("drd", t);
+    for (std::size_t i = 0; i < thr.size(); ++i) {
+        run_one("drd", thr[i], i + 1, thr.size());
     }
 
     const int total = clean + vgfail + testfail;
