@@ -275,16 +275,23 @@ echo "=== building jac313_test_cli (one-time bootstrap compile) ==="
 $ACT cmake -G Ninja -S "$ROOT" -B "$BUILD" \
   -DCMAKE_CXX_COMPILER="$CXX" -DCMAKE_BUILD_TYPE=Debug
 $ACT cmake --build "$BUILD" --target jac313_test_cli
-$ACT cmake --build "$BUILD" --target jac313_wipe_new
+$ACT cmake --build "$BUILD" --target jac313_wipe_all
+$ACT cmake --build "$BUILD" --target jac313_wipe_one
+$ACT cmake --build "$BUILD" --target jac313_wipe_jac
 CLI="$BUILD/tools/jac313_test_cli"
 
-# Convenience entry points: symlinks at the v002/ root so everyday use is ./jac313_test_cli and
-# ./jac313_wipe_new instead of the deep build path. Relative targets survive a repo move; both are
-# gitignored (the targets live in the gitignored build-bootstrap/).
+# Convenience entry points: symlinks at the v002/ root so everyday use is ./jac313_test_cli,
+# ./jac313_wipe_all (whole DB), ./jac313_wipe_one (one run) and ./jac313_wipe_jac (one machine)
+# instead of the deep build path. Relative targets survive a repo move; all are gitignored
+# (targets live in build-bootstrap/).
 ln -sfn "build-bootstrap/tools/jac313_test_cli" "$ROOT/jac313_test_cli"
-ln -sfn "build-bootstrap/tools/jac313_wipe_new" "$ROOT/jac313_wipe_new"
+ln -sfn "build-bootstrap/tools/jac313_wipe_all" "$ROOT/jac313_wipe_all"
+ln -sfn "build-bootstrap/tools/jac313_wipe_one" "$ROOT/jac313_wipe_one"
+ln -sfn "build-bootstrap/tools/jac313_wipe_jac" "$ROOT/jac313_wipe_jac"
 echo "Linked ./jac313_test_cli -> build-bootstrap/tools/jac313_test_cli"
-echo "Linked ./jac313_wipe_new -> build-bootstrap/tools/jac313_wipe_new"
+echo "Linked ./jac313_wipe_all -> build-bootstrap/tools/jac313_wipe_all"
+echo "Linked ./jac313_wipe_one -> build-bootstrap/tools/jac313_wipe_one"
+echo "Linked ./jac313_wipe_jac -> build-bootstrap/tools/jac313_wipe_jac"
 
 # --- compiler pin (Setup/compilers.pin): find-or-create THIS machine's row ---
 # Already-pinned box -> no-op (the pin is never overwritten). New machine -> sense + pin the highest

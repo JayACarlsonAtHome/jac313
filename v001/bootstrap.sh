@@ -275,15 +275,23 @@ echo "=== building jac313_test_cli (one-time bootstrap compile) ==="
 $ACT cmake -G Ninja -S "$ROOT" -B "$BUILD" \
   -DCMAKE_CXX_COMPILER="$CXX" -DCMAKE_BUILD_TYPE=Debug
 $ACT cmake --build "$BUILD" --target jac313_test_cli
-$ACT cmake --build "$BUILD" --target jac313_wipe_new
+$ACT cmake --build "$BUILD" --target jac313_wipe_all
+$ACT cmake --build "$BUILD" --target jac313_wipe_one
+$ACT cmake --build "$BUILD" --target jac313_wipe_jac
 CLI="$BUILD/tools/jac313_test_cli"
 
-# Convenience symlinks at the version root so everyday commands read `./jac313_test_cli ...` and
-# `./jac313_wipe_new ...` (targets live in the gitignored build-bootstrap/; the symlinks are gitignored too).
+# Convenience symlinks at the version root so everyday commands read `./jac313_test_cli ...`,
+# `./jac313_wipe_all ...` (whole DB), `./jac313_wipe_one --<N> ...` (one run) and
+# `./jac313_wipe_jac --<G> ...` (one machine) (targets live in the gitignored build-bootstrap/;
+# the symlinks are gitignored too).
 ln -sfn "build-bootstrap/tools/jac313_test_cli" "$ROOT/jac313_test_cli"
-ln -sfn "build-bootstrap/tools/jac313_wipe_new" "$ROOT/jac313_wipe_new"
+ln -sfn "build-bootstrap/tools/jac313_wipe_all" "$ROOT/jac313_wipe_all"
+ln -sfn "build-bootstrap/tools/jac313_wipe_one" "$ROOT/jac313_wipe_one"
+ln -sfn "build-bootstrap/tools/jac313_wipe_jac" "$ROOT/jac313_wipe_jac"
 echo "Linked ./jac313_test_cli -> build-bootstrap/tools/jac313_test_cli"
-echo "Linked ./jac313_wipe_new -> build-bootstrap/tools/jac313_wipe_new"
+echo "Linked ./jac313_wipe_all -> build-bootstrap/tools/jac313_wipe_all"
+echo "Linked ./jac313_wipe_one -> build-bootstrap/tools/jac313_wipe_one"
+echo "Linked ./jac313_wipe_jac -> build-bootstrap/tools/jac313_wipe_jac"
 
 # --- install the pre-push gate hook (git hooks are local, not version-controlled) ---
 # Runs the valgrind verify-lite before every push. Bypass once with: git push --no-verify

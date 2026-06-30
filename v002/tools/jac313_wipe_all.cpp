@@ -1,4 +1,4 @@
-// jac313_wipe_new — reset results.db to a blank slate: the schema and the testType enum are kept;
+// jac313_wipe_all — reset results.db to a blank slate: the schema and the testType enum are kept;
 // all data, the host_spec rows, and the current_host pin are cleared. A dedicated tool so the reset is
 // reliable and repeatable without re-deriving the SQL. --dry-run and --yes are mutually exclusive.
 #include "jac313_results_db.hpp"   // jac313::results — shared schema + helpers (pulls in Qlite + Sqlite)
@@ -19,21 +19,21 @@ int main(int argc, char** argv) {
         else if (a == "--yes" || a == "-y")           yes = true;
         else if (a == "--source-dir" && i + 1 < argc) src = argv[++i];
         else if (a == "-h" || a == "--help") {
-            std::cout << "jac313_wipe_new — reset results.db to blank (schema + testType enum kept).\n"
+            std::cout << "jac313_wipe_all — reset results.db to blank (schema + testType enum kept).\n"
                          "  --dry-run          preview what would be cleared; change nothing\n"
                          "  --yes              clear results + host_spec + current_host pin + io_best_fit\n"
                          "  --source-dir DIR   version root (default: .)\n"
                          "  (--dry-run and --yes are mutually exclusive)\n";
             return 0;
         }
-        else { std::cerr << "jac313_wipe_new: unknown arg '" << a << "' (try --help)\n"; return 2; }
+        else { std::cerr << "jac313_wipe_all: unknown arg '" << a << "' (try --help)\n"; return 2; }
     }
-    if (dry && yes)   { std::cerr << "jac313_wipe_new: --dry-run and --yes can't be used together.\n"; return 2; }
-    if (!dry && !yes) { std::cerr << "jac313_wipe_new: pass --dry-run (preview) or --yes (do it).\n"; return 2; }
+    if (dry && yes)   { std::cerr << "jac313_wipe_all: --dry-run and --yes can't be used together.\n"; return 2; }
+    if (!dry && !yes) { std::cerr << "jac313_wipe_all: pass --dry-run (preview) or --yes (do it).\n"; return 2; }
 
     const fs::path db_path = src / "test-summary" / "results.db";
     std::error_code ec;
-    if (!fs::exists(db_path, ec)) { std::cout << "wipe-new: no results.db at " << db_path << " (already blank).\n"; return 0; }
+    if (!fs::exists(db_path, ec)) { std::cout << "wipe-all: no results.db at " << db_path << " (already blank).\n"; return 0; }
 
     jac313::results::Sqlite db(db_path.string());
     jac313::results::ensure_schema(db);

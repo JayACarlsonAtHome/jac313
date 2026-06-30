@@ -91,11 +91,29 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_G
     target_link_options(jac313_contracts_enforce_test  PRIVATE -fcontracts)
 endif()
 
-# jac313_wipe_new — standalone results.db reset tool (schema + testType enum kept;
+# jac313_wipe_all — standalone results.db reset tool (schema + testType enum kept;
 # data + host_spec + current_host pin cleared). Built by bootstrap; symlinked at the v002 root.
-add_executable(jac313_wipe_new jac313_wipe_new.cpp)
-target_compile_features(jac313_wipe_new PRIVATE cxx_std_26)
-target_include_directories(jac313_wipe_new PRIVATE ${CMAKE_SOURCE_DIR}/shared)   # jac313_results_db.hpp
+add_executable(jac313_wipe_all jac313_wipe_all.cpp)
+target_compile_features(jac313_wipe_all PRIVATE cxx_std_26)
+target_include_directories(jac313_wipe_all PRIVATE ${CMAKE_SOURCE_DIR}/shared)   # jac313_results_db.hpp
 if(TARGET jac313::Qlite)
-    target_link_libraries(jac313_wipe_new PRIVATE jac313::Qlite)
+    target_link_libraries(jac313_wipe_all PRIVATE jac313::Qlite)
+endif()
+
+# jac313_wipe_one — delete ONE run (by run_id) + its testRun rows, then rebuild safeness
+# (shared dimensions + host pin kept). Built by bootstrap; symlinked at the v002 root.
+add_executable(jac313_wipe_one jac313_wipe_one.cpp)
+target_compile_features(jac313_wipe_one PRIVATE cxx_std_26)
+target_include_directories(jac313_wipe_one PRIVATE ${CMAKE_SOURCE_DIR}/shared)   # jac313_results_db.hpp
+if(TARGET jac313::Qlite)
+    target_link_libraries(jac313_wipe_one PRIVATE jac313::Qlite)
+endif()
+
+# jac313_wipe_jac — wipe a WHOLE machine (group_id): all its runs + testRuns + specs
+# (host_spec, io_best_fit, current_host pin). Built by bootstrap; symlinked at the v002 root.
+add_executable(jac313_wipe_jac jac313_wipe_jac.cpp)
+target_compile_features(jac313_wipe_jac PRIVATE cxx_std_26)
+target_include_directories(jac313_wipe_jac PRIVATE ${CMAKE_SOURCE_DIR}/shared)   # jac313_results_db.hpp
+if(TARGET jac313::Qlite)
+    target_link_libraries(jac313_wipe_jac PRIVATE jac313::Qlite)
 endif()

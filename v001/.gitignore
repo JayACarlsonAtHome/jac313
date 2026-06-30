@@ -56,7 +56,9 @@ test-results/
 
 # Convenience symlinks to the bootstrap-built tools (targets live in a gitignored build dir)
 /jac313_test_cli
-/jac313_wipe_new
+/jac313_wipe_all
+/jac313_wipe_one
+/jac313_wipe_jac
 
 # Generated, re-runnable preset script (overwritten each preset invocation)
 /run_latest_config.sh
