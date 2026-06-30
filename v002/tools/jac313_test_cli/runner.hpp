@@ -32,7 +32,9 @@ TestResult run_test_with_args(const std::filesystem::path& command,
                               int failsafe_sec = kDefaultFailsafeSec, int memory_mb = 0);
 std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
                                   const RunOptions& opts,
-                                  bool verbose);
+                                  bool verbose,
+                                  std::int64_t run_id = 0,
+                                  const std::filesystem::path& db_path = {});
 
 bool matches_filter(const std::string& name, const std::string& filter);
 

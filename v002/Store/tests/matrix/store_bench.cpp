@@ -519,6 +519,7 @@ void record_to_results_db(const Params& p, const BenchSummary& s) {
         }
         const std::int64_t run_id = (p.run_id != 0) ? p.run_id : results_next_run_id(db);
         jac313::results::insert_run(db, run_id, group_id, jac313::results::host_label(group_id),
+                                    "v002",  // JAC313_VERSION value (this tree) — scopes vs v001
                                     std::string(jac313::Store::v002::version()),
                                     std::string(jac313::Qlite::v002::version()), p.jtext_ver);
         std::string base = p.label;

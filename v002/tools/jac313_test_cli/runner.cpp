@@ -15,6 +15,8 @@
 #include <regex>
 #include <unistd.h>
 #include <vector>
+#include <sys/resource.h>
+#include "jac313_results_db.hpp"  // for jac313::results:: log and ensure when run_id provided
 
 namespace jac313::test_cli {
 namespace fs = std::filesystem;
@@ -46,7 +48,7 @@ TestResult execute_command(const fs::path& command,
 
     if (!fs::exists(command)) {
         result.status = TestStatus::Skipped;
-        result.message = "executable not found (build first?)";
+        result.message = "executable not found (build first?): " + command.string();
         return result;
     }
 
@@ -54,7 +56,7 @@ TestResult execute_command(const fs::path& command,
     int stderr_pipe[2]{-1, -1};
     if (::pipe(stdout_pipe) != 0 || ::pipe(stderr_pipe) != 0) {
         result.status = TestStatus::Error;
-        result.message = "pipe() failed";
+        result.message = "pipe() failed for command: " + command.string();
         return result;
     }
 
@@ -66,7 +68,7 @@ TestResult execute_command(const fs::path& command,
         ::close(stderr_pipe[0]);
         ::close(stderr_pipe[1]);
         result.status = TestStatus::Error;
-        result.message = "fork() failed";
+        result.message = "fork() failed for: " + command.string();
         return result;
     }
 
@@ -117,10 +119,10 @@ TestResult execute_command(const fs::path& command,
         if (timed_out) {
             result.status = TestStatus::Failed;
             result.exit_code = 137;
-            result.message = "failsafe timeout after " + std::to_string(failsafe_sec) + "s";
+            result.message = "failsafe timeout after " + std::to_string(failsafe_sec) + "s for " + command.string();
         } else {
             result.status = TestStatus::Error;
-            result.message = "waitpid() failed";
+            result.message = "waitpid() failed for " + command.string();
         }
         ::close(stdout_pipe[0]);
         ::close(stderr_pipe[0]);
@@ -178,7 +180,9 @@ TestResult run_test_with_args(const fs::path& command,
 
 std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
                                   const RunOptions& opts,
-                                  bool verbose)
+                                  bool verbose,
+                                  std::int64_t run_id,
+                                  const std::filesystem::path& db_path)
 {
     std::vector<TestEntry> selected;
     selected.reserve(tests.size());
@@ -221,19 +225,28 @@ std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
             // Load all known controls for this run (cheap for small number of tests).
             auto st = db.prepare("SELECT name, timeout_sec, memory_mb FROM testControl");
             while (st.step()) {
-                std::string nm; int secs = 0, mem = 0;
+                std::string nm; std::int64_t secs = 0, mem = 0;
                 st.get(nm, secs, mem);
-                if (secs > 0) db_test_timeouts[nm] = secs;
-                if (mem > 0) db_test_memory[nm] = mem;
+                if (secs > 0) db_test_timeouts[nm] = static_cast<int>(secs);
+                if (mem > 0) db_test_memory[nm] = static_cast<int>(mem);
             }
         }
     } catch (...) {}
 
     for (const auto& test : selected) {
         ++index;
+        const auto test_start = std::chrono::steady_clock::now();
         std::cout << "[" << format_count_padded(index, idx_w) << "/" << format_count(total) << "] "
                   << test.name << std::string(name_w - test.name.size(), ' ') << " ... ";
         std::cout.flush();
+
+        // Live status log to DB so you can track in DataGrip while running
+        if (run_id > 0 && !db_path.empty()) {
+            try {
+                jac313::Qlite::v002::Sqlite db(db_path.string());
+                jac313::results::log_run_event(db, run_id, test.name, "started");
+            } catch (...) {}
+        }
 
         int per_test_sec = 0;
         auto it = db_test_timeouts.find(test.name);
@@ -248,6 +261,25 @@ std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
         if (mit != db_test_memory.end()) per_test_mem = mit->second;
 
         TestResult result = run_test(test, verbose, per_test_sec, per_test_mem);
+
+        if (run_id > 0 && !db_path.empty()) {
+            try {
+                jac313::Qlite::v002::Sqlite db(db_path.string());
+                std::string event = "ended";
+                std::string msg = result.message;
+                if (result.status == TestStatus::Failed || result.status == TestStatus::Error) {
+                    event = "error";
+                    if (msg.empty()) msg = "failed";
+                    if (!result.stderr_tail.empty()) {
+                        // truncate long tails for log
+                        std::string tail = result.stderr_tail.substr(0, 500);
+                        if (result.stderr_tail.size() > 500) tail += "...";
+                        msg += " | " + tail;
+                    }
+                }
+                jac313::results::log_run_event(db, run_id, test.name, event, msg, static_cast<std::int64_t>(result.duration.count()));
+            } catch (...) {}
+        }
 
         switch (result.status) {
         case TestStatus::Passed:

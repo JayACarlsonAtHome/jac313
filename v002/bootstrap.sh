@@ -178,7 +178,7 @@ try_cxx "" g++-15 \
 # So baseline can't pass with a partial valgrind that would break the verify/verify-lite gate.
 missing=""
 [ -n "$CXX" ]                    || missing="$missing gcc15"
-command -v clang >/dev/null 2>&1 || missing="$missing clang"
+( command -v clang >/dev/null 2>&1 || command -v clang-20 >/dev/null 2>&1 ) || missing="$missing clang"
 command -v cmake >/dev/null 2>&1 || missing="$missing cmake"
 ninja_ok                         || missing="$missing ninja"
 [ -e /usr/include/sqlite3.h ]    || missing="$missing sqlite"

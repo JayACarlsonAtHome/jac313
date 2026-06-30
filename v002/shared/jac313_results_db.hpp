@@ -10,8 +10,11 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <chrono>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <sstream>
 #include <string>
 
@@ -24,20 +27,64 @@ using jac313::Qlite::v002::get_one_long;
 using jac313::Qlite::v002::get_one_string;
 using jac313::Qlite::v002::get_one_double;
 
+// Debug variants: get_one_xxx(db, sql, true, binds...) or the _debug shorthands
+// When debug=true they print [SQL] ... and result to stderr.
+using jac313::Qlite::v002::get_one_long_debug;
+using jac313::Qlite::v002::get_one_string_debug;
+using jac313::Qlite::v002::get_one_double_debug;
+using jac313::Qlite::v002::get_one_long_or_debug;
+using jac313::Qlite::v002::get_one_string_or_debug;
+
+// Convenience helpers for testControl table (the central store for per-test limits)
+inline int get_test_timeout(Sqlite& db, const std::string& name, bool debug = false) {
+    return static_cast<int>(get_one_long(db, "SELECT timeout_sec FROM testControl WHERE name=?", debug, name));
+}
+inline int get_test_memory_mb(Sqlite& db, const std::string& name, bool debug = false) {
+    return static_cast<int>(get_one_long(db, "SELECT memory_mb FROM testControl WHERE name=?", debug, name));
+}
+
 // ---- schema (the single source of truth for results.db) ----
 inline void ensure_schema(Sqlite& db) {
-    db.exec("CREATE TABLE IF NOT EXISTS testType (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, description TEXT)");
-    db.exec("INSERT OR IGNORE INTO testType(name, description) VALUES"
-            " ('ctest','ctest unit suite'),('smoke','persist x output smoke matrix'),"
-            " ('bench','throughput benchmark suite'),('verify-lite','valgrind memcheck gate'),"
-            " ('verify','valgrind memcheck + helgrind + DRD'),('build','tree compile wall-clock')");
-    db.exec("CREATE TABLE IF NOT EXISTS testList (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL)");
-    db.exec("CREATE TABLE IF NOT EXISTS compiler ("
-            "id INTEGER PRIMARY KEY, name TEXT, version TEXT, major INTEGER, UNIQUE(name, version))");
-    db.exec("CREATE TABLE IF NOT EXISTS parameter ("
-            "id INTEGER PRIMARY KEY, compiler_id INTEGER, build_type TEXT, modules TEXT, import_std TEXT, size TEXT, "
-            "persist TEXT, output_mode TEXT, threads INTEGER, events_per_thread INTEGER, runs INTEGER, "
-            "batch INTEGER, flag_count INTEGER, valgrind_tool TEXT)");
+    db.exec("CREATE TABLE IF NOT EXISTS testType (\n"
+            "    id INTEGER PRIMARY KEY\n"
+            "  , name TEXT UNIQUE NOT NULL\n"
+            "  , description TEXT\n"
+            ")");
+    db.exec("INSERT OR IGNORE INTO testType(name, description) VALUES\n"
+            "    ('ctest', 'ctest unit suite')\n"
+            "  , ('smoke', 'persist x output smoke matrix')\n"
+            "  , ('bench', 'throughput benchmark suite')\n"
+            "  , ('verify-lite', 'valgrind memcheck gate')\n"
+            "  , ('verify', 'valgrind memcheck + helgrind + DRD')\n"
+            "  , ('build', 'tree compile wall-clock')\n"
+            "");
+    db.exec("CREATE TABLE IF NOT EXISTS testList (\n"
+            "    id INTEGER PRIMARY KEY\n"
+            "  , name TEXT UNIQUE NOT NULL\n"
+            ")");
+    db.exec("CREATE TABLE IF NOT EXISTS compiler (\n"
+            "    id INTEGER PRIMARY KEY\n"
+            "  , name TEXT\n"
+            "  , version TEXT\n"
+            "  , major INTEGER\n"
+            "  , UNIQUE(name, version)\n"
+            ")");
+    db.exec("CREATE TABLE IF NOT EXISTS parameter (\n"
+            "    id INTEGER PRIMARY KEY\n"
+            "  , compiler_id INTEGER\n"
+            "  , build_type TEXT\n"
+            "  , modules TEXT\n"
+            "  , import_std TEXT\n"
+            "  , size TEXT\n"
+            "  , persist TEXT\n"
+            "  , output_mode TEXT\n"
+            "  , threads INTEGER\n"
+            "  , events_per_thread INTEGER\n"
+            "  , runs INTEGER\n"
+            "  , batch INTEGER\n"
+            "  , flag_count INTEGER\n"
+            "  , valgrind_tool TEXT\n"
+            ")");
     // Migrate older parameter tables: add import_std (backfill 'off' = textual) and rebuild a stale
     // unique index. Each probe statement is finalized in its OWN scope BEFORE any DDL, so the DDL
     // never hits a read-lock from a still-open cursor.
@@ -57,43 +104,126 @@ inline void ensure_schema(Sqlite& db) {
     }
     // Real uniqueness: a table-level UNIQUE over these nullable columns is a no-op (SQLite treats
     // NULLs as distinct). Enforce the combo with a COALESCE'd unique index covering all 13 columns.
-    db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_parameter ON parameter("
-            "COALESCE(compiler_id,-1), COALESCE(build_type,''), COALESCE(modules,''), COALESCE(import_std,''), "
-            "COALESCE(size,''), COALESCE(persist,''), COALESCE(output_mode,''), COALESCE(threads,-1), "
-            "COALESCE(events_per_thread,-1), COALESCE(runs,-1), COALESCE(batch,-1), COALESCE(flag_count,-1), "
-            "COALESCE(valgrind_tool,''))");
+    db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_parameter ON parameter(\n"
+            "    COALESCE(compiler_id, -1)\n"
+            "  , COALESCE(build_type, '')\n"
+            "  , COALESCE(modules, '')\n"
+            "  , COALESCE(import_std, '')\n"
+            "  , COALESCE(size, '')\n"
+            "  , COALESCE(persist, '')\n"
+            "  , COALESCE(output_mode, '')\n"
+            "  , COALESCE(threads, -1)\n"
+            "  , COALESCE(events_per_thread, -1)\n"
+            "  , COALESCE(runs, -1)\n"
+            "  , COALESCE(batch, -1)\n"
+            "  , COALESCE(flag_count, -1)\n"
+            "  , COALESCE(valgrind_tool, '')\n"
+            ")");
     // run = per-run metadata only. The hardware lives in host_spec (one row per machine), so it is
     // NOT duplicated across every run; run references the machine via group_id.
-    db.exec("CREATE TABLE IF NOT EXISTS run ("
-            "run_id INTEGER PRIMARY KEY, ts_utc TEXT, group_id INTEGER, host TEXT, "
-            "store_ver TEXT, qlite_ver TEXT, jtext_ver TEXT)");
+    db.exec("CREATE TABLE IF NOT EXISTS run (\n"
+            "    run_id INTEGER PRIMARY KEY\n"
+            "  , ts_utc TEXT\n"
+            "  , group_id INTEGER\n"
+            "  , host TEXT\n"
+            "  , version TEXT\n"   // JAC313_VERSION e.g. "v001" / "v002" — scopes runs, deletes, reports, safeness
+            "  , store_ver TEXT\n"
+            "  , qlite_ver TEXT\n"
+            "  , jtext_ver TEXT\n"
+            ")");
+    // Migration: add version column (JAC313_VERSION) for scoping v001 vs v002 data
+    {
+        std::int64_t has_col = 0;
+        { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('run') WHERE name='version'");
+          if (st.step()) st.get(has_col); }
+        if (has_col == 0) {
+            db.exec("ALTER TABLE run ADD COLUMN version TEXT");
+        }
+    }
     // host_spec = the hardware identity, ONE row per machine (group_id). cpu/cores/ram_gb/os/disk are
     // the group_id key (disk in the key: x7k vs 10k vs ssd on one box -> distinct groups, durable
     // throughput being disk-bound); p_cores / cpu_mhz_min / cpu_mhz_max are display-only (machines table).
-    db.exec("CREATE TABLE IF NOT EXISTS host_spec ("
-            "group_id INTEGER PRIMARY KEY, cpu TEXT, cores INTEGER, p_cores INTEGER, ram_gb INTEGER, "
-            "cpu_mhz_min INTEGER, cpu_mhz_max INTEGER, disk TEXT, os TEXT)");
+    db.exec("CREATE TABLE IF NOT EXISTS host_spec (\n"
+            "    group_id INTEGER PRIMARY KEY\n"
+            "  , cpu TEXT\n"
+            "  , cores INTEGER\n"
+            "  , p_cores INTEGER\n"
+            "  , ram_gb INTEGER\n"
+            "  , cpu_mhz_min INTEGER\n"
+            "  , cpu_mhz_max INTEGER\n"
+            "  , disk TEXT\n"
+            "  , os TEXT\n"
+            ")");
     // current_host = the single row naming which machine THIS checkout is (group_id). bootstrap/CLI
     // set it when they sense; store_bench READS it instead of self-sensing.
-    db.exec("CREATE TABLE IF NOT EXISTS current_host (id INTEGER PRIMARY KEY CHECK(id=1), group_id INTEGER)");
-    db.exec("CREATE TABLE IF NOT EXISTS testRun ("
-            "id INTEGER PRIMARY KEY, run_id INTEGER, test_type_id INTEGER, test_list_id INTEGER, parameter_id INTEGER, "
-            "status TEXT, duration_ms INTEGER, median_ops INTEGER, low_ops INTEGER, high_ops INTEGER, "
-            "avg_ops INTEGER, stddev_ops INTEGER, bytes INTEGER)");
+    db.exec("CREATE TABLE IF NOT EXISTS current_host (\n"
+            "    id INTEGER PRIMARY KEY CHECK(id=1)\n"
+            "  , group_id INTEGER\n"
+            ")");
+    db.exec("CREATE TABLE IF NOT EXISTS testRun (\n"
+            "    id INTEGER PRIMARY KEY\n"
+            "  , run_id INTEGER\n"
+            "  , test_type_id INTEGER\n"
+            "  , test_list_id INTEGER\n"
+            "  , parameter_id INTEGER\n"
+            "  , status TEXT\n"
+            "  , duration_ms INTEGER\n"
+            "  , median_ops INTEGER\n"
+            "  , low_ops INTEGER\n"
+            "  , high_ops INTEGER\n"
+            "  , avg_ops INTEGER\n"
+            "  , stddev_ops INTEGER\n"
+            "  , bytes INTEGER\n"
+            ")");
+
+    // runEvent: live status and progress log for tracking runs in real time (e.g. in DataGrip).
+    // Inserted during execution so you can watch started/ended/error events while the CLI is running.
+    db.exec("CREATE TABLE IF NOT EXISTS runEvent (\n"
+            "    id INTEGER PRIMARY KEY\n"
+            "  , run_id INTEGER\n"
+            "  , ts_utc TEXT\n"
+            "  , test_name TEXT\n"
+            "  , event TEXT\n"
+            "  , message TEXT\n"
+            "  , duration_ms INTEGER\n"
+            ")");
     // safeness = per (machine x gate x compiler) pass/fail summary, recomputed from testRun at record
     // time by rebuild_safeness() so the report + run-everything verdict READ it (never recount).
-    db.exec("CREATE TABLE IF NOT EXISTS safeness ("
-            "group_id INTEGER, gate TEXT, compiler TEXT, pass INTEGER, fail INTEGER, "
-            "PRIMARY KEY(group_id, gate, compiler))");
+    db.exec("CREATE TABLE IF NOT EXISTS safeness (\n"
+            "    group_id INTEGER\n"
+            "  , version TEXT\n"  // JAC313_VERSION for isolation (v001 vs v002)
+            "  , gate TEXT\n"
+            "  , compiler TEXT\n"
+            "  , pass INTEGER\n"
+            "  , fail INTEGER\n"
+            "  , PRIMARY KEY(group_id, version, gate, compiler)\n"
+            ")");
+    // Migration for safeness version column (JAC313_VERSION for v001/v002 isolation)
+    {
+        std::int64_t has_col = 0;
+        { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('safeness') WHERE name='version'");
+          if (st.step()) st.get(has_col); }
+        if (has_col == 0) {
+            db.exec("ALTER TABLE safeness ADD COLUMN version TEXT");
+            // old rows (pre-version) will have NULL version and are treated as "any"
+        }
+    }
     // io_best_fit = the per-machine durable double-buffer calibration for each backend. The peak of a
     // batch sweep is noisy, so we record the PLATEAU: low_size/high_size are the batch sizes at the
     // bottom/top of the near-peak band, and useThis is a robust pick in the MIDDLE of that band (what
     // the recorded bench actually runs at). best_size/best_ops are the raw peak (batch + median ops/sec)
     // kept for reference. One row per (group_id, type).
-    db.exec("CREATE TABLE IF NOT EXISTS io_best_fit ("
-            "id INTEGER PRIMARY KEY, group_id INTEGER, type TEXT, "
-            "low_size INTEGER, high_size INTEGER, best_size INTEGER, best_ops INTEGER, useThis INTEGER, "
-            "UNIQUE(group_id, type))");
+    db.exec("CREATE TABLE IF NOT EXISTS io_best_fit (\n"
+            "    id INTEGER PRIMARY KEY\n"
+            "  , group_id INTEGER\n"
+            "  , type TEXT\n"
+            "  , low_size INTEGER\n"
+            "  , high_size INTEGER\n"
+            "  , best_size INTEGER\n"
+            "  , best_ops INTEGER\n"
+            "  , useThis INTEGER\n"
+            "  , UNIQUE(group_id, type)\n"
+            ")");
 
     // testControl: per-test runtime controls (timeouts, memory limits, etc.) that drive the test harness.
     // Values live here in the DB (not hardcoded in source or flat files at runtime).
@@ -120,31 +250,56 @@ inline std::int64_t lookup_id(Sqlite& db, const char* sql, const std::string& na
 }
 
 // Recompute the safeness summary from testRun. Called at the END of every recorder so the report +
-// run-everything verdict just READ the table (never recount). compiler label = name||major (== comp_label).
-// NOTE: counts aggregate across ALL runs for a (group,gate,compiler); run-everything wipes the DB fresh
-// so that's one run each. (Incremental re-runs without a wipe would accumulate — acceptable for now.)
+// run-everything verdict just READ the table (never recount). 
+// Now also keys on JAC313_VERSION so v001 and v002 data stay isolated even for the same group/hardware.
 inline void rebuild_safeness(Sqlite& db) {
     db.exec("DELETE FROM safeness");
     // pass/fail are NULL-safe: bench rows store throughput with status=NULL (a row exists only on
     // success), so COALESCE(status,'pass') treats them as pass; only 'fail'/'error' count as failures.
-    db.exec("INSERT INTO safeness(group_id, gate, compiler, pass, fail) "
-            "SELECT r.group_id, tt.name, c.name||c.major, "
-            "SUM(CASE WHEN COALESCE(tr.status,'pass') IN ('fail','error') THEN 0 ELSE 1 END), "
-            "SUM(CASE WHEN COALESCE(tr.status,'pass') IN ('fail','error') THEN 1 ELSE 0 END) "
-            "FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
-            "JOIN testType tt ON tt.id=tr.test_type_id "
-            "JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
-            "WHERE tt.name IN ('ctest','smoke','bench') "
-            "GROUP BY r.group_id, tt.name, c.name||c.major");
-    db.exec("INSERT INTO safeness(group_id, gate, compiler, pass, fail) "
-            "SELECT r.group_id, p.valgrind_tool, c.name||c.major, "
-            "SUM(CASE WHEN COALESCE(tr.status,'pass') IN ('fail','error') THEN 0 ELSE 1 END), "
-            "SUM(CASE WHEN COALESCE(tr.status,'pass') IN ('fail','error') THEN 1 ELSE 0 END) "
-            "FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
-            "JOIN testType tt ON tt.id=tr.test_type_id "
-            "JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
-            "WHERE tt.name IN ('verify','verify-lite') AND p.valgrind_tool IS NOT NULL "
-            "GROUP BY r.group_id, p.valgrind_tool, c.name||c.major");
+    db.exec("INSERT INTO safeness (\n"
+            "    group_id\n"
+            "  , version\n"
+            "  , gate\n"
+            "  , compiler\n"
+            "  , pass\n"
+            "  , fail\n"
+            ")\n"
+            "SELECT \n"
+            "    r.group_id\n"
+            "  , COALESCE(r.version, '')\n"
+            "  , tt.name\n"
+            "  , c.name || c.major\n"
+            "  , SUM(CASE WHEN COALESCE(tr.status, 'pass') IN ('fail', 'error') THEN 0 ELSE 1 END)\n"
+            "  , SUM(CASE WHEN COALESCE(tr.status, 'pass') IN ('fail', 'error') THEN 1 ELSE 0 END)\n"
+            "FROM testRun tr\n"
+            "INNER JOIN run r ON r.run_id = tr.run_id\n"
+            "INNER JOIN testType tt ON tt.id = tr.test_type_id\n"
+            "INNER JOIN parameter p ON p.id = tr.parameter_id\n"
+            "INNER JOIN compiler c ON c.id = p.compiler_id\n"
+            "WHERE tt.name IN ('ctest', 'smoke', 'bench')\n"
+            "GROUP BY r.group_id, COALESCE(r.version, ''), tt.name, c.name || c.major");
+    db.exec("INSERT INTO safeness (\n"
+            "    group_id\n"
+            "  , version\n"
+            "  , gate\n"
+            "  , compiler\n"
+            "  , pass\n"
+            "  , fail\n"
+            ")\n"
+            "SELECT \n"
+            "    r.group_id\n"
+            "  , COALESCE(r.version, '')\n"
+            "  , p.valgrind_tool\n"
+            "  , c.name || c.major\n"
+            "  , SUM(CASE WHEN COALESCE(tr.status, 'pass') IN ('fail', 'error') THEN 0 ELSE 1 END)\n"
+            "  , SUM(CASE WHEN COALESCE(tr.status, 'pass') IN ('fail', 'error') THEN 1 ELSE 0 END)\n"
+            "FROM testRun tr\n"
+            "INNER JOIN run r ON r.run_id = tr.run_id\n"
+            "INNER JOIN testType tt ON tt.id = tr.test_type_id\n"
+            "INNER JOIN parameter p ON p.id = tr.parameter_id\n"
+            "INNER JOIN compiler c ON c.id = p.compiler_id\n"
+            "WHERE tt.name IN ('verify', 'verify-lite') AND p.valgrind_tool IS NOT NULL\n"
+            "GROUP BY r.group_id, COALESCE(r.version, ''), p.valgrind_tool, c.name || c.major");
 }
 
 // ---- compiler dimension ----
@@ -203,19 +358,41 @@ inline std::int64_t pin_host(Sqlite& db, const HostId& h) {
     return gid;
 }
 
+// Delete the most recent run (and its testRun/runEvent rows) for this group + optional JAC313_VERSION.
+// Used for explicit "fresh start for this machine" (e.g. top of --run-everything,
+// and the jac313_wipe_* tools). 
+// Recorders scope deletes to the version so v001 cannot affect v002 data (same hardware group).
+inline void delete_prior_run_for_group(Sqlite& db, std::int64_t gid, const std::string& version = "") {
+    std::int64_t prior_run = 0;
+    if (version.empty()) {
+        auto st = db.prepare("SELECT run_id FROM run WHERE group_id=? ORDER BY run_id DESC LIMIT 1");
+        st.bind(gid); if (st.step()) st.get(prior_run);
+    } else {
+        auto st = db.prepare("SELECT run_id FROM run WHERE group_id=? AND version=? ORDER BY run_id DESC LIMIT 1");
+        st.bind(gid); st.bind(version); if (st.step()) st.get(prior_run);
+    }
+    if (prior_run > 0) {
+        db.exec("DELETE FROM testRun WHERE run_id=?", prior_run);
+        db.exec("DELETE FROM runEvent WHERE run_id=?", prior_run);
+        db.exec("DELETE FROM run WHERE run_id=?", prior_run);
+    }
+}
+
 inline std::int64_t next_run_id(Sqlite& db) {
     std::int64_t n = 1;
     { auto st = db.prepare("SELECT COALESCE(MAX(run_id),0)+1 FROM run"); if (st.step()) st.get(n); }
     return n;
 }
 
-// Insert a run row (idempotent on run_id). store_ver/qlite_ver/jtext_ver default empty (functional runs).
+// Insert a run row (idempotent on run_id). version = JAC313_VERSION ("v001"/"v002").
+// store_ver/qlite_ver/jtext_ver are the component versions under test (default empty for functional runs).
 inline void insert_run(Sqlite& db, std::int64_t run_id, std::int64_t gid, const std::string& host,
+                       const std::string& version = "",
                        const std::string& store_ver = "",
                        const std::string& qlite_ver = "", const std::string& jtext_ver = "") {
-    db.exec("INSERT OR IGNORE INTO run(run_id, ts_utc, group_id, host, store_ver, qlite_ver, jtext_ver) "
-            "VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?)",
-            run_id, gid, host, store_ver, qlite_ver, jtext_ver);
+    db.exec("INSERT OR IGNORE INTO run(run_id, ts_utc, group_id, host, version, store_ver, qlite_ver, jtext_ver) "
+            "VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?,?)",
+            run_id, gid, host, version, store_ver, qlite_ver, jtext_ver);
 }
 
 // ---- io_best_fit (per-machine durable-backend batch calibration) ----
@@ -286,6 +463,28 @@ inline void seed_test_controls_from_file(Sqlite& db, const std::filesystem::path
             upsert_test_control(db, name, secs, mem);
         }
     }
+}
+
+// Simple UTC timestamp for logs.
+inline std::string utc_now_iso() {
+    const auto now = std::chrono::system_clock::now();
+    const std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::tm tm{};
+    gmtime_r(&t, &tm);
+    std::ostringstream out;
+    out << std::put_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
+    return out.str();
+}
+
+// log_run_event: record live status events so you can query progress in DataGrip while the test runner is active.
+// event examples: "started", "ended", "error"
+inline void log_run_event(Sqlite& db, std::int64_t run_id, const std::string& test_name,
+                          const std::string& event, const std::string& message = "",
+                          std::int64_t duration_ms = 0) {
+    const std::string ts = utc_now_iso();
+    db.exec("INSERT INTO runEvent(run_id, ts_utc, test_name, event, message, duration_ms) "
+            "VALUES(?,?,?,?,?,?)",
+            run_id, ts, test_name, event, message, duration_ms);
 }
 
 } // namespace jac313::results

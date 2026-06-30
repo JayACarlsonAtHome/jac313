@@ -66,6 +66,8 @@ int main(int argc, char** argv) {
     const std::int64_t n_pin  = one_long("SELECT COUNT(*) FROM current_host WHERE group_id=?");
     const std::int64_t n_tr   = one_long("SELECT COUNT(*) FROM testRun WHERE run_id IN "
                                          "(SELECT run_id FROM run WHERE group_id=?)");
+    const std::int64_t n_ev   = one_long("SELECT COUNT(*) FROM runEvent WHERE run_id IN "
+                                         "(SELECT run_id FROM run WHERE group_id=?)");
     if (n_runs == 0 && n_spec == 0 && n_iobf == 0 && n_pin == 0) {
         std::cout << "wipe-jac: no machine " << label << " (group_id " << gid << ") in " << db_path
                   << " (nothing to delete).\n";
@@ -73,12 +75,13 @@ int main(int argc, char** argv) {
     }
 
     std::cout << "target: " << db_path << "\n  wipe machine " << label << " (group_id " << gid << "): "
-              << "runs=" << n_runs << " testRun=" << n_tr << " host_spec=" << n_spec
+              << "runs=" << n_runs << " testRun=" << n_tr << " runEvent=" << n_ev << " host_spec=" << n_spec
               << " io_best_fit=" << n_iobf << " current_host_pin=" << n_pin
               << "\n  shared dimensions (testList/compiler/parameter) kept.\n";
     if (dry) { std::cout << "  dry-run — nothing changed; re-run with --yes to delete.\n"; return 0; }
 
     db.exec("DELETE FROM testRun WHERE run_id IN (SELECT run_id FROM run WHERE group_id=?)", gid);
+    db.exec("DELETE FROM runEvent WHERE run_id IN (SELECT run_id FROM run WHERE group_id=?)", gid);
     db.exec("DELETE FROM run          WHERE group_id=?", gid);
     db.exec("DELETE FROM host_spec    WHERE group_id=?", gid);
     db.exec("DELETE FROM io_best_fit  WHERE group_id=?", gid);

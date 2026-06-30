@@ -40,11 +40,11 @@ int main(int argc, char** argv) {
     auto cnt = [&](const char* t) { std::int64_t n = 0; auto st = db.prepare(std::string("SELECT COUNT(*) FROM ") + t);
                                     if (st.step()) st.get(n); return n; };
     std::cout << "target: " << db_path << "\n  run=" << cnt("run") << " testRun=" << cnt("testRun")
-              << " host_spec=" << cnt("host_spec") << " current_host=" << cnt("current_host")
+              << " runEvent=" << cnt("runEvent") << " host_spec=" << cnt("host_spec") << " current_host=" << cnt("current_host")
               << " compiler=" << cnt("compiler") << " parameter=" << cnt("parameter")
               << " testList=" << cnt("testList") << "  (testType enum kept)\n";
     if (dry) { std::cout << "  dry-run — nothing changed; re-run with --yes to clear.\n"; return 0; }
-    for (const char* t : {"testRun", "run", "parameter", "compiler", "testList", "current_host", "host_spec"})
+    for (const char* t : {"testRun", "runEvent", "run", "parameter", "compiler", "testList", "current_host", "host_spec"})
         db.exec(std::string("DELETE FROM ") + t);
     db.exec("VACUUM");
     std::cout << "  CLEAN SLATE - results, host_spec, and the current_host pin cleared (schema + testType kept).\n";

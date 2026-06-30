@@ -227,13 +227,13 @@ void JTextSplitEventLog::write_sql_companions(
         std::string rel = std::format("type=ts_store table={}", table_name);
         write_file_comment_header(sql, sql_path, "SQL Schema File", rel);
         sql << "CREATE TABLE IF NOT EXISTS " << table_name << " (\n"
-            << "    id BIGINT PRIMARY KEY,\n"
-            << "    thread_id BIGINT,\n"
-            << "    per_thread_event_id BIGINT,\n"
-            << "    flags_raw BIGINT,\n"
-            << "    category TEXT,\n"
-            << "    payload TEXT,\n"
-            << "    timestamp_us BIGINT\n"
+            << "    id BIGINT PRIMARY KEY\n"
+            << "  , thread_id BIGINT\n"
+            << "  , per_thread_event_id BIGINT\n"
+            << "  , flags_raw BIGINT\n"
+            << "  , category TEXT\n"
+            << "  , payload TEXT\n"
+            << "  , timestamp_us BIGINT\n"
             << ");\n\n";
     }
 
@@ -244,11 +244,9 @@ void JTextSplitEventLog::write_sql_companions(
         std::string rel = std::format("type=ts_store table={}", tname_i);
         write_file_comment_header(sql, sql_path, "SQL Schema File", rel);
         sql << "CREATE TABLE IF NOT EXISTS " << tname_i << " (\n"
-            << "    id BIGINT PRIMARY KEY,\n";
+            << "    id BIGINT PRIMARY KEY\n";
         for (size_t i = 0; i < int_count; ++i) {
-            sql << "    int" << i << " BIGINT";
-            if (i + 1 < int_count) sql << ",";
-            sql << "\n";
+            sql << "  , int" << i << " BIGINT\n";
         }
         sql << ");\n\n";
     }
@@ -260,11 +258,9 @@ void JTextSplitEventLog::write_sql_companions(
         std::string rel = std::format("type=ts_store table={}", tname_f);
         write_file_comment_header(sql, sql_path, "SQL Schema File", rel);
         sql << "CREATE TABLE IF NOT EXISTS " << tname_f << " (\n"
-            << "    id BIGINT PRIMARY KEY,\n";
+            << "    id BIGINT PRIMARY KEY\n";
         for (size_t i = 0; i < dbl_count; ++i) {
-            sql << "    dbl" << i << " DOUBLE PRECISION";
-            if (i + 1 < dbl_count) sql << ",";
-            sql << "\n";
+            sql << "  , dbl" << i << " DOUBLE PRECISION\n";
         }
         sql << ");\n\n";
     }
@@ -298,13 +294,13 @@ void JTextSplitEventLog::write_all_headers(std::string_view base_name, size_t in
     i.main_ofs << "=== Template: Create Table ===\n"
                << " 1. <<< !!!CT!!!\n"
                << "CREATE TABLE IF NOT EXISTS " << table_name << " (\n"
-               << "    id BIGINT PRIMARY KEY,\n"
-               << "    thread_id BIGINT,\n"
-               << "    per_thread_event_id BIGINT,\n"
-               << "    flags_raw BIGINT,\n"
-               << "    category TEXT,\n"
-               << "    payload TEXT,\n"
-               << "    timestamp_us BIGINT\n"
+               << "    id BIGINT PRIMARY KEY\n"
+               << "  , thread_id BIGINT\n"
+               << "  , per_thread_event_id BIGINT\n"
+               << "  , flags_raw BIGINT\n"
+               << "  , category TEXT\n"
+               << "  , payload TEXT\n"
+               << "  , timestamp_us BIGINT\n"
                << ");\n"
                << "!!!CT!!!\n\n";
     i.main_ofs << "=== Template: SQL Insert ===\n"
@@ -327,11 +323,9 @@ void JTextSplitEventLog::write_all_headers(std::string_view base_name, size_t in
         i.ints_ofs << "=== Template: Create Table ===\n"
                    << " 1. <<< !!!CT!!!\n"
                    << "CREATE TABLE IF NOT EXISTS " << tname_i << " (\n"
-                   << "    id BIGINT PRIMARY KEY,\n";
+                   << "    id BIGINT PRIMARY KEY\n";
         for (size_t k = 0; k < int_count; ++k) {
-            i.ints_ofs << "    int" << k << " BIGINT";
-            if (k + 1 < int_count) i.ints_ofs << ",";
-            i.ints_ofs << "\n";
+            i.ints_ofs << "  , int" << k << " BIGINT\n";
         }
         i.ints_ofs << ");\n"
                    << "!!!CT!!!\n\n";
@@ -359,11 +353,9 @@ void JTextSplitEventLog::write_all_headers(std::string_view base_name, size_t in
         i.floats_ofs << "=== Template: Create Table ===\n"
                    << " 1. <<< !!!CT!!!\n"
                    << "CREATE TABLE IF NOT EXISTS " << tname_f << " (\n"
-                   << "    id BIGINT PRIMARY KEY,\n";
+                   << "    id BIGINT PRIMARY KEY\n";
         for (size_t k = 0; k < dbl_count; ++k) {
-            i.floats_ofs << "    dbl" << k << " DOUBLE PRECISION";
-            if (k + 1 < dbl_count) i.floats_ofs << ",";
-            i.floats_ofs << "\n";
+            i.floats_ofs << "  , dbl" << k << " DOUBLE PRECISION\n";
         }
         i.floats_ofs << ");\n"
                    << "!!!CT!!!\n\n";

@@ -53,7 +53,11 @@ It wasn't. It was running **158 smoke combos** instead of **8**, and **86 full**
 **The cause** was one missing keyword. `missing_matrix_combos` builds the run list with:
 
 ```sql
-SELECT d.compiler, d.build_type, d.modules, d.size_label
+SELECT 
+    d.compiler
+  , d.build_type
+  , d.modules
+  , d.size_label
 FROM v_desired_matrix d
 LEFT JOIN runs r ON (… matching identity …)
 WHERE (? OR r.id IS NULL)        -- ? = --force
@@ -71,7 +75,14 @@ starter nobody asked for.
 **The fix** was, with apologies for the anticlimax, the word `DISTINCT`:
 
 ```sql
-SELECT DISTINCT d.compiler, d.build_type, d.modules, d.size_label
+SELECT DISTINCT 
+    d.compiler
+  , d.build_type
+  , d.modules
+  , d.size_label
+FROM v_desired_matrix d
+LEFT JOIN runs r ON (… matching identity …)
+WHERE r.id IS NULL;
 ```
 
 **Moral:** a `LEFT JOIN` against an append-only history table without `DISTINCT` is a loaded

@@ -403,6 +403,11 @@ const char* matrix_status_str(TestStatus s) {
     }
 }
 
+// The jac313 harness version for *this* tree (JAC313_VERSION).
+// Recorded on every run and used to scope deletes/aggregates/reports
+// so that v001 runs cannot overwrite or delete data from v002 (same hardware group_id).
+static const std::string JAC313_VERSION = "v001";
+
 // Ensure schema, resolve this machine's group_id (hardware+os, matching store_bench), create a fresh
 // run row, and return its run_id. Shared by the smoke/ctest/verify recorders. Uses the shared helpers.
 std::int64_t cli_begin_run(jac313::Qlite::v001::Sqlite& db) {
@@ -411,8 +416,9 @@ std::int64_t cli_begin_run(jac313::Qlite::v001::Sqlite& db) {
     const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
                                     static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label, static_cast<std::int64_t>(hw.p_cores), static_cast<std::int64_t>(hw.cpu_mhz_min), static_cast<std::int64_t>(hw.cpu_mhz_max)};
     const std::int64_t group_id = jac313::results::pin_host(db, h);   // find-or-assign + write host_spec + current_host
+    jac313::results::delete_prior_run_for_group(db, group_id, JAC313_VERSION);
     const std::int64_t run_id   = jac313::results::next_run_id(db);
-    jac313::results::insert_run(db, run_id, group_id, jac313::results::host_label(group_id));
+    jac313::results::insert_run(db, run_id, group_id, jac313::results::host_label(group_id), JAC313_VERSION);
     return run_id;
 }
 
@@ -887,6 +893,13 @@ void write_index_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
     std::ofstream md(out / "README.md");
     nav_top(md, "../README.md");
     md << "# Test results\n\n_Generated from `results.db` by `jac313_test_cli --report`._\n\n";
+    // Version isolation (v001 vs v002 trees) using JAC313_VERSION
+    {
+        std::string ver;
+        auto st = db.prepare("SELECT version FROM run WHERE version IS NOT NULL ORDER BY run_id DESC LIMIT 1");
+        if (st.step()) st.get(ver);
+        if (!ver.empty()) md << "**jac313 version:** " << ver << " (runs, deletes, and safeness are scoped by this)\n\n";
+    }
 
     // Machines table — decodes each jac313-### (latest run per group) with its hardware spec.
     {
@@ -917,9 +930,17 @@ void write_index_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
     {
         struct GatePF { std::int64_t pass = 0, fail = 0, ran = 0; };
         auto gate_pf = [&](std::int64_t g, const char* gate) {
-            GatePF x; auto st = db.prepare("SELECT COALESCE(SUM(pass),0), COALESCE(SUM(fail),0), COUNT(*) "
-                                           "FROM safeness WHERE group_id=? AND gate=?");
-            st.bind(g, std::string(gate)); if (st.step()) st.get(x.pass, x.fail, x.ran); return x; };
+            GatePF x;
+            // Prefer data for the latest recorded JAC313_VERSION on this group (v001 vs v002 isolation)
+            std::string ver;
+            { auto vst = db.prepare("SELECT version FROM run WHERE group_id=? AND version IS NOT NULL ORDER BY run_id DESC LIMIT 1");
+              vst.bind(g); if (vst.step()) vst.get(ver); }
+            std::string sql = "SELECT COALESCE(SUM(pass),0), COALESCE(SUM(fail),0), COUNT(*) FROM safeness WHERE group_id=? AND gate=?";
+            if (!ver.empty()) sql += " AND (version=? OR version IS NULL OR version='')";
+            auto st = db.prepare(sql);
+            st.bind(g, std::string(gate));
+            if (!ver.empty()) st.bind(ver);
+            if (st.step()) st.get(x.pass, x.fail, x.ran); return x; };
         auto pf_cell = [](const GatePF& x) { return x.ran ? (std::to_string(x.pass) + "/" + std::to_string(x.fail)) : std::string("-"); };
         auto vg_cell = [](const GatePF& x) { return x.ran ? std::string(x.fail == 0 ? "✅" : "❌") : std::string("n/a"); };
         std::vector<std::int64_t> groups;
@@ -1606,6 +1627,16 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
         return a;
     };
 
+    // Create run early so live status events go to runEvent (watch in DataGrip while the
+    // long valgrind run is in progress). Reuse the same run_id for the final testRun inserts.
+    std::int64_t run_id = 0;
+    const fs::path db_path = global.source_dir / "test-summary" / "results.db";
+    try {
+        jac313::Qlite::v001::Sqlite db(db_path.string());
+        run_id = cli_begin_run(db);
+        jac313::results::log_run_event(db, run_id, "", "run_started", name + " starting");
+    } catch (...) {}
+
     // memcheck: the full memory surface.
     std::vector<VgTask> mem;
     mem.push_back({"ut:v001_test", utdir / "jac313_store_v001_test", {}});
@@ -1673,6 +1704,15 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
         std::string persist;
         for (const auto& a : t.args) if (a.rfind("--persist=", 0) == 0) persist = a.substr(10);
         const std::string test = t.bin.filename().string();
+
+        // Live per-task status (for DataGrip / runEvent while valgrinding)
+        if (run_id > 0) {
+            try {
+                jac313::Qlite::v001::Sqlite db(db_path.string());
+                jac313::results::log_run_event(db, run_id, t.label, "started");
+            } catch (...) {}
+        }
+
         if (!fs::exists(t.bin)) {
             std::cout << "  [" << format_count_padded(static_cast<std::int64_t>(vg_idx), iw) << "/" << vg_total
                       << "] " << ljust("[" + tool + "] " + t.label, seg_w)
@@ -1680,6 +1720,12 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
             ++testfail;
             failures.push_back(tool + " " + t.label + " [missing]");
             recs.push_back({tool, test, persist, "error", 0});
+            if (run_id > 0) {
+                try {
+                    jac313::Qlite::v001::Sqlite db(db_path.string());
+                    jac313::results::log_run_event(db, run_id, t.label, "error", "MISSING BINARY");
+                } catch (...) {}
+            }
             return;
         }
         std::vector<std::string> cmd = {"valgrind", "--tool=" + tool, "--error-exitcode=99"};
@@ -1719,6 +1765,22 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
             ++clean;
         }
         recs.push_back({tool, test, persist, status, static_cast<std::int64_t>(dur_ms)});
+
+        if (run_id > 0) {
+            try {
+                jac313::Qlite::v001::Sqlite db(db_path.string());
+                std::string ev = (status == "pass") ? "ended" : "error";
+                std::string msg = verdict;
+                const std::string combined = r.stderr_text + r.stdout_text;
+                if (!combined.empty()) {
+                    std::string tail = combined.substr(0, 400);
+                    if (combined.size() > 400) tail += "...";
+                    msg += " | " + tail;
+                }
+                jac313::results::log_run_event(db, run_id, t.label, ev, msg, static_cast<std::int64_t>(dur_ms));
+            } catch (...) {}
+        }
+
         std::cout << "  [" << format_count_padded(static_cast<std::int64_t>(vg_idx), iw) << "/" << vg_total
                   << "] " << ljust("[" + tool + "] " + t.label, seg_w)
                   << " ... " << verdict
@@ -1746,6 +1808,13 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
     const bool ok = (vgfail == 0 && testfail == 0);
     std::cout << (ok ? (name + " PASS\n") : (name + " FAIL\n"));
 
+    if (run_id > 0) {
+        try {
+            jac313::Qlite::v001::Sqlite db(db_path.string());
+            jac313::results::log_run_event(db, run_id, "", "run_ended", name + (ok ? " complete" : " failed"));
+        } catch (...) {}
+    }
+
     // Capture each (tool x task) into results.db — test_type = this gate's name (verify-lite|verify),
     // valgrind tool as a parameter, status pass/fail/error + duration. Best-effort.
     {
@@ -1754,7 +1823,10 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
         if (!recs.empty() && fs::exists(rpath.parent_path(), rec)) {
             try {
                 jac313::Qlite::v001::Sqlite rdb(rpath.string());
-                const std::int64_t run_id  = cli_begin_run(rdb);
+                std::int64_t use_run = run_id;
+                if (use_run == 0) {
+                    use_run = cli_begin_run(rdb);
+                }
                 const std::int64_t comp_id = cli_compiler_id(rdb, read_compiler_info(global.build_dir));
                 const std::int64_t type_id = cli_results_id(rdb, "SELECT id FROM testType WHERE name=?", name);
                 for (const auto& v : recs) rdb.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", v.test);
@@ -1762,10 +1834,10 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
                     const std::int64_t list_id  = cli_results_id(rdb, "SELECT id FROM testList WHERE name=?", v.test);
                     const std::int64_t param_id = cli_parameter_id_verify(rdb, comp_id, "Debug", "off", "off", v.persist, v.tool);
                     rdb.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms) "
-                             "VALUES(?,?,?,?,?,?)", run_id, type_id, list_id, param_id, v.status, v.dur_ms);
+                             "VALUES(?,?,?,?,?,?)", use_run, type_id, list_id, param_id, v.status, v.dur_ms);
                 }
                 jac313::results::rebuild_safeness(rdb);   // refresh the safeness summary (read by report + verdict)
-                std::cout << "[results] recorded " << recs.size() << " " << name << " results (run " << run_id
+                std::cout << "[results] recorded " << recs.size() << " " << name << " results (run " << use_run
                           << ") -> " << rpath.string() << '\n';
             } catch (const std::exception& e) {
                 std::cerr << "[results] verify record failed: " << e.what() << '\n';
@@ -2186,9 +2258,15 @@ int run_everything_command(const GlobalOptions& global) {
               st.bind(g); if (st.step()) st.get(cpu, os, disk); }
             struct PF { std::int64_t pass = 0, fail = 0, ran = 0; };
             auto pf = [&](const char* gate) { PF x;
-                auto st = db.prepare("SELECT COALESCE(SUM(pass),0), COALESCE(SUM(fail),0), COUNT(*) "
-                                     "FROM safeness WHERE group_id=? AND gate=?");
-                st.bind(g, std::string(gate)); if (st.step()) st.get(x.pass, x.fail, x.ran); return x; };
+                std::string ver;
+                { auto vst = db.prepare("SELECT version FROM run WHERE group_id=? AND version IS NOT NULL ORDER BY run_id DESC LIMIT 1");
+                  vst.bind(g); if (vst.step()) vst.get(ver); }
+                std::string sql = "SELECT COALESCE(SUM(pass),0), COALESCE(SUM(fail),0), COUNT(*) FROM safeness WHERE group_id=? AND gate=?";
+                if (!ver.empty()) sql += " AND (version=? OR version IS NULL OR version='')";
+                auto st = db.prepare(sql);
+                st.bind(g, std::string(gate));
+                if (!ver.empty()) st.bind(ver);
+                if (st.step()) st.get(x.pass, x.fail, x.ran); return x; };
             const PF ct = pf("ctest"), sm = pf("smoke"), bn = pf("bench"),
                      me = pf("memcheck"), he = pf("helgrind"), dr = pf("drd");
             const std::int64_t vgfail = me.fail + he.fail + dr.fail;

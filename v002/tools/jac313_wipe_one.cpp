@@ -71,11 +71,12 @@ int main(int argc, char** argv) {
     { auto st = db.prepare("SELECT host FROM run WHERE run_id=?"); st.bind(run_id); if (st.step()) st.get(host); }
     if (host.empty()) host = "group " + std::to_string(group_id);
     const std::int64_t n_tr           = one_long("SELECT COUNT(*) FROM testRun WHERE run_id=?", run_id);
+    const std::int64_t n_ev           = one_long("SELECT COUNT(*) FROM runEvent WHERE run_id=?", run_id);
     const std::int64_t runs_in_group  = one_long("SELECT COUNT(*) FROM run WHERE group_id=?", group_id);
     const bool last_for_machine       = (runs_in_group <= 1);
 
     std::cout << "target: " << db_path << "\n  delete run " << run_id << "  (testRun rows=" << n_tr
-              << ", machine " << host << ")\n  machine entry (" << host << "): "
+              << ", runEvent=" << n_ev << ", machine " << host << ")\n  machine entry (" << host << "): "
               << (last_for_machine
                       ? "REMOVE — host_spec + io_best_fit + current_host pin (this was its last run)"
                       : "keep — " + std::to_string(runs_in_group - 1) + " other run(s) remain")
@@ -83,6 +84,7 @@ int main(int argc, char** argv) {
     if (dry) { std::cout << "  dry-run — nothing changed; re-run with --yes to delete.\n"; return 0; }
 
     db.exec("DELETE FROM testRun WHERE run_id=?", run_id);
+    db.exec("DELETE FROM runEvent WHERE run_id=?", run_id);
     db.exec("DELETE FROM run WHERE run_id=?", run_id);
     if (last_for_machine) {
         db.exec("DELETE FROM host_spec   WHERE group_id=?", group_id);
@@ -91,7 +93,7 @@ int main(int argc, char** argv) {
     }
     jac313::results::rebuild_safeness(db);   // recount the per-(machine x gate x compiler) summary from what's left
     db.exec("VACUUM");
-    std::cout << "  deleted run " << run_id << " + " << n_tr << " testRun row(s); "
+    std::cout << "  deleted run " << run_id << " + " << n_tr << " testRun row(s) + " << n_ev << " runEvent row(s); "
               << (last_for_machine ? ("removed machine " + host + "; ") : "")
               << "safeness rebuilt.\n";
     return 0;

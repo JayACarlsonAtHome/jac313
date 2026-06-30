@@ -58,13 +58,13 @@ void SqlEventSink::ensure_tables_and_prepare() {
     {
         std::ostringstream oss;
         oss << "CREATE TABLE IF NOT EXISTS " << table_base_ << " (\n"
-            << "    id BIGINT PRIMARY KEY,\n"
-            << "    thread_id BIGINT,\n"
-            << "    per_thread_event_id BIGINT,\n"
-            << "    flags_raw BIGINT,\n"
-            << "    category TEXT,\n"
-            << "    payload TEXT,\n"
-            << "    timestamp_us BIGINT\n"
+            << "    id BIGINT PRIMARY KEY\n"
+            << "  , thread_id BIGINT\n"
+            << "  , per_thread_event_id BIGINT\n"
+            << "  , flags_raw BIGINT\n"
+            << "  , category TEXT\n"
+            << "  , payload TEXT\n"
+            << "  , timestamp_us BIGINT\n"
             << ");\n";
         db_->exec(oss.str());
     }
@@ -72,16 +72,14 @@ void SqlEventSink::ensure_tables_and_prepare() {
     if (int_count_ > 0) {
         std::ostringstream oss;
         oss << "CREATE TABLE IF NOT EXISTS " << table_base_ << "_ints (\n"
-            << "    id BIGINT PRIMARY KEY,\n";
+            << "    id BIGINT PRIMARY KEY\n";
         for (size_t k = 0; k < int_count_; ++k) {
-            oss << "    int" << k << " BIGINT";
-            if (k + 1 < int_count_) oss << ",";
-            oss << "\n";
+            oss << "  , int" << k << " BIGINT\n";
         }
-        oss << "    , thread_id BIGINT,\n"
-            << "    per_thread_event_id BIGINT,\n"
-            << "    flags_raw BIGINT,\n"
-            << "    timestamp_us BIGINT\n"
+        oss << "  , thread_id BIGINT\n"
+            << "  , per_thread_event_id BIGINT\n"
+            << "  , flags_raw BIGINT\n"
+            << "  , timestamp_us BIGINT\n"
             << ");\n";
         db_->exec(oss.str());
     }
@@ -89,16 +87,14 @@ void SqlEventSink::ensure_tables_and_prepare() {
     if (dbl_count_ > 0) {
         std::ostringstream oss;
         oss << "CREATE TABLE IF NOT EXISTS " << table_base_ << "_floats (\n"
-            << "    id BIGINT PRIMARY KEY,\n";
+            << "    id BIGINT PRIMARY KEY\n";
         for (size_t k = 0; k < dbl_count_; ++k) {
-            oss << "    dbl" << k << " REAL";
-            if (k + 1 < dbl_count_) oss << ",";
-            oss << "\n";
+            oss << "  , dbl" << k << " REAL\n";
         }
-        oss << "    , thread_id BIGINT,\n"
-            << "    per_thread_event_id BIGINT,\n"
-            << "    flags_raw BIGINT,\n"
-            << "    timestamp_us BIGINT\n"
+        oss << "  , thread_id BIGINT\n"
+            << "  , per_thread_event_id BIGINT\n"
+            << "  , flags_raw BIGINT\n"
+            << "  , timestamp_us BIGINT\n"
             << ");\n";
         db_->exec(oss.str());
     }
@@ -106,17 +102,28 @@ void SqlEventSink::ensure_tables_and_prepare() {
     // Prepare INSERT statements (use OR IGNORE for tolerance)
     {
         std::ostringstream oss;
-        oss << "INSERT OR IGNORE INTO " << table_base_
-            << " (id, thread_id, per_thread_event_id, flags_raw, category, payload, timestamp_us) "
-            << "VALUES (?, ?, ?, ?, ?, ?, ?);";
+        oss << "INSERT OR IGNORE INTO " << table_base_ << " (\n"
+            << "    id\n"
+            << "  , thread_id\n"
+            << "  , per_thread_event_id\n"
+            << "  , flags_raw\n"
+            << "  , category\n"
+            << "  , payload\n"
+            << "  , timestamp_us\n"
+            << ") VALUES (?, ?, ?, ?, ?, ?, ?);";
         stmt_main_ = std::make_unique<Sqlite::Statement>(*db_, oss.str());
     }
 
     if (int_count_ > 0) {
         std::ostringstream oss;
-        oss << "INSERT OR IGNORE INTO " << table_base_ << "_ints (id";
-        for (size_t k = 0; k < int_count_; ++k) oss << ", int" << k;
-        oss << ", thread_id, per_thread_event_id, flags_raw, timestamp_us) VALUES (?";
+        oss << "INSERT OR IGNORE INTO " << table_base_ << "_ints (\n"
+            << "    id";
+        for (size_t k = 0; k < int_count_; ++k) oss << "\n  , int" << k;
+        oss << "\n  , thread_id\n"
+            << "  , per_thread_event_id\n"
+            << "  , flags_raw\n"
+            << "  , timestamp_us\n"
+            << ") VALUES (?";
         for (size_t k = 0; k < int_count_; ++k) oss << ", ?";
         oss << ", ?, ?, ?, ?);";
         stmt_ints_ = std::make_unique<Sqlite::Statement>(*db_, oss.str());
@@ -124,9 +131,14 @@ void SqlEventSink::ensure_tables_and_prepare() {
 
     if (dbl_count_ > 0) {
         std::ostringstream oss;
-        oss << "INSERT OR IGNORE INTO " << table_base_ << "_floats (id";
-        for (size_t k = 0; k < dbl_count_; ++k) oss << ", dbl" << k;
-        oss << ", thread_id, per_thread_event_id, flags_raw, timestamp_us) VALUES (?";
+        oss << "INSERT OR IGNORE INTO " << table_base_ << "_floats (\n"
+            << "    id";
+        for (size_t k = 0; k < dbl_count_; ++k) oss << "\n  , dbl" << k;
+        oss << "\n  , thread_id\n"
+            << "  , per_thread_event_id\n"
+            << "  , flags_raw\n"
+            << "  , timestamp_us\n"
+            << ") VALUES (?";
         for (size_t k = 0; k < dbl_count_; ++k) oss << ", ?";
         oss << ", ?, ?, ?, ?);";
         stmt_dbls_ = std::make_unique<Sqlite::Statement>(*db_, oss.str());

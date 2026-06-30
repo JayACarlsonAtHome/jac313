@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
               << " testList=" << cnt("testList") << " io_best_fit=" << cnt("io_best_fit")
               << "  (testType enum kept)\n";
     if (dry) { std::cout << "  dry-run — nothing changed; re-run with --yes to clear.\n"; return 0; }
-    for (const char* t : {"testRun", "run", "parameter", "compiler", "testList", "current_host", "host_spec", "io_best_fit"})
+    for (const char* t : {"testRun", "runEvent", "run", "parameter", "compiler", "testList", "current_host", "host_spec", "io_best_fit"})
         db.exec(std::string("DELETE FROM ") + t);
     db.exec("VACUUM");
     std::cout << "  CLEAN SLATE - results, host_spec, current_host pin, and io_best_fit cleared (schema + testType kept).\n";

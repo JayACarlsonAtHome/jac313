@@ -44,10 +44,31 @@ void BinaryEventLogReader::skip_leading_file_header() {
     }
 
     std::string_view sv(prefix.data(), static_cast<size_t>(nread));
-    size_t last = sv.rfind("//\n");
     size_t header_end = 0;
-    if (last != std::string_view::npos) {
-        header_end = last + 3;  // position after the terminating "//\n"
+
+    // Robustly locate end of the standardized text header (written by BinaryEventLog
+    // and jText paths). We must consume the *entire* header including the explicit
+    // "// -- end text header..." marker line so the first uint32_t record_len we read
+    // is real binary data, not ASCII from inside a comment line.
+    // The previous rfind("//\n") only advanced to the *penultimate* header line, landing
+    // inside the marker and causing bogus large record_len (>kMax) => next() refuse
+    // => every write+read smoke/reader test returned failure (rc=1).
+    size_t marker = sv.find("// -- end text header, binary records follow --");
+    if (marker != std::string_view::npos) {
+        size_t nl = sv.find('\n', marker);
+        if (nl != std::string_view::npos) {
+            header_end = nl + 1;
+        } else {
+            header_end = marker;
+        }
+    } else {
+        // Fallback for legacy/hand-crafted .bin (e.g. malformed/huge cases in binary_reader_test)
+        // or files without the end-marker line: skip past the last "//\n" line.
+        size_t last = sv.rfind("//\n");
+        if (last != std::string_view::npos) {
+            size_t nl = sv.find('\n', last);
+            header_end = (nl != std::string_view::npos ? nl + 1 : last + 3);
+        }
     }
 
     file_.clear();
