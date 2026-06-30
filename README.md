@@ -138,9 +138,11 @@ flexible structure that others could emulate:
   that exists only because you can't run a compiled tool before you have a compiler.
 - **A data-driven, activation-aware compiler registry** (`Setup/compilers.conf`) — handles
   gcc-toolset activation (scl / env-launcher / source-script) so new platforms are config,
-  not code.
-- **Bootstrap → hand-off.** `bootstrap.sh` senses the host, builds the runner once, and
-  hands control to it.
+  not code. Per-platform install commands are data too (`Setup/recipes.conf`).
+- **Bootstrap → provision → hand-off.** `bootstrap.sh` senses the host; if prerequisites are
+  missing it hands a small manifest to a **committed, fully-static `jac313_setup`** provisioner
+  (or a resilient generated `Setup.sh` fallback) that installs them with a `[y/N]` / `--dry-run`,
+  continue-on-failure flow; then it builds the runner once and hands control to it.
 - **Self-contained major versions** with everything anchored to each version root, so the
   worlds never cross-write — and results are *ported*, not re-run, when the structure
   changes.

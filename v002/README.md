@@ -99,11 +99,14 @@ expected under the `v00N/` layout, not a bug.
 cd v002 && ./bootstrap.sh          # sense toolchain → build the test runner → readiness check
 ```
 
-`bootstrap.sh` senses the compiler (on RHEL it activates `gcc-toolset-15` for you), checks the
-baseline (g++ ≥ 14, Clang ≥ 20, CMake ≥ 3.26 — exactly **4.3.3** for the `import std` pilot, Ninja ≥
-1.11, the sqlite3 dev header, a UTF-8 locale), and if anything is missing writes a reviewable
-`Setup.sh` and stops. It builds **only the test runner** (Debug) and drops a `./jac313_test_cli`
-symlink at the `v002/` root.
+`bootstrap.sh` senses the compiler (on RHEL it activates `gcc-toolset-15` for you), checks the full
+one-pass baseline (g++ ≥ 14, Clang ≥ 20, CMake ≥ 3.26 — exactly **4.3.3** for the `import std` pilot,
+Ninja ≥ 1.11, the sqlite3 dev header, **valgrind + the memcheck/helgrind/DRD headers**, a UTF-8
+locale), and if anything is missing hands a manifest to the **committed, fully-static `jac313_setup`**
+provisioner — which installs it with a plan preview + `[y/N]` (or, if that binary can't run here, a
+resilient generated `Setup.sh`). It then builds **only the test runner** (Debug) and drops
+`./jac313_test_cli` (plus `./jac313_wipe_all`/`wipe_one`/`wipe_jac`) symlinks at the `v002/` root.
+See [docs/Setup.md](docs/Setup.md) for the provisioner, the wipe tools, and rebuilding `jac313_setup`.
 
 **Base check** — one entry point, composable gate flags; no `scl` prefix, no raw cmake (see
 **[docs/QuickStart.md](docs/QuickStart.md)**):

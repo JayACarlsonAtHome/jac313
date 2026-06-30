@@ -47,3 +47,27 @@ tracked default.
 |--------|---------|---------|
 | `JAC313_SETUP_BUILD_MODULES` | OFF | Build the `jac313.setup.v002` module (Ninja only) |
 | `JAC313_SETUP_BUILD_TESTS` | OFF | Build and register unit tests |
+
+## Provisioning
+
+Beyond sensing, `Setup` is also the project's **installer**. Per-platform install commands live in
+[`recipes.conf`](recipes.conf) (data, like `compilers.conf`): one line per `<component>.<family>`,
+plus optional `check` (idempotency test) and `required` (readiness-gate) fields. `bootstrap.sh`
+senses the host, writes a handoff (`.setup_handoff`), and runs the **committed, prebuilt
+`jac313_setup`** binary, which reads the handoff, resolves each component's command from
+`recipes.conf`, and executes them with real per-step error handling — plan preview, `[y/N]` confirm,
+`--dry-run`, and a continue-on-failure summary (`plan_for_components` / `execute_plan` in the public
+header). If that static binary can't run on the host, `bootstrap.sh` falls back to a generated,
+**resilient** `Setup.sh`.
+
+| Path | Purpose |
+|------|---------|
+| `recipes.conf` | Per-`(component, family)` install commands (+ `check` / `required`) |
+| `setup_main.cpp` | `main()` for the provisioner (handoff parser + executor) |
+| `jac313_setup` | **Committed, fully-static** provisioner binary — ships with the clone, runs before any compiler exists |
+| `build_setup_exe.sh` | Rebuild + re-stamp `jac313_setup` (static, C++23) when the library changes |
+
+`jac313_setup` is committed **static** so one binary runs across the fleet's distros/glibc
+versions; rebuilding it needs `glibc-static`/`libstdc++-static` on the build host (the
+`static_runtime` recipe provisions them on demand — on RHEL via the CodeReady Builder repo). Clone
+hosts need none of this.

@@ -78,13 +78,15 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 ## Quick start
 
 ```bash
-./bootstrap.sh                                  # fresh box: sense → build the test runner → hand off
+./bootstrap.sh                                  # fresh box: sense → provision → build the runner → hand off
 cmake -G Ninja -S . -B build-gcc15 -DCMAKE_CXX_COMPILER=g++-15 -DJAC313_BUILD_STORE_TESTS=ON
 cmake --build build-gcc15 && ctest --test-dir build-gcc15
 ```
 
-C++23 required (`g++-15` / Clang 20 standard); full prerequisites and the test tiers are in
-[docs/Setup.md](docs/Setup.md).
+C++23 required (`g++-15` / Clang 20 standard). On a fresh box `bootstrap.sh` provisions the full
+one-pass baseline (compilers, Ninja, CMake, sqlite3 + valgrind/helgrind/DRD headers) via the
+committed static `jac313_setup` provisioner — see [docs/Setup.md](docs/Setup.md) for that, the
+`jac313_wipe_all`/`wipe_one`/`wipe_jac` reset tools, and the test tiers.
 
 **Status:** all three packages in-tree (no sibling repos); ctest + 116/116 smoke matrix green on
 GCC and Clang on **Linux Mint**, **RHEL 9.8**, and **RHEL 10.2** — on **both RHEL 9.8 and RHEL 10.2,

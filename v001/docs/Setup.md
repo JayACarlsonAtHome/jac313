@@ -74,19 +74,36 @@ stock CMake 3.28. See [Modules.md](Modules.md) for the version-pinned `import st
 ## 2. Bootstrap (bare metal)
 
 On a fresh box, `./bootstrap.sh` is the one hand-run entry point. It senses the OS, finds a
-C++23 compiler (+ activation), Ninja ≥ 1.11, and CMake, then **builds `jac313_test_cli` once
-and hands off to it** — the data-driven [`jac313::Setup`](../Setup/) engine does the
-platform-specific rest. Missing a prerequisite? It writes a reviewable `Setup.sh` from
-[`Setup/recipes.conf`](../Setup/recipes.conf) and stops so you run the privileged installs by
-hand. If CMake is present but not the exact pinned version `import std;` needs (e.g. RHEL's
-3.31.8 or Mint's 3.28), it **offers** the no-sudo `~/.local` install above (`y/N`, advisory
-only — the baseline never requires it).
+C++23 compiler (+ activation), and checks the full baseline needed to **build *and* run** the
+gates in **one pass**: `g++-15` + **Clang**, Ninja ≥ 1.11, CMake, the sqlite3 dev header, and
+**valgrind with the memcheck/helgrind/DRD dev headers**. With everything present it **builds
+`jac313_test_cli` once and hands off to it** — the data-driven [`jac313::Setup`](../Setup/)
+engine does the platform-specific rest.
+
+If a prerequisite is missing, bootstrap writes a small handoff (`Setup/.setup_handoff`) and runs
+the **committed, prebuilt `Setup/jac313_setup`** provisioner — a fully-static binary that ships
+with the clone, so it runs before any compiler/ninja exists. It resolves the install commands
+from [`Setup/recipes.conf`](../Setup/recipes.conf) and runs them with real per-step error
+handling: a plan **preview**, a `[y/N]` confirm, `--dry-run`, and a continue-on-failure summary.
+If that binary isn't runnable on the host (wrong arch), bootstrap falls back to a reviewable,
+**resilient `Setup.sh`** — each recipe runs independently, so one failure can no longer hide the
+installs after it. Either path does privileged installs; review, then proceed.
 
 ```bash
-./bootstrap.sh        # sense → build the runner → hand off (or write Setup.sh)
-bash Setup.sh         # only if bootstrap reported missing prerequisites (review first)
-./bootstrap.sh        # re-run after Setup.sh — idempotent
+./bootstrap.sh        # sense → provision (jac313_setup, or Setup.sh) → build the runner → hand off
+# answer [y/N] when the provisioner shows its plan; re-run bootstrap when it finishes — idempotent
 ```
+
+If CMake is present but not the exact pinned version `import std;` needs (RHEL's 3.31.8, Mint's
+3.28), bootstrap **offers** the no-sudo `~/.local` install above (`y/N`, advisory only — the
+baseline never requires it).
+
+> **Rebuilding the provisioner.** `Setup/jac313_setup` is committed (static, so one binary runs
+> across the fleet's distros/glibc versions). When the `Setup` library changes, rebuild +
+> re-commit it with **`./Setup/build_setup_exe.sh`**. That needs the static C/C++ runtime archives
+> on the *build* host; if they're missing it offers to install them from the `static_runtime`
+> recipe (the CodeReady Builder repo + `glibc-static`/`libstdc++-static` on RHEL). Clone hosts need
+> none of this.
 
 ---
 
@@ -195,6 +212,21 @@ differ in any dimension never overwrite each other:
 ```
 test-summary/<os>/<compiler>/<build_type>/<disk>/<size>/RUN.md
 ```
+
+### Resetting results
+
+`results.db` is tracked but regenerable. Three committed tools (symlinked at the version root by
+`bootstrap.sh`) reset it at different granularities — each takes `--dry-run` (preview) **or**
+`--yes` (do it); the two are mutually exclusive:
+
+| Tool | Scope | Selector |
+|------|-------|----------|
+| `./jac313_wipe_all` | the whole DB — every run, machine spec, and pin (schema + `testType` kept) | `--yes` |
+| `./jac313_wipe_one` | one run by `run_id`; also drops that run's machine entry **if it was the machine's last run** | `--<N>` (e.g. `--5` = Run_005) |
+| `./jac313_wipe_jac` | a whole machine `jac313-###` by `group_id`: all its runs + `host_spec` + `io_best_fit` + pin | `--<G>` (e.g. `--1` = jac313-001) |
+
+Shared dimension tables (`testList`/`compiler`/`parameter`) are always kept; the `safeness`
+summary is recomputed from what remains.
 
 ### Disk cost
 
