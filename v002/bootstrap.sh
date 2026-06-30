@@ -18,7 +18,7 @@
 #      gate UUID is version-specific, so >= 3.30 is necessary but NOT sufficient. Baseline
 #      never requires it.
 #   4. Otherwise -> build jac313_test_cli once and hand off ('setup' for readiness;
-#      'matrix run-all' for the full platform-aware build).
+#      '--run-everything' for the full battery).
 #
 # Re-run after Setup.sh. Idempotent.
 set -eu

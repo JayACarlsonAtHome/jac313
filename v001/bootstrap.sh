@@ -18,7 +18,7 @@
 #      gate UUID is version-specific, so >= 3.30 is necessary but NOT sufficient. Baseline
 #      never requires it.
 #   4. Otherwise -> build jac313_test_cli once and hand off ('setup' for readiness;
-#      'matrix run-all' for the full platform-aware build).
+#      '--run-everything' for the full battery).
 #
 # Re-run after Setup.sh. Idempotent.
 set -eu
@@ -328,8 +328,8 @@ echo
 $ACT "$CLI" host
 
 echo
-echo "Bootstrap complete. The tool now drives platform-aware builds — e.g.:"
-echo "  $ACT $CLI matrix run-all"
+echo "Bootstrap complete. Run the FULL battery (every gate on both compilers + build-times + report):"
+echo "  $ACT $CLI --run-everything"
 echo
-echo "To run the FULL battery (gcc15 + clang; smoke + full Debug + full Release), see:"
-echo "  docs/RunAllTests.md"
+echo "Or compose individual gates: --ctest, --smoke, --bench --report, --verify-lite, --verify."
+echo "Full matrix details: docs/RunAllTests.md"
