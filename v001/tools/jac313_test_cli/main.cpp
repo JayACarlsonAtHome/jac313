@@ -887,8 +887,11 @@ void write_index_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
             std::string cpu, disk, os;
             st.get(gid, cpu, mhz_lo, mhz_hi, p_cores, t_cores, ram, disk, os);
             std::string speed = "-";
-            if (mhz_hi > 0) { char b[40]; std::snprintf(b, sizeof b, "%.1f–%.1f GHz",
-                              static_cast<double>(mhz_lo) / 1000.0, static_cast<double>(mhz_hi) / 1000.0); speed = b; }
+            if (mhz_hi > 0) { char b[40];
+                if (mhz_lo == mhz_hi) std::snprintf(b, sizeof b, "%.1f GHz", static_cast<double>(mhz_hi) / 1000.0);
+                else std::snprintf(b, sizeof b, "%.1f–%.1f GHz",
+                              static_cast<double>(mhz_lo) / 1000.0, static_cast<double>(mhz_hi) / 1000.0);
+                speed = b; }
             md << "| " << jac313::results::host_label(gid) << " | " << dash(cpu) << " | " << speed
                << " | " << p_cores << " | " << t_cores << " | " << ram << " GB | " << dash(disk)
                << " | " << dash(os) << " |\n";
@@ -2291,7 +2294,9 @@ int main(int argc, char** argv) {
             static_cast<std::int64_t>(hw.p_cores), static_cast<std::int64_t>(hw.cpu_mhz_min),
             static_cast<std::int64_t>(hw.cpu_mhz_max)};
         const std::int64_t gid = jac313::results::pin_host(db, h);
-        char speed[40]; std::snprintf(speed, sizeof speed, "%.1f-%.1f GHz",
+        char speed[40];
+        if (h.cpu_mhz_min == h.cpu_mhz_max) std::snprintf(speed, sizeof speed, "%.1f GHz", static_cast<double>(h.cpu_mhz_max) / 1000.0);
+        else std::snprintf(speed, sizeof speed, "%.1f-%.1f GHz",
             static_cast<double>(h.cpu_mhz_min) / 1000.0, static_cast<double>(h.cpu_mhz_max) / 1000.0);
         std::cout << "=== host — " << jac313::results::host_label(gid) << " (pinned as current_host) ===\n"
                   << "  CPU      " << h.cpu << "\n"

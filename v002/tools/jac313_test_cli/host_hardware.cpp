@@ -401,6 +401,10 @@ HostHardwareRecord collect_host_hardware_record(const std::string& disk_type_lab
     if (const auto hi = cpu_freq_mhz("cpuinfo_max_freq")) {
         record.cpu_mhz_max = *hi;
     }
+    // Fall back to the /proc/cpuinfo clock when sysfs cpufreq is absent (common on VMs): a single
+    // momentary reading beats a "-". With no scaling range, min and max collapse to that value.
+    if (record.cpu_mhz_min == 0 && record.cpu_mhz > 0) record.cpu_mhz_min = record.cpu_mhz;
+    if (record.cpu_mhz_max == 0 && record.cpu_mhz > 0) record.cpu_mhz_max = record.cpu_mhz;
     if (const auto mem = mem_total_human()) {
         std::istringstream stream(*mem);
         int value = 0;
