@@ -1,3 +1,6 @@
+<a id="top"></a>
+[← back](../README.md) · [↓ bottom](#bottom)
+
 # smoke — by machine
 
 _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Columns are that host's compilers (latest run each); cell = ms (pass) or status._
@@ -257,3 +260,7 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 |---|---|
 | [Run_020](Run_020.md) | clang21 · 2026-06-30T04:55:41Z |
 | [Run_017](Run_017.md) | gcc15 · 2026-06-30T04:54:41Z |
+
+---
+[← back](../README.md) · [↑ top](#top)
+<a id="bottom"></a>

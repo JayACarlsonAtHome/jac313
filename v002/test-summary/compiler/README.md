@@ -1,3 +1,6 @@
+<a id="top"></a>
+[← back](../README.md) · [↓ bottom](#bottom)
+
 # Compilers
 
 _Generated from `results.db`._
@@ -8,3 +11,7 @@ _Generated from `results.db`._
 | clang22 | clang | 22.1.8 | 22 | 7 |
 | gcc15 | gcc | 15.2.1 | 15 | 8 |
 | gcc16 | gcc | 16.1.1 | 16 | 7 |
+
+---
+[← back](../README.md) · [↑ top](#top)
+<a id="bottom"></a>
