@@ -1565,6 +1565,9 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
     // ACROSS sections — helgrind/drd align under memcheck — like the smoke/ctest runners.
     const std::size_t vg_total = mem.size() + thr.size() + thr.size();
     const std::size_t iw = format_count(static_cast<std::int64_t>(vg_total)).size();
+    // Pad "[tool] label" as ONE segment so a compact tag (e.g. [drd], not [drd     ]) keeps the
+    // '...' column aligned — the spaces a short tag would need land after the label instead.
+    const std::size_t seg_w = 1 + tool_w + 2 + label_w;
     std::size_t vg_idx = 0;
 
     auto run_one = [&](const std::string& tool, const VgTask& t) {
@@ -1574,7 +1577,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
         const std::string test = t.bin.filename().string();
         if (!fs::exists(t.bin)) {
             std::cout << "  [" << format_count_padded(static_cast<std::int64_t>(vg_idx), iw) << "/" << vg_total
-                      << "] [" << ljust(tool, tool_w) << "] " << ljust(t.label, label_w)
+                      << "] " << ljust("[" + tool + "] " + t.label, seg_w)
                       << " ... MISSING BINARY\n";
             ++testfail;
             failures.push_back(tool + " " + t.label + " [missing]");
@@ -1619,7 +1622,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
         }
         recs.push_back({tool, test, persist, status, static_cast<std::int64_t>(dur_ms)});
         std::cout << "  [" << format_count_padded(static_cast<std::int64_t>(vg_idx), iw) << "/" << vg_total
-                  << "] [" << ljust(tool, tool_w) << "] " << ljust(t.label, label_w)
+                  << "] " << ljust("[" + tool + "] " + t.label, seg_w)
                   << " ... " << verdict
                   << " (" << format_count_padded(static_cast<std::int64_t>(dur_ms)) << " ms)\n";
     };
