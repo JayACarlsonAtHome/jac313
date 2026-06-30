@@ -152,6 +152,36 @@ foreground `sleep`, which turned a couple of "wait and poll" one-liners into mod
 
 ---
 
+## 7. The jText Sequel: Same Flush, Different Backend 🎬
+
+Blooper #1 caught binary's "fastest durable" number stopping the clock *before* the `msync`. We
+fixed binary, moved the flush inside the clock, wrote it up, felt good. Then the durable board
+crowned a new champion: **jText at ~2.4M ops/sec**, beating fsync'd binary and SQL by 3–5×.
+
+A *text* format — formatting every event to human-readable lines across three split files —
+out-throughputting a packed binary log on *durable* writes. That's not a result, that's a smell.
+Someone said the quiet part out loud: *"are these numbers real?"*
+
+They were real measurements of the wrong thing. `JTextSplitEventLog::finalize()` finalized the
+jText writers and flushed the `std::ofstream` — into the **OS page cache**. We grepped the entire
+jText tree for `fsync`/`fdatasync`/`msync`: **zero hits.** jText's "durable" path never forced a
+single byte to the platter. The 2.4M was the speed of writing to RAM the kernel hadn't flushed
+yet — *exactly* binary's bug from #1, hiding in a different backend the whole time we were
+congratulating ourselves on fixing it.
+
+**The fix:** `finalize()` now flushes and `fsync`s each of the three split files, inside the bench
+clock. jText @1M dropped **~2,283,663 → ~255,744 ops/sec — a ~9× correction** — and the durable
+ranking *inverted*: **binary ~0.6M > SQL ~0.46M > jText ~0.26M.** jText isn't the fastest durable
+backend; it's the **slowest** (text formatting *plus* three files to sync). The number we'd have
+bragged about was fiction.
+
+**Moral:** when you fix a measurement bug, fix it **everywhere the measurement is taken** — not
+just the backend that happened to be on top when you looked. And when a counterintuitive number
+makes you want to celebrate, *that's* the moment to ask "is this real?" before you cry for joy.
+The disk does not care how fast you wrote to its cache.
+
+---
+
 ## The silver lining
 
 Blooper #2 is *why* the run-all counter now shouts `… of 1,856` (full) / `… of 928` (smoke) on

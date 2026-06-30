@@ -108,9 +108,12 @@ Durable — 1M Events × 3 Runs = 3M Events per config (median | low–high band
 
 | Backend | Median Ops/Sec | Band — Low–High (Ops/Sec) |
 |---------|----------------|---------------------------|
-| jText   | 2,418,614      | 2.05M – 2.47M             |
-| SQL     | 1,991,445      | 0.34M – 2.05M             |
-| binary  | 641,263        | 0.52M – 0.70M             |
+| binary  | 597,485        | 0.59M – 0.63M             |
+| SQL     | 459,149        | 0.45M – 0.49M             |
+| jText   | 255,744        | 0.24M – 0.26M             |
+
+_Representative (this box, gcc15, 5 runs, all backends fsync'd inside the clock). Live per-machine
+numbers are in the rendered `test-summary/bench/` report and refresh on each `--run-everything`._
 
 ## Takeaways
 
@@ -118,12 +121,13 @@ Durable — 1M Events × 3 Runs = 3M Events per config (median | low–high band
 even trend — it's pure noise.<br>
 Setting flags has no measurable hot-path cost.
 
-**The honest durable ranking is jText ≈ SQL (~2.1M) > binary (~0.64M).**
-Binary's old buffered number (~2.7M) was hiding the truth: the ops/sec used to stop
-*before* the `msync`, so the flush wasn't counted. Moving the flush inside the
-clock exposed binary as actually the slowest. Note the SQL row's low of ~0.34M —
-a real fsync stall. The median (1.99M) ignores it while the band still reports
-it, which is exactly why median+band beats average (which the stall would drag
-down) and "fastest" (which would hide it).
+**The honest durable ranking is binary (~0.6M) > SQL (~0.46M) > jText (~0.26M)** —
+every backend now fsync'd to disk inside the clock. Getting there took two flush
+fixes: binary's old ~2.7M stopped the clock *before* its `msync`, and jText's old
+~2.4M only stream-flushed to the OS page cache — **no `fsync` at all** (Bloopers
+#7). Once each backend is forced to the platter, jText is actually the *slowest*
+(text formatting plus three files to sync), not the fastest. Read the **median +
+band**: a one-off fsync stall lands in the band, where median+band beats average
+(which the stall drags down) and "fastest" (which hides it).
 
 For what each number means, see [HowToReadResults.md](HowToReadResults.md).

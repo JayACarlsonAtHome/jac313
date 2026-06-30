@@ -6,8 +6,8 @@
 
 > **v002 note:** v002 has now recorded its **own** battery (rhel-9.8/ssd, both gcc15 and
 > clang at C++26 — see [Results.md](Results.md)), and the figures land where this page says
-> they should: in-memory Release median ~25M, durable ~2.1M (jText ≈ SQL; binary ~0.64M once
-> the flush is counted). The numbers below read as v002's own; the methodology is
+> they should: in-memory Release median ~25M, durable ~0.25–0.6M (binary ~0.6M > SQL ~0.46M >
+> jText ~0.26M, all fsync'd to disk — see Bloopers #7). The numbers below read as v002's own; the methodology is
 > version-independent.
 
 ## The short version
@@ -15,8 +15,8 @@
 Don't want the details? On this machine (gcc15, Release, SSD):
 
 - **In-memory logging:** ~**24M** events/sec — *median*, with a low–high band
-- **Logging to disk (durable):** ~**2.1M** events/sec (jText ≈ SQL; binary ~**0.64M** with the
-  flush counted)
+- **Logging to disk (durable):** ~**0.25–0.6M** events/sec — **binary ~0.6M > SQL ~0.46M > jText
+  ~0.26M**, every backend fsync'd (jText was the last buffered one — see Bloopers #7)
 
 Both **depend greatly on hardware** (CPU clock + disk speed) — an older Xeon with a 7200-rpm
 HDD lands nearer ~3–5M in-memory. Treat these as ballpark, not guarantees.
@@ -74,7 +74,7 @@ Concretely, two very different numbers come out of the suite:
 | Number | What it is | Honest range (gcc15, Release, SSD) |
 |--------|------------|------------------------------------|
 | **In-memory ceiling** | hot loop, no sink attached | **~15–25M ops/sec** (reference HW hit ~23M, σ ~1–2%) |
-| **Durable sustained** | hot loop throttled by the disk it flushes to | **~2.1–2.7M ops/sec** |
+| **Durable sustained** | hot loop throttled by the disk it flushes to | **~0.25–0.6M ops/sec** (binary > SQL > jText) |
 
 Both are real. The mistake is quoting a single lucky run as if it were the steady rate.
 
@@ -87,35 +87,38 @@ only the single run that caught turbo and dodged every fsync stall, so it system
 overstates what you'll actually get. The obvious alternative — the **average** — fails the
 other way: a single bad run drags it.
 
-The SQL durable config makes this concrete. Across its runs, one fsync-stalled run dropped to
-**~339K ops/sec**:
+An earlier SQL run makes this concrete — the *shape* is the lesson, not the absolute rate (which
+the fsync fixes above have since lowered). Across its runs, one fsync-stalled run dropped far
+below the rest:
 
-- **Average** got dragged to **~1.46M** — the stall poisons the headline even though most runs
-  were fine.
+- **Average** got dragged down — the stall poisons the headline even though most runs were fine.
 - **Fastest** would have hidden the stall entirely, reporting only the luckiest run.
-- **Median held at ~1.99M** — the rate SQL actually sustains — and the **band** reported the
-  ~339K low *honestly*, as a low edge, instead of burying it (average) or cherry-picking it
-  away (fastest).
+- **Median held** at the rate that run actually sustained — and the **band** reported the low
+  *honestly*, as a low edge, instead of burying it (average) or cherry-picking it away (fastest).
 
 That is the whole argument: a one-off stall belongs **in the band**, visible, not averaged
 into the headline and not discarded from it.
 
 ---
 
-## Durable now flushes inside the clock
+## Durable now flushes inside the clock — for *every* backend
 
-Durable timing now does a **flush-and-wait inside the timed region**: the clock counts bytes
-**actually written**, not just bytes buffered into a queue. This corrected a real ranking
-error. Binary previously looked *fastest* at **~2.7M ops/sec** — but that number only measured
-the enqueue; the `msync` hadn't happened yet inside the timer. Once the flush counts, binary is
-**~640K ops/sec**. The honest order is:
+Durable timing does a **flush-and-wait inside the timed region**: the clock counts bytes
+**actually written to disk**, not bytes buffered into a queue or the OS page cache. Getting this
+right took **two** passes, because the same bug bit two backends in turn:
 
-```
-jText ≈ SQL  ~2.1M   >   binary  ~0.64M
-```
+1. **binary** first looked *fastest* at ~2.7M ops/sec — but the timer stopped before its
+   `msync`. Once the final `MS_SYNC` was counted, binary fell to **~0.6M ops/sec**.
+2. **jText** then looked fastest at ~2.4M — but its `finalize()` only stream-flushed to the OS
+   page cache; **no `fsync` ever ran**. Once `finalize()` fsyncs each of its three split files,
+   jText falls to **~0.26M ops/sec** — the *slowest* of the three (text formatting *plus* three
+   files to sync). See Bloopers #7.
 
-The buffered ~2.7M "binary is fastest" claim was a measurement artifact, not a fact about the
-backend.
+The honest order, every backend forced to disk:
+
+> **binary ~0.6M&nbsp;&nbsp;>&nbsp;&nbsp;SQL ~0.46M&nbsp;&nbsp;>&nbsp;&nbsp;jText ~0.26M**
+
+Each "fastest" claim was a measurement artifact — bytes in a buffer, not on a platter.
 
 ### The trap this closes
 
@@ -168,10 +171,11 @@ bench suite.
 | Durable median, flush in-clock | bytes actually written to disk | Yes — the real durable number |
 | `test_006` / no `ops/sec` | correctness test; **legacy** non-source | N/A — throughput is in the store_bench suite |
 
-**The two true stories:** in-memory hot path ~15–25M ops/sec, and durable-to-disk ~2.1–2.7M
-ops/sec with the honest order **jText ≈ SQL ~2.1M > binary ~0.64M** (binary's old ~2.7M was a
-buffered measurement, not a flush). Read the **median + band** the bench suite prints; treat
-any "fastest"/"peak" figure as lucky-max, and any average with a wide band as outlier-dragged.
+**The two true stories:** in-memory hot path ~15–25M ops/sec, and durable-to-disk ~0.25–0.6M
+ops/sec with the honest order **binary ~0.6M > SQL ~0.46M > jText ~0.26M** (both binary's old
+~2.7M and jText's old ~2.4M were buffered measurements, not flushes — see Bloopers #7). Read the
+**median + band** the bench suite prints; treat any "fastest"/"peak" figure as lucky-max, and any
+average with a wide band as outlier-dragged.
 
 ---
 
@@ -180,8 +184,8 @@ any "fastest"/"peak" figure as lucky-max, and any average with a wide band as ou
 On this machine (gcc15, Release, SSD):
 
 - **In-memory logging:** ~**24M** events/sec — *median*, with a low–high band
-- **Logging to disk (durable):** ~**2.1M** events/sec (jText ≈ SQL; binary ~**0.64M** once the
-  flush is counted)
+- **Logging to disk (durable):** ~**0.25–0.6M** events/sec — **binary ~0.6M > SQL ~0.46M > jText
+  ~0.26M**, every backend fsync'd (see Bloopers #7)
 
 Both **depend greatly on hardware** (CPU clock + disk speed) — an older Xeon with a 7200-rpm
 HDD lands nearer ~3–5M in-memory. Treat these as ballpark, not guarantees.
