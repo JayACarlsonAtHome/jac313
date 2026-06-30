@@ -1560,15 +1560,20 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
     const auto ljust = [](const std::string& s, std::size_t w) {
         return s.size() < w ? s + std::string(w - s.size(), ' ') : s;
     };
+    // One CONTINUOUS index across all three sections (memcheck + helgrind + drd) with a single
+    // total + width, so the [i/N] bracket is identical width everywhere and the columns line up
+    // ACROSS sections — helgrind/drd align under memcheck — like the smoke/ctest runners.
+    const std::size_t vg_total = mem.size() + thr.size() + thr.size();
+    const std::size_t iw = format_count(static_cast<std::int64_t>(vg_total)).size();
+    std::size_t vg_idx = 0;
 
-    auto run_one = [&](const std::string& tool, const VgTask& t,
-                       const std::size_t idx, const std::size_t tot) {
-        const std::size_t iw = format_count(static_cast<std::int64_t>(tot)).size();
+    auto run_one = [&](const std::string& tool, const VgTask& t) {
+        ++vg_idx;
         std::string persist;
         for (const auto& a : t.args) if (a.rfind("--persist=", 0) == 0) persist = a.substr(10);
         const std::string test = t.bin.filename().string();
         if (!fs::exists(t.bin)) {
-            std::cout << "  [" << format_count_padded(static_cast<std::int64_t>(idx), iw) << "/" << tot
+            std::cout << "  [" << format_count_padded(static_cast<std::int64_t>(vg_idx), iw) << "/" << vg_total
                       << "] [" << ljust(tool, tool_w) << "] " << ljust(t.label, label_w)
                       << " ... MISSING BINARY\n";
             ++testfail;
@@ -1613,24 +1618,18 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
             ++clean;
         }
         recs.push_back({tool, test, persist, status, static_cast<std::int64_t>(dur_ms)});
-        std::cout << "  [" << format_count_padded(static_cast<std::int64_t>(idx), iw) << "/" << tot
+        std::cout << "  [" << format_count_padded(static_cast<std::int64_t>(vg_idx), iw) << "/" << vg_total
                   << "] [" << ljust(tool, tool_w) << "] " << ljust(t.label, label_w)
                   << " ... " << verdict
                   << " (" << format_count_padded(static_cast<std::int64_t>(dur_ms)) << " ms)\n";
     };
 
     std::cout << "--- memcheck (" << mem.size() << ") ---\n";
-    for (std::size_t i = 0; i < mem.size(); ++i) {
-        run_one("memcheck", mem[i], i + 1, mem.size());
-    }
+    for (const auto& t : mem) run_one("memcheck", t);
     std::cout << "\n--- helgrind (" << thr.size() << ") ---\n";
-    for (std::size_t i = 0; i < thr.size(); ++i) {
-        run_one("helgrind", thr[i], i + 1, thr.size());
-    }
+    for (const auto& t : thr) run_one("helgrind", t);
     std::cout << "\n--- drd (" << thr.size() << ") ---\n";
-    for (std::size_t i = 0; i < thr.size(); ++i) {
-        run_one("drd", thr[i], i + 1, thr.size());
-    }
+    for (const auto& t : thr) run_one("drd", t);
 
     const int total = clean + vgfail + testfail;
     std::cout << "\n=== " << name << " summary ===\n"
