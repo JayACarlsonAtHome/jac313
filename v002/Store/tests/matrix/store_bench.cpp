@@ -570,11 +570,13 @@ inline std::vector<std::size_t> build_batch_schedule(std::size_t lo, std::size_t
 
 #ifdef JAC313_STORE_HAS_SQL_PERSIST
 // Per-machine durable-backend calibration. For each of binary/jtext/sql, sweep the double-buffer
-// record size (batch) over a schedule under the same process-level timing as everything else, then
-// distill a robust pick: the single peak is noisy, so we take the PLATEAU — every batch whose median
-// is within tol% of the peak — and use the MIDDLE of that band (snapped to the nearest swept point).
-// low_size / high_size (band edges), best_size/best_ops (raw peak) and useThis (the mid-band pick) all
-// land in io_best_fit for THIS machine. The recorded suite then runs each durable config at useThis.
+// record size (batch) over a schedule under the same process-level timing as everything else, keeping
+// two running numbers: the best median ops/sec seen and the batch that produced it. useThis is that
+// PEAK batch — the record size at the max ops/sec — NOT an average. (The old "middle of the plateau
+// band" averaged the peak toward its slower neighbours, which measurably hurt the pick.) We still
+// report the near-peak band low_size/high_size (every batch within tol% of the peak) for reference;
+// best_size/best_ops (the raw peak) and useThis land in io_best_fit for THIS machine. The recorded
+// suite then runs each durable config at useThis.
 // Needs --db and a pinned current_host (./bootstrap.sh or a CLI gate).
 struct CalResult { std::string type; std::size_t low, high, best, use; std::uint64_t best_ops; };
 
@@ -628,14 +630,9 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
         std::size_t low_b = best_batch, high_b = best_batch;
         for (std::size_t i = 0; i < schedule.size(); ++i)
             if (medians[i] >= thresh) { low_b = std::min(low_b, schedule[i]); high_b = std::max(high_b, schedule[i]); }
-        // useThis = middle of the band, snapped to the nearest batch we actually measured (so its
-        // throughput is known). With a non-uniform schedule there's no single grid to round to.
-        const std::size_t mid = low_b + (high_b - low_b) / 2;
-        std::size_t use = schedule.front(), best_d = static_cast<std::size_t>(-1);
-        for (std::size_t b : schedule) {
-            const std::size_t d = (b > mid) ? b - mid : mid - b;
-            if (d < best_d) { best_d = d; use = b; }
-        }
+        // useThis = the batch at the PEAK median (the max records @ max ops/sec tracked above) — the
+        // honest measured best, not a band average. low_b/high_b stay as the near-peak band for reference.
+        const std::size_t use = best_batch;
         std::cout << "  band [" << bench_group_thousands(low_b) << ".." << bench_group_thousands(high_b)
                   << "]  peak " << bench_group_thousands(best_median) << " @ batch "
                   << bench_group_thousands(best_batch) << "  -> useThis " << bench_group_thousands(use) << "\n";
