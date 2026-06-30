@@ -41,6 +41,9 @@ namespace detail {
         h += std::format("//Date:    {}\n", date_str);
         h += "//Purpose: Binary Data File\n";
         h += "//\n";
+        // Explicit end marker (helps any future text scanners, though our reader
+        // now uses bounded binary prefix + rfind("//\\n") for safety).
+        h += "// -- end text header, binary records follow --\n";
         const ssize_t written = ::write(fd, h.data(), h.size());
         if (written < 0 || static_cast<size_t>(written) != h.size()) {
             throw std::runtime_error("BinaryEventLog: header write failed");

@@ -25,11 +25,11 @@ struct TestResult {
 
 struct RunOptions;
 
-TestResult run_test(const TestEntry& entry, bool verbose, int failsafe_sec = kDefaultFailsafeSec);
+TestResult run_test(const TestEntry& entry, bool verbose, int failsafe_sec = 30, int memory_mb = 0);
 TestResult run_test_with_args(const std::filesystem::path& command,
                               const std::vector<std::string>& args,
                               bool verbose,
-                              int failsafe_sec = kDefaultFailsafeSec);
+                              int failsafe_sec = 30, int memory_mb = 0);
 std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
                                   const RunOptions& opts,
                                   bool verbose);

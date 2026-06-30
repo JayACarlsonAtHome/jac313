@@ -10,6 +10,9 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string>
 
 namespace jac313::results {
@@ -91,6 +94,24 @@ inline void ensure_schema(Sqlite& db) {
             "id INTEGER PRIMARY KEY, group_id INTEGER, type TEXT, "
             "low_size INTEGER, high_size INTEGER, best_size INTEGER, best_ops INTEGER, useThis INTEGER, "
             "UNIQUE(group_id, type))");
+
+    // testControl: per-test runtime controls (timeouts, memory limits, etc.) that drive the test harness.
+    // Values live here in the DB (not hardcoded in source or flat files at runtime).
+    // The human-editable tests/test_limits.txt (or equivalent) is used to seed/refresh this table.
+    db.exec("CREATE TABLE IF NOT EXISTS testControl ("
+            "name TEXT PRIMARY KEY, "
+            "timeout_sec INTEGER NOT NULL DEFAULT 300, "
+            "memory_mb INTEGER NOT NULL DEFAULT 0, "
+            "description TEXT)");
+    // migration for memory_mb column (for DBs created before this column was added)
+    {
+        std::int64_t has_col = 0;
+        { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('testControl') WHERE name='memory_mb'");
+          if (st.step()) st.get(has_col); }
+        if (has_col == 0) {
+            db.exec("ALTER TABLE testControl ADD COLUMN memory_mb INTEGER DEFAULT 0");
+        }
+    }
 }
 
 // single-id lookup (e.g. "SELECT id FROM testList WHERE name=?")
@@ -217,6 +238,54 @@ inline std::int64_t io_best_fit_use(Sqlite& db, std::int64_t gid, const std::str
     { auto st = db.prepare("SELECT useThis FROM io_best_fit WHERE group_id=? AND type=?");
       st.bind(gid, type); if (st.step()) st.get(v); }
     return v > 0 ? v : fallback;
+}
+
+// ---- testControl: runtime controls per test name (timeouts etc.) stored in DB ----
+
+// Upsert a control row for a test. Call this when loading from test_limits.txt or admin tools.
+inline void upsert_test_control(Sqlite& db, const std::string& name, int timeout_sec, int memory_mb = 0,
+                                const std::string& description = "") {
+    db.exec("INSERT INTO testControl(name, timeout_sec, memory_mb, description) VALUES(?,?,?,?) "
+            "ON CONFLICT(name) DO UPDATE SET timeout_sec=excluded.timeout_sec, "
+            "memory_mb=excluded.memory_mb, "
+            "description=COALESCE(NULLIF(excluded.description,''), testControl.description)",
+            name, timeout_sec, memory_mb, description);
+}
+
+// Retrieve timeout for a specific test. Falls back to the provided default (usually from size).
+inline int get_test_timeout(Sqlite& db, const std::string& test_name, int fallback) {
+    std::int64_t v = 0;
+    { auto st = db.prepare("SELECT timeout_sec FROM testControl WHERE name=?");
+      st.bind(test_name); if (st.step()) st.get(v); }
+    return v > 0 ? static_cast<int>(v) : fallback;
+}
+
+// Retrieve memory limit (MB) for a specific test. 0 means unlimited. Falls back to provided default.
+inline int get_test_memory_mb(Sqlite& db, const std::string& test_name, int fallback) {
+    std::int64_t v = 0;
+    { auto st = db.prepare("SELECT memory_mb FROM testControl WHERE name=?");
+      st.bind(test_name); if (st.step()) st.get(v); }
+    return v > 0 ? static_cast<int>(v) : fallback;
+}
+
+// Load/refresh controls from a limits file into the DB (source of truth for values stays editable
+// in the file for humans; working data is in the DB table).
+// Format: name timeout_sec [memory_mb]
+inline void seed_test_controls_from_file(Sqlite& db, const std::filesystem::path& limits_file) {
+    std::ifstream in(limits_file);
+    if (!in) return;
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        std::istringstream iss(line);
+        std::string name;
+        int secs = 0;
+        if (iss >> name >> secs && secs > 0) {
+            int mem = 0;
+            iss >> mem;  // optional
+            upsert_test_control(db, name, secs, mem);
+        }
+    }
 }
 
 } // namespace jac313::results

@@ -432,7 +432,7 @@ std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scena
         run.scenario = scen;
         run.log_path = log_path;
 
-        run.result = run_test_with_args(scen.entry.command, args, opts.verbose, opts.failsafe_sec);
+        run.result = run_test_with_args(scen.entry.command, args, opts.verbose, opts.failsafe_sec, 0);
         run.result.entry = scen.entry;
 
         switch (run.result.status) {

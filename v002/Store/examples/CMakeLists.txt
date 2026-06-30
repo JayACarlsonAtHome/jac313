@@ -4,6 +4,14 @@ target_link_libraries(jac313_store_v002_example PRIVATE jac313::Store)
 macro(jac313_store_add_smoke_test target)
     if(TARGET ${target})
         add_test(NAME ${target} COMMAND ${target})
+        # Time limits from tests/test_limits.txt (prevents infinite runs / stalls).
+        # The binary_to_jtext family gets short timeouts because they exercise
+        # the reader + convert path that previously could hang the machine.
+        if("${target}" MATCHES "binary_to_jtext|binary_persist|jtext_persist|flag_routing")
+            set_tests_properties(${target} PROPERTIES TIMEOUT 30)
+        else()
+            set_tests_properties(${target} PROPERTIES TIMEOUT 60)
+        endif()
     endif()
 endmacro()
 

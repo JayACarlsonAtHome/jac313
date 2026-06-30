@@ -188,6 +188,20 @@ int run_tests_command(const GlobalOptions& global, const RunOptions& opts,
     }
     seed_test_catalog(global.source_dir, tests);   // record the discovered names in testList
 
+    // Seed/refresh testControl table in results.db from the limits file (if present).
+    // This makes the per-test timeouts/failsafes authoritative in the DB, not in source code or flat files at runtime.
+    try {
+        const fs::path db_path = global.source_dir / "test-summary" / "results.db";
+        if (fs::exists(db_path)) {
+            jac313::Qlite::v002::Sqlite db(db_path.string());
+            jac313::results::ensure_schema(db);
+            const fs::path limits = global.source_dir / "tests" / "test_limits.txt";
+            if (fs::exists(limits)) {
+                jac313::results::seed_test_controls_from_file(db, limits);
+            }
+        }
+    } catch (...) {}
+
     if (opts.list_only) {
         return run_list_command(global);
     }
@@ -411,7 +425,7 @@ jac313::results::CompilerInfo read_compiler_info(const fs::path& build_dir) {
       while (std::getline(in, line))
           if (line.rfind("CMAKE_CXX_COMPILER:", 0) == 0) { cxx = line.substr(line.find('=') + 1); break; } }
     if (cxx.empty()) return c;
-    const auto r = run_process({cxx, "--version"});
+    const auto r = run_process({cxx, "--version"}, 0, "");
     const std::string out = r.stdout_text + r.stderr_text;
     c.name = (out.find("clang") != std::string::npos) ? "clang" : "gcc";
     for (std::size_t i = 0; i < out.size(); ++i) {     // first X.Y[.Z] token = the version
@@ -1270,7 +1284,7 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
         std::vector<std::string> conf = {"cmake", "-G", "Ninja", "-S", ".", "-B", "tmp_build/" + c.label,
             "-DCMAKE_CXX_COMPILER=" + c.cc, "-DCMAKE_BUILD_TYPE=Debug", "-DJAC313_BUILD_STORE_TESTS=ON"};
         conf.insert(conf.end(), c.feflags.begin(), c.feflags.end());
-        if (run_process(conf, 0, source_dir.string()).exit_code != 0) {
+        if (run_process(conf, 0, source_dir.string(), 0).exit_code != 0) {
             std::cout << "  " << c.label << ": CONFIGURE FAILED — skipped\n";
             safe_rmdir(source_dir, dir); continue;
         }
@@ -1290,7 +1304,7 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
         std::cout << "  " << c.label << ": building " << missing.size() << " of " << targets.size() << " targets...\n";
         std::vector<std::string> build = {"cmake", "--build", "tmp_build/" + c.label};
         for (const auto& m : missing) { build.push_back("--target"); build.push_back(m); }
-        run_process(build, 0, source_dir.string());   // ignore rc: capture records whatever built
+        run_process(build, 0, source_dir.string(), 0);   // ignore rc: capture records whatever built
         capture_build_times(source_dir, dir, c.mod, c.istd);
         built_total += static_cast<int>(missing.size());
         safe_rmdir(source_dir, dir);
@@ -1539,7 +1553,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
               << " ===\n\n";
 
     // 1. valgrind must be present (it's the whole point of the gate).
-    const auto vg_probe = run_process({"valgrind", "--version"});
+    const auto vg_probe = run_process({"valgrind", "--version"}, 0, "");
     if (!vg_probe.started || vg_probe.exit_code != 0) {
         std::cerr << "valgrind not found on PATH — " << name << " requires it.\n"
                      "  Debian/Mint:  sudo apt-get install -y valgrind\n"
@@ -1683,7 +1697,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
             cmd.push_back(a);
         }
         const auto t0 = std::chrono::steady_clock::now();
-        const auto r = run_process(cmd, 300, scratch_s);
+        const auto r = run_process(cmd, 300, scratch_s, 0);
         const auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                 std::chrono::steady_clock::now() - t0).count();
         const int errs = parse_vg_errors(r.stderr_text + r.stdout_text);

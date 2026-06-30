@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <span>
 #include <numeric>  // jac313::add_sat / jac313::mul_sat (C++26): overflow-safe offset math
+#include <string_view>
 #endif
 
 #ifndef JAC313_STORE_IMPORT_STD
@@ -24,21 +25,34 @@ BinaryEventLogReader::BinaryEventLogReader(std::string_view filepath)
 }
 
 void BinaryEventLogReader::skip_leading_file_header() {
-    std::string line;
-    while (true) {
-        std::streampos before = file_.tellg();
-        if (!std::getline(file_, line)) {
-            file_.clear();
-            file_.seekg(0, std::ios::beg);
-            return;
-        }
-        if (!line.empty() && line[0] == '/' && line.size() > 1 && line[1] == '/') {
-            continue;
-        }
+    // Best-practice safe skip for binary logs:
+    // Read a bounded prefix (never let text parsing touch the binary payload).
+    // Locate the end of the comment header by finding the last "//\n".
+    // This fixes the original getline slurping arbitrarily large binary data
+    // (no \n or late \n in records) which could stall or OOM the machine.
+    constexpr size_t MAX_PREFIX = 4096;
+    file_.seekg(0, std::ios::beg);
+
+    std::vector<char> prefix(MAX_PREFIX);
+    file_.read(prefix.data(), MAX_PREFIX);
+    std::streamsize nread = file_.gcount();
+    if (nread <= 0) {
         file_.clear();
-        file_.seekg(before);
+        file_.seekg(0, std::ios::beg);
+        data_start_ = file_.tellg();
         return;
     }
+
+    std::string_view sv(prefix.data(), static_cast<size_t>(nread));
+    size_t last = sv.rfind("//\n");
+    size_t header_end = 0;
+    if (last != std::string_view::npos) {
+        header_end = last + 3;  // position after the terminating "//\n"
+    }
+
+    file_.clear();
+    file_.seekg(static_cast<std::streamoff>(header_end), std::ios::beg);
+    data_start_ = file_.tellg();
 }
 
 bool BinaryEventLogReader::next(BinaryRecord& out_record) {
@@ -59,6 +73,14 @@ bool BinaryEventLogReader::read_next_record(BinaryRecord& out) {
     file_.read(reinterpret_cast<char*>(&record_len), sizeof(record_len));
 
     if (file_.eof() || file_.fail()) {
+        eof_reached_ = true;
+        return false;
+    }
+
+    // Hard size limit prevents OOM / machine stall from corrupt or malicious
+    // record_len (common after crashes, partial writes, or temp file collisions).
+    constexpr size_t kMaxBinaryRecordLen = 128ULL * 1024 * 1024; // 128 MiB
+    if (record_len == 0 || record_len > kMaxBinaryRecordLen) {
         eof_reached_ = true;
         return false;
     }

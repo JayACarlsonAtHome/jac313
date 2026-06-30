@@ -19,7 +19,7 @@ struct ProcessResult {
 // cwd: if non-empty, chdir the child to this directory before exec (so a wrapped test
 // binary writes its persist_* output there, not into the caller's working directory).
 ProcessResult run_process(const std::vector<std::string>& args, int failsafe_sec = 0,
-                          const std::string& cwd = {});
+                          const std::string& cwd = {}, int memory_mb = 0);
 
 // Wait on a forked child, capturing stdout/stderr tails. Kills with SIGKILL on timeout.
 bool wait_captured_child(int pid,

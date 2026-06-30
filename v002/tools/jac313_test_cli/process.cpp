@@ -8,6 +8,7 @@
 #include <limits>
 #include <optional>
 #include <signal.h>
+#include <sys/resource.h>
 #include <thread>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -142,7 +143,7 @@ bool wait_captured_child(const int pid,
 }
 
 ProcessResult run_process(const std::vector<std::string>& args, const int failsafe_sec,
-                          const std::string& cwd) {
+                          const std::string& cwd, int memory_mb) {
     ProcessResult result;
     if (args.empty()) {
         result.stderr_text = "empty command";
@@ -172,6 +173,16 @@ ProcessResult run_process(const std::vector<std::string>& args, const int failsa
 
         if (!cwd.empty() && ::chdir(cwd.c_str()) != 0) {
             std::_Exit(126);
+        }
+
+        // Apply per-test memory limit (from DB testControl) to prevent runaway allocation
+        // in ctest/smoke/verify etc. 0 = no limit. Uses RLIMIT_AS (virtual address space).
+        if (memory_mb > 0) {
+            struct rlimit rl;
+            rlim_t bytes = (rlim_t)memory_mb * 1024ULL * 1024ULL;
+            rl.rlim_cur = bytes;
+            rl.rlim_max = bytes;
+            setrlimit(RLIMIT_AS, &rl);
         }
 
         std::vector<char*> argv;

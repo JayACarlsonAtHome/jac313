@@ -3,6 +3,7 @@
 #include "options.hpp"
 #include "process.hpp"
 
+#include <jac313/Qlite/v002.hpp>
 #include <array>
 #include <chrono>
 #include <cstdio>
@@ -10,6 +11,7 @@
 #include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <map>
 #include <regex>
 #include <unistd.h>
 #include <vector>
@@ -38,7 +40,7 @@ bool matches_filter(const std::string& name, const std::string& filter) {
 TestResult execute_command(const fs::path& command,
                            const std::vector<std::string>& args,
                            const bool verbose,
-                           const int failsafe_sec)
+                           const int failsafe_sec, int memory_mb = 0)
 {
     TestResult result;
 
@@ -75,6 +77,15 @@ TestResult execute_command(const fs::path& command,
         ::dup2(stderr_pipe[1], STDERR_FILENO);
         ::close(stdout_pipe[1]);
         ::close(stderr_pipe[1]);
+
+        // Apply per-test memory limit (from DB) .
+        if (memory_mb > 0) {
+            struct rlimit rl;
+            rlim_t bytes = (rlim_t)memory_mb * 1024ULL * 1024ULL;
+            rl.rlim_cur = bytes;
+            rl.rlim_max = bytes;
+            setrlimit(RLIMIT_AS, &rl);
+        }
 
         const std::string cmd = command.string();
         std::vector<char*> argv;
@@ -151,8 +162,8 @@ TestResult execute_command(const fs::path& command,
     return result;
 }
 
-TestResult run_test(const TestEntry& entry, const bool verbose, const int failsafe_sec) {
-    TestResult result = execute_command(entry.command, entry.args, verbose, failsafe_sec);
+TestResult run_test(const TestEntry& entry, const bool verbose, const int failsafe_sec, int memory_mb) {
+    TestResult result = execute_command(entry.command, entry.args, verbose, failsafe_sec, memory_mb);
     result.entry = entry;
     return result;
 }
@@ -160,9 +171,9 @@ TestResult run_test(const TestEntry& entry, const bool verbose, const int failsa
 TestResult run_test_with_args(const fs::path& command,
                               const std::vector<std::string>& args,
                               const bool verbose,
-                              const int failsafe_sec)
+                              const int failsafe_sec, int memory_mb)
 {
-    return execute_command(command, args, verbose, failsafe_sec);
+    return execute_command(command, args, verbose, failsafe_sec, memory_mb);
 }
 
 std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
@@ -198,13 +209,45 @@ std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
     for (const auto& t : selected) if (t.name.size() > name_w) name_w = t.name.size();
     const std::size_t idx_w = format_count(total).size();
 
+    // Load per-test control values (timeouts + memory limits) from the DB if available.
+    // The DB testControl table is the runtime store for these "parameter values that control the testing".
+    std::map<std::string, int> db_test_timeouts;
+    std::map<std::string, int> db_test_memory;
+    try {
+        const std::string dbp = "test-summary/results.db";
+        if (std::filesystem::exists(dbp)) {
+            jac313::Qlite::v002::Sqlite db(dbp);
+            jac313::results::ensure_schema(db);
+            // Load all known controls for this run (cheap for small number of tests).
+            auto st = db.prepare("SELECT name, timeout_sec, memory_mb FROM testControl");
+            while (st.step()) {
+                std::string nm; int secs = 0, mem = 0;
+                st.get(nm, secs, mem);
+                if (secs > 0) db_test_timeouts[nm] = secs;
+                if (mem > 0) db_test_memory[nm] = mem;
+            }
+        }
+    } catch (...) {}
+
     for (const auto& test : selected) {
         ++index;
         std::cout << "[" << format_count_padded(index, idx_w) << "/" << format_count(total) << "] "
                   << test.name << std::string(name_w - test.name.size(), ' ') << " ... ";
         std::cout.flush();
 
-        TestResult result = run_test(test, verbose, effective_failsafe_sec(opts));
+        int per_test_sec = 0;
+        auto it = db_test_timeouts.find(test.name);
+        if (it != db_test_timeouts.end()) per_test_sec = it->second;
+        if (per_test_sec <= 0) {
+            per_test_sec = get_test_timeout(test.name);  // heuristic fallback
+        }
+        if (per_test_sec <= 0) per_test_sec = effective_failsafe_sec(opts);
+
+        int per_test_mem = 0;
+        auto mit = db_test_memory.find(test.name);
+        if (mit != db_test_memory.end()) per_test_mem = mit->second;
+
+        TestResult result = run_test(test, verbose, per_test_sec, per_test_mem);
 
         switch (result.status) {
         case TestStatus::Passed:

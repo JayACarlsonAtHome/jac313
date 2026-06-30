@@ -1,0 +1,56 @@
+# test_limits.txt — human-editable seed for per-test control parameters.
+#
+# Values here are loaded into the results.db testControl table at the start of runs
+# (see main.cpp + shared/jac313_results_db.hpp).
+# The DB is the runtime/authoritative store for these test control values.
+# (Not kept in source code or consulted directly at runtime.)
+#
+# Format:
+#   test_name   timeout_seconds
+#
+# Used to populate timeouts/failsafes so that test behavior is data-driven from the DB.
+#
+# Keep names exact match to what add_test registers.
+# Use 0 for no timeout (not recommended for smokes).
+
+# Smoke / example tests that exercise persistence and binary<->jtext (the problem area)
+jac313_store_binary_to_jtext_smoke 30 256
+jac313_store_binary_persist_smoke 30 256
+jac313_store_jtext_persist_smoke 30 256
+jac313_store_sql_persist_smoke 60 512
+jac313_store_flag_routing_smoke 30 256
+
+# Core Store reader / unit (includes the binary reader test)
+jac313_store_binary_reader_test 60 256
+jac313_store_v002_test 120 1024
+jac313_store_metric_view_test 60 256
+jac313_store_saturating_capacity_test 60 256
+jac313_store_v002_module_test 60 256
+
+# Matrix generated (examples of naming)
+jac313_store_flags 30 256
+jac313_store_metric_view 30 256
+jac313_store_bench_smoke 120 1024
+
+# jText tests
+jac313_jtext_v002_test 60 512
+jac313_jtext_v002_parser_validator_test 60 256
+jac313_jtext_v002_module_test 60 256
+
+# Qlite
+jac313_qlite_v002_test 60 256
+jac313_qlite_v002_module_test 60 256
+
+# Tools / contracts
+jac313_run_identity_test 30 128
+jac313_identity_dedup_test 30 128
+jac313_contracts_test 30 256
+jac313_contracts_disabled_test 30 256
+jac313_contracts_enforce_test 30 256
+
+# Default for anything not listed (used by runner if no match)
+# smoke-like names get 30s, others 300s etc. (see code)
+
+# v001 equivalents (for when testing v001 trees)
+jac313_store_binary_to_jtext_smoke_v001 30
+jac313_store_binary_reader_test_v001 60

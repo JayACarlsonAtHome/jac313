@@ -105,6 +105,24 @@ int main() {
         fs::remove(bad);
     }
 
-    std::cout << "jac313::Store::v002 BinaryEventLogReader OK (incl. malformed-record refusal)\n";
+    // Toughened: huge claimed record_len from table-driven limits perspective.
+    // Must refuse cleanly without allocating (was a machine-stall vector<>).
+    {
+        const fs::path huge = fs::temp_directory_path() / "jac313_store_binreader_huge.bin";
+        {
+            std::ofstream f(huge, std::ios::binary);
+            // Write minimal header
+            f << "//File:    test\n//Date:    2026-06-30\n//Purpose: test\n//\n";
+            const std::uint32_t bad_len = 500U * 1024 * 1024; // 500 MiB claim
+            f.write(reinterpret_cast<const char*>(&bad_len), sizeof(bad_len));
+            f.write("x", 1);
+        }
+        jac313::Store::v002::BinaryEventLogReader huge_reader(huge.string());
+        jac313::Store::v002::BinaryRecord hrec{};
+        CHECK(!huge_reader.next(hrec)); // refused by kMaxBinaryRecordLen
+        fs::remove(huge);
+    }
+
+    std::cout << "jac313::Store::v002 BinaryEventLogReader OK (incl. malformed-record refusal + huge-len guard)\n";
     return EXIT_SUCCESS;
 }

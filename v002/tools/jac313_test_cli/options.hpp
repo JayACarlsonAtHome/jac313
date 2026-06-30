@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <filesystem>
 #include <optional>
 #include <string>
 #include <vector>
@@ -83,5 +82,18 @@ struct MatrixComboTally {
     int skipped   = 0;
     int errors    = 0;
 };
+
+// Heuristic fallbacks for test timeouts when the value is not (yet) in the results.db
+// testControl table. The DB is the runtime store for these control parameter values.
+inline int get_test_timeout(const std::string& test_name, const std::string& size = {}) {
+    // heuristic fallbacks (used only if DB lookup fails)
+    if (test_name.find("binary_to_jtext") != std::string::npos ||
+        test_name.find("binary_persist") != std::string::npos ||
+        test_name.find("smoke") != std::string::npos) {
+        return 30;
+    }
+    if (size == "full" || size == "bench") return kFullFailsafeSec;
+    return kSmokeFailsafeSec;
+}
 
 } // namespace jac313::test_cli

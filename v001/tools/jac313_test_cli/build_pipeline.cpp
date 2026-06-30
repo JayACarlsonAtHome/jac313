@@ -97,7 +97,7 @@ int run_configure_command(const GlobalOptions& global, const ConfigureOptions& o
     }
     std::cout << "\n\n";
 
-    const auto result = run_process(args);
+    const auto result = run_process(args, 0, "");
     if (!result.stdout_text.empty()) {
         std::cout << result.stdout_text;
     }
@@ -152,7 +152,7 @@ int run_build_targets_command(const GlobalOptions& global,
     }
     std::cout << " ===\n";
 
-    const auto result = run_process(args, failsafe_sec);
+    const auto result = run_process(args, failsafe_sec, "");
     if (!result.stdout_text.empty()) {
         std::cout << result.stdout_text;
     }

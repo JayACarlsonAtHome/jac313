@@ -1,0 +1,30 @@
+# test_limits.txt — human-editable seed for per-test control parameters (v001).
+#
+# Values here are loaded into the results.db testControl table at the start of runs.
+# The DB is the runtime/authoritative store for these test control values.
+#
+# Format:
+#   test_name   timeout_seconds   [memory_mb]
+#
+# memory_mb: virtual memory limit for the test process (ulimit -v style, in MB). 0 = unlimited.
+# Recommended for ctest, smoke, verify etc. to prevent runaway memory usage.
+
+jac313_store_binary_to_jtext_smoke 30 256
+jac313_store_binary_persist_smoke 30 256
+jac313_store_jtext_persist_smoke 30 256
+jac313_store_sql_persist_smoke 60 512
+jac313_store_flag_routing_smoke 30 256
+
+jac313_store_binary_reader_test 60 256
+jac313_store_v001_test 120 1024
+jac313_store_metric_view_test 60 256
+
+jac313_jtext_v001_test 60 512
+jac313_jtext_v001_parser_validator_test 60 256
+jac313_jtext_v001_module_test 60 256
+
+jac313_qlite_v001_test 60 256
+jac313_qlite_v001_module_test 60 256
+
+jac313_run_identity_test 30 128
+jac313_identity_dedup_test 30 128

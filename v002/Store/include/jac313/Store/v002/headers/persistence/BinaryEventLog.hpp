@@ -33,6 +33,7 @@ namespace jac313::Store::v002 {
 
 namespace detail {
     // Helper (binary has no jText dep) to emit the required // header at file start.
+    // Kept in sync with jText::write_file_comment_header convention.
     inline size_t write_binary_file_header(int fd, std::string_view full_path) {
         auto now = std::chrono::system_clock::now();
         auto today = std::chrono::floor<std::chrono::days>(now);
@@ -43,6 +44,9 @@ namespace detail {
         h += std::format("//Date:    {}\n", date_str);
         h += "//Purpose: Binary Data File\n";
         h += "//\n";
+        // Explicit end marker (helps any future text scanners, though our reader
+        // now uses bounded binary prefix + rfind("//\\n") for safety).
+        h += "// -- end text header, binary records follow --\n";
         const ssize_t written = ::write(fd, h.data(), h.size());
         if (written < 0 || static_cast<size_t>(written) != h.size()) {
             throw std::runtime_error("BinaryEventLog: header write failed");
@@ -76,7 +80,9 @@ public:
             throw std::runtime_error("BinaryEventLog: failed to open " + file_path_);
         }
 
-        // Write standardized // header comments first (per requirement for ALL persist files)
+        // Write standardized // header comments first (per requirement for ALL persist files).
+        // Matches the format in jText's write_file_comment_header (see main jText + jac313 vendored copy).
+        // Binary reader uses bounded prefix + rfind, not getline.
         size_t header_size = detail::write_binary_file_header(fd_, file_path_);
 
         // Pre-allocate (mmap covers header prefix + data area)
