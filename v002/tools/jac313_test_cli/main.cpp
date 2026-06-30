@@ -456,6 +456,16 @@ std::string run_label_md(std::int64_t run_id) {
 }
 std::string dash(const std::string& s) { return s.empty() ? "-" : s; }
 
+// Page navigation. `back` = relative path to the parent index ("../README.md" for an area page,
+// "README.md" for a run-detail page). nav_top sets the #top anchor + a back / jump-to-bottom line;
+// nav_bottom sets the #bottom anchor + a back / jump-to-top line. Anchors are GitHub-compatible.
+void nav_top(std::ostream& md, const std::string& back) {
+    md << "<a id=\"top\"></a>\n[← back](" << back << ") · [↓ bottom](#bottom)\n\n";
+}
+void nav_bottom(std::ostream& md, const std::string& back) {
+    md << "\n---\n[← back](" << back << ") · [↑ top](#top)\n<a id=\"bottom\"></a>\n";
+}
+
 // Locale-aware integer formatting — thousands separators per the locale of whoever runs --report
 // ("6,030,096" en_US, "6.030.096" de_DE). Falls back to plain digits if the locale is unavailable.
 std::string fmt_num(std::int64_t n) {
@@ -511,6 +521,7 @@ std::string fmt_build_seconds(std::int64_t ms) {
 void write_compiler_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     std::error_code ec; fs::create_directories(out / "compiler", ec);
     std::ofstream md(out / "compiler" / "README.md");
+    nav_top(md, "../README.md");
     md << "# Compilers\n\n_Generated from `results.db`._\n\n"
           "| label | name | version | major | runs |\n|---|---|---|--:|--:|\n";
     auto st = db.prepare(
@@ -523,13 +534,15 @@ void write_compiler_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
         md << "| " << comp_label(name, major) << " | " << name << " | " << version << " | "
            << major << " | " << runs << " |\n";
     }
+    nav_bottom(md, "../README.md");
 }
 
 // Per-run detail page (one compiler's run): every scenario with persist/mode/tool + status + ms.
 void write_run_detail(jac313::Qlite::v002::Sqlite& db, const fs::path& dir, const std::string& type, std::int64_t run_id) {
     const std::string rl = run_label_md(run_id);
     std::ofstream det(dir / (rl + ".md"));
-    det << "# " << type << " — " << rl << "\n\n[← back](README.md)\n\n";
+    nav_top(det, "README.md");
+    det << "# " << type << " — " << rl << "\n\n";
     { auto st = db.prepare(
         "SELECT r.host, c.name, c.version, p.build_type, p.modules, p.import_std, IFNULL(p.size,''), r.ts_utc "
         "FROM testRun tr JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id "
@@ -552,6 +565,7 @@ void write_run_detail(jac313::Qlite::v002::Sqlite& db, const fs::path& dir, cons
         det << "| " << t << " | " << dash(per) << " | " << dash(mode) << " | " << dash(tool) << " | "
             << status << " | " << fmt_num(ms) << " |\n";
     }
+    nav_bottom(det, "README.md");
 }
 
 // Per-type page = a HOST-SCOPED compiler comparison: each machine (jac313-###) is its own section
@@ -565,6 +579,7 @@ void write_type_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out, cons
     if (groups.empty()) return;
     std::error_code ec; fs::create_directories(out / type, ec);
     std::ofstream md(out / type / "README.md");
+    nav_top(md, "../README.md");
     md << "# " << type << " — by machine\n\n_Generated from `results.db`. Each machine (`jac313-###`) is its "
           "own section. Columns are that host's compilers (latest run each); cell = ms (pass) or status._\n";
 
@@ -645,6 +660,7 @@ void write_type_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out, cons
             md << "| [" << run_label_md(h.first) << "](" << run_label_md(h.first) << ".md) | " << h.second << " |\n";
         for (const auto& h : hist) write_run_detail(db, out / type, type, h.first);
     }
+    nav_bottom(md, "../README.md");
 }
 
 // Bench pages: bench rows carry ops stats (median/band/bytes), not status/duration — its own format.
@@ -652,7 +668,8 @@ void write_type_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out, cons
 void write_bench_detail(jac313::Qlite::v002::Sqlite& db, const fs::path& dir, std::int64_t run_id) {
     const std::string rl = run_label_md(run_id);
     std::ofstream det(dir / (rl + ".md"));
-    det << "# bench — " << rl << "\n\n[← back](README.md)\n\n";
+    nav_top(det, "README.md");
+    det << "# bench — " << rl << "\n\n";
     { auto st = db.prepare("SELECT r.host, c.name, c.version, p.build_type, r.ts_utc FROM testRun tr "
         "JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
         "WHERE tr.run_id=? LIMIT 1");
@@ -672,6 +689,7 @@ void write_bench_detail(jac313::Qlite::v002::Sqlite& db, const fs::path& dir, st
         det << "| " << name << " | " << dash(per) << " | " << fmt_num(events) << " | " << fmt_num(med) << " | "
             << human_ops(low) << "–" << human_ops(high) << " | " << human_bytes(bytes) << " |\n";
     }
+    nav_bottom(det, "README.md");
 }
 
 // Bench page = a HOST-SCOPED compiler comparison: throughput is hardware-specific, so each machine
@@ -686,12 +704,14 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     if (groups.empty()) return;
     std::error_code ec; fs::create_directories(out / "bench", ec);
     std::ofstream md(out / "bench" / "README.md");
+    nav_top(md, "../README.md");
     md << "# bench — throughput by machine\n\n_Generated from `results.db`. Throughput is hardware-specific, "
           "so each machine (`jac313-###`) is its own section. Per compiler: median ops/sec, the low–high band, "
-          "and footprint; latest run per compiler._\n";
+          "and footprint; latest run per compiler. Split into non-durable / durable @1M / durable @10M, each "
+          "sorted by median ops/sec (descending)._\n";
 
     struct Cell { std::string median = "-", band = "-", size = "-"; };
-    struct Row { std::string key; std::vector<Cell> cells; };
+    struct Row { std::string key; int cat; std::vector<Cell> cells; };
     for (const std::int64_t g : groups) {
         std::vector<std::pair<std::string, std::int64_t>> comps;   // this host's compilers (latest run each)
         { auto st = db.prepare(
@@ -718,37 +738,44 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
 
         std::vector<Row> rows;
         { auto st = db.prepare(
-            "SELECT tr.run_id, tl.name, IFNULL(p.threads*p.events_per_thread,0), IFNULL(tr.median_ops,0), "
-            "IFNULL(tr.low_ops,0), IFNULL(tr.high_ops,0), IFNULL(tr.bytes,0) "
+            "SELECT tr.run_id, tl.name, IFNULL(p.persist,''), IFNULL(p.threads*p.events_per_thread,0), "
+            "IFNULL(tr.median_ops,0), IFNULL(tr.low_ops,0), IFNULL(tr.high_ops,0), IFNULL(tr.bytes,0) "
             "FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id JOIN parameter p ON p.id=tr.parameter_id "
             "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' AND tr.run_id IN (" + inlist + ") "
-            "ORDER BY tl.name, p.threads*p.events_per_thread");
+            "ORDER BY IFNULL(tr.median_ops,0) DESC");   // SQL sorts: each config first appears at its best median
           while (st.step()) {
-              std::int64_t run = 0, events = 0, med = 0, low = 0, high = 0, bytes = 0; std::string name;
-              st.get(run, name, events, med, low, high, bytes);
-              const std::string key = events ? (name + " @" + std::to_string(events / 1000000) + "M") : name;
+              std::int64_t run = 0, events = 0, med = 0, low = 0, high = 0, bytes = 0; std::string name, persist;
+              st.get(run, name, persist, events, med, low, high, bytes);
+              // 0 = non-durable flag sweep · 1 = durable @1M · 2 = durable @10M
+              const int cat = (persist.empty() || persist == "none") ? 0 : (events <= 1000000 ? 1 : 2);
               Row* r = nullptr;
-              for (auto& rr : rows) if (rr.key == key) { r = &rr; break; }
-              if (!r) { rows.push_back({key, std::vector<Cell>(comps.size())}); r = &rows.back(); }
+              for (auto& rr : rows) if (rr.key == name && rr.cat == cat) { r = &rr; break; }
+              if (!r) { rows.push_back({name, cat, std::vector<Cell>(comps.size())}); r = &rows.back(); }
               const int col = col_for(run);
               if (col >= 0) { Cell& cell = r->cells[static_cast<std::size_t>(col)];
                               cell.median = fmt_num(med);
                               cell.band   = human_ops(low) + "–" + human_ops(high);
                               cell.size   = human_bytes(bytes); } } }
 
-        md << "| config";
-        for (const auto& c : comps) {
-            const std::string rl = run_label_md(c.second);
-            md << " | [" << c.first << "](" << rl << ".md)<br>median ops/sec | " << c.first << "<br>band | "
-               << c.first << "<br>size";
-        }
-        md << " |\n|---";
-        for (std::size_t i = 0; i < comps.size(); ++i) md << "|--:|:--:|--:";
-        md << "|\n";
-        for (const auto& r : rows) {
-            md << "| " << r.key;
-            for (const auto& cell : r.cells) md << " | " << cell.median << " | " << cell.band << " | " << cell.size;
-            md << " |\n";
+        // Three tables (non-durable / durable @1M / durable @10M), each already in median-desc order from SQL.
+        const char* cat_title[] = {"Non-durable (flag sweep)", "Durable @ 1M events", "Durable @ 10M events"};
+        for (int cat = 0; cat < 3; ++cat) {
+            bool any = false; for (const auto& r : rows) if (r.cat == cat) { any = true; break; }
+            if (!any) continue;
+            md << "\n### " << cat_title[cat] << "  _(median ops/sec, descending)_\n\n| config";
+            for (const auto& c : comps) {
+                const std::string rl = run_label_md(c.second);
+                md << " | [" << c.first << "](" << rl << ".md)<br>median ops/sec | " << c.first << "<br>band | "
+                   << c.first << "<br>size";
+            }
+            md << " |\n|---";
+            for (std::size_t i = 0; i < comps.size(); ++i) md << "|--:|:--:|--:";
+            md << "|\n";
+            for (const auto& r : rows) if (r.cat == cat) {
+                md << "| " << r.key;
+                for (const auto& cell : r.cells) md << " | " << cell.median << " | " << cell.band << " | " << cell.size;
+                md << " |\n";
+            }
         }
         // Run history (every bench run for this host, each linked to its detail page) + a page per run.
         std::vector<std::pair<std::int64_t, std::string>> hist;
@@ -765,6 +792,7 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
             md << "| [" << run_label_md(h.first) << "](" << run_label_md(h.first) << ".md) | " << h.second << " |\n";
         for (const auto& h : hist) write_bench_detail(db, out / "bench", h.first);
     }
+    nav_bottom(md, "../README.md");
 }
 
 // build = a HOST-SCOPED compile-time matrix: compile time is hardware-specific, so each machine
@@ -781,6 +809,7 @@ void write_build_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     // doesn't swallow this report page. testType name in the DB stays 'build'.
     std::error_code ec; fs::create_directories(out / "compiler-build-times", ec);
     std::ofstream md(out / "compiler-build-times" / "README.md");
+    nav_top(md, "../README.md");
     md << "# Compiler build times\n\n_Generated from `results.db`. Compile time is hardware-specific, so "
           "each machine (`jac313-###`) is its own section. Cell = compile+link seconds · status · binary "
           "size (latest build); per test × front-end × compiler._\n";
@@ -835,12 +864,14 @@ void write_build_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
             md << " |\n";
         }
     }
+    nav_bottom(md, "../README.md");
 }
 
 // Top-level landing index: test-summary/README.md, linking to the compiler page and every test
 // type that has data (with its run/row counts).
 void write_index_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     std::ofstream md(out / "README.md");
+    nav_top(md, "../README.md");
     md << "# Test results\n\n_Generated from `results.db` by `jac313_test_cli --report`._\n\n";
 
     // Machines table — decodes each jac313-### (latest run per group) with its hardware spec.
@@ -918,6 +949,7 @@ void write_index_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
         if (rows == 0) continue;
         md << "| [" << a.dir << "](" << a.dir << "/README.md) | " << runs << " | " << rows << " |\n";
     }
+    nav_bottom(md, "../README.md");
 }
 
 int run_report_command(const fs::path& source_dir) {
