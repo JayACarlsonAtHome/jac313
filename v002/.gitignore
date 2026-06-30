@@ -58,9 +58,13 @@ test-results/
 /Setup.sh
 /recipes.local.conf
 
+# Per-run handoff written by bootstrap.sh, read by the committed Setup/jac313_setup.
+# (The jac313_setup binary itself IS tracked — no extension, no rule matches it.)
+/Setup/.setup_handoff
+
 # Convenience symlinks to the bootstrap-built tools (targets live in gitignored build-bootstrap/)
 /jac313_test_cli
-/jac313_clean_slate
+/jac313_wipe_new
 
 # Generated, re-runnable preset script (overwritten each preset invocation)
 /run_latest_config.sh

@@ -159,6 +159,40 @@ bool write_setup_script(const std::filesystem::path& source_dir,
                         const ProvisionPlan& plan,
                         const std::string& reinvoke_hint = "jac313_test_cli compilers");
 
+// ---- provisioning: in-process execution (the committed jac313_setup exe) ----
+//
+// Instead of writing a shell Setup.sh for the user to run, the prebuilt jac313_setup
+// binary reads a small handoff file from bootstrap and EXECUTES the plan itself, so it
+// can do real per-step error handling (captured exit codes, a continue-on-failure
+// summary) that a `set -e` shell script cannot.
+
+// Build a plan from an explicit component-name list (the bootstrap handoff), resolving
+// each component's install command for `family` from recipes.conf. A component whose
+// recipe `check` already passes is dropped (idempotent re-runs); a component with no
+// recipe for this family is recorded in plan.unsupported.
+ProvisionPlan plan_for_components(const std::filesystem::path& source_dir,
+                                  const std::string& family,
+                                  const std::vector<std::string>& components);
+
+struct ExecOptions {
+    bool dry_run{false};    // print the plan and stop — touch nothing
+    bool assume_yes{false}; // skip the [y/N] confirmation prompt
+};
+
+struct ExecReport {
+    int total{0};
+    int ok{0};
+    int failed{0};
+    bool declined{false};   // user answered N at the prompt (nothing run)
+    std::vector<std::string> failed_components;
+    std::vector<std::string> unsupported; // copied through from the plan
+};
+
+// Print the plan; unless dry_run/assume_yes, prompt [y/N]; then run each step with
+// stdio inherited (so sudo can prompt and progress is visible), recording per-step
+// status. One failing step never aborts the rest. Prints a final summary.
+ExecReport execute_plan(const ProvisionPlan& plan, const ExecOptions& opts);
+
 // Drop inherited exported bash functions (BASH_FUNC_*) so activation probes via
 // /bin/sh -c don't emit "error importing function definition" noise.
 void scrub_exported_shell_functions();
