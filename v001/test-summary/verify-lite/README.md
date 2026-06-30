@@ -1,3 +1,6 @@
+<a id="top"></a>
+[← back](../README.md) · [↓ bottom](#bottom)
+
 # verify-lite — by machine
 
 _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Columns are that host's compilers (latest run each); cell = ms (pass) or status._
@@ -43,3 +46,7 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | run | compiler · recorded |
 |---|---|
 | [Run_014](Run_014.md) | gcc15 · 2026-06-30T06:32:33Z |
+
+---
+[← back](../README.md) · [↑ top](#top)
+<a id="bottom"></a>

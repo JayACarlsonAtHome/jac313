@@ -1,3 +1,6 @@
+<a id="top"></a>
+[← back](../README.md) · [↓ bottom](#bottom)
+
 # Test results
 
 _Generated from `results.db` by `jac313_test_cli --report`._
@@ -35,3 +38,7 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 | [verify-lite](verify-lite/README.md) | 1 | 31 |
 | [verify](verify/README.md) | 2 | 120 |
 | [compiler-build-times](compiler-build-times/README.md) | 5 | 121 |
+
+---
+[← back](../README.md) · [↑ top](#top)
+<a id="bottom"></a>

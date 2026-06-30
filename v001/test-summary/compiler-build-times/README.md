@@ -1,3 +1,6 @@
+<a id="top"></a>
+[← back](../README.md) · [↓ bottom](#bottom)
+
 # Compiler build times
 
 _Generated from `results.db`. Compile time is hardware-specific, so each machine (`jac313-###`) is its own section. Cell = compile+link seconds · status · binary size (latest build); per test × front-end × compiler._
@@ -38,3 +41,7 @@ _Generated from `results.db`. Compile time is hardware-specific, so each machine
 | jac313_store_metric_view_test | 1.43s · built · 705.87 KB | - | 1.67s · built · 872.90 KB | - | - |
 | jac313_store_sql_persist_smoke | 1.77s · built · 829.38 KB | - | 1.82s · built · 1.03 MB | - | - |
 | jac313_store_v001_test | 1.16s · built · 422.07 KB | - | 1.43s · built · 568.10 KB | - | - |
+
+---
+[← back](../README.md) · [↑ top](#top)
+<a id="bottom"></a>
