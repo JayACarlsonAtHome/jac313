@@ -897,8 +897,9 @@ int run_report_command(const fs::path& source_dir) {
     std::error_code ec;
     if (!fs::exists(db_path, ec)) { std::cerr << "no results.db at " << db_path.string() << "\n"; return 1; }
     try {
-        jac313::Qlite::v001::Sqlite db(db_path.string());
-        jac313::results::ensure_schema(db);
+        // Render-only: open READ-ONLY and skip ensure_schema, so --report only writes the .md pages
+        // and never modifies results.db. The DB exists (checked above) and was schema'd by the recorders.
+        jac313::Qlite::v001::Sqlite db(db_path.string(), SQLITE_OPEN_READONLY);
         const fs::path out = source_dir / "test-summary";
         write_compiler_page(db, out);
         for (const char* t : {"ctest", "smoke", "verify-lite", "verify"}) write_type_pages(db, out, t);
