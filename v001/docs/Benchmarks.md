@@ -6,10 +6,11 @@
 
 ## What it is
 
-Throughput is measured by the `store_bench` instrument, driven by
-`bench_suite.sh`. Both live in `Store/tests/matrix/`. This is a *curated*
-7-config suite — deliberately small and trustworthy, not the big functional
-test matrix. Its job is to give numbers you can stand behind, not coverage.
+Throughput is measured by the `store_bench` instrument (in
+`Store/tests/matrix/`); the curated suite is its own built-in `--suite` mode —
+no driver script. It is a *curated* 10-config suite — deliberately small and
+trustworthy, not the big functional test matrix. Its job is to give numbers
+you can stand behind, not coverage.
 
 It is honest by construction:
 
@@ -22,26 +23,54 @@ It is honest by construction:
 
 ## How to run
 
-From the repo root:
+The easy way, from `v001/` — the runner builds Release and drives the suite for you:
 
 ```bash
-bash Store/tests/matrix/bench_suite.sh --dry-run   # print the copy-paste command list
-bash Store/tests/matrix/bench_suite.sh             # real run (~90 s)
+./jac313_test_cli --bench            # run the curated suite — numbers to stdout, NOT recorded
+./jac313_test_cli --bench --report   # record → test-summary/results.db + render the report
 ```
 
-Override the workload via environment variables:
+`--bench --report` auto-resolves the machine label (see *group identity* below) — no manual
+`host_label.local`. Everything underneath is `store_bench`; drive it directly when you want one
+config, `--dry-run`, or `--anonymize`.
+
+`store_bench` *is* the suite — no driver script. From the build directory
+(where `jac313_store_bench` was built):
 
 ```bash
-NEVENTS=5000000 bash Store/tests/matrix/bench_suite.sh   # 5M total instead of 10M
+./jac313_store_bench --suite --dry-run         # print the copy-paste command list
+./jac313_store_bench --suite --db results.db   # run the curated 10 and record each
+./jac313_test_cli --report                     # render the comparison pages from results.db
 ```
 
-`NEVENTS` is the non-durable total (`NDEV` sets per-thread instead). `DEVENTS`
-/ `DDEV` are the durable equivalents. `THREADS` sets the thread count, and
-`NRUN` / `DRUN` set the run counts for non-durable and durable respectively.
+`--db <path>` appends one row per config to a SQLite database (written via
+Qlite) — versions, config, and the full distribution — so re-running
+**accumulates history**. Every row carries a **`group_id`**: one per distinct
+**hardware + OS** identity `(cpu, cores, ram_gb, os)` — the container for a machine
+running an OS (externally it renders as **`Run_NNN`**). A re-run on the same
+machine reuses its group; a new machine, or a new OS on the same box, gets the next group.
 
-## The 7 configs
+**Group identity / host label (auto).** The group is resolved by a plain compare:
+this machine's `(cpu, cores, ram_gb, os)` against the recorded groups — same
+hardware+OS reuses its group, anything new gets the next number. The recorded
+`host` is the anonymized **`jac313-<group_id>`**, so no real hostname ever enters
+the DB and no manual label step is needed. A `host_label.local` /
+`$JAC313_HOST_LABEL` override still pins a specific label. Use
+`jac313_test_cli --group-id` to preview the existing groups and which one this
+machine resolves to before recording (read-only).
 
-This is the `--dry-run` output (build dir shown as a placeholder):
+`jac313_test_cli --report` reads `results.db` back and **writes files** (no stdout redirect): a
+top-level **`test-summary/README.md`** index linking to per-area **compiler-comparison** pages —
+`compiler/`, `ctest/`, `smoke/`, `bench/`, `verify/`, `build/`. The **bench** page is head-to-head
+per compiler — median ops/sec · low–high band · output size, clang ↔ gcc side by side, numbers
+locale-formatted. Re-run `--report` any time to refresh the pages. Pass `--jtext-ver vX.Y` on the
+`store_bench --suite` call so the recorded row carries the jText version. Each config is also a
+standalone `store_bench` command (see below) for running one in isolation.
+
+## The 10 configs
+
+This is the `--dry-run` output (build dir shown as a placeholder): 4 non-durable flag
+steps, then the durable backends at **1M** and again at **10M** (the scaling grid).
 
 ```bash
 cd <your-build-dir>/Store/tests/matrix          # where jac313_store_bench was built
@@ -49,9 +78,12 @@ cd <your-build-dir>/Store/tests/matrix          # where jac313_store_bench was b
 ./jac313_store_bench --threads 50 --events-per-thread 200000 --runs 10 --persist none --flag-count 2  # 2 flags, non-durable
 ./jac313_store_bench --threads 50 --events-per-thread 200000 --runs 10 --persist none --flag-count 4  # 4 flags, non-durable
 ./jac313_store_bench --threads 50 --events-per-thread 200000 --runs 10 --persist none --flag-count 6  # 6 flags, non-durable
-./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist jtext                 # durable jtext
-./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist sql                   # durable sql
-./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist binary                # durable binary
+./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist jtext                 # durable jtext  (1M)
+./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist sql                   # durable sql    (1M)
+./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist binary                # durable binary (1M)
+./jac313_store_bench --threads 50 --events-per-thread 200000 --runs  3 --persist jtext                 # durable jtext  @10M
+./jac313_store_bench --threads 50 --events-per-thread 200000 --runs  3 --persist sql                   # durable sql    @10M
+./jac313_store_bench --threads 50 --events-per-thread 200000 --runs  3 --persist binary                # durable binary @10M
 ```
 
 ## Sample report
@@ -60,7 +92,7 @@ A reference run (one machine — your numbers will differ):
 
 ```
 Host:     Intel Core Ultra 7 265 · 12 cores · 23 GB · Fedora Linux 44 · Release · threads=50
-Versions: Store v002.004 · Qlite v002.002 · jText v002.002
+Versions: Store v001.004 · Qlite v001.002 · jText v001.002
 ```
 
 Flag-overhead (non-durable) — 10M Events × 10 Runs = 100M Events per config:

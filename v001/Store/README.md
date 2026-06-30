@@ -75,7 +75,7 @@ When built with `-DJAC313_BUILD_STORE_TESTS=ON` from the monorepo root:
 
 Run the full matrix locally via [`jac313_test_cli`](../tools/jac313_test_cli/) (see [docs/Setup.md → Testing](../docs/Setup.md#4-testing)).
 
-For **throughput benchmarking** — the curated `store_bench` suite (median + low–high band, durable flush inside the clock), kept separate from the correctness matrix — see [docs/Benchmarks.md](../docs/Benchmarks.md). Quick: `bash Store/tests/matrix/bench_suite.sh --dry-run` from the world root.
+For **throughput benchmarking** — the curated `store_bench --suite` (median + low–high band, durable flush inside the clock, results recorded to a SQLite DB via `--db` and rendered by `--report`), kept separate from the correctness matrix — see [docs/Benchmarks.md](../docs/Benchmarks.md). Quick: `./jac313_store_bench --suite --dry-run` from the build dir.
 
 ## Modules / `import std` (C++23)
 

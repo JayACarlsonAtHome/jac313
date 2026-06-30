@@ -28,8 +28,8 @@ Maximum testing, minimum signal: more scenarios than a person can hold in their 
 reporting a figure quietly engineered to flatter.
 
 **The fix (today):** stop measuring *everything badly*, start measuring *a few things
-honestly*. The 1,856-combo matrix collapsed to a curated **7-config suite** (`store_bench` +
-`bench_suite.sh`). The headline became the **median** with a low–high band over N runs — an
+honestly*. The 1,856-combo matrix collapsed to a curated **store_bench suite**
+(`store_bench --suite`) — 7 configs then, 10 today (a 10M durable-scaling grid was added since). The headline became the **median** with a low–high band over N runs — an
 fsync stall now shows up in the band instead of being hidden or cherry-picked. Durable
 timing moved the flush **inside** the clock, which is what finally caught the 4× gap binary had been hiding.
 Verify left the hot loop. Total runtime: **~90 seconds**, not an afternoon.

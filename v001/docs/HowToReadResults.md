@@ -38,10 +38,10 @@ Store is).
 ## Where throughput numbers come from
 
 Throughput is now measured by a dedicated instrument, **`store_bench`**, driven by
-**`bench_suite.sh`** (both in `Store/tests/matrix/`). Run it from the repo root:
+**`store_bench`** (both in `Store/tests/matrix/`). Run it from the repo root:
 
 ```
-bash Store/tests/matrix/bench_suite.sh
+./jac313_store_bench --suite
 ```
 
 It is a **curated 7-config suite**, not a giant matrix:
@@ -133,7 +133,7 @@ real `ts_store` optimization, not a reporting tweak.)
 
 Older docs sourced throughput from per-test logs — `test_005` / `test_007` / `test_008` — and
 noted that **`test_006` emits no `ops/sec`**. That distinction is now **legacy**. Throughput
-comes from `bench_suite` / `store_bench`, not from per-test logs, so you no longer read a
+comes from `store_bench`, not from per-test logs, so you no longer read a
 backend's rate out of a test's "Slowest run" line.
 
 The functional side of those tests is unchanged. `test_006` is still a tail-reader
@@ -144,7 +144,7 @@ bench suite.
 
 > The **functional/correctness matrix still exists and is unchanged** — 116 scenarios × 16
 > compiler/build/modules/size combos = **1,856**. Only *throughput benchmarking* moved out of
-> it into `bench_suite`. So 1,856 / 116 / 115 is still accurate **for the functional matrix** —
+> it into `store_bench --suite`. So 1,856 / 116 / 115 is still accurate **for the functional matrix** —
 > just don't read throughput numbers out of it.
 
 ---
@@ -159,7 +159,7 @@ bench suite.
 | "Average" with a wide band | one outlier may have dragged it | No — prefer the median |
 | In-memory (non-durable) median | hot-path ceiling, ~15–25M | Yes (±HW/turbo noise) |
 | Durable median, flush in-clock | bytes actually written to disk | Yes — the real durable number |
-| `test_006` / no `ops/sec` | correctness test; **legacy** non-source | N/A — throughput is in bench_suite |
+| `test_006` / no `ops/sec` | correctness test; **legacy** non-source | N/A — throughput is in `store_bench --suite` |
 
 **The two true stories:** in-memory hot path ~15–25M ops/sec, and durable-to-disk ~2.1–2.7M
 ops/sec with the honest order **jText ≈ SQL ~2.1M > binary ~0.64M** (binary's old ~2.7M was a
