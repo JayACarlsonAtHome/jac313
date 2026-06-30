@@ -123,6 +123,13 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | jac313_store_flags · unit · off | 50 | 50 |
 | jac313_store_metric_view · unit · off | 50 | 50 |
 
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_006](Run_006.md) | clang22 · 2026-06-29T07:33:42Z |
+| [Run_003](Run_003.md) | gcc16 · 2026-06-29T07:32:12Z |
+
 ## jac313-002 — Intel(R) Core(TM) Ultra 7 265 · 12 cores · 38 GB · Red Hat Enterprise Linux 10.2 (Coughlan) · x7k
 
 | scenario | [clang21](Run_020.md) | [gcc15](Run_017.md) |
@@ -243,3 +250,10 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | jac313_store_008_XS · flags · off | 250 | 701 |
 | jac313_store_flags · unit · off | 50 | 50 |
 | jac313_store_metric_view · unit · off | 50 | 50 |
+
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_020](Run_020.md) | clang21 · 2026-06-30T04:55:41Z |
+| [Run_017](Run_017.md) | gcc15 · 2026-06-30T04:54:41Z |

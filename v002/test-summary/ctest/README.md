@@ -43,6 +43,13 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | jac313_store_sql_persist_smoke | 50 | 50 |
 | jac313_store_v002_test | 50 | 50 |
 
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_005](Run_005.md) | clang22 · 2026-06-29T07:33:06Z |
+| [Run_002](Run_002.md) | gcc16 · 2026-06-29T07:31:25Z |
+
 ## jac313-002 — Intel(R) Core(TM) Ultra 7 265 · 12 cores · 38 GB · Red Hat Enterprise Linux 10.2 (Coughlan) · x7k
 
 | scenario | [clang21](Run_019.md) | [gcc15](Run_016.md) |
@@ -83,3 +90,10 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | jac313_store_saturating_capacity_test | 50 | 50 |
 | jac313_store_sql_persist_smoke | 300 | 250 |
 | jac313_store_v002_test | 50 | 50 |
+
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_019](Run_019.md) | clang21 · 2026-06-30T04:55:13Z |
+| [Run_016](Run_016.md) | gcc15 · 2026-06-30T04:54:01Z |

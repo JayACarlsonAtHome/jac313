@@ -67,6 +67,13 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | jac313_store_v002_example · memcheck | pass · 651 | pass · 652 |
 | jac313_store_v002_test · memcheck | pass · 651 | pass · 1,404 |
 
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_010](Run_010.md) | clang22 · 2026-06-29T07:46:27Z |
+| [Run_009](Run_009.md) | gcc16 · 2026-06-29T07:44:57Z |
+
 ## jac313-002 — Intel(R) Core(TM) Ultra 7 265 · 12 cores · 38 GB · Red Hat Enterprise Linux 10.2 (Coughlan) · x7k
 
 | scenario | [clang21](Run_024.md) | [gcc15](Run_023.md) |
@@ -131,3 +138,10 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | jac313_store_sql_persist_smoke · memcheck | pass · 752 | pass · 752 |
 | jac313_store_v002_example · memcheck | pass · 251 | pass · 250 |
 | jac313_store_v002_test · memcheck | pass · 250 | pass · 250 |
+
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_024](Run_024.md) | clang21 · 2026-06-30T05:05:05Z |
+| [Run_023](Run_023.md) | gcc15 · 2026-06-30T05:04:02Z |

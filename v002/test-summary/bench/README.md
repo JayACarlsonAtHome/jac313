@@ -17,6 +17,13 @@ _Generated from `results.db`. Throughput is hardware-specific, so each machine (
 | durable sql @1M | 402,386 | 363.73K–426.46K | 75.18 MB | 369,889 | 338.67K–410.69K | 75.16 MB |
 | durable sql @10M | 673,848 | 646.62K–701.79K | 773.87 MB | 677,777 | 669.93K–700.75K | 773.66 MB |
 
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_008](Run_008.md) | clang22 · 2026-06-29T07:40:51Z |
+| [Run_007](Run_007.md) | gcc16 · 2026-06-29T07:37:39Z |
+
 ## jac313-002 — Intel(R) Core(TM) Ultra 7 265 · 12 cores · 38 GB · Red Hat Enterprise Linux 10.2 (Coughlan) · x7k
 
 | config | [clang21](Run_022.md)<br>median ops/sec | clang21<br>band | clang21<br>size | [gcc15](Run_021.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
@@ -31,3 +38,10 @@ _Generated from `results.db`. Throughput is hardware-specific, so each machine (
 | durable jtext @10M | 2,486,352 | 2.46M–2.50M | 836.38 MB | 2,514,329 | 2.46M–2.52M | 836.41 MB |
 | durable sql @1M | 463,951 | 459.30K–466.61K | 75.12 MB | 455,991 | 440.99K–466.59K | 75.11 MB |
 | durable sql @10M | 721,094 | 682.74K–724.09K | 773.25 MB | 721,767 | 715.55K–723.75K | 772.91 MB |
+
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_022](Run_022.md) | clang21 · 2026-06-30T05:00:55Z |
+| [Run_021](Run_021.md) | gcc15 · 2026-06-30T04:58:35Z |
