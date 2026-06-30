@@ -2014,7 +2014,29 @@ int run_everything_command(const GlobalOptions& global) {
     }
     std::cout << "######## run-everything: full battery — gcc=" << gcc_label
               << "  clang=" << clang_label << "  (pinned) ########\n";
-    fs::remove("test-summary/results.db", ec);   // fresh dataset (regenerable)
+    // Clear ONLY this machine's prior results (the pinned group), NOT the whole fleet DB — every
+    // other machine's committed results survive. host_spec + the current_host pin are kept (we
+    // re-record the SAME machine, reusing its group_id); the gates below repopulate this group.
+    if (std::error_code dec; fs::exists("test-summary/results.db", dec)) {
+        try {
+            jac313::results::Sqlite db("test-summary/results.db");
+            jac313::results::ensure_schema(db);
+            if (const std::int64_t g = jac313::results::current_host(db); g != 0) {
+                db.exec("DELETE FROM testRun WHERE run_id IN (SELECT run_id FROM run WHERE group_id=?)", g);
+                db.exec("DELETE FROM run         WHERE group_id=?", g);
+                db.exec("DELETE FROM io_best_fit WHERE group_id=?", g);
+                jac313::results::rebuild_safeness(db);
+                std::cout << "Cleared prior results for this machine (group " << g
+                          << "); other machines untouched.\n";
+            } else {
+                std::cout << "No current_host pin — run ./bootstrap.sh (or `host`) to pin this "
+                             "machine first; recording will create its group.\n";
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "warning: could not clear this machine's prior results: " << e.what()
+                      << " — continuing.\n";
+        }
+    }
 
     std::vector<std::string> failures;
     auto step = [&](const std::string& label, const std::string& cmd) {
