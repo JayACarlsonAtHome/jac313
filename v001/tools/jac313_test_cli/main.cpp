@@ -628,7 +628,22 @@ void write_type_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out, cons
             for (const auto& cell : r.cells) md << " | " << cell;
             md << " |\n";
         }
-        for (const auto& c : comps) write_run_detail(db, out / type, type, c.second);
+        // Run history for this host+gate: list EVERY run (each linked to its detail page) — not just
+        // the latest two in the column headers — and write a detail page for each so the links resolve
+        // and older runs are no longer orphaned.
+        std::vector<std::pair<std::int64_t, std::string>> hist;   // run_id -> "compiler · recorded"
+        { auto st = db.prepare(
+            "SELECT DISTINCT tr.run_id, c.name||c.major, IFNULL(r.ts_utc,'') FROM testRun tr "
+            "JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id "
+            "JOIN compiler c ON c.id=p.compiler_id JOIN testType tt ON tt.id=tr.test_type_id "
+            "WHERE tt.name=? AND r.group_id=? ORDER BY tr.run_id DESC");
+          st.bind(type, g);
+          while (st.step()) { std::int64_t run = 0; std::string cc, ts; st.get(run, cc, ts);
+              hist.push_back({run, cc + (ts.empty() ? std::string() : " · " + ts)}); } }
+        md << "\n**Runs** (newest first):\n\n| run | compiler · recorded |\n|---|---|\n";
+        for (const auto& h : hist)
+            md << "| [" << run_label_md(h.first) << "](" << run_label_md(h.first) << ".md) | " << h.second << " |\n";
+        for (const auto& h : hist) write_run_detail(db, out / type, type, h.first);
     }
 }
 
@@ -735,7 +750,20 @@ void write_bench_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
             for (const auto& cell : r.cells) md << " | " << cell.median << " | " << cell.band << " | " << cell.size;
             md << " |\n";
         }
-        for (const auto& c : comps) write_bench_detail(db, out / "bench", c.second);
+        // Run history (every bench run for this host, each linked to its detail page) + a page per run.
+        std::vector<std::pair<std::int64_t, std::string>> hist;
+        { auto st = db.prepare(
+            "SELECT DISTINCT tr.run_id, c.name||c.major, IFNULL(r.ts_utc,'') FROM testRun tr "
+            "JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id "
+            "JOIN compiler c ON c.id=p.compiler_id JOIN testType tt ON tt.id=tr.test_type_id "
+            "WHERE tt.name='bench' AND r.group_id=? ORDER BY tr.run_id DESC");
+          st.bind(g);
+          while (st.step()) { std::int64_t run = 0; std::string cc, ts; st.get(run, cc, ts);
+              hist.push_back({run, cc + (ts.empty() ? std::string() : " · " + ts)}); } }
+        md << "\n**Runs** (newest first):\n\n| run | compiler · recorded |\n|---|---|\n";
+        for (const auto& h : hist)
+            md << "| [" << run_label_md(h.first) << "](" << run_label_md(h.first) << ".md) | " << h.second << " |\n";
+        for (const auto& h : hist) write_bench_detail(db, out / "bench", h.first);
     }
 }
 
@@ -906,7 +934,27 @@ int run_report_command(const fs::path& source_dir) {
         write_bench_pages(db, out);
         write_build_pages(db, out);
         write_index_page(db, out);
-        std::cout << "[report] wrote test-summary/README.md + {compiler,ctest,smoke,verify-lite,verify,bench,compiler-build-times}/ from results.db\n";
+        // Self-clean: a Run_<id>.md belongs in area <X>'s dir only if run <id> actually recorded rows of
+        // type <X>. Drop any page whose run is gone OR is a different gate's run (stale pages left behind
+        // when a re-record/merge/wipe renumbered runs) — so nothing orphaned or mislabeled survives.
+        int swept = 0;
+        for (const char* area : {"ctest", "smoke", "verify", "verify-lite", "bench"}) {
+            const fs::path d = out / area; std::error_code dec;
+            if (!fs::is_directory(d, dec)) continue;
+            auto has_type = [&](std::int64_t id) {
+                auto st = db.prepare("SELECT 1 FROM testRun tr JOIN testType tt ON tt.id=tr.test_type_id "
+                                     "WHERE tr.run_id=? AND tt.name=? LIMIT 1");
+                st.bind(id, std::string(area)); return st.step(); };
+            for (const auto& e : fs::directory_iterator(d, dec)) {
+                const std::string fn = e.path().filename().string();
+                if (fn.rfind("Run_", 0) == 0 && e.path().extension() == ".md"
+                    && !has_type(std::strtoll(fn.c_str() + 4, nullptr, 10))) {
+                    std::error_code rec; if (fs::remove(e.path(), rec)) ++swept;
+                }
+            }
+        }
+        std::cout << "[report] wrote test-summary/README.md + {compiler,ctest,smoke,verify-lite,verify,bench,compiler-build-times}/ from results.db"
+                  << (swept ? (" (swept " + std::to_string(swept) + " orphan run page(s))") : std::string()) << "\n";
         return 0;
     } catch (const std::exception& e) { std::cerr << "report failed: " << e.what() << "\n"; return 1; }
 }
