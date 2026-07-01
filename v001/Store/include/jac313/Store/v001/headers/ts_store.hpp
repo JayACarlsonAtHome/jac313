@@ -30,6 +30,29 @@ private:
 
     const size_t max_threads_;
     const size_t events_per_thread_;
+
+    // Best-available physical memory (bytes) for the preallocation precheck. Prefer the kernel's
+    // MemAvailable, which is reclaim-aware (it counts reclaimable page cache). sysinfo() does NOT:
+    // freeram+bufferram+sharedram excludes the page cache, so right after a build warms the cache it
+    // under-reports by gigabytes and this precheck bails on an allocation the kernel could satisfy —
+    // that false bail is what zeroed the recorded bench gate (→ "NOT SAFE"). Fall back to sysinfo
+    // when /proc/meminfo can't be read (non-Linux, restricted /proc, etc.).
+    static size_t available_ram_bytes() noexcept {
+        std::ifstream meminfo("/proc/meminfo");
+        std::string key;
+        while (meminfo >> key) {
+            if (key == "MemAvailable:") {
+                size_t kb = 0;
+                if (meminfo >> kb) return kb << 10;   // kB -> bytes
+                break;
+            }
+            std::getline(meminfo, key);               // skip the rest of this line
+        }
+        struct sysinfo info{};
+        if (sysinfo(&info) == 0)
+            return static_cast<size_t>(info.freeram) + info.bufferram + info.sharedram;
+        return 0;
+    }
 public:
     // ——— GETTERS ———
 [[nodiscard]] constexpr size_t id_width() const noexcept {
@@ -103,11 +126,7 @@ public:
         const size_t per_row = sizeof(row_data);
         const size_t total_est = N * per_row + (16ULL << 20); // headroom
 
-        struct sysinfo info{};
-        size_t avail = 0;
-        if (sysinfo(&info) == 0) {
-            avail = info.freeram + info.bufferram + info.sharedram;
-        }
+        const size_t avail = available_ram_bytes();
         if (avail > 0 && total_est > (avail * 90 / 100)) {
             std::cerr << "ts_store: insufficient memory for preallocation (need ~"
                       << (total_est >> 20) << " MiB, avail ~" << (avail >> 20) << " MiB) — bailing\n";

@@ -19,6 +19,7 @@
 #include <format>
 #include <utility>
 #include <cctype>
+#include <fstream>
 #include <sys/sysinfo.h>
 #endif
 #include "ts_store_flags.hpp"

@@ -1271,7 +1271,12 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
         if (cc.empty()) continue;
         cfgs.push_back({name + "-hdr",  cc, {}, "off", "off"});
         cfgs.push_back({name + "-mod",  cc, {"-DJAC313_BUILD_MODULES=ON"}, "on", "off"});
-        cfgs.push_back({name + "-istd", cc, istd_flags, "on", "on"});
+        // `import std;` is a g++-15 pilot — gcc-only by design (clang has no usable std module;
+        // Qlite/CMakeLists.txt hard-errors if IMPORT_STD is set under clang). Only gcc gets an
+        // istd config; adding one for clang guaranteed a CONFIGURE FAILED every run (harmless but
+        // misleading noise that reads like `import std` failing to compile).
+        if (name == "gcc")
+            cfgs.push_back({name + "-istd", cc, istd_flags, "on", "on"});
     }
 
     const fs::path db_path = JAC313_RESULTS_DB;
@@ -1290,7 +1295,7 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
     std::cout << "=== build-times gate — " << host << (new_setup ? "  *** NEW SETUP (full collection) ***" : "")
               << " ===\n";
     if (dry_run) {
-        std::cout << cfgs.size() << " configs (smoke+bench × {hdr,mod,istd} × {gcc,clang}); per config:\n";
+        std::cout << cfgs.size() << " configs (smoke+bench × {hdr,mod[,istd gcc-only]} × {gcc,clang}); per config:\n";
         for (const auto& c : cfgs) {
             std::string flags; for (const auto& f : c.feflags) flags += " " + f;
             std::cout << "  cmake -G Ninja -S . -B tmp_build/" << c.label << " -DCMAKE_CXX_COMPILER=" << c.cc
