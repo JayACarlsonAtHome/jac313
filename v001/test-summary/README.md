@@ -11,8 +11,7 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 
 | machine | CPU | Speed | P.Cores | T.Cores | RAM | Disk | OS |
 |---|---|--:|--:|--:|--:|---|---|
-| jac313-001 | Intel(R) Core(TM) Ultra 7 265 | - | 12 | 12 | 38 GB | x7k | Red Hat Enterprise Linux 10.2 (Coughlan) |
-| jac313-002 | Intel(R) Core(TM) Ultra 7 265 | 2.4 GHz | 4 | 4 | 19 GB | x7k | Red Hat Enterprise Linux 10.2 (Coughlan) |
+| jac313-001 | Intel(R) Core(TM) Ultra 7 265 | 2.4 GHz | 4 | 4 | 19 GB | x7k | Red Hat Enterprise Linux 10.2 (Coughlan) |
 
 \* P.Cores = Physical Cores; T.Cores = Threading Cores
 
@@ -21,7 +20,6 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 | machine | verdict | ctest | smoke | bench | mem | hel | drd |
 |---|---|--:|--:|--:|:--:|:--:|:--:|
 | jac313-001 | ✅ PRESUMED SAFE | 64/0 | 232/0 | 20/0 | ✅ | ✅ | ✅ |
-| jac313-002 | ❌ NOT SAFE | - | - | - | n/a | n/a | n/a |
 
 \* ✅ PRESUMED SAFE = builds + ctest/smoke/bench 0-fail + memcheck/helgrind/drd clean, both compilers. Presumed, not proven.
 
@@ -33,23 +31,14 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 | smoke | 232 | 0 | n/a | n/a | n/a |
 | bench | 20 | 0 | n/a | n/a | n/a |
 
-### jac313-002 — gate detail
-
-| gate | pass | fail | memcheck | helgrind | drd |
-|---|--:|--:|:--:|:--:|:--:|
-| ctest | 0 | 0 | n/a | n/a | n/a |
-| smoke | 0 | 0 | n/a | n/a | n/a |
-| bench | 0 | 0 | n/a | n/a | n/a |
-
 | area | runs | rows |
 |---|--:|--:|
 | [compilers](compiler/README.md) | — | — |
-| [ctest](ctest/README.md) | 4 | 128 |
-| [smoke](smoke/README.md) | 4 | 464 |
-| [bench](bench/README.md) | 4 | 40 |
-| [verify-lite](verify-lite/README.md) | 1 | 31 |
-| [verify](verify/README.md) | 4 | 240 |
-| [compiler-build-times](compiler-build-times/README.md) | 10 | 242 |
+| [ctest](ctest/README.md) | 2 | 64 |
+| [smoke](smoke/README.md) | 2 | 232 |
+| [bench](bench/README.md) | 2 | 20 |
+| [verify](verify/README.md) | 2 | 120 |
+| [compiler-build-times](compiler-build-times/README.md) | 5 | 65 |
 
 ---
 [← back](../README.md) · [↑ top](#top)

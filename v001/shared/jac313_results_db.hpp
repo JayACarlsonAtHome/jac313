@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <chrono>
 #include <ctime>
 #include <filesystem>
@@ -41,6 +42,24 @@ inline int get_test_timeout(Sqlite& db, const std::string& name, bool debug = fa
 }
 inline int get_test_memory_mb(Sqlite& db, const std::string& name, bool debug = false) {
     return static_cast<int>(get_one_long(db, "SELECT memory_mb FROM testControl WHERE name=?", debug, name));
+}
+
+// The one shared results DB — full ABSOLUTE path, resolved ONCE at startup, then read everywhere by
+// name. It lives at the monorepo root (parent of every version dir), so v001/v002 (and later every
+// machine) post to the same store. Deterministic — a fixed location, not an env var. Each process calls
+// resolve_results_db() once from main(); every other site just reads JAC313_RESULTS_DB. This is the
+// single seam to swap for an external DB later (resolve to a DSN / open an adapter here).
+inline std::string JAC313_RESULTS_DB;   // set once by resolve_results_db(); read everywhere
+
+inline const std::string& resolve_results_db(const std::filesystem::path& source_dir) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    fs::path base = fs::weakly_canonical(fs::absolute(source_dir, ec), ec);
+    if (base.empty()) base = source_dir;
+    fs::path p = base.parent_path() / "test-summary" / "results.db";
+    fs::create_directories(p.parent_path(), ec);
+    JAC313_RESULTS_DB = p.string();
+    return JAC313_RESULTS_DB;
 }
 
 // ---- schema (the single source of truth for results.db) ----
@@ -186,13 +205,41 @@ inline void ensure_schema(Sqlite& db) {
             "  , fail INTEGER\n"
             "  , PRIMARY KEY(group_id, version, gate, compiler)\n"
             ")");
-    // Migration for safeness version column (JAC313_VERSION for v001/v002 isolation)
+    // Migration for the safeness version column (JAC313_VERSION for v001/v002 isolation).
+    // A plain `ALTER TABLE ... ADD COLUMN version` CANNOT fold version into the primary key, so an
+    // older DB keeps PK(group_id, gate, compiler). rebuild_safeness() writes rows keyed by
+    // (group_id, version, gate, compiler): the moment one hardware group holds two versions (e.g. a
+    // legacy version='' run alongside a new 'v001' run) those rows collide on the stale 3-col PK, the
+    // INSERT aborts AFTER the table-wide DELETE already committed, and safeness is left EMPTY — every
+    // gate then reads 0 and the run-everything verdict says NOT SAFE. So if version is not already
+    // part of the PK, REBUILD the table with the correct 4-col PK (SQLite can't alter a PK in place).
     {
-        std::int64_t has_col = 0;
-        { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('safeness') WHERE name='version'");
-          if (st.step()) st.get(has_col); }
-        if (has_col == 0) {
-            db.exec("ALTER TABLE safeness ADD COLUMN version TEXT");
+        std::int64_t version_in_pk = 0;
+        { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('safeness') WHERE name='version' AND pk>0");
+          if (st.step()) st.get(version_in_pk); }
+        if (version_in_pk == 0) {
+            std::int64_t has_col = 0;
+            { auto st = db.prepare("SELECT COUNT(*) FROM pragma_table_info('safeness') WHERE name='version'");
+              if (st.step()) st.get(has_col); }
+            db.exec("CREATE TABLE safeness_new (\n"
+                    "    group_id INTEGER\n"
+                    "  , version TEXT\n"
+                    "  , gate TEXT\n"
+                    "  , compiler TEXT\n"
+                    "  , pass INTEGER\n"
+                    "  , fail INTEGER\n"
+                    "  , PRIMARY KEY(group_id, version, gate, compiler)\n"
+                    ")");
+            // Copy whatever the old table had; COALESCE the version so the new PK never sees NULL.
+            // INSERT OR IGNORE absorbs any collision the old rows may already carry.
+            if (has_col > 0)
+                db.exec("INSERT OR IGNORE INTO safeness_new(group_id, version, gate, compiler, pass, fail) "
+                        "SELECT group_id, COALESCE(version, ''), gate, compiler, pass, fail FROM safeness");
+            else
+                db.exec("INSERT OR IGNORE INTO safeness_new(group_id, version, gate, compiler, pass, fail) "
+                        "SELECT group_id, '', gate, compiler, pass, fail FROM safeness");
+            db.exec("DROP TABLE safeness");
+            db.exec("ALTER TABLE safeness_new RENAME TO safeness");
         }
     }
     // io_best_fit = the per-machine durable double-buffer calibration for each backend. The peak of a
@@ -366,7 +413,7 @@ inline void delete_prior_run_for_group(Sqlite& db, std::int64_t gid, const std::
         st.bind(gid); if (st.step()) st.get(prior_run);
     } else {
         auto st = db.prepare("SELECT run_id FROM run WHERE group_id=? AND version=? ORDER BY run_id DESC LIMIT 1");
-        st.bind(gid); st.bind(version); if (st.step()) st.get(prior_run);
+        st.bind(gid, version); if (st.step()) st.get(prior_run);  // ONE bind() call: a 2nd clears the 1st
     }
     if (prior_run > 0) {
         db.exec("DELETE FROM testRun WHERE run_id=?", prior_run);

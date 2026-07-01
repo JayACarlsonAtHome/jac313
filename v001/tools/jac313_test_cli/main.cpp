@@ -112,6 +112,11 @@ fs::path detect_source_dir(const fs::path& start) {
     return start;
 }
 
+// The shared-DB path (JAC313_RESULTS_DB) + its one-time resolver live in jac313_results_db.hpp so the
+// wipe tools + store_bench share ONE definition. Surface them unqualified here.
+using jac313::results::JAC313_RESULTS_DB;
+using jac313::results::resolve_results_db;
+
 int run_list_command(const GlobalOptions& global) {
     const auto tests = discover_tests(global.build_dir);
     if (tests.empty()) {
@@ -138,7 +143,7 @@ int run_list_command(const GlobalOptions& global) {
 // the catalog is a convenience, never block a run on it. CREATE IF NOT EXISTS + INSERT OR IGNORE,
 // so it merges with store_bench's bench-config entries and a re-run writes nothing (no DB churn).
 void seed_test_catalog(const fs::path& source_dir, const std::vector<TestEntry>& tests) {
-    const fs::path db_path = source_dir / "test-summary" / "results.db";
+    const fs::path db_path = JAC313_RESULTS_DB;
     std::error_code ec;
     if (!fs::exists(db_path.parent_path(), ec)) {
         return;   // no test-summary/ -> nothing to catalog into
@@ -166,7 +171,7 @@ inline std::string summary_context_line(const GlobalOptions& global) {
     if (cc.rfind("build-", 0) == 0) cc = cc.substr(6);
     std::string label = "jac313-???";
     try {
-        jac313::Qlite::v001::Sqlite db((global.source_dir / "test-summary" / "results.db").string());
+        jac313::Qlite::v001::Sqlite db(JAC313_RESULTS_DB);
         jac313::results::ensure_schema(db);
         const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
             static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label,
@@ -191,7 +196,7 @@ int run_tests_command(const GlobalOptions& global, const RunOptions& opts,
     // Seed/refresh testControl table in results.db from the limits file (if present).
     // This makes the per-test timeouts/failsafes authoritative in the DB, not in source code or flat files at runtime.
     try {
-        const fs::path db_path = global.source_dir / "test-summary" / "results.db";
+        const fs::path db_path = JAC313_RESULTS_DB;
         if (fs::exists(db_path)) {
             jac313::Qlite::v001::Sqlite db(db_path.string());
             jac313::results::ensure_schema(db);
@@ -416,7 +421,11 @@ std::int64_t cli_begin_run(jac313::Qlite::v001::Sqlite& db) {
     const jac313::results::HostId h{hw.cpu_model, static_cast<std::int64_t>(hw.cpu_cores),
                                     static_cast<std::int64_t>(hw.ram_gb), hw.os_pretty, hw.disk_type_label, static_cast<std::int64_t>(hw.p_cores), static_cast<std::int64_t>(hw.cpu_mhz_min), static_cast<std::int64_t>(hw.cpu_mhz_max)};
     const std::int64_t group_id = jac313::results::pin_host(db, h);   // find-or-assign + write host_spec + current_host
-    jac313::results::delete_prior_run_for_group(db, group_id, JAC313_VERSION);
+    // Do NOT delete the prior run here. Each gate (ctest/smoke/verify/build-times) records its OWN run
+    // and safeness SUMS across all of a group's runs, so "delete the prior run" would drop the sibling
+    // gate that ran just before this one — which is what emptied the run-everything verdict. The
+    // explicit fresh-start (delete_prior_run_for_group / group wipe) belongs to run-everything's
+    // top-of-run cleanup and the jac313_wipe_* tools, NOT to every per-gate recorder.
     const std::int64_t run_id   = jac313::results::next_run_id(db);
     jac313::results::insert_run(db, run_id, group_id, jac313::results::host_label(group_id), JAC313_VERSION);
     return run_id;
@@ -938,8 +947,11 @@ void write_index_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
             std::string sql = "SELECT COALESCE(SUM(pass),0), COALESCE(SUM(fail),0), COUNT(*) FROM safeness WHERE group_id=? AND gate=?";
             if (!ver.empty()) sql += " AND (version=? OR version IS NULL OR version='')";
             auto st = db.prepare(sql);
-            st.bind(g, std::string(gate));
-            if (!ver.empty()) st.bind(ver);
+            // Bind ALL params in ONE call: Sqlite::bind() does sqlite3_clear_bindings() first, so a
+            // second bind() would wipe group_id/gate and rebind ver into param 1 (group_id) — the
+            // version-scoping regression that zeroed the verdict. Branch on ver instead of re-binding.
+            if (ver.empty()) st.bind(g, std::string(gate));
+            else             st.bind(g, std::string(gate), ver);
             if (st.step()) st.get(x.pass, x.fail, x.ran); return x; };
         auto pf_cell = [](const GatePF& x) { return x.ran ? (std::to_string(x.pass) + "/" + std::to_string(x.fail)) : std::string("-"); };
         auto vg_cell = [](const GatePF& x) { return x.ran ? std::string(x.fail == 0 ? "✅" : "❌") : std::string("n/a"); };
@@ -991,13 +1003,25 @@ void write_index_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
 }
 
 int run_report_command(const fs::path& source_dir) {
-    const fs::path db_path = source_dir / "test-summary" / "results.db";
+    const fs::path db_path = JAC313_RESULTS_DB;
     std::error_code ec;
     if (!fs::exists(db_path, ec)) { std::cerr << "no results.db at " << db_path.string() << "\n"; return 1; }
     try {
         // Render-only: open READ-ONLY and skip ensure_schema, so --report only writes the .md pages
         // and never modifies results.db. The DB exists (checked above) and was schema'd by the recorders.
         jac313::Qlite::v001::Sqlite db(db_path.string(), SQLITE_OPEN_READONLY);
+        // Version scoping for the SHARED DB: shadow run/testRun/safeness with TEMP VIEWs that keep ONLY
+        // this tree's version (JAC313_VERSION), permissive on legacy NULL/'' rows. Every report query
+        // below then filters transparently, and the "latest version in DB" banner/safeness heuristics
+        // auto-correct because their underlying `run` is now this-version-only. TEMP objects are allowed
+        // on a read-only main DB (they live in the writable temp schema) and are per-connection.
+        db.exec("CREATE TEMP VIEW run AS SELECT * FROM main.run "
+                "WHERE version='" + JAC313_VERSION + "' OR version IS NULL OR version=''");
+        db.exec("CREATE TEMP VIEW testRun AS SELECT tr.* FROM main.testRun tr "
+                "JOIN main.run r ON r.run_id=tr.run_id "
+                "WHERE r.version='" + JAC313_VERSION + "' OR r.version IS NULL OR r.version=''");
+        db.exec("CREATE TEMP VIEW safeness AS SELECT * FROM main.safeness "
+                "WHERE version='" + JAC313_VERSION + "' OR version IS NULL OR version=''");
         const fs::path out = source_dir / "test-summary";
         write_compiler_page(db, out);
         for (const char* t : {"ctest", "smoke", "verify-lite", "verify"}) write_type_pages(db, out, t);
@@ -1138,7 +1162,7 @@ std::int64_t exe_size_in_tree(const fs::path& build_dir, const std::string& targ
 void capture_build_times(const fs::path& source_dir, const fs::path& build_dir,
                          const std::string& modules_override = "",
                          const std::string& import_std_override = "") {
-    const fs::path db_path = source_dir / "test-summary" / "results.db";
+    const fs::path db_path = JAC313_RESULTS_DB;
     std::error_code ec;
     if (!fs::exists(db_path.parent_path(), ec)) return;
     std::vector<std::string> names;
@@ -1250,7 +1274,7 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
         cfgs.push_back({name + "-istd", cc, istd_flags, "on", "on"});
     }
 
-    const fs::path db_path = source_dir / "test-summary" / "results.db";
+    const fs::path db_path = JAC313_RESULTS_DB;
     std::error_code ec;
     if (!fs::exists(db_path.parent_path(), ec)) { std::cerr << "build-times: no test-summary/.\n"; return 1; }
     jac313::Qlite::v001::Sqlite db(db_path.string());
@@ -1340,7 +1364,7 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
 void record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
                           const std::vector<TestResult>& results) {
     if (results.empty()) return;
-    const fs::path db_path = source_dir / "test-summary" / "results.db";
+    const fs::path db_path = JAC313_RESULTS_DB;
     std::error_code ec;
     if (!fs::exists(db_path.parent_path(), ec)) return;
     try {
@@ -1374,7 +1398,7 @@ void record_matrix_results(const fs::path& source_dir, const fs::path& build_dir
                            const std::vector<MatrixRunResult>& results, const std::string& build_type,
                            const std::string& modules, const std::string& size) {
     if (results.empty()) return;
-    const fs::path db_path = source_dir / "test-summary" / "results.db";
+    const fs::path db_path = JAC313_RESULTS_DB;
     std::error_code ec;
     if (!fs::exists(db_path.parent_path(), ec)) return;
     try {
@@ -1630,7 +1654,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
     // Create run early so live status events go to runEvent (watch in DataGrip while the
     // long valgrind run is in progress). Reuse the same run_id for the final testRun inserts.
     std::int64_t run_id = 0;
-    const fs::path db_path = global.source_dir / "test-summary" / "results.db";
+    const fs::path db_path = JAC313_RESULTS_DB;
     try {
         jac313::Qlite::v001::Sqlite db(db_path.string());
         run_id = cli_begin_run(db);
@@ -1818,7 +1842,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
     // Capture each (tool x task) into results.db — test_type = this gate's name (verify-lite|verify),
     // valgrind tool as a parameter, status pass/fail/error + duration. Best-effort.
     {
-        const fs::path rpath = global.source_dir / "test-summary" / "results.db";
+        const fs::path rpath = JAC313_RESULTS_DB;
         std::error_code rec;
         if (!recs.empty() && fs::exists(rpath.parent_path(), rec)) {
             try {
@@ -2002,7 +2026,7 @@ int run_preset_command(const GlobalOptions& global, const ConfigureOptions& conf
             emit("cmake --build " + dir + " --target jac313_store_bench");
             emit("BENCH=\"" + dir + "/Store/tests/matrix/jac313_store_bench\"");
             // bench auto-records like every other gate (no --report needed); --report only renders.
-            emit("\"$BENCH\" --suite --db test-summary/results.db --jtext-ver v001.004");
+            emit("\"$BENCH\" --suite --db " + JAC313_RESULTS_DB + " --jtext-ver v001.004");
         }
         if (preset.report) emit("\"$CLI\" --report");            // render-only, ONCE after both compilers
         emit("");
@@ -2047,7 +2071,7 @@ int run_preset_command(const GlobalOptions& global, const ConfigureOptions& conf
 // show which group_id / jac313-<id> label THIS machine would record under (matched on cpu+cores+ram+os,
 // hostname never used) and whether that REUSES an existing group or creates a new one. Writes nothing.
 int run_group_id_command(const GlobalOptions& global) {
-    const fs::path db_path = global.source_dir / "test-summary" / "results.db";
+    const fs::path db_path = JAC313_RESULTS_DB;
     try {
         jac313::Qlite::v001::Sqlite db(db_path.string());
         jac313::results::ensure_schema(db);
@@ -2187,17 +2211,20 @@ int run_everything_command(const GlobalOptions& global) {
     // Clear ONLY this machine's prior results (the pinned group), NOT the whole fleet DB — every
     // other machine's committed results survive. host_spec + the current_host pin are kept (we
     // re-record the SAME machine, reusing its group_id); the gates below repopulate this group.
-    if (std::error_code dec; fs::exists("test-summary/results.db", dec)) {
+    const std::string& SHARED_DB = JAC313_RESULTS_DB;
+    if (std::error_code dec; fs::exists(SHARED_DB, dec)) {
         try {
-            jac313::results::Sqlite db("test-summary/results.db");
+            jac313::results::Sqlite db(SHARED_DB);
             jac313::results::ensure_schema(db);
             if (const std::int64_t g = jac313::results::current_host(db); g != 0) {
-                db.exec("DELETE FROM testRun WHERE run_id IN (SELECT run_id FROM run WHERE group_id=?)", g);
-                db.exec("DELETE FROM run         WHERE group_id=?", g);
+                // Version-scoped on the SHARED DB: clear only THIS version's prior runs for this
+                // machine — never the OTHER version's data for the same hardware group.
+                db.exec("DELETE FROM testRun WHERE run_id IN (SELECT run_id FROM run WHERE group_id=? AND version=?)", g, JAC313_VERSION);
+                db.exec("DELETE FROM run WHERE group_id=? AND version=?", g, JAC313_VERSION);
                 db.exec("DELETE FROM io_best_fit WHERE group_id=?", g);
                 jac313::results::rebuild_safeness(db);
                 std::cout << "Cleared prior results for this machine (group " << g
-                          << "); other machines untouched.\n";
+                          << ", version " << JAC313_VERSION << "); other machines/versions untouched.\n";
             } else {
                 std::cout << "No current_host pin — run ./bootstrap.sh (or `host`) to pin this "
                              "machine first; recording will create its group.\n";
@@ -2236,12 +2263,12 @@ int run_everything_command(const GlobalOptions& global) {
     // with the gcc bench binary. --calibrate ensure_schema's the io_best_fit table itself (the DB was
     // wiped above), and falls back gracefully (default batch) if it ever fails.
     step("calibrate", "build-bench-" + gcc_label + "/Store/tests/matrix/jac313_store_bench "
-                      "--calibrate --db test-summary/results.db");
+                      "--calibrate --db " + SHARED_DB);
     // Recorded throughput suite per compiler (reads io_best_fit.useThis).
     for (const std::string& cc : {gcc_label, clang_label}) {
         const std::string dir = "build-bench-" + cc;
         step("bench " + cc, dir + "/Store/tests/matrix/jac313_store_bench --suite "
-                            "--db test-summary/results.db --jtext-ver v001.004");
+                            "--db " + SHARED_DB + " --jtext-ver v001.004");
     }
     step("verify gcc",   CLI + " matrix verify --compiler " + gcc_label);
     step("verify clang", CLI + " matrix verify --compiler " + clang_label);
@@ -2250,7 +2277,7 @@ int run_everything_command(const GlobalOptions& global) {
 
     // PRESUMED-SAFE verdict block — read straight from the safeness summary (no recount).
     try {
-        jac313::Qlite::v001::Sqlite db("test-summary/results.db");
+        jac313::Qlite::v001::Sqlite db(SHARED_DB);
         const std::int64_t g = jac313::results::current_host(db);
         if (g != 0) {
             std::string cpu, os, disk;
@@ -2264,8 +2291,11 @@ int run_everything_command(const GlobalOptions& global) {
                 std::string sql = "SELECT COALESCE(SUM(pass),0), COALESCE(SUM(fail),0), COUNT(*) FROM safeness WHERE group_id=? AND gate=?";
                 if (!ver.empty()) sql += " AND (version=? OR version IS NULL OR version='')";
                 auto st = db.prepare(sql);
-                st.bind(g, std::string(gate));
-                if (!ver.empty()) st.bind(ver);
+                // Bind ALL params in ONE call: Sqlite::bind() does sqlite3_clear_bindings() first, so
+                // a second bind() would wipe group_id/gate and rebind ver into param 1 (group_id) —
+                // the version-scoping regression that zeroed this verdict. Branch instead of re-binding.
+                if (ver.empty()) st.bind(g, std::string(gate));
+                else             st.bind(g, std::string(gate), ver);
                 if (st.step()) st.get(x.pass, x.fail, x.ran); return x; };
             const PF ct = pf("ctest"), sm = pf("smoke"), bn = pf("bench"),
                      me = pf("memcheck"), he = pf("helgrind"), dr = pf("drd");
@@ -2302,6 +2332,9 @@ int main(int argc, char** argv) {
 
     GlobalOptions global;
     global.source_dir = detect_source_dir(fs::current_path());
+    // Resolve the ONE shared results DB once (absolute, at the monorepo root); read as JAC313_RESULTS_DB
+    // everywhere after this — in this process and, independently, in each spawned gate/tool.
+    resolve_results_db(global.source_dir);
 
     std::string command = argv[1];
     int argi = 2;
@@ -2375,7 +2408,7 @@ int main(int argc, char** argv) {
     if (command == "host") {   // sense + pin THIS machine (host_spec + current_host) and show the grid
         fs::path src = ".";
         for (int i = 2; i < argc; ++i) { const std::string a = argv[i]; if (a == "--source-dir" && i + 1 < argc) src = argv[++i]; }
-        const fs::path db_path = src / "test-summary" / "results.db";
+        const fs::path db_path = JAC313_RESULTS_DB;
         std::error_code ec;
         if (!fs::exists(db_path.parent_path(), ec)) { std::cerr << "host: no test-summary/.\n"; return 1; }
         jac313::Qlite::v001::Sqlite db(db_path.string());

@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
     if (!dry && !yes) { std::cerr << "jac313_wipe_jac: pass --dry-run (preview) or --yes (do it).\n"; return 2; }
     if (gid < 0)      { std::cerr << "jac313_wipe_jac: name the machine to wipe as --<G> (e.g. --1). See --help.\n"; return 2; }
 
-    const fs::path db_path = src / "test-summary" / "results.db";
+    const fs::path db_path = jac313::results::resolve_results_db(src);
     std::error_code ec;
     if (!fs::exists(db_path, ec)) { std::cout << "wipe-jac: no results.db at " << db_path << " (nothing to delete).\n"; return 0; }
 

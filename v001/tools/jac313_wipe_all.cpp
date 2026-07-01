@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     if (dry && yes)   { std::cerr << "jac313_wipe_all: --dry-run and --yes can't be used together.\n"; return 2; }
     if (!dry && !yes) { std::cerr << "jac313_wipe_all: pass --dry-run (preview) or --yes (do it).\n"; return 2; }
 
-    const fs::path db_path = src / "test-summary" / "results.db";
+    const fs::path db_path = jac313::results::resolve_results_db(src);
     std::error_code ec;
     if (!fs::exists(db_path, ec)) { std::cout << "wipe-all: no results.db at " << db_path << " (already blank).\n"; return 0; }
 

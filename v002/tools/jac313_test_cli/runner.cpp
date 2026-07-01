@@ -218,7 +218,8 @@ std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
     std::map<std::string, int> db_test_timeouts;
     std::map<std::string, int> db_test_memory;
     try {
-        const std::string dbp = "test-summary/results.db";
+        // Shared results DB — resolved once by main() (same process), read here by name.
+        const std::string& dbp = jac313::results::JAC313_RESULTS_DB;
         if (std::filesystem::exists(dbp)) {
             jac313::Qlite::v002::Sqlite db(dbp);
             jac313::results::ensure_schema(db);

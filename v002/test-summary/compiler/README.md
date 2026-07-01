@@ -7,8 +7,8 @@ _Generated from `results.db`._
 
 | label | name | version | major | runs |
 |---|---|---|--:|--:|
-| clang20 | clang | 20.1.2 | 20 | 3 |
-| gcc15 | gcc | 15.2.0 | 15 | 2 |
+| clang21 | clang | 21.1.8 | 21 | 6 |
+| gcc15 | gcc | 15.2.1 | 15 | 5 |
 
 ---
 [← back](../README.md) · [↑ top](#top)
