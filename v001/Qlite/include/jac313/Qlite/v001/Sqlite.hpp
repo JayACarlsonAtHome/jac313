@@ -33,6 +33,7 @@
 #if __has_include(<expected>)
 #  include <expected>
 #endif
+#include <iostream>
 
 // Migrated in-tree from the legacy jacQlite repo (was namespace jac::qlite).
 // This is now the canonical home of the SQLite wrapper for the jac313 family.

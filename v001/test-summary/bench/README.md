@@ -40,6 +40,41 @@ _Generated from `results.db`. Throughput is hardware-specific, so each machine (
 | [Run_008](Run_008.md) | clang21 · 2026-06-30T06:22:26Z |
 | [Run_007](Run_007.md) | gcc15 · 2026-06-30T06:19:24Z |
 
+## jac313-002 — Intel(R) Core(TM) Ultra 7 265 · 4 cores · 19 GB · Red Hat Enterprise Linux 10.2 (Coughlan) · x7k
+
+
+### Non-durable (flag sweep)  _(median ops/sec, descending)_
+
+| config | [clang21](Run_022.md)<br>median ops/sec | clang21<br>band | clang21<br>size | [gcc15](Run_021.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
+|---|--:|:--:|--:|--:|:--:|--:|
+| 2 flags, non-durable | 9,251,040 | 8.46M–9.54M | 0 B | 8,334,857 | 8.03M–9.03M | 0 B |
+| 6 flags, non-durable | 9,080,928 | 8.57M–9.59M | 0 B | 8,688,537 | 8.08M–9.03M | 0 B |
+| 4 flags, non-durable | 9,076,978 | 8.48M–9.64M | 0 B | 8,616,046 | 7.59M–8.90M | 0 B |
+| 0 flags, non-durable | 8,886,307 | 8.53M–9.38M | 0 B | 8,397,652 | 7.87M–9.03M | 0 B |
+
+### Durable @ 1M events  _(median ops/sec, descending)_
+
+| config | [clang21](Run_022.md)<br>median ops/sec | clang21<br>band | clang21<br>size | [gcc15](Run_021.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
+|---|--:|:--:|--:|--:|:--:|--:|
+| durable binary | 805,023 | 785.85K–852.27K | 83.78 MB | 855,901 | 786.83K–866.65K | 83.78 MB |
+| durable jtext | 694,323 | 682.24K–728.82K | 80.78 MB | 657,996 | 636.97K–711.21K | 80.76 MB |
+| durable sql | 475,607 | 459.32K–486.41K | 75.04 MB | 472,209 | 469.99K–484.33K | 75.02 MB |
+
+### Durable @ 10M events  _(median ops/sec, descending)_
+
+| config | [clang21](Run_022.md)<br>median ops/sec | clang21<br>band | clang21<br>size | [gcc15](Run_021.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
+|---|--:|:--:|--:|--:|:--:|--:|
+| durable binary | 878,994 | 870.77K–887.69K | 837.80 MB | 869,708 | 865.23K–879.80K | 837.80 MB |
+| durable jtext | 739,960 | 684.00K–740.46K | 836.07 MB | 729,755 | 700.42K–753.44K | 836.10 MB |
+| durable sql | 640,270 | 639.31K–647.32K | 772.37 MB | 645,246 | 642.39K–648.03K | 772.27 MB |
+
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_022](Run_022.md) | clang21 · 2026-07-01T00:24:07Z |
+| [Run_021](Run_021.md) | gcc15 · 2026-07-01T00:21:00Z |
+
 ---
 [← back](../README.md) · [↑ top](#top)
 <a id="bottom"></a>

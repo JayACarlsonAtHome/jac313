@@ -3,6 +3,8 @@
 #include "options.hpp"
 #include "process.hpp"
 
+#include "jac313_results_db.hpp"
+
 #include <jac313/Qlite/v001.hpp>
 #include <array>
 #include <chrono>
@@ -13,6 +15,7 @@
 #include <iostream>
 #include <map>
 #include <regex>
+#include <sys/resource.h>
 #include <unistd.h>
 #include <vector>
 
@@ -220,10 +223,10 @@ std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
             jac313::results::ensure_schema(db);
             auto st = db.prepare("SELECT name, timeout_sec, memory_mb FROM testControl");
             while (st.step()) {
-                std::string nm; int secs = 0, mem = 0;
+                std::string nm; std::int64_t secs = 0, mem = 0;
                 st.get(nm, secs, mem);
-                if (secs > 0) db_test_timeouts[nm] = secs;
-                if (mem > 0) db_test_memory[nm] = mem;
+                if (secs > 0) db_test_timeouts[nm] = static_cast<int>(secs);
+                if (mem > 0) db_test_memory[nm] = static_cast<int>(mem);
             }
         }
     } catch (...) {}
