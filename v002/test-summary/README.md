@@ -11,7 +11,7 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 
 | machine | CPU | Speed | P.Cores | T.Cores | RAM | Disk | OS |
 |---|---|--:|--:|--:|--:|---|---|
-| jac313-001 | Intel(R) Core(TM) Ultra 7 265 | 2.4 GHz | 4 | 4 | 19 GB | x7k | Red Hat Enterprise Linux 10.2 (Coughlan) |
+| jac313-001 | Intel(R) Core(TM) Ultra 7 265 | 2.4 GHz | 4 | 4 | 11 GB | x7k | Red Hat Enterprise Linux 10.2 (Coughlan) |
 
 \* P.Cores = Physical Cores; T.Cores = Threading Cores
 
