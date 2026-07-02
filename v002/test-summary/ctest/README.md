@@ -53,12 +53,12 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | [Run_018](Run_018.md) | clang21 · 2026-07-01T15:55:34Z |
 | [Run_015](Run_015.md) | gcc15 · 2026-07-01T15:54:22Z |
 
-## jac313-002 — Intel(R) Core(TM) Ultra 7 265 · 4 cores · 11 GB · Fedora Linux 44 (Workstation Edition) · x7k
+## jac313-002 — Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz · 8 cores · 31 GB · Linux Mint 22.3 · ssd
 
-| scenario | [clang22](Run_066.md) | [gcc16](Run_063.md) |
+| scenario | [clang20](Run_042.md) | [gcc15](Run_039.md) |
 |---|--:|--:|
 | jac313_contracts_disabled_test | 50 | 50 |
-| jac313_contracts_enforce_test | 1,002 | 902 |
+| jac313_contracts_enforce_test | 301 | 301 |
 | jac313_contracts_test | 50 | 50 |
 | jac313_identity_dedup_test | 50 | 50 |
 | jac313_jtext_v002_parser_validator_test | 50 | 50 |
@@ -68,19 +68,19 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | jac313_store_001_TS | 50 | 50 |
 | jac313_store_001_XS | 50 | 50 |
 | jac313_store_002_TS | 50 | 50 |
-| jac313_store_002_XS | 50 | 50 |
-| jac313_store_003_TS | 50 | 50 |
-| jac313_store_003_XS | 50 | 50 |
-| jac313_store_004_TS | 50 | 50 |
+| jac313_store_002_XS | 50 | 51 |
+| jac313_store_003_TS | 50 | 51 |
+| jac313_store_003_XS | 51 | 50 |
+| jac313_store_004_TS | 50 | 51 |
 | jac313_store_004_XS | 50 | 50 |
 | jac313_store_005_TS | 50 | 50 |
 | jac313_store_005_XS | 50 | 50 |
-| jac313_store_006_TS | 50 | 50 |
-| jac313_store_006_XS | 50 | 50 |
+| jac313_store_006_TS | 51 | 51 |
+| jac313_store_006_XS | 51 | 51 |
 | jac313_store_007_TS | 50 | 50 |
 | jac313_store_007_XS | 50 | 50 |
-| jac313_store_008_TS | 150 | 250 |
-| jac313_store_008_XS | 250 | 250 |
+| jac313_store_008_TS | 50 | 50 |
+| jac313_store_008_XS | 50 | 50 |
 | jac313_store_bench_smoke | 50 | 50 |
 | jac313_store_binary_persist_smoke | 50 | 50 |
 | jac313_store_binary_reader_test | 50 | 50 |
@@ -98,8 +98,8 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 
 | run | compiler · recorded |
 |---|---|
-| [Run_066](Run_066.md) | clang22 · 2026-07-02T05:23:32Z |
-| [Run_063](Run_063.md) | gcc16 · 2026-07-02T05:22:00Z |
+| [Run_042](Run_042.md) | clang20 · 2026-07-02T08:09:53Z |
+| [Run_039](Run_039.md) | gcc15 · 2026-07-02T08:09:02Z |
 
 ---
 [← back](../README.md) · [↑ top](#top)

@@ -12,7 +12,7 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 | machine | CPU | Speed | P.Cores | T.Cores | RAM | Disk | OS |
 |---|---|--:|--:|--:|--:|---|---|
 | jac313-001 | Intel(R) Core(TM) Ultra 7 265 | 2.4 GHz | 4 | 4 | 11 GB | x7k | Red Hat Enterprise Linux 10.2 (Coughlan) |
-| jac313-002 | Intel(R) Core(TM) Ultra 7 265 | 2.4 GHz | 4 | 4 | 11 GB | x7k | Fedora Linux 44 (Workstation Edition) |
+| jac313-002 | Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz | 0.8–3.9 GHz | 4 | 8 | 31 GB | ssd | Linux Mint 22.3 |
 
 \* P.Cores = Physical Cores; T.Cores = Threading Cores
 

@@ -133,124 +133,124 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | [Run_019](Run_019.md) | clang21 · 2026-07-01T15:56:10Z |
 | [Run_016](Run_016.md) | gcc15 · 2026-07-01T15:55:01Z |
 
-## jac313-002 — Intel(R) Core(TM) Ultra 7 265 · 4 cores · 11 GB · Fedora Linux 44 (Workstation Edition) · x7k
+## jac313-002 — Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz · 8 cores · 31 GB · Linux Mint 22.3 · ssd
 
-| scenario | [clang22](Run_067.md) | [gcc16](Run_064.md) |
+| scenario | [clang20](Run_043.md) | [gcc15](Run_040.md) |
 |---|--:|--:|
-| jac313_store_001_TS · binary · off | 100 | 100 |
-| jac313_store_001_TS · binary · on | 100 | 100 |
-| jac313_store_001_TS · jtext · off | 150 | 200 |
-| jac313_store_001_TS · jtext · on | 201 | 150 |
+| jac313_store_001_TS · binary · off | 50 | 50 |
+| jac313_store_001_TS · binary · on | 50 | 50 |
+| jac313_store_001_TS · jtext · off | 50 | 50 |
+| jac313_store_001_TS · jtext · on | 50 | 50 |
 | jac313_store_001_TS · none · off | 50 | 50 |
 | jac313_store_001_TS · none · on | 50 | 50 |
 | jac313_store_001_TS · sql · off | 50 | 50 |
 | jac313_store_001_TS · sql · on | 50 | 50 |
-| jac313_store_001_XS · binary · off | 100 | 100 |
-| jac313_store_001_XS · binary · on | 100 | 100 |
-| jac313_store_001_XS · jtext · off | 150 | 150 |
-| jac313_store_001_XS · jtext · on | 150 | 201 |
+| jac313_store_001_XS · binary · off | 50 | 50 |
+| jac313_store_001_XS · binary · on | 50 | 50 |
+| jac313_store_001_XS · jtext · off | 50 | 50 |
+| jac313_store_001_XS · jtext · on | 50 | 50 |
 | jac313_store_001_XS · none · off | 50 | 50 |
 | jac313_store_001_XS · none · on | 50 | 50 |
 | jac313_store_001_XS · sql · off | 50 | 50 |
 | jac313_store_001_XS · sql · on | 50 | 50 |
-| jac313_store_002_TS · binary · off | 100 | 100 |
-| jac313_store_002_TS · binary · on | 100 | 100 |
-| jac313_store_002_TS · jtext · off | 200 | 150 |
-| jac313_store_002_TS · jtext · on | 200 | 150 |
-| jac313_store_002_TS · none · off | 50 | 50 |
+| jac313_store_002_TS · binary · off | 50 | 50 |
+| jac313_store_002_TS · binary · on | 50 | 50 |
+| jac313_store_002_TS · jtext · off | 50 | 50 |
+| jac313_store_002_TS · jtext · on | 50 | 50 |
+| jac313_store_002_TS · none · off | 51 | 50 |
 | jac313_store_002_TS · none · on | 50 | 50 |
 | jac313_store_002_TS · sql · off | 50 | 50 |
 | jac313_store_002_TS · sql · on | 50 | 50 |
-| jac313_store_002_XS · binary · off | 100 | 100 |
-| jac313_store_002_XS · binary · on | 100 | 150 |
-| jac313_store_002_XS · jtext · off | 150 | 200 |
-| jac313_store_002_XS · jtext · on | 150 | 351 |
+| jac313_store_002_XS · binary · off | 50 | 50 |
+| jac313_store_002_XS · binary · on | 50 | 50 |
+| jac313_store_002_XS · jtext · off | 50 | 50 |
+| jac313_store_002_XS · jtext · on | 50 | 50 |
 | jac313_store_002_XS · none · off | 50 | 50 |
-| jac313_store_002_XS · none · on | 50 | 50 |
+| jac313_store_002_XS · none · on | 51 | 50 |
 | jac313_store_002_XS · sql · off | 50 | 50 |
 | jac313_store_002_XS · sql · on | 50 | 50 |
-| jac313_store_003_TS · binary · off | 401 | 401 |
-| jac313_store_003_TS · binary · on | 551 | 451 |
-| jac313_store_003_TS · jtext · off | 501 | 503 |
-| jac313_store_003_TS · jtext · on | 551 | 553 |
-| jac313_store_003_TS · none · off | 351 | 351 |
-| jac313_store_003_TS · none · on | 401 | 401 |
-| jac313_store_003_TS · sql · off | 351 | 351 |
-| jac313_store_003_TS · sql · on | 401 | 401 |
-| jac313_store_003_XS · binary · off | 452 | 401 |
-| jac313_store_003_XS · binary · on | 501 | 501 |
-| jac313_store_003_XS · jtext · off | 551 | 501 |
-| jac313_store_003_XS · jtext · on | 551 | 602 |
-| jac313_store_003_XS · none · off | 351 | 351 |
-| jac313_store_003_XS · none · on | 401 | 402 |
-| jac313_store_003_XS · sql · off | 351 | 351 |
-| jac313_store_003_XS · sql · on | 401 | 401 |
-| jac313_store_004_TS · binary · off | 100 | 100 |
-| jac313_store_004_TS · binary · on | 150 | 150 |
-| jac313_store_004_TS · jtext · off | 200 | 150 |
-| jac313_store_004_TS · jtext · on | 200 | 150 |
+| jac313_store_003_TS · binary · off | 353 | 352 |
+| jac313_store_003_TS · binary · on | 403 | 402 |
+| jac313_store_003_TS · jtext · off | 402 | 352 |
+| jac313_store_003_TS · jtext · on | 405 | 403 |
+| jac313_store_003_TS · none · off | 353 | 355 |
+| jac313_store_003_TS · none · on | 402 | 402 |
+| jac313_store_003_TS · sql · off | 352 | 353 |
+| jac313_store_003_TS · sql · on | 404 | 404 |
+| jac313_store_003_XS · binary · off | 353 | 352 |
+| jac313_store_003_XS · binary · on | 354 | 353 |
+| jac313_store_003_XS · jtext · off | 404 | 403 |
+| jac313_store_003_XS · jtext · on | 405 | 404 |
+| jac313_store_003_XS · none · off | 354 | 354 |
+| jac313_store_003_XS · none · on | 352 | 353 |
+| jac313_store_003_XS · sql · off | 353 | 355 |
+| jac313_store_003_XS · sql · on | 352 | 354 |
+| jac313_store_004_TS · binary · off | 50 | 50 |
+| jac313_store_004_TS · binary · on | 50 | 50 |
+| jac313_store_004_TS · jtext · off | 50 | 50 |
+| jac313_store_004_TS · jtext · on | 50 | 50 |
 | jac313_store_004_TS · none · off | 50 | 50 |
 | jac313_store_004_TS · none · on | 50 | 50 |
 | jac313_store_004_TS · sql · off | 50 | 50 |
 | jac313_store_004_TS · sql · on | 50 | 50 |
-| jac313_store_004_XS · binary · off | 100 | 100 |
-| jac313_store_004_XS · binary · on | 100 | 100 |
-| jac313_store_004_XS · jtext · off | 200 | 150 |
-| jac313_store_004_XS · jtext · on | 200 | 200 |
+| jac313_store_004_XS · binary · off | 50 | 50 |
+| jac313_store_004_XS · binary · on | 50 | 50 |
+| jac313_store_004_XS · jtext · off | 50 | 50 |
+| jac313_store_004_XS · jtext · on | 50 | 50 |
 | jac313_store_004_XS · none · off | 50 | 50 |
 | jac313_store_004_XS · none · on | 50 | 50 |
 | jac313_store_004_XS · sql · off | 50 | 50 |
-| jac313_store_004_XS · sql · on | 50 | 50 |
-| jac313_store_005_TS · binary · off | 100 | 100 |
-| jac313_store_005_TS · binary · on | 150 | 100 |
-| jac313_store_005_TS · jtext · off | 150 | 150 |
-| jac313_store_005_TS · jtext · on | 150 | 150 |
+| jac313_store_004_XS · sql · on | 51 | 50 |
+| jac313_store_005_TS · binary · off | 50 | 50 |
+| jac313_store_005_TS · binary · on | 50 | 50 |
+| jac313_store_005_TS · jtext · off | 50 | 100 |
+| jac313_store_005_TS · jtext · on | 50 | 101 |
 | jac313_store_005_TS · none · off | 50 | 50 |
 | jac313_store_005_TS · none · on | 50 | 50 |
 | jac313_store_005_TS · sql · off | 50 | 50 |
 | jac313_store_005_TS · sql · on | 50 | 50 |
-| jac313_store_005_XS · binary · off | 100 | 100 |
-| jac313_store_005_XS · binary · on | 150 | 100 |
-| jac313_store_005_XS · jtext · off | 150 | 100 |
-| jac313_store_005_XS · jtext · on | 150 | 151 |
+| jac313_store_005_XS · binary · off | 50 | 50 |
+| jac313_store_005_XS · binary · on | 50 | 51 |
+| jac313_store_005_XS · jtext · off | 50 | 100 |
+| jac313_store_005_XS · jtext · on | 50 | 100 |
 | jac313_store_005_XS · none · off | 50 | 50 |
 | jac313_store_005_XS · none · on | 50 | 50 |
 | jac313_store_005_XS · sql · off | 50 | 50 |
 | jac313_store_005_XS · sql · on | 50 | 50 |
-| jac313_store_006_TS · binary · off | 451 | 401 |
-| jac313_store_006_TS · binary · on | 451 | 451 |
-| jac313_store_006_TS · jtext · off | 1,353 | 902 |
-| jac313_store_006_TS · jtext · on | 551 | 551 |
-| jac313_store_006_TS · none · off | 351 | 351 |
-| jac313_store_006_TS · none · on | 401 | 401 |
-| jac313_store_006_TS · sql · off | 350 | 351 |
-| jac313_store_006_TS · sql · on | 401 | 401 |
-| jac313_store_006_XS · binary · off | 401 | 401 |
-| jac313_store_006_XS · binary · on | 401 | 501 |
-| jac313_store_006_XS · jtext · off | 501 | 552 |
-| jac313_store_006_XS · jtext · on | 501 | 501 |
-| jac313_store_006_XS · none · off | 351 | 351 |
-| jac313_store_006_XS · none · on | 401 | 351 |
-| jac313_store_006_XS · sql · off | 351 | 351 |
-| jac313_store_006_XS · sql · on | 401 | 401 |
-| jac313_store_007_TS · binary · off | 100 | 100 |
-| jac313_store_007_TS · binary · on | 501 | 100 |
-| jac313_store_007_TS · jtext · off | 201 | 200 |
-| jac313_store_007_TS · jtext · on | 200 | 200 |
+| jac313_store_006_TS · binary · off | 353 | 353 |
+| jac313_store_006_TS · binary · on | 403 | 404 |
+| jac313_store_006_TS · jtext · off | 353 | 352 |
+| jac313_store_006_TS · jtext · on | 402 | 403 |
+| jac313_store_006_TS · none · off | 355 | 353 |
+| jac313_store_006_TS · none · on | 405 | 402 |
+| jac313_store_006_TS · sql · off | 353 | 353 |
+| jac313_store_006_TS · sql · on | 406 | 404 |
+| jac313_store_006_XS · binary · off | 354 | 353 |
+| jac313_store_006_XS · binary · on | 354 | 353 |
+| jac313_store_006_XS · jtext · off | 403 | 352 |
+| jac313_store_006_XS · jtext · on | 404 | 404 |
+| jac313_store_006_XS · none · off | 352 | 355 |
+| jac313_store_006_XS · none · on | 354 | 353 |
+| jac313_store_006_XS · sql · off | 352 | 355 |
+| jac313_store_006_XS · sql · on | 354 | 353 |
+| jac313_store_007_TS · binary · off | 50 | 50 |
+| jac313_store_007_TS · binary · on | 50 | 50 |
+| jac313_store_007_TS · jtext · off | 50 | 100 |
+| jac313_store_007_TS · jtext · on | 101 | 100 |
 | jac313_store_007_TS · none · off | 50 | 50 |
 | jac313_store_007_TS · none · on | 50 | 50 |
 | jac313_store_007_TS · sql · off | 50 | 50 |
 | jac313_store_007_TS · sql · on | 50 | 50 |
-| jac313_store_007_XS · binary · off | 100 | 100 |
-| jac313_store_007_XS · binary · on | 100 | 200 |
-| jac313_store_007_XS · jtext · off | 200 | 200 |
-| jac313_store_007_XS · jtext · on | 200 | 201 |
-| jac313_store_007_XS · none · off | 50 | 50 |
+| jac313_store_007_XS · binary · off | 50 | 50 |
+| jac313_store_007_XS · binary · on | 50 | 50 |
+| jac313_store_007_XS · jtext · off | 50 | 50 |
+| jac313_store_007_XS · jtext · on | 100 | 100 |
+| jac313_store_007_XS · none · off | 51 | 50 |
 | jac313_store_007_XS · none · on | 50 | 50 |
 | jac313_store_007_XS · sql · off | 50 | 50 |
 | jac313_store_007_XS · sql · on | 50 | 50 |
-| jac313_store_008_TS · flags · off | 250 | 801 |
-| jac313_store_008_XS · flags · off | 150 | 300 |
+| jac313_store_008_TS · flags · off | 50 | 50 |
+| jac313_store_008_XS · flags · off | 50 | 50 |
 | jac313_store_flags · unit · off | 50 | 50 |
 | jac313_store_metric_view · unit · off | 50 | 50 |
 
@@ -258,8 +258,8 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 
 | run | compiler · recorded |
 |---|---|
-| [Run_067](Run_067.md) | clang22 · 2026-07-02T05:24:21Z |
-| [Run_064](Run_064.md) | gcc16 · 2026-07-02T05:22:48Z |
+| [Run_043](Run_043.md) | clang20 · 2026-07-02T08:10:13Z |
+| [Run_040](Run_040.md) | gcc15 · 2026-07-02T08:09:22Z |
 
 ---
 [← back](../README.md) · [↑ top](#top)
