@@ -9,8 +9,8 @@
 
 #ifndef JAC313_STORE_IMPORT_STD
 #include <numeric>  // jac313::mul_sat / jac313::add_sat (C++26): overflow-safe capacity math
-#endif               // under import std, <numeric> comes from the std module; a textual
-                     // include here lands inside the module's export namespace and breaks.
+#include <fstream>  // for MemAvailable probe (comes from import std; when JAC313_STORE_IMPORT_STD)
+#endif               // under import std, std headers come from the module; textual include would break.
 
 #ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
@@ -111,15 +111,35 @@ public:
         // The vector resize gives us the exact preallocated storage for all cat/payload buffers.
         const size_t N = expected_size();
         const size_t per_row = sizeof(row_data);
-        // Saturating math so an overflowing estimate can't wrap small and slip past
+        // Saturating math (C++26 nicety) so an overflowing estimate can't wrap small and slip past
         // the memory check below (which would then attempt a huge real allocation).
+        // v001 uses plain arithmetic here because it must stay pre-C++26.
         const size_t total_est = jac313::add_sat(jac313::mul_sat(N, per_row), size_t(16ULL << 20)); // headroom
 
-        struct sysinfo info{};
-        size_t avail = 0;
-        if (sysinfo(&info) == 0) {
-            avail = info.freeram + info.bufferram + info.sharedram;
-        }
+        // Best-available physical memory (bytes) for the preallocation precheck. Prefer the kernel's
+        // MemAvailable, which is reclaim-aware (it counts reclaimable page cache). sysinfo() does NOT:
+        // freeram+bufferram+sharedram excludes the page cache, so right after a build warms the cache it
+        // under-reports by gigabytes and this precheck bails on an allocation the kernel could satisfy —
+        // that false bail is what zeroed the recorded bench gate (→ "NOT SAFE"). Fall back to sysinfo
+        // when /proc/meminfo can't be read (non-Linux, restricted /proc, etc.).
+        // Uses std::ifstream (from import std; when JAC313_STORE_IMPORT_STD, or the guarded #include otherwise).
+        auto available_bytes = []() -> size_t {
+            std::ifstream meminfo("/proc/meminfo");
+            std::string key;
+            while (meminfo >> key) {
+                if (key == "MemAvailable:") {
+                    size_t kb = 0;
+                    if (meminfo >> kb) return kb << 10;   // kB -> bytes
+                    break;
+                }
+                std::getline(meminfo, key);               // skip the rest of this line
+            }
+            struct sysinfo info{};
+            if (sysinfo(&info) == 0)
+                return static_cast<size_t>(info.freeram) + info.bufferram + info.sharedram;
+            return 0;
+        };
+        size_t avail = available_bytes();
         if (avail > 0 && total_est > (avail * 90 / 100)) {
             std::cerr << "ts_store: insufficient memory for preallocation (need ~"
                       << (total_est >> 20) << " MiB, avail ~" << (avail >> 20) << " MiB) — bailing\n";

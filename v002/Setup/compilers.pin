@@ -9,3 +9,4 @@ jac313-003	Intel(R) Core(TM) Ultra 7 265	12	38	Red Hat Enterprise Linux 10.2 (Co
 jac313-004	Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz	8	31	Linux Mint 22.3	gcc15	clang
 jac313-005	Intel(R) Core(TM) Ultra 7 265	4	19	Red Hat Enterprise Linux 10.2 (Coughlan)	gcc15	clang
 jac313-006	Intel(R) Core(TM) Ultra 7 265	4	11	Red Hat Enterprise Linux 10.2 (Coughlan)	gcc15	clang
+jac313-007	Intel(R) Core(TM) Ultra 7 265	4	11	Fedora Linux 44 (Workstation Edition)	gcc16	clang

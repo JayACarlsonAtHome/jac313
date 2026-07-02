@@ -40,6 +40,41 @@ _Generated from `results.db`. Throughput is hardware-specific, so each machine (
 | [Run_021](Run_021.md) | clang21 · 2026-07-01T16:02:35Z |
 | [Run_020](Run_020.md) | gcc15 · 2026-07-01T15:59:31Z |
 
+## jac313-002 — Intel(R) Core(TM) Ultra 7 265 · 4 cores · 11 GB · Fedora Linux 44 (Workstation Edition) · x7k
+
+
+### Non-durable (flag sweep)  _(median ops/sec, descending)_
+
+| config | [clang22](Run_069.md)<br>median ops/sec | clang22<br>band | clang22<br>size | [gcc16](Run_068.md)<br>median ops/sec | gcc16<br>band | gcc16<br>size |
+|---|--:|:--:|--:|--:|:--:|--:|
+| 6 flags, non-durable | 5,385,343 | 5.32M–5.55M | 0 B | 5,478,450 | 4.98M–5.55M | 0 B |
+| 0 flags, non-durable | 5,455,468 | 5.13M–5.55M | 0 B | 5,281,852 | 5.00M–5.53M | 0 B |
+| 4 flags, non-durable | 5,413,963 | 5.31M–5.54M | 0 B | 5,226,054 | 4.89M–5.53M | 0 B |
+| 2 flags, non-durable | 5,352,978 | 5.24M–5.52M | 0 B | 5,358,127 | 4.94M–5.57M | 0 B |
+
+### Durable @ 1M events  _(median ops/sec, descending)_
+
+| config | [clang22](Run_069.md)<br>median ops/sec | clang22<br>band | clang22<br>size | [gcc16](Run_068.md)<br>median ops/sec | gcc16<br>band | gcc16<br>size |
+|---|--:|:--:|--:|--:|:--:|--:|
+| durable jtext | 781,378 | 739.36K–842.35K | 80.78 MB | 729,325 | 697.99K–755.47K | 80.77 MB |
+| durable binary | 714,920 | 709.84K–781.66K | 83.78 MB | 716,685 | 699.63K–777.97K | 83.78 MB |
+| durable sql | 402,653 | 392.75K–414.73K | 75.03 MB | 415,955 | 376.30K–436.38K | 75.01 MB |
+
+### Durable @ 10M events  _(median ops/sec, descending)_
+
+| config | [clang22](Run_069.md)<br>median ops/sec | clang22<br>band | clang22<br>size | [gcc16](Run_068.md)<br>median ops/sec | gcc16<br>band | gcc16<br>size |
+|---|--:|:--:|--:|--:|:--:|--:|
+| durable jtext | 1,064,555 | 1.06M–1.20M | 836.65 MB | 1,107,264 | 1.03M–1.15M | 836.67 MB |
+| durable sql | 698,916 | 624.62K–719.97K | 772.27 MB | 845,763 | 711.70K–855.04K | 772.05 MB |
+| durable binary | 770,795 | 695.68K–785.26K | 837.80 MB | 796,953 | 691.47K–799.14K | 837.80 MB |
+
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_069](Run_069.md) | clang22 · 2026-07-02T05:31:27Z |
+| [Run_068](Run_068.md) | gcc16 · 2026-07-02T05:28:07Z |
+
 ---
 [← back](../README.md) · [↑ top](#top)
 <a id="bottom"></a>

@@ -124,6 +124,7 @@ public:
         // The vector resize gives us the exact preallocated storage for all cat/payload buffers.
         const size_t N = expected_size();
         const size_t per_row = sizeof(row_data);
+        // Note: v001 deliberately uses plain arithmetic here (no C++26 saturating ops).
         const size_t total_est = N * per_row + (16ULL << 20); // headroom
 
         const size_t avail = available_ram_bytes();

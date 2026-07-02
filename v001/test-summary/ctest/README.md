@@ -49,6 +49,50 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | [Run_005](Run_005.md) | clang21 · 2026-07-01T15:39:57Z |
 | [Run_002](Run_002.md) | gcc15 · 2026-07-01T15:39:16Z |
 
+## jac313-002 — Intel(R) Core(TM) Ultra 7 265 · 4 cores · 11 GB · Fedora Linux 44 (Workstation Edition) · x7k
+
+| scenario | [clang22](Run_053.md) | [gcc16](Run_050.md) |
+|---|--:|--:|
+| jac313_identity_dedup_test | 50 | 50 |
+| jac313_jtext_v001_parser_validator_test | 50 | 50 |
+| jac313_jtext_v001_test | 50 | 50 |
+| jac313_qlite_v001_test | 50 | 50 |
+| jac313_run_identity_test | 50 | 50 |
+| jac313_store_001_TS | 50 | 50 |
+| jac313_store_001_XS | 50 | 50 |
+| jac313_store_002_TS | 50 | 50 |
+| jac313_store_002_XS | 50 | 50 |
+| jac313_store_003_TS | 50 | 50 |
+| jac313_store_003_XS | 50 | 50 |
+| jac313_store_004_TS | 50 | 50 |
+| jac313_store_004_XS | 50 | 50 |
+| jac313_store_005_TS | 50 | 50 |
+| jac313_store_005_XS | 50 | 50 |
+| jac313_store_006_TS | 50 | 50 |
+| jac313_store_006_XS | 50 | 50 |
+| jac313_store_007_TS | 50 | 50 |
+| jac313_store_007_XS | 50 | 50 |
+| jac313_store_008_TS | 250 | 350 |
+| jac313_store_008_XS | 100 | 200 |
+| jac313_store_bench_smoke | 50 | 50 |
+| jac313_store_binary_persist_smoke | 50 | 50 |
+| jac313_store_binary_reader_test | 50 | 50 |
+| jac313_store_binary_to_jtext_smoke | 50 | 50 |
+| jac313_store_flag_routing_smoke | 50 | 50 |
+| jac313_store_flags | 50 | 50 |
+| jac313_store_jtext_persist_smoke | 50 | 50 |
+| jac313_store_metric_view | 50 | 50 |
+| jac313_store_metric_view_test | 50 | 50 |
+| jac313_store_sql_persist_smoke | 50 | 50 |
+| jac313_store_v001_test | 50 | 50 |
+
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_053](Run_053.md) | clang22 · 2026-07-02T05:05:00Z |
+| [Run_050](Run_050.md) | gcc16 · 2026-07-02T05:03:48Z |
+
 ---
 [← back](../README.md) · [↑ top](#top)
 <a id="bottom"></a>

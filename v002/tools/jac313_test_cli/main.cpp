@@ -1289,7 +1289,11 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
         if (cc.empty()) continue;
         cfgs.push_back({name + "-hdr",  cc, {}, "off", "off"});
         cfgs.push_back({name + "-mod",  cc, {"-DJAC313_BUILD_MODULES=ON"}, "on", "off"});
-        cfgs.push_back({name + "-istd", cc, istd_flags, "on", "on"});
+        if (name == "gcc") {
+            // import-std pilot is gcc-only by design (see docs/Modules.md). Attempting it
+            // for clang produces namespace-lookup errors in the pasted module units.
+            cfgs.push_back({name + "-istd", cc, istd_flags, "on", "on"});
+        }
     }
 
     const fs::path db_path = JAC313_RESULTS_DB;
