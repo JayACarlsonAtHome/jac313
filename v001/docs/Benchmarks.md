@@ -120,10 +120,10 @@ Setting flags has no measurable hot-path cost.
 **The honest durable ranking is binary (~0.6M) > SQL (~0.46M) > jText (~0.26M)** —
 every backend now fsync'd to disk inside the clock. Getting there took two flush
 fixes: binary's old ~2.7M stopped the clock *before* its `msync`, and jText's old
-~2.4M only stream-flushed to the OS page cache — **no `fsync` at all** (Bloopers
-#7). Once each backend is forced to the platter, jText is actually the *slowest*
-(text formatting plus three files to sync), not the fastest. Read the **median +
-band**: a one-off fsync stall lands in the band, where median+band beats average
-(which the stall drags down) and "fastest" (which hides it).
+~2.4M only stream-flushed to the OS page cache — **no `fsync` at all**. Once each
+backend is forced to the platter, jText is actually the *slowest* (text formatting
+plus three files to sync), not the fastest. Read the **median + band**: a one-off
+fsync stall lands in the band, where median+band beats average (which the stall
+drags down) and "fastest" (which hides it).
 
 For what each number means, see the Quick Start in this README or the live reports in `test-summary/bench/`.

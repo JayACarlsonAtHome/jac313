@@ -32,7 +32,7 @@ Add an axis (or expand Release into variants):
 
 - **Build breaks.** Some flag combinations trip the *toolchain*, not your code: optimizer ICEs,
   LTO link failures, `-march=native` on a host the binary later can't run. These are the same
-  flavor as the `clang-scan-deps` phantom in [Bloopers.md](Bloopers.md#4-the-clang-scan-deps-phantom-) — compiler-side, not yours — and a matrix is exactly how you find out *which* flag set
+  flavor as the `clang-scan-deps` phantom (compiler-side, not yours) — and a matrix is exactly how you find out *which* flag set
   is the unlucky one.
 
 - **Code breaks — the prize.** Running the *same* scenarios at multiple `-O` levels is
@@ -52,7 +52,7 @@ idempotency just work. It is, genuinely, a few lines.
 16 combos × 116 scenarios = **~9,280 scenario-runs** per host — and *that* number is legitimate,
 not a bug. Which is the whole reason the [run-all counter](RunAllTests.md) now prints `… of N`
 on every line: the price is shown up front, so you choose to spend the hours with eyes open
-instead of being ambushed by a four-digit total at hour two. (See Bloopers #1 for why we care so
+instead of being ambushed by a four-digit total at hour two. (See the history of benchmark-matrix over-reporting for why we care so
 much about that distinction.)
 
 ---

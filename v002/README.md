@@ -101,16 +101,15 @@ For more details on the project, see the other docs in this directory (Benchmark
 | [docs/Maturity.md](docs/Maturity.md) | Honest self-assessment on a 12-level scale — where jac313 sits (7.5), and why that's a deliberate ceiling |
 | [docs/Benchmarks.md](docs/Benchmarks.md) | **How to run the throughput suite** — `store_bench --suite` / `--report`, the curated 10 configs, the `--dry-run` command list, and a DB-backed [results page](test-summary/) |
 | [docs/Results.md](docs/Results.md) | v002 results — **pending its first matrix run** (faithful copy of v001; validated green, but no per-platform throughput recorded yet) |
-| [docs/Bloopers.md](docs/Bloopers.md) | The bugs we shipped to ourselves, owned and explained — newest first. **#1 (today): "1,856 Tests, Not One You'd Quote"** — how the sprawling benchmark matrix became the honest `store_bench` suite |
 | Package READMEs | [Qlite](Qlite/README.md) · [jText](jText/README.md) · [Store](Store/README.md) |
 
 > **🚧 Results are being simplified.** The old matrix's `results_db` + committed
 > `test-summary/` report pages are being **retired** — those numbers were never
-> trustworthy (lucky-max headlines, smeared durable rows; see [Bloopers #1](docs/Bloopers.md)),
-> so nothing of value is lost. Going forward, throughput comes from the lean
-> [`store_bench` suite](docs/Benchmarks.md) (median + low–high band) and the new results
-> land in **one small database**. The old convoluted reports are going away and the new
-> simple ones are the way forward — **within a few days.**
+> trustworthy (lucky-max headlines, smeared durable rows), so nothing of value is lost.
+> Going forward, throughput comes from the lean [`store_bench` suite](docs/Benchmarks.md)
+> (median + low–high band) and the new results land in **one small database**. The old
+> convoluted reports are going away and the new simple ones are the way forward —
+> **within a few days.**
 
 **Status:** v002 is a **faithful copy of v001**, rebranded to `jac313::*::v002`. It builds clean
 (g++-15, modules + textual) and passed validation (smoke **116/116**; `matrix verify` **60/60**

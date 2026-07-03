@@ -190,9 +190,9 @@ void JTextSplitEventLog::finalize() {
     if (i.floats_writer) i.floats_writer->finalize();
     // Durably flush to disk. The jText writers only push bytes into the std::ofstream (i.e. the OS
     // page cache); without this, "durable jText" was timing buffered writes that were never fsync'd
-    // — the same bug binary had (Bloopers #1), which is why jText was out-throughputting the truly
-    // durable backends. Flush each stream, then fsync the file, so the real durable cost lands
-    // inside the clock (one sync at finalize, mirroring binary's MS_SYNC).
+    // — the same bug binary had, which is why jText was out-throughputting the truly durable
+    // backends. Flush each stream, then fsync the file, so the real durable cost lands inside
+    // the clock (one sync at finalize, mirroring binary's MS_SYNC).
     auto sync_to_disk = [](std::ofstream& ofs, const std::string& path) {
         if (path.empty()) return;
         ofs.flush();
