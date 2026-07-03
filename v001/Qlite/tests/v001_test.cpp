@@ -19,7 +19,7 @@
 #include <tuple>
 #include <vector>
 
-static_assert(jac313::Qlite::v001::version() == "v001.004", "v001 version");
+static_assert(jac313::Qlite::v001::version() == "v001.005", "v001 version");
 
 using jac313::Qlite::v001::Sqlite;
 using jac313::Qlite::v001::SqliteError;
