@@ -97,7 +97,7 @@ For more details on the project, see the other docs in this directory (Benchmark
 | [docs/Modules.md](docs/Modules.md) | C++23 modules + the `import std;` story (quirks / blessings / curses) |
 | [docs/Architecture.md](docs/Architecture.md) | Layout, the umbrella model, the test pipeline, customization, design principles |
 | [docs/store/](docs/store/) | Store by feature — logging, categories, bitmaps, persistence, reporting |
-| [docs/Memory-And-Concurrency.md](docs/Memory-And-Concurrency.md) | valgrind memcheck + helgrind/DRD — method, the tail-reader data race found & fixed, results, and honest limits |
+| [docs/verify.md](docs/verify.md) | valgrind memcheck + helgrind/DRD — method, the tail-reader data race found & fixed, results, and honest limits |
 | [docs/Maturity.md](docs/Maturity.md) | Honest self-assessment on a 12-level scale — where jac313 sits (7.5), and why that's a deliberate ceiling |
 | [docs/Benchmarks.md](docs/Benchmarks.md) | **How to run the throughput suite** — `store_bench --suite` / `--report`, the curated 10 configs, the `--dry-run` command list, and a DB-backed [results page](test-summary/) |
 | [docs/Results.md](docs/Results.md) | v002 results — **pending its first matrix run** (faithful copy of v001; validated green, but no per-platform throughput recorded yet) |
