@@ -236,7 +236,6 @@ std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
 
     for (const auto& test : selected) {
         ++index;
-        const auto test_start = std::chrono::steady_clock::now();
         std::cout << "[" << format_count_padded(index, idx_w) << "/" << format_count(total) << "] "
                   << test.name << std::string(name_w - test.name.size(), ' ') << " ... ";
         std::cout.flush();

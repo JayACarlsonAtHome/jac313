@@ -13,12 +13,16 @@ HostPinFlags parse_host_pin_flags(int argc, char** argv, int start) {
         if (arg == "--claim" && i + 1 < argc) {
             flags.claim = argv[++i];
         } else if (arg.rfind("--assign-new-", 0) == 0) {
-            const std::string num = arg.substr(15);
+            // Suffix after the "--assign-new-" prefix (length-derived, not a magic offset — the old
+            // hardcoded 15 skipped two extra chars, so "--assign-new-42" parsed to "" / wrong group).
+            const std::string num = arg.substr(std::string("--assign-new-").size());
             if (!num.empty()) {
-                flags.assign_new = std::stoll(num);
+                try { flags.assign_new = std::stoll(num); }
+                catch (const std::exception&) { /* non-numeric suffix — leave assign_new unset */ }
             }
         } else if (arg == "--assign-new" && i + 1 < argc) {
-            flags.assign_new = std::stoll(argv[++i]);
+            try { flags.assign_new = std::stoll(argv[++i]); }
+            catch (const std::exception&) { /* non-numeric — leave assign_new unset */ }
         }
     }
     return flags;
