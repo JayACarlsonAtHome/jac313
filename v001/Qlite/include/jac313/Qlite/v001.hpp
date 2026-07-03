@@ -9,7 +9,8 @@
  *   #include <jac313/Qlite/v001.hpp>
  *   jac313::Qlite::v001::Sqlite db("app.db");
  *
- * Public symbols: Sqlite, SqliteError, bind_value, column.
+ * Public symbols: Sqlite (Statement, Transaction, prepare/prepare_cached, get_one_*),
+ * SqliteError, bind_value, column, version.
  */
 
 #include "jac313/Qlite/v001/Sqlite.hpp"

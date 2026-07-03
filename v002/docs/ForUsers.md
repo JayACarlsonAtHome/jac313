@@ -14,7 +14,7 @@ valgrind gates, or anything in [Setup.md](Setup.md)'s testing section. This page
 |---|---|---|
 | **jText** | `jac313::jText::v002` | structured text / log records — fast formatting, parse + validate |
 | **Store** | `jac313::Store::v002` | a time-series logging **store** with pluggable persistence (binary / jText / SQL / in-mem) |
-| **Qlite** | `jac313::Qlite::v002` | a thin, safe **SQLite** wrapper (variadic bind/exec/step/get) |
+| **Qlite** | `jac313::Qlite::v002` | a thin, safe **SQLite** wrapper (variadic bind/exec/step/get, RAII transactions, stmt cache, `column<int>`, `try_*` when `<expected>` is available) |
 
 They compose — Store uses Qlite + jText under the hood — but you can take just the one you need.
 
@@ -32,7 +32,9 @@ shape; a human-readable export of a Store stream.
 
 **Qlite** — a thin, safe SQLite wrapper: local app state/settings; a results/analytics DB (it's exactly what
 jac313 does to itself — `results.db`, reviewed in a tool like DataGrip); an SQL query layer over recorded
-Store events.
+Store events. Additive helpers include `prepare_cached`, `Transaction`, column-by-name, blob/`string_view`
+binds, scalar `get_one_*` query helpers (debug logging via `fprintf`), and non-throwing `try_exec`/`try_step`
+when the toolchain provides `<expected>`.
 
 **They compose.** A forklift logs `{x, y, load_id}` + events to **Store** → persisted via **Qlite** (SQL) so
 you can ask "how long did dock 7 take this week?" → exported via **jText** as a human shift report. One

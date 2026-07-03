@@ -8,7 +8,7 @@ _Generated from `results.db`. Compile time is hardware-specific, so each machine
 Column headers are `compiler·fe`:
 - `hdr` — code uses headers only
 - `mod` — code uses modules
-- `istd` — code uses modules with `import std` (gcc-only)
+- `istd` — code uses modules with `import std` (recorded on gcc today; clang+libstdc++ supported in v002 CMake)
 
 Cell = compile+link seconds · status · binary size (latest build); per test × front-end × compiler._
 

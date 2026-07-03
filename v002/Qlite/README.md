@@ -4,11 +4,12 @@ Versioned umbrella namespace for the jac313 SQLite wrapper family.
 
 `jac313::Qlite::v002` is an **in-tree, header-only** SQLite3 wrapper (migrated from
 the legacy `jacQlite` / `jac::qlite` repo — no sibling checkout needed). It depends
-only on system SQLite3. Public symbols: `Sqlite`, `SqliteError`, `bind_value`,
-`column`, `version`.
+only on system SQLite3. Public symbols: `Sqlite` (with `Statement`, `Transaction`,
+`prepare`/`prepare_cached`, `get_one_*` helpers), `SqliteError`, `bind_value`, `column`,
+`version`.
 
-`version()` returns the package's `"major.minor"` version (`"v002.001"` now): major is the
-`v002` API line, minor bumps on each small code change (a real break moves it to `"v002.001"`).
+`version()` returns the package's `"major.minor"` version (`"v002.005"` now): major is the
+`v002` API line, minor bumps on each small code change (a real break moves it to `"v003.001"`).
 The `version-check` pre-push gate enforces the bump (see [docs/Setup.md](../docs/Setup.md)).
 
 Part of the [jac313](../) monorepo.
@@ -87,8 +88,8 @@ Notes:
 - The experimental feature is armed by `CMAKE_EXPERIMENTAL_CXX_IMPORT_STD` (set
   before `project()` in both the root and standalone CMakeLists); update the pinned
   UUID if you standardize on a different CMake version.
-- **g++-15 only** (guarded in CMake). Clang here has no libc++ std module and uses
-  libstdc++, so leave this OFF for clang (it keeps the textual front-end).
+- Validated on **GNU (g++-15) and Clang (clang-21 + libstdc++)** (guarded in CMake).
+  Leave OFF if your toolchain lacks native `import std;` support.
 - Public API and behaviour are identical to the default build; this only changes
   how the standard library is consumed internally.
 

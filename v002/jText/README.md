@@ -8,8 +8,8 @@ lives here and the public API is declared directly in namespace `jac313::jText::
 (`jText.h`). Public symbols: `JTextWriter`, `JTextEntry`, `JTextSection`, `JTextFile`,
 `CaseMode`, `JTextProfile`, `version`, and the `write_*` / `jtext_*` free helpers.
 
-`version()` returns the package's `"major.minor"` version (`"v002.001"` now): major is the
-`v002` API line, minor bumps on each small code change (a real break moves it to `"v002.001"`).
+`version()` returns the package's `"major.minor"` version (`"v002.005"` now): major is the
+`v002` API line, minor bumps on each small code change (a real break moves it to `"v003.001"`).
 The `version-check` pre-push gate enforces the bump (see [docs/Setup.md](../docs/Setup.md)).
 
 Part of the [jac313](../) monorepo.

@@ -110,11 +110,11 @@ Every one of these is a real thing we hit, and a real data point for implementer
 
 ---
 
-## The clang column is a feature request with a number attached
+## The clang column today
 
-Clang here has no usable `std` module (it uses libstdc++, which ships the module for GCC, not a
-libc++ one), so the import-std build is gcc-only **by design**. The empty clang column in the
-benchmark is a standing request: the day clang + libc++ ships a usable `std` module, that
-column fills in with **no code change** — just widen the gcc gate. Keeping the whole thing
-opt-in and gcc-gated is the point: a sandbox that hands the toolchains a small, honest,
-reproducible example, kept truthful by the numbers rather than by enthusiasm.
+v002 CMake validates `import std;` on **GNU (g++-15) and Clang (clang-21 + libstdc++)** — the
+latter reuses GCC's std-module BMI. The **build-times matrix** still records `gcc·istd` only;
+widening to `clang·istd` is queued when we want a second recorded column. A **libc++ `std`
+module** for Clang remains a standing request: the day that ships, the column fills in with
+no API change. Keeping import-std opt-in is the point: a sandbox that hands the toolchains a
+small, honest, reproducible example, kept truthful by the numbers rather than by enthusiasm.

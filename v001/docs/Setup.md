@@ -198,7 +198,7 @@ A curated 7-config suite (non-durable flag sweep + durable jText/SQL/binary). Th
 ```
 
 `version-check` is the **version gate**: each package (Qlite/jText/Store) exposes
-`jac313::<Pkg>::v001::version()` — its `"major.minor"` version (`"v001.001"` now; major = the
+`jac313::<Pkg>::v001::version()` — its `"major.minor"` version (`"v001.005"` now; major = the
 `v001` API line). When a package's shipped code changes, its `version()` literal must be
 bumped; `version-check` (git-only, no build) fails if a bump is owed. It runs **first** in the
 pre-push hook (cheap check before the heavier gates).

@@ -21,10 +21,11 @@ should be verified on the first real run (the libstdc++ status page didn't parse
 | `std::expected`           | P0323   | **libc++ 16 — Complete** | libstdc++ ~g++ 12 |
 
 ## The one we're actually waiting on
-**clang + libstdc++ `import std`.** Clang already does import std — but with **libc++** (≥19).
-The gap is the **clang + libstdc++** std-module path, which is what our build links; that's
-why the build matrix shows `clang·istd = NA`. Watch: Clang release notes + the CMake
-`import std` support matrix. (Alternative: point our clang build at libc++ to get it today.)
+**clang + libstdc++ `import std` (recorded in build-times).** v002 CMake now validates
+`import std;` on **clang-21 + libstdc++** (reusing GCC's std-module BMI) — see
+[Modules.md](../../docs/Modules.md). The **build-times matrix** still records `gcc·istd` only;
+`clang·istd = NA` there means "not yet recorded", not "unsupported". **libc++'s own `std`
+module** for a native clang+libc++ path remains the standing watch item.
 
 ## Sources (fetch these to re-check)
 Language and library are **separate pages** — the compiler/language pages do NOT list library

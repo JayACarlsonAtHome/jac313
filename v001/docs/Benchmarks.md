@@ -92,7 +92,7 @@ A reference run (one machine — your numbers will differ):
 
 ```
 Host:     Intel Core Ultra 7 265 · 12 cores · 23 GB · Fedora Linux 44 · Release · threads=50
-Versions: Store v001.004 · Qlite v001.002 · jText v001.002
+Versions: Store v001.005 · Qlite v001.005 · jText v001.005
 ```
 
 Flag-overhead (non-durable) — 10M Events × 10 Runs = 100M Events per config:

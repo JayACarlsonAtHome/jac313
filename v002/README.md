@@ -26,7 +26,7 @@ framework** and a worked example of **C++23 modules + `import std;`**.
 
 | Package | What it is | One line |
 |---------|------------|----------|
-| [**Qlite**](Qlite/README.md) | header-only **SQLite wrapper** (`jac313::Qlite::v002`) | RAII connection + variadic bind/column over `sqlite3`; Store uses it for SQL persistence |
+| [**Qlite**](Qlite/README.md) | header-only **SQLite wrapper** (`jac313::Qlite::v002`) | RAII connection, variadic bind/column, stmt cache, transactions, `get_one_*` helpers; Store uses it for SQL persistence |
 | [**jText**](jText/README.md) | compiled **structured-text** library (`jac313::jText::v002`) | a self-describing text log format (light/full profiles) + streaming `JTextWriter`; Store uses it for human-readable logs |
 | [**Store**](Store/README.md) | time-series **logging store** (`jac313::Store::v002`) | the headline feature — see below |
 
@@ -60,7 +60,7 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
   Actions, no shell scripts. See [docs/Architecture.md](docs/Architecture.md) and
   [docs/Setup.md](docs/Setup.md#4-testing).
 - **C++23 modules and `import std;`, with all its quirks, blessings, and curses.** All three
-  umbrella modules build module-native against `import std;` (opt-in, gcc-only). It measured
+  umbrella modules build module-native against `import std;` (opt-in; gcc and clang on libstdc++). It measured
   **break-even** here — and the real value is as a worked, reproducible example for **CMake,
   GCC, and Clang** to harden their toolchains against. The full story, the numbers, and the
   friction: [docs/Modules.md](docs/Modules.md).
@@ -149,7 +149,7 @@ valgrind-clean), but has **not** recorded its own per-platform results matrix ye
 pre/post/assert shim has landed (runtime checks today; migrates to native P2900 contracts
 once `__cpp_contracts` is available — gcc-15/clang-21 don't define it yet). v002 is
 staged and isolation-verified, continuing to diverge. `import std;` carries over from v001
-(opt-in, gcc-only; needs the pinned CMake 4.3.3). The legacy repos (`jacQlite`, `jText`,
+(opt-in; gcc + clang; needs the pinned CMake 4.3.3). The legacy repos (`jacQlite`, `jText`,
 `ts_store`) remain only as historical origin.
 
 ---

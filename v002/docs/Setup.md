@@ -136,9 +136,9 @@ ctest --test-dir build-gcc15
 | CMake option | Default | Purpose |
 |--------------|---------|---------|
 | `JAC313_BUILD_MODULES` | OFF | C++23 module targets (Ninja only) |
-| `JAC313_QLITE_IMPORT_STD` | OFF | Qlite module module-native vs `import std;` (g++-15; see [Modules.md](Modules.md)) |
-| `JAC313_JTEXT_IMPORT_STD` | OFF | jText module module-native vs `import std;` (g++-15) |
-| `JAC313_STORE_IMPORT_STD` | OFF | Store module module-native vs `import std;` (g++-15) |
+| `JAC313_QLITE_IMPORT_STD` | OFF | Qlite module module-native vs `import std;` (g++-15 / clang-21 + libstdc++; see [Modules.md](Modules.md)) |
+| `JAC313_JTEXT_IMPORT_STD` | OFF | jText module module-native vs `import std;` (g++-15 / clang-21 + libstdc++) |
+| `JAC313_STORE_IMPORT_STD` | OFF | Store module module-native vs `import std;` (g++-15 / clang-21 + libstdc++) |
 | `JAC313_BUILD_STORE_TESTS` | OFF | Store unit + matrix tests in ctest |
 | `JAC313_BUILD_TEST_CLI` | ON | `jac313_test_cli` local runner |
 
