@@ -148,7 +148,10 @@ void SqlEventSink::ensure_tables_and_prepare() {
 void SqlEventSink::write_batch(std::span<const PersistedEvent> batch) {
     if (!db_ || batch.empty()) return;
 
-    db_->begin();
+    // RAII transaction: BEGINs now, auto-ROLLBACKs if insert_event throws before we commit — so a
+    // failed batch never strands an open transaction that wedges every subsequent write_batch with
+    // "cannot start a transaction within a transaction".
+    Sqlite::Transaction txn(*db_);
 
     for (const auto& e : batch) {
         if (mode_ == PersistMode::KeeperOnly) {
@@ -159,7 +162,7 @@ void SqlEventSink::write_batch(std::span<const PersistedEvent> batch) {
         insert_event(e);
     }
 
-    db_->commit();
+    txn.commit();
 }
 
 void SqlEventSink::insert_event(const PersistedEvent& e) {

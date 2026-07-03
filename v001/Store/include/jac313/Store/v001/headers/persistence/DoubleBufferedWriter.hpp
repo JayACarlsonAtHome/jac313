@@ -15,8 +15,10 @@
 #include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <vector>
+#include <unistd.h>   // ::write(2, ...) — worker's fail-safe error line (mirrors BinaryEventLog)
 #endif
 
 #ifndef JAC313_STORE_IMPORT_STD
@@ -107,16 +109,32 @@ private:
 
             lock.unlock();
 
-            if (!batch.empty()) {
-                sink_->write_batch(batch);
-            }
-
-            if (do_flush || should_stop) {
-                sink_->flush();
+            // Sink I/O (mmap/ftruncate/SQLite/fsync) can throw. An exception escaping this worker
+            // thread would call std::terminate and take the whole process down, so contain it: log
+            // once, latch sink_failed_, and keep consuming buffers (so producers never block) until
+            // stop. Once failed we skip the sink rather than throw on every subsequent batch.
+            if (!sink_failed_.load(std::memory_order_relaxed)) {
+                try {
+                    if (!batch.empty()) {
+                        sink_->write_batch(batch);
+                    }
+                    if (do_flush || should_stop) {
+                        sink_->flush();
+                    }
+                    if (should_stop) {
+                        sink_->finalize();
+                    }
+                } catch (const std::exception& e) {
+                    if (!sink_failed_.exchange(true)) {
+                        const std::string msg =
+                            "DoubleBufferedWriter: sink error — persistence disabled for the rest of "
+                            "this run: " + std::string(e.what()) + "\n";
+                        [[maybe_unused]] const auto written = ::write(2, msg.data(), msg.size());
+                    }
+                }
             }
 
             if (should_stop) {
-                sink_->finalize();
                 break;
             }
         }
@@ -154,6 +172,7 @@ private:
     std::atomic<bool> stop_requested_{false};
     std::atomic<bool> stopped_{false};
     std::atomic<bool> pending_flush_{false};
+    std::atomic<bool> sink_failed_{false};   // set once if a sink call throws; disables further sink I/O
 };
 
 #ifndef JAC313_STORE_IMPORT_STD

@@ -82,7 +82,12 @@ public:
 
         // Pre-allocate (mmap covers header prefix + data area)
         size_t initial_map = buffer_size_ + header_size + 4096;
-        ::posix_fallocate(fd_, 0, static_cast<off_t>(initial_map));
+        if (::posix_fallocate(fd_, 0, static_cast<off_t>(initial_map)) != 0) {
+            // e.g. ENOSPC — the file isn't actually extended; mmap'ing it anyway would SIGBUS on the
+            // first store. Fail loudly here instead of faulting later.
+            ::close(fd_);
+            throw std::runtime_error("BinaryEventLog: posix_fallocate failed (out of space?)");
+        }
 
         mapped_ = static_cast<char*>(::mmap(nullptr, initial_map, PROT_READ | PROT_WRITE,
                                             MAP_SHARED, fd_, 0));
@@ -133,6 +138,9 @@ public:
             mapped_ = static_cast<char*>(::mmap(nullptr, new_size, PROT_READ | PROT_WRITE,
                                                 MAP_SHARED, fd_, 0));
             if (mapped_ == MAP_FAILED) {
+                // Don't leave MAP_FAILED in mapped_: finalize()/dtor test `if (mapped_)` and would
+                // msync/munmap the sentinel. Null it so cleanup skips the now-dead mapping.
+                mapped_ = nullptr;
                 throw std::runtime_error("BinaryEventLog: remap failed");
             }
             file_size_ = new_size;
