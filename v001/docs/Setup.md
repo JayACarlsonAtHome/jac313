@@ -71,52 +71,57 @@ stock CMake 3.28. See [Modules.md](Modules.md) for the version-pinned `import st
 
 ---
 
-## 2. Bootstrap (bare metal)
+## 2. Bootstrap
 
-On a fresh box, `./bootstrap.sh` is the one hand-run entry point. It senses the OS, finds a
-C++23 compiler (+ activation), and checks the full baseline needed to **build *and* run** the
-gates in **one pass**: `g++-15` + **Clang**, Ninja ≥ 1.11, CMake, the sqlite3 dev header, and
-**valgrind with the memcheck/helgrind/DRD dev headers**. With everything present it **builds
-`jac313_test_cli` once and hands off to it** — the data-driven [`jac313::Setup`](../Setup/)
-engine does the platform-specific rest.
+It is assumed you already have `git` installed — otherwise you wouldn't have been able to clone the repository.
 
-If a prerequisite is missing, bootstrap writes a small handoff (`Setup/.setup_handoff`) and runs
-the **committed, prebuilt `Setup/jac313_setup`** provisioner — a fully-static binary that ships
-with the clone, so it runs before any compiler/ninja exists. It resolves the install commands
-from [`Setup/recipes.conf`](../Setup/recipes.conf) and runs them with real per-step error
-handling: a plan **preview**, a `[y/N]` confirm, `--dry-run`, and a continue-on-failure summary.
-If that binary isn't runnable on the host (wrong arch), bootstrap falls back to a reviewable,
-**resilient `Setup.sh`** — each recipe runs independently, so one failure can no longer hide the
-installs after it. Either path does privileged installs; review, then proceed.
+From inside the `v001/` directory, the first command you run is:
 
 ```bash
-./bootstrap.sh        # sense → provision (jac313_setup, or Setup.sh) → build the runner → hand off
-# answer [y/N] when the provisioner shows its plan; re-run bootstrap when it finishes — idempotent
+./bootstrap.sh
 ```
 
-Bootstrap ends with a **host pin** (`jac313_test_cli host`): it senses this machine's hardware and
-records it as `jac313-###` in `test-summary/results.db` so every gate shares one fleet label.
-Auto-pin works when identity is unambiguous; otherwise bootstrap **pauses** and prints the fleet
-table plus next steps:
+(The whole purpose of this script is to load **all the dependencies** for you.)
 
-```bash
-./jac313_test_cli host --claim jac313-###       # bind to an existing slot (same OS+hardware)
-./jac313_test_cli host --assign-new-###         # new slot at an explicit number
-./bootstrap.sh                                  # re-run after pinning
-```
+### Purpose
 
-Read-only check: `./jac313_test_cli --group-id`. See [Machine identity](#machine-identity-jac313-) below.
+The sole job of `./bootstrap.sh` is to **load all the dependencies** you need to build and work with the project.
 
-If CMake is present but not the exact pinned version `import std;` needs (RHEL's 3.31.8, Mint's
-3.28), bootstrap **offers** the no-sudo `~/.local` install above (`y/N`, advisory only — the
-baseline never requires it).
+It detects your platform and makes sure the complete baseline is present so everything "just works" afterward.
 
-> **Rebuilding the provisioner.** `Setup/jac313_setup` is committed (static, so one binary runs
-> across the fleet's distros/glibc versions). When the `Setup` library changes, rebuild +
-> re-commit it with **`./Setup/build_setup_exe.sh`**. That needs the static C/C++ runtime archives
-> on the *build* host; if they're missing it offers to install them from the `static_runtime`
-> recipe (the CodeReady Builder repo + `glibc-static`/`libstdc++-static` on RHEL). Clone hosts need
-> none of this.
+### Sudo and running it twice
+
+- You may be prompted for your **sudo password once** during the process (only when system packages need to be installed).
+- You will typically need to **run `./bootstrap.sh` twice**.
+
+**Why run it twice?**
+
+The first execution checks what is missing and performs the actual installation of packages (compilers, headers, build tools). Once those packages are installed, the environment has changed — new commands exist on your `PATH` (or activation like `scl enable gcc-toolset-15 --` becomes relevant).
+
+The script deliberately exits after provisioning so the shell environment can be refreshed. On the second run it sees that everything is now available and proceeds to:
+
+- Build the `jac313_test_cli` helper (and a few wipe tools).
+- Create the convenient top-level symlinks (`./jac313_test_cli`, `./jac313_wipe_all`, etc.).
+- Install the git pre-push hook.
+- Pin your machine identity so results are correctly attributed.
+
+After the second successful run, your environment is ready.
+
+### What gets loaded for you
+
+`bootstrap.sh` ensures the following baseline is installed and ready:
+
+- C++23 compilers: `g++-15` (or the equivalent via gcc-toolset on RHEL) + Clang 20+
+- CMake
+- Ninja ≥ 1.11
+- SQLite3 development headers
+- Valgrind with the full headers required for memory and concurrency checking (memcheck + helgrind + DRD)
+
+It may optionally offer to install a pinned version of CMake into `~/.local` for experimental `import std;` builds (this is **not** required for normal development or testing).
+
+Once bootstrap finishes, the main way you interact with the project is through the symlinked `./jac313_test_cli` command.
+
+For running tests, see [RunAllTests.md](RunAllTests.md).
 
 ---
 
@@ -148,67 +153,9 @@ package dir (`cmake -S Qlite -B Qlite/build`).
 
 ## 4. Testing
 
-Testing uses **`jac313_test_cli`** — it discovers ctest entries, runs them in-process, and
-drives a ts_store-style matrix (persist × output-mode grid, smoke/full scaling). Configure and
-matrix runs default to `Debug`; `--release` runs the same grid under `Release`. Build type is a
-recorded identity dimension, so Debug and Release results never conflate.
+See [RunAllTests.md](RunAllTests.md) for how to run the full test battery (`--ctest`, `--smoke`, `--run-everything`, verify gates, etc.). 
 
-> **Run the whole battery at once:** [RunAllTests.md](RunAllTests.md) is the copy-paste
-> runbook — gcc15 + clang, smoke + full Debug + full Release (modules + no-modules), plus
-> the optional valgrind `--verify-lite` / `--verify` gates.
-
-### Tiers (not the same thing)
-
-| Tier | Command | What runs | Wall-clock | Purpose |
-|------|---------|-----------|-----------|---------|
-| **ctest** | `--ctest` (preset) | registered tests: store units, matrix bins 001–008 (one persist path each), module smoke, RunIdentity + OS-dedup regression | seconds | Compile/link sanity; one path per binary |
-| **Smoke matrix** | `matrix run` | **115 scenarios**: each matrix test × persist backend (binary, jText, SQL, inmem, flags, unit) × on/off | ~15 s | Daily gate; full persist grid, minimal scale |
-| **Full matrix** | `matrix run --params tests/test_params_full.txt` | same 115 with ts_store stress scaling | **~9–10 min/compiler** | Correctness under load |
-
-The Smoke/Full matrix above is the **functional/correctness** suite (unchanged) — it proves
-every persist backend stays correct across scale. **It is not how you benchmark throughput.**
-
-**ctest is not the matrix.** ctest runs each matrix binary once; the matrix re-runs them many
-times with different persist backends and CLI scaling. `--ctest --smoke` runs ctest **then** the
-smoke matrix (115), not the full matrix.
-
-### Throughput benchmark (separate)
-
-Throughput now has its own runner — it has moved **out** of the functional matrix. From the repo
-root:
-
-```bash
-./build/tools/jac313_test_cli --bench             # curated suite, numbers to stdout
-./build/tools/jac313_test_cli --bench --report    # record → results.db + render the report
-```
-
-A curated 7-config suite (non-durable flag sweep + durable jText/SQL/binary). The headline is the
-**median + low–high band** over N runs, not a single "peak". See [Benchmarks.md](Benchmarks.md).
-
-```bash
-./build/tools/jac313_test_cli compilers                                  # probe toolchains
-./build/tools/jac313_test_cli --ctest --smoke                           # ctest + smoke gate (~20 s)
-./build/tools/jac313_test_cli matrix run --params tests/test_params_full.txt   # full matrix
-./build/tools/jac313_test_cli --bench --report                          # throughput → results.db + render
-./build/tools/jac313_test_cli build-times                               # compile-time matrix (gap-filled per host)
-./build/tools/jac313_test_cli --verify-lite                             # valgrind memcheck gate (pre-push hook)
-./build/tools/jac313_test_cli --run-everything                          # full battery: both compilers + report
-./build/tools/jac313_test_cli version-check                            # version() bump gate (git, no build)
-./build/tools/jac313_test_cli matrix run --filter sql                   # scenario filter
-```
-
-`version-check` is the **version gate**: each package (Qlite/jText/Store) exposes
-`jac313::<Pkg>::v001::version()` — its `"major.minor"` version (`"v001.005"` now; major = the
-`v001` API line). When a package's shipped code changes, its `version()` literal must be
-bumped; `version-check` (git-only, no build) fails if a bump is owed. It runs **first** in the
-pre-push hook (cheap check before the heavier gates).
-
-`--verify-lite` is the **valgrind gate**: it self-builds an annotated Debug tree and runs
-memcheck + helgrind/DRD over a representative smoke set, exiting non-zero on any error
-(`--verify` covers the full sink set). `bootstrap.sh` installs the **pre-push hook**
-(`tools/hooks/pre-push` → `.git/hooks/pre-push`), which runs `version-check → build-times →
-verify-lite` before every push; bypass once with `git push --no-verify`. Needs valgrind
-installed. Details in [docs/Memory-And-Concurrency.md](Memory-And-Concurrency.md).
+`bootstrap.sh` sets up the convenient `./jac313_test_cli` symlink and the pre-push hook for you.
 
 ### Results layout
 
