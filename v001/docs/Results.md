@@ -1,53 +1,32 @@
 # Results — what a build + test run actually produces
 
-Real, measured numbers from clean builds, organized **per platform**. jac313 targets Linux
-Mint and RHEL as standard toolchain hosts; the **Linux Mint** runs are below, and the **RHEL**
-section follows (the same battery, on the RHEL boxes). Candid as ever: these are genuine
-figures from real runs on real hardware, not aspirations. Live per-run detail — every
-`(OS × compiler × build-type)` row — lives in the [test-summary hub](../test-summary/).
+Current live results (safeness, ctest, smoke, bench throughput, verify, build times) are
+rendered into per-version `test-summary/` directories from the shared `results.db`. See:
 
-> **Before trusting any `ops/sec` figure, read [HowToReadResults.md](HowToReadResults.md).**
-> The headline "Peak ops/sec" is the in-memory hot path, *not* a persist backend's write
-> speed — in-memory runs ~15–25M, durable-to-disk runs ~2.4–2.7M. That page explains which
-> number is which and why.
->
-> **Methodology note:** these figures use the **legacy "Peak ops/sec" (fastest-of-N)** metric
-> from the functional-matrix logs. Current throughput runs use the curated
-> [`store_bench` suite](Benchmarks.md) — headlined by a **median + low–high band**, with durable
-> writes flushed inside the timed region. New numbers will be reported that way.
+- The version's `test-summary/README.md` for safeness summary + links to detailed reports
+- `test-summary/bench/README.md` for throughput (per-machine median + band)
+
+**Before trusting any `ops/sec` figure, read [HowToReadResults.md](HowToReadResults.md).**
+Current reports use **median + low–high band**. Older "Peak ops/sec (fastest-of-N)" figures
+from functional-matrix logs are historical.
+
+Live per-run detail lives in the test-summary reports under this version. Hardware-specific
+numbers vary; see the structured per-machine tables rather than any single headline.
 
 ---
 
-## Linux Mint 22.3
+Live results are in `test-summary/`. The detailed per-platform tables below are historical
+and use older "Peak" reporting. See the current structured `test-summary/bench/` and other
+reports for up-to-date median+band data on current machines.
 
-### Hardware
+For reference, v001 has been run on various hardware (Linux Mint, RHEL, etc.). See the live
+reports linked from `test-summary/README.md` (per version) and the HowToReadResults guidance.
 
-| | |
-|---|---|
-| CPU | Intel Core i7-7820HQ @ 2.90 GHz — **8 cores**, a 2017 laptop part |
-| RAM | 31 GB |
-| Storage | Samsung SSD 990 EVO Plus (NVMe SSD) |
-| OS | Linux Mint 22.3 (kernel 6.17) |
+### Toolchains (historical note)
 
-A modest, older laptop on purpose — comfortable here, comfortable most places.
-
-### Versions under test
-
-These numbers are for — recorded at run time from each package's `version()`, not hand-typed:
-
-| Package | Version |
-|---------|---------|
-| `jac313::Qlite::v001` | **v001.001** |
-| `jac313::jText::v001` | **v001.001** |
-| `jac313::Store::v001` | **v001.001** |
-
-### Toolchains
-
-Sensed automatically by `./bootstrap.sh` (data-driven; new platforms are config, not code):
-**g++-15** (15.2.0, standard) · **g++-14** (14.3.0, conservative fallback) · **clang++-20**
-(20.1.2, first-class peer). The same source builds under all three. The throughput rows below
-are the **g++-15** reference (one reference compiler per platform); **clang also ran the
-complete battery** here (ctest, smoke, full Debug/Release), all **116/116** — see the
+Sensed automatically by `./bootstrap.sh`. The same source builds under g++-15, older gcc, and
+clang peers. Throughput reference was typically g++-15 per platform; clang also ran full
+batteries. Current data is per-machine in the reports.
 **g++-15 vs clang (Linux Mint)** table below.
 
 ### Tests & throughput

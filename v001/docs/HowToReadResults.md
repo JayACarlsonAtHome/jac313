@@ -4,20 +4,27 @@
 
 # How to read the results
 
+Current throughput and test results live in the per-version `test-summary/` directories
+(e.g. `v001/test-summary/`). The top-level `test-summary/README.md` (in the shared results
+hub) links to per-machine safeness summaries and detailed reports for ctest, smoke, bench,
+verify, etc. Throughput lives in the `bench/` reports.
+
+**Results are per-machine** (hardware + OS determines the `jac313-###` group). Numbers
+vary significantly by CPU, cores, RAM, and disk type/speed.
+
 ## The short version
 
-Don't want the details? On this machine (gcc15, Release, SSD):
+- **Look at `test-summary/bench/README.md`** (per version) for throughput.
+- Each machine has sections for:
+  - Non-durable (flag sweep: 0/2/4/6 flags)
+  - Durable at 1M events
+  - Durable at 10M events
+- Per compiler: **median ops/sec** + low–high band + output size.
+- Always read the **median + band**. Different machines show different absolutes.
 
-- **In-memory logging:** ~**24M** events/sec — *median*, with a low–high band
-- **Logging to disk (durable):** ~**0.25–0.6M** events/sec — **binary ~0.6M > SQL ~0.46M > jText
-  ~0.26M**, every backend fsync'd (jText was the last buffered one — see Bloopers #7)
+Hardware matters a lot. Treat numbers as specific to that machine's config, not universal.
 
-Both **depend greatly on hardware** (CPU clock + disk speed) — an older Xeon with a 7200-rpm
-HDD lands nearer ~3–5M in-memory. Treat these as ballpark, not guarantees.
-
-That's the whole story. Everything below is *why*, and how to avoid misreading the numbers.
-
-> To run the benchmarks and see the report format, see [Benchmarks.md](Benchmarks.md).
+See [Benchmarks.md](Benchmarks.md) for how to run and produce these reports.
 
 ---
 
@@ -37,20 +44,22 @@ Store is).
 
 ## Where throughput numbers come from
 
-Throughput is now measured by a dedicated instrument, **`store_bench`**, driven by
-**`store_bench`** (both in `Store/tests/matrix/`). Run it from the repo root:
+Throughput is measured by the dedicated `store_bench` (in `Store/tests/matrix/`).
+The easy way from the version root:
 
 ```
-./jac313_store_bench --suite
+./jac313_test_cli --bench --report
 ```
 
-It is a **curated 7-config suite**, not a giant matrix:
+This runs the curated **10-config suite** (4 non-durable flag counts at 10M events × 10 runs;
+durable jText/SQL/binary at 1M events × 3 runs; and again at 10M events × 3 runs).
 
-- a **non-durable flag sweep** — 0 / 2 / 4 / 6 flags, 10M events × 10 runs, and
-- the **durable backends** — jText / SQL / binary, 1M events × 3 runs.
+Reports appear in `test-summary/bench/README.md` (and per-run .md files). See
+[Benchmarks.md](Benchmarks.md) for running details and the `--dry-run` command list.
 
-Each config's headline is the **median ops/sec** with a **low–high band** across its runs.
-Verify runs **last-run-only** — correctness is not throughput, so it stays out of the hot loop.
+Each config headline in the report is **median ops/sec + low–high band** across its runs.
+The `test-summary/bench/README.md` organizes by machine, with tables for non-durable,
+durable@1M, and durable@10M, plus per-compiler columns for median/band/size.
 
 ---
 
@@ -64,12 +73,12 @@ Verify runs **last-run-only** — correctness is not throughput, so it stays out
 
 Concretely, two very different numbers come out of the suite:
 
-| Number | What it is | Honest range (gcc15, Release, SSD) |
-|--------|------------|------------------------------------|
-| **In-memory ceiling** | hot loop, no sink attached | **~15–25M ops/sec** (reference HW hit ~23M, σ ~1–2%) |
-| **Durable sustained** | hot loop throttled by the disk it flushes to | **~0.25–0.6M ops/sec** (binary > SQL > jText) |
+| Number | What it is | Notes |
+|--------|------------|-------|
+| **In-memory ceiling** (non-durable, low flags) | hot loop, no sink attached | Often 4–9M+ ops/sec depending on hardware; σ low. |
+| **Durable sustained** | hot loop throttled by disk flush | Typically 0.4–1.2M ops/sec (varies by backend, event scale, and machine). |
 
-Both are real. The mistake is quoting a single lucky run as if it were the steady rate.
+Both are real. The mistake is quoting a single lucky run (or peak) as the steady rate. Always use the median + band from the reports.
 
 ---
 
@@ -107,9 +116,9 @@ right took **two** passes, because the same bug bit two backends in turn:
    jText falls to **~0.26M ops/sec** — the *slowest* of the three (text formatting *plus* three
    files to sync). See Bloopers #7.
 
-The honest order, every backend forced to disk:
+The honest order (backend-dependent, see current reports):
 
-> **binary ~0.6M&nbsp;&nbsp;>&nbsp;&nbsp;SQL ~0.46M&nbsp;&nbsp;>&nbsp;&nbsp;jText ~0.26M**
+> binary often edges out the others; jText can be slower due to formatting + multiple files. Exact order and absolutes vary by hardware and event scale — check the live `test-summary/bench/` tables.
 
 Each "fastest" claim was a measurement artifact — bytes in a buffer, not on a platter.
 
@@ -156,29 +165,28 @@ bench suite.
 
 | You see… | It means… | Trust it as throughput? |
 |----------|-----------|--------------------------|
-| Median ops/sec (bench config) | the rate the config actually sustains | **Yes** — this is the headline |
-| The low–high band | run-to-run spread, incl. any one-off stall | Yes — read it, don't ignore it |
-| "Fastest"/"peak"/"best of N" | lucky-max: turbo + no stall | **No** — overstates the steady rate |
-| "Average" with a wide band | one outlier may have dragged it | No — prefer the median |
-| In-memory (non-durable) median | hot-path ceiling, ~15–25M | Yes (±HW/turbo noise) |
-| Durable median, flush in-clock | bytes actually written to disk | Yes — the real durable number |
-| `test_006` / no `ops/sec` | correctness test; **legacy** non-source | N/A — throughput is in `store_bench --suite` |
+| Median ops/sec (in bench report) | the rate the config actually sustains | **Yes** — headline for that config + machine |
+| The low–high band | run-to-run spread (incl. stalls) | Yes — read the full band |
+| "Fastest"/"peak"/"best of N" | lucky-max (turbo + no stall) | **No** — overstates steady rate |
+| "Average" with wide band | one outlier dragged it | No — prefer median |
+| Non-durable (low flags) median | hot-path ceiling (no sink) | Yes (varies by hardware) |
+| Durable median (flush in-clock) | bytes actually on disk | Yes — real sustained durable |
+| Old per-test "ops/sec" or `test_006` no ops/sec | legacy functional logs | N/A for throughput (now in bench reports) |
 
-**The two true stories:** in-memory hot path ~15–25M ops/sec, and durable-to-disk ~0.25–0.6M
-ops/sec with the honest order **binary ~0.6M > SQL ~0.46M > jText ~0.26M** (both binary's old
-~2.7M and jText's old ~2.4M were buffered measurements, not flushes — see Bloopers #7). Read the
-**median + band** the bench suite prints; treat any "fastest"/"peak" figure as lucky-max, and any
-average with a wide band as outlier-dragged.
+See the per-machine tables in `test-summary/bench/README.md` (and linked Run_*.md) for current
+data. Numbers are hardware-specific — compare within the same machine. The core advice remains:
+use **median + band**, and durable numbers include the actual disk flush cost.
 
 ---
 
 ## The short version (again)
 
-On this machine (gcc15, Release, SSD):
+Look at `test-summary/bench/README.md` (under the version's test-summary). It shows, per
+machine and per compiler:
 
-- **In-memory logging:** ~**24M** events/sec — *median*, with a low–high band
-- **Logging to disk (durable):** ~**0.25–0.6M** events/sec — **binary ~0.6M > SQL ~0.46M > jText
-  ~0.26M**, every backend fsync'd (see Bloopers #7)
+- Non-durable flag configs: median + band (often several million ops/sec).
+- Durable @1M and @10M: median + band + output size (typically hundreds of K to low millions
+  ops/sec, varying by backend and hardware).
 
-Both **depend greatly on hardware** (CPU clock + disk speed) — an older Xeon with a 7200-rpm
-HDD lands nearer ~3–5M in-memory. Treat these as ballpark, not guarantees.
+Always prefer the median + band over any peak/average. Hardware (CPU + disk) dominates the
+absolute numbers. See [Benchmarks.md](Benchmarks.md) for how the reports are produced.

@@ -1,67 +1,47 @@
 # Results — what a build + test run actually produces
 
-> **v002 recorded its first results matrix** — `rhel-9.8 / ssd`, 2026-06-23. The full
-> **17-combo** battery on **both gcc15 and clang** at C++26: **17/17 combos OK, 116/116
-> scenarios each, 0 failures, 0 valgrind errors.** These are v002's own numbers (it does not
-> inherit v001's).
+Current live results live in the structured reports under `test-summary/` (per version),
+generated from `results.db` by `jac313_test_cli --report`. See:
 
-> **Before trusting any `ops/sec` figure, read [HowToReadResults.md](HowToReadResults.md).**
-> The headline "Peak ops/sec" is the in-memory hot path, *not* a persist backend's write
-> speed. That page explains which number is which (methodology is version-independent).
->
-> **Methodology note:** these figures use the **legacy "Peak ops/sec" (fastest-of-N)** metric
-> from the functional-matrix logs. Current throughput runs use the curated
-> [`store_bench` suite](Benchmarks.md) — headlined by a **median + low–high band**, with durable
-> writes flushed inside the timed region. New numbers will be reported that way.
+- The version's `test-summary/README.md` for safeness summary + links to ctest/smoke/bench/verify
+- `test-summary/bench/README.md` for throughput (per-machine, median + band for non-durable
+  and durable configs at 1M/10M scales)
 
-## Headline numbers (rhel-9.8, ssd, full tier)
+**Before trusting any `ops/sec` figure, read [HowToReadResults.md](HowToReadResults.md).**
+Current reports use **median ops/sec + low–high band** (durable flushes counted inside the
+timed region). Older "Peak ops/sec (fastest-of-N)" figures from functional-matrix logs are
+historical/legacy.
 
-Peak ops/sec is the in-memory hot path (see HowToReadResults.md); durable-to-disk is far lower.
+The two-standard design continues to be valuable for surfacing real toolchain differences
+(e.g. C++26 `std::print` dynamic-width interactions that required `runtime_format`).
 
-| Compiler | Build | Peak ops/sec (in-mem) | Avg |
-|---|---|---|---|
-| clang 21 | Release | **25.36M** | 17.5M |
-| gcc 15 | Release | 24.84M | 17.6M |
-| clang 21 | Debug | 14.8M | 10.8M |
-| gcc 15 | Debug | 17.3M | 12.1M |
+See the live `test-summary/bench/` reports for current per-platform numbers. No single
+"headline" table is maintained here because data is now per-machine in the rendered reports.
 
-**C++26 v002 (~25M) matches C++23 v001 (~25M) — no throughput regression** from the standard
-bump, and clang Release edges out gcc even through the `std::print` workaround below.
+## Toolchain and build findings
 
-## Two toolchain findings from this run
-
-The two-standard design earned its keep — building v002 on both compilers surfaced two real bugs:
-
-1. **clang rejects valid C++26 `std::print`** (dynamic-width specs) that gcc accepts — a
-   genuine compiler defect. Worked around with `std::runtime_format`. See
-   [Cpp26_Adoption.md](Cpp26_Adoption.md#toolchain-finding-clang-rejects-dynamic-width-stdprint-in-c26)
-   and the [reproducer](findings/clang_cpp26_dynamic_format.cpp).
-2. **our `import std` + textual `#include <numeric>` bug** — a std header leaked into the
-   module's `export namespace`; gcc *correctly* rejected it. Fixed by guarding the include
-   under `JAC313_STORE_IMPORT_STD` like every other std header.
+The two-standard (and now multi-machine) design continues to surface real issues, such as
+C++26 `std::print` dynamic spec interactions (worked around with `runtime_format`) and module
+include guard issues. See [Cpp26_Adoption.md](Cpp26_Adoption.md) for details.
 
 ## Current state
 
-| Check | Status |
-|-------|--------|
-| Builds — gcc15 **and clang21**, modules + textual + import-std | ✅ clean (both compilers, C++26) |
-| Full matrix (gcc15 + clang × Debug/Release × modules/textual × Smoke/xFull) | ✅ **17/17 combos, 116/116 each** |
-| `matrix verify-lite` (valgrind memcheck + helgrind/DRD, ctest) | ✅ 31/31 clean |
+Live status, throughput, and verification results are in the version's `test-summary/`
+reports (see top of this file and `test-summary/README.md`).
 
-For v001's per-platform numbers see [v001/docs/Results.md](../../v001/docs/Results.md).
+For v001's historical numbers see [v001/docs/Results.md](../../v001/docs/Results.md).
 
-## Recording v002's own results
+## Recording / viewing results
 
-Everything regenerates from scratch, written under `v002/` only:
+Results (including throughput from `--bench --report`) are written to the shared
+`results.db` and rendered per-version under `test-summary/`.
 
 ```bash
-cd ..              # the v002 root
-./bootstrap.sh                       # sense toolchain → build the runner → drop the symlink
-./jac313_test_cli --ctest --smoke    # functional base check (correctness)
-./jac313_test_cli --bench --report   # throughput → test-summary/results.db + rendered pages
+./jac313_test_cli --ctest --smoke    # functional
+./jac313_test_cli --bench --report   # throughput + render to test-summary/
 ```
 
-Per-run throughput detail — clang-vs-gcc per machine — appears in the
-[test-summary hub](../test-summary/) and `test-summary/results.db` as runs complete.
+See [test-summary/README.md](../test-summary/README.md) (per version) for the current
+rendered reports.
 
 Part of the [jac313](../../README.md) project.
