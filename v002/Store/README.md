@@ -49,6 +49,8 @@ Core includes in-memory `ts_store`, `ts_store_config`, `bounded_string`, and per
 - **jText** — `JTextEventSink`, `JTextSplitEventLog` (`jac313::store_jtext_persist`, links in-tree `jtext_core`)
 - **Routing** — `FlagRoutingEventSink` (header-only)
 
+See [persistence docs](../docs/store/persistence.md) for full details (including a parked JSON backend idea).
+
 ## Build
 
 Self-contained — no sibling `ts_store` required for headers.

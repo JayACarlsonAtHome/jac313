@@ -70,3 +70,21 @@ the binary sink and neither sibling is invoked.
 > Persistence is the densest part of Store and where most of the real engineering lives (mmap
 > growth, batched draining, the binary codec). It's the prime candidate for an AI-assisted deep
 > read against your durability/throughput requirements.
+
+---
+
+## Parked ideas
+
+**JSON durability** (`--persist json` in the test matrix)
+
+A JSON-based text durability backend was considered as a direct comparison point for jText's
+human-readable format (likely NDJSON or a split `main + _Ints + _Floats` layout to keep the
+comparison fair).
+
+It would be another `IEventSink` implementation, just like the existing backends.
+
+**Status:** Parked for now.
+
+We're not building it until there is visible demand. If you're reading this and would actually use
+(or at least benchmark) a JSON durability option, speak up — that would be enough to take it off
+the shelf.

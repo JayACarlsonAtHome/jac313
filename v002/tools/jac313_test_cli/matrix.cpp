@@ -120,6 +120,7 @@ void expand_store_matrix_scenarios(std::vector<MatrixScenario>& out,
     }
 
     static const std::vector<std::string> persist_types = {"binary", "jtext", "sql", "none"};
+    // "json" is a parked idea (see docs/store/persistence.md) — not included until there is demand.
     static const std::vector<std::string> output_modes  = {"on", "off"};
 
     for (const auto& persist : persist_types) {
