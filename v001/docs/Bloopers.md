@@ -1,6 +1,3 @@
-//File:    docs/Bloopers.md
-//Purpose: The mistakes, owned and explained. Every clean git log hides a messier true story — this is ours.
-
 # Bloopers
 
 A reference repo shows you the polished result. This page shows you the bloopers reel —

@@ -1,6 +1,3 @@
-//File:    docs/UserEnhancements.md
-//Purpose: Ideas the framework could grow into — captured so they aren't lost. NOT a roadmap, NOT commitments.
-
 # User Enhancements
 
 > **Status: ideas, not promises.** Nothing here is planned, scheduled, or in progress. This is a

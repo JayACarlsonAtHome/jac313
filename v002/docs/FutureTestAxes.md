@@ -1,6 +1,3 @@
-//File:    docs/FutureTestAxes.md
-//Purpose: Framework-DEV backlog — test-matrix axes we could add. Ideas, not commitments.
-
 # Future test axes (framework backlog)
 
 > **Audience: framework hackers, not library users.** If you just want to *use* jText / Store /

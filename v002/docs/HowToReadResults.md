@@ -1,7 +1,3 @@
-//File:    docs/HowToReadResults.md
-//Date:    2026-06-22
-//Purpose: How to read the throughput numbers in test-summary/ without fooling yourself
-
 # How to read the results
 
 Current throughput and test results live in the per-version `test-summary/` directories

@@ -1,7 +1,3 @@
-//File:    docs/Benchmarks.md
-//Date:    2026-06-24
-//Purpose: How to run the throughput benchmarks and read a reference run
-
 # Throughput benchmarks
 
 ## What it is

@@ -1,6 +1,3 @@
-//File:    docs/ForUsers.md
-//Purpose: For people who want to USE the libraries (jText / Store / Qlite) — not run the test harness.
-
 # For users — using the libraries
 
 jac313 is really **two things**: a family of small, usable C++ libraries, and a test/benchmark

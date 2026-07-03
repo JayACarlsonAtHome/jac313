@@ -1,7 +1,3 @@
-//File:    docs/TODO.md
-//Purpose: Deferred cleanup / known-debt backlog. Items here are MORE than a simple fix (they
-//         cascade, change behavior, or need a design decision) so they were parked, not done.
-
 # TODO — deferred cleanup
 
 Parked during the 2026-06-26 cleanup pass (simple, no-cascade fixes were done inline; these were not).
