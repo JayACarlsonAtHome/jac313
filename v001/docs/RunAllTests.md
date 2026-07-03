@@ -5,11 +5,11 @@
 # RunAllTests — the full jac313 test battery
 
 ```bash
-./bootstrap.sh                    # (you may have to run this more than once)
+./bootstrap.sh                      # (you may have to run this more than once)
 
-./jac313_test_cli --ctest         # the smallest of all testing
-./jac313_test_cli --smoke         # mid level testing
-./jac313_test_cli --run-everything # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
+./jac313_test_cli --ctest           # the smallest of all testing
+./jac313_test_cli --smoke           # mid level testing
+./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
 ```
 
 **One command runs the battery:** `--run-everything` configures, builds, and gates **both**

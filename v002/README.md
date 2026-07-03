@@ -71,7 +71,7 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 
 | Doc | Contents |
 |-----|----------|
-| [docs/QuickStart.md](docs/QuickStart.md) | **Start here** — the fast **base check**: `./jac313_test_cli --ctest --smoke` to a green tree in ~20 s (composable preset gates; writes a re-runnable `run_latest_config.sh`) |
+| [docs/QuickStart.md](docs/QuickStart.md) | **Start here** — the fast **base check** plus full battery: bootstrap + `--ctest` (smallest), `--smoke` (mid), `--run-everything` |
 | [docs/Setup.md](docs/Setup.md) | Toolchain, **bootstrapping**, building, and **running the tests** |
 | [docs/RunAllTests.md](docs/RunAllTests.md) | One-stop **runbook** — the full battery (gcc15 + clang; smoke + full Debug + full Release; modules + no-modules; optional valgrind) |
 | [docs/Modules.md](docs/Modules.md) | C++23 modules + the `import std;` story (quirks / blessings / curses) |
@@ -102,7 +102,11 @@ Run everything from the version directory (`v002/`). The shared `.git` lives at 
 expected under the `v00N/` layout, not a bug.
 
 ```bash
-cd v002 && ./bootstrap.sh          # sense toolchain → build the test runner → readiness check
+./bootstrap.sh                      # (you may have to run this more than once)
+
+./jac313_test_cli --ctest           # the smallest of all testing
+./jac313_test_cli --smoke           # mid level testing
+./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
 ```
 
 `bootstrap.sh` senses the compiler (on RHEL it activates `gcc-toolset-15` for you), checks the full
@@ -115,7 +119,8 @@ resilient generated `Setup.sh`). It then builds **only the test runner** (Debug)
 See [docs/Setup.md](docs/Setup.md) for the provisioner, the wipe tools, and rebuilding `jac313_setup`.
 
 **Base check** — one entry point, composable gate flags; no `scl` prefix, no raw cmake (see
-**[docs/QuickStart.md](docs/QuickStart.md)**):
+**[docs/QuickStart.md](docs/QuickStart.md)**). Use `--ctest --smoke` for the fast daily gate (~20 s),
+or `--run-everything` for the full battery:
 
 ```bash
 ./jac313_test_cli --ctest --smoke      # ctest unit suite (36) + persist×output smoke matrix (116), ~20 s

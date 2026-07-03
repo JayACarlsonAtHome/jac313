@@ -164,8 +164,11 @@ Each version is self-contained — `cd` into it and use its own entry points:
 
 ```bash
 cd v001
-./bootstrap.sh                 # sense toolchain → build the test runner → hand off
-# then drive the matrix from inside v001/ (build dirs, results, summaries all stay here)
+./bootstrap.sh                      # (you may have to run this more than once)
+
+./jac313_test_cli --ctest           # the smallest of all testing
+./jac313_test_cli --smoke           # mid level testing
+./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
 ```
 
 Always run from **inside** the version directory: build trees, `test-results/`, and the

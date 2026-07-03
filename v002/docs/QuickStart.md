@@ -4,17 +4,26 @@
 
 # QuickStart — base checks (fast)
 
+```bash
+./bootstrap.sh                      # (you may have to run this more than once)
+
+./jac313_test_cli --ctest           # the smallest of all testing
+./jac313_test_cli --smoke           # mid level testing
+./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
+```
+
 The fastest way to prove a fresh checkout (or a mid-edit tree) is healthy. One entry point, a
 handful of composable flags. No `scl enable …` prefix, no deep build path, no raw `cmake`/`ctest`
 to remember.
 
+Run from inside the version directory (e.g. `v002/`).
+
 ```bash
-cd v002 && ./bootstrap.sh        # one-time: sense toolchain, build the runner, drop the symlink
-./jac313_test_cli --ctest --smoke
+./bootstrap.sh        # one-time: sense toolchain, build the runner, drop the symlink
 ```
 
-That's the base check: the **ctest unit suite (36)** + the **persist×output smoke matrix (116)**,
-gcc15/Debug, ~20 s. It prints what it's doing and ends green.
+That's the base check (use `--ctest --smoke` for the fast daily gate): the **ctest unit suite** + the **persist×output smoke matrix**,
+gcc15/Debug, ~20 s. It prints what it's doing and ends green. The `--run-everything` is the full battery.
 
 > **How it works:** every preset invocation writes the exact commands to **`./run_latest_config.sh`**
 > and runs that script. It's left in place, so you can re-run the identical commands by hand with
