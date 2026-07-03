@@ -1,67 +1,80 @@
 //File:    docs/RunAllTests.md
-//Date:    2026-06-19
-//Purpose: One-stop runbook — the full jac313 test battery via `--run-everything`
+//Date:    2026-07-03
+//Purpose: One-stop runbook — the full jac313 test battery
 
 # RunAllTests — the full jac313 test battery
 
+```bash
+./bootstrap.sh                    # (you may have to run this more than once)
+
+./jac313_test_cli --ctest         # the smallest of all testing
+./jac313_test_cli --smoke         # mid level testing
+./jac313_test_cli --run-everything # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
+```
+
 **One command runs the battery:** `--run-everything` configures, builds, and gates **both**
 toolchains (gcc15 + clang) — ctest, smoke matrix, throughput bench, valgrind verify, and the
-`build-times` compile-time matrix — then renders the host-scoped report. The `build-times` step
-is **gap-filled per host** (builds only the compile-time cells this machine lacks); the rest
-re-runs each time.
+`build-times` compile-time matrix — then renders the host-scoped report.
 
 > **gcc14 is excluded by design** — gcc15 + clang are the gate on every platform.
 
-See also: [Setup.md](Setup.md) · [README.md](../README.md) · [FORWARDING.md](../FORWARDING.md)
+See also: [Setup.md](Setup.md) · [README.md](../README.md)
 
 ---
 
-## 0. Prerequisites (one-time)
+## Prerequisites (one-time)
 
 ```bash
 ./bootstrap.sh        # senses toolchain, REQUIRES valgrind (+ dev headers), builds the runner
 ```
 
-Run everything **from the repo root**. The runner lives at
-`./build-bootstrap/tools/jac313_test_cli`. Set these once per shell (RHEL needs the toolset
-activated; Mint has `g++-15`/`clang` on `PATH`):
+`bootstrap.sh` creates convenience symlinks at the version root:
+
+- `./jac313_test_cli` → `build-bootstrap/tools/jac313_test_cli`
+- `./jac313_wipe_all`, `./jac313_wipe_one`, `./jac313_wipe_jac`
+
+Run everything **from the v001 directory**. On some platforms you need an activation wrapper
+(RHEL uses the toolset; Mint usually does not):
 
 ```bash
-ACT="scl enable gcc-toolset-15 --"   # Linux Mint: ACT=""
-CLI="./build-bootstrap/tools/jac313_test_cli"
+ACT="scl enable gcc-toolset-15 --"   # Linux Mint / normal PATH: ACT=""
 ```
 
 `DISK_TYPE=auto` is the default — the disk tier (ssd/x7k/10k) is detected from the disk the
-repo lives on, so there's nothing to set per machine.
+repo lives on.
+
+After bootstrap, the simple forms above (without `$ACT`) often work directly. Prefix with
+`$ACT` when your compiler is behind an `scl` / env wrapper.
 
 ---
 
-## 1. Run everything — `--run-everything`
+## Quick presets
 
 ```bash
-$ACT $CLI --run-everything    # the full battery on both compilers, then render the report
-$ACT $CLI --ctest --smoke     # quick green first: ctest + smoke, ~20 s
+./jac313_test_cli --ctest         # ctest unit suite (smallest)
+./jac313_test_cli --smoke         # persist × output smoke matrix (mid)
+./jac313_test_cli --bench         # throughput benchmark
+./jac313_test_cli --report        # (re)render host-scoped pages from results.db
+./jac313_test_cli --verify-lite   # valgrind memcheck gate (pre-push)
+./jac313_test_cli --verify        # valgrind memcheck + helgrind + DRD
+./jac313_test_cli --run-everything # full battery (both compilers + everything)
 ```
 
-`--run-everything` runs configure → build → ctest → smoke → bench for **both** gcc15 and clang,
-then valgrind verify, the `build-times` compile-time matrix, and `--report`. It's a
-"leave-it-running" job; do `--ctest --smoke` first for a fast green. (There's no `run-all`
-gap-fill composer anymore — to fill the full **16-combo** Debug/Release × modules × smoke/full
-sweep, run the `matrix runner` grid in §3; `build-times` is the only step that gap-fills.)
+`--ctest --smoke` is the common fast green check (~20 s).
+
+`--run-everything` is the "leave it running" full gate.
 
 ---
 
-## 2. Run ONE configuration — `matrix runner`
+## Run ONE configuration — `matrix runner`
 
-To test a single thing, use the `runner` primitive (the explicit-config unit the §3 grid uses).
-Every dimension is explicit and the build dir is auto-named:
+To test a single combo, use the explicit runner:
 
 ```bash
-$ACT $CLI matrix runner --compiler gcc15 --build-type Debug --modules off --size smoke
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Debug --modules off --size smoke
 ```
 
-That builds `build-gcc15-debug-textual`, runs the smoke matrix, and records
-`gcc15 / Debug / textual / Smoke`.
+That builds the appropriate tree, runs the smoke matrix, and records the result.
 
 | Option | Values |
 |---|---|
@@ -69,64 +82,61 @@ That builds `build-gcc15-debug-textual`, runs the smoke matrix, and records
 | `--build-type` | `Debug` \| `Release` |
 | `--modules` | `on` (module-native) \| `off` (textual) |
 | `--size` | `smoke` \| `full` |
-| `--build-dir` | optional; default `build-<compiler>-<buildtype>-<modules>` |
+| `--build-dir` | optional override |
 
 ---
 
-## 3. Every combo, spelled out (copy-paste any one line)
-
-These are the **16 `matrix runner` invocations** for the full sweep — grab a line to test exactly one cell:
+## Every combo, spelled out (copy-paste any one line)
 
 ```bash
 # --- gcc15 ---
-$ACT $CLI matrix runner --compiler gcc15 --build-type Debug   --modules on  --size smoke
-$ACT $CLI matrix runner --compiler gcc15 --build-type Debug   --modules on  --size full
-$ACT $CLI matrix runner --compiler gcc15 --build-type Debug   --modules off --size smoke
-$ACT $CLI matrix runner --compiler gcc15 --build-type Debug   --modules off --size full
-$ACT $CLI matrix runner --compiler gcc15 --build-type Release --modules on  --size smoke
-$ACT $CLI matrix runner --compiler gcc15 --build-type Release --modules on  --size full
-$ACT $CLI matrix runner --compiler gcc15 --build-type Release --modules off --size smoke
-$ACT $CLI matrix runner --compiler gcc15 --build-type Release --modules off --size full
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Debug   --modules on  --size smoke
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Debug   --modules on  --size full
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Debug   --modules off --size smoke
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Debug   --modules off --size full
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Release --modules on  --size smoke
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Release --modules on  --size full
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Release --modules off --size smoke
+./jac313_test_cli matrix runner --compiler gcc15 --build-type Release --modules off --size full
 
 # --- clang ---
-$CLI matrix runner --compiler clang --build-type Debug   --modules on  --size smoke
-$CLI matrix runner --compiler clang --build-type Debug   --modules on  --size full
-$CLI matrix runner --compiler clang --build-type Debug   --modules off --size smoke
-$CLI matrix runner --compiler clang --build-type Debug   --modules off --size full
-$CLI matrix runner --compiler clang --build-type Release --modules on  --size smoke
-$CLI matrix runner --compiler clang --build-type Release --modules on  --size full
-$CLI matrix runner --compiler clang --build-type Release --modules off --size smoke
-$CLI matrix runner --compiler clang --build-type Release --modules off --size full
+./jac313_test_cli matrix runner --compiler clang --build-type Debug   --modules on  --size smoke
+./jac313_test_cli matrix runner --compiler clang --build-type Debug   --modules on  --size full
+./jac313_test_cli matrix runner --compiler clang --build-type Debug   --modules off --size smoke
+./jac313_test_cli matrix runner --compiler clang --build-type Debug   --modules off --size full
+./jac313_test_cli matrix runner --compiler clang --build-type Release --modules on  --size smoke
+./jac313_test_cli matrix runner --compiler clang --build-type Release --modules on  --size full
+./jac313_test_cli matrix runner --compiler clang --build-type Release --modules off --size smoke
+./jac313_test_cli matrix runner --compiler clang --build-type Release --modules off --size full
 ```
 
-`--modules on` is the module-native build, `off` is textual; each line auto-builds its own
-`build-<compiler>-<buildtype>-<modules>` tree and records a **distinct** row (the `modules`
-RunIdentity dimension keeps module vs textual from colliding).
+`--modules on` is the module-native build, `off` is textual.
 
 ---
 
-## 4. Render the report
+## Memory / thread gate — verify
+
+Valgrind **memcheck + helgrind + DRD** (required by bootstrap):
 
 ```bash
-$CLI --report     # regenerate the host-scoped pages from results.db
+./jac313_test_cli matrix verify-lite     # ctest representative set (~31 checks, ~3 min)
+./jac313_test_cli matrix verify          # + full smoke-matrix sink sweep (~60 checks, ~6 min)
 ```
-`--run-everything` renders at the end; `--report` is for a manual refresh. Pages land under
-`test-summary/{ctest,smoke,bench,verify,verify-lite,compiler-build-times}/README.md`, each split
-into `## jac313-###` sections per machine.
+
+These are verdict-only (non-zero exit on any error). `verify-lite` is the pre-push gate.
 
 ---
 
-## 5. Memory / thread gate — `verify`
-
-Valgrind **memcheck + helgrind + DRD** (all ship in the one valgrind package, which
-`bootstrap` now *requires*):
+## Render the report
 
 ```bash
-$ACT $CLI matrix verify-lite     # ctest representative set        (~31 checks, ~3 min)
-$ACT $CLI matrix verify          # + full smoke-matrix sink sweep  (~60 checks, ~6 min)
+./jac313_test_cli --report
 ```
 
-Verdict-only (no DB write) — non-zero exit on any error. `verify-lite` is the pre-push gate.
+`--run-everything` renders at the end; `--report` is for a manual refresh.
+
+Pages land under `test-summary/{ctest,smoke,bench,verify,verify-lite,compiler-build-times}/README.md`,
+each split into `## jac313-###` sections per machine.
 
 ---
 
@@ -140,5 +150,6 @@ Verdict-only (no DB write) — non-zero exit on any error. `verify-lite` is the 
 | Render | `--report` | results.db → `test-summary/` host-scoped pages |
 | Memory/thread | `matrix verify[-lite]` | valgrind memcheck + helgrind/DRD |
 
-Results render to `test-summary/{type}/README.md`, each host-scoped into `## jac313-###`
-sections, with metrics in the tracked `test-summary/results.db`.
+Results are stored in the tracked `test-summary/results.db`. Each run is keyed by RunIdentity so Debug/Release, modules/textual, machines, etc. never collide.
+
+See [Setup.md](Setup.md) for more on machine identity (`jac313-###`), results layout, and the pre-push hook.
