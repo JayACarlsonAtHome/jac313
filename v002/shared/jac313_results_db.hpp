@@ -29,6 +29,7 @@ using Sqlite = jac313::Qlite::v002::Sqlite;
 using jac313::Qlite::v002::get_one_long;
 using jac313::Qlite::v002::get_one_string;
 using jac313::Qlite::v002::get_one_double;
+using jac313::Qlite::v002::get_one_string_or;
 
 // Debug variants: get_one_xxx(db, sql, true, binds...) or the _debug shorthands
 // When debug=true they print [SQL] ... and result to stderr.
@@ -274,6 +275,21 @@ inline void ensure_schema(Sqlite& db) {
             "  , best_ops INTEGER\n"
             "  , useThis INTEGER\n"
             "  , UNIQUE(group_id, type)\n"
+            ")");
+
+    // package_version: the code version() of each package (Store/Qlite/jText) for THIS machine (group)
+    // and world, sourced from the version() literals at host-pin time. Version-scoped like run/current_host
+    // because v001 and v002 share a hardware group_id — without the world key their rows would collide
+    // (last pin wins). Columns: group_id (machine), version (JAC313_VERSION world 'v001'|'v002', matches
+    // run.version), package ('Store'|'Qlite'|'jText'), pkg_version (the code version() literal, e.g.
+    // 'v002.008'). One row per (group_id, version, package) so any tool reads current versions straight
+    // from the DB — store_bench included, which can't reach jText's header from its TU — without a run row.
+    db.exec("CREATE TABLE IF NOT EXISTS package_version (\n"
+            "    group_id    INTEGER\n"
+            "  , version     TEXT\n"
+            "  , package     TEXT\n"
+            "  , pkg_version TEXT\n"
+            "  , UNIQUE(group_id, version, package)\n"
             ")");
 
     // testControl: per-test runtime controls (timeouts, memory limits, etc.) that drive the test harness.
@@ -663,6 +679,24 @@ inline std::int64_t io_best_fit_use(Sqlite& db, std::int64_t gid, const std::str
     { auto st = db.prepare("SELECT useThis FROM io_best_fit WHERE group_id=? AND type=?");
       st.bind(gid, type); if (st.step()) st.get(v); }
     return v > 0 ? v : fallback;
+}
+
+// ---- package_version (per-machine code versions, sourced from the version() literals at pin time) ----
+// Record (or refresh) one package's code version for this machine. Called at host-pin time so the DB
+// always reflects what THIS checkout is running.
+inline void upsert_package_version(Sqlite& db, std::int64_t gid, const std::string& version,
+                                   const std::string& package, const std::string& pkg_version) {
+    db.exec("INSERT INTO package_version(group_id, version, package, pkg_version) VALUES(?,?,?,?) "
+            "ON CONFLICT(group_id, version, package) DO UPDATE SET pkg_version=excluded.pkg_version",
+            gid, version, package, pkg_version);
+}
+
+// Read this machine+world's recorded version for a package; returns fallback if not yet pinned.
+inline std::string package_version_get(Sqlite& db, std::int64_t gid, const std::string& version,
+                                       const std::string& package, const std::string& fallback = "") {
+    return get_one_string_or(db,
+        "SELECT pkg_version FROM package_version WHERE group_id=? AND version=? AND package=? LIMIT 1",
+        fallback, gid, version, package);
 }
 
 // ---- testControl: runtime controls per test name (timeouts etc.) stored in DB ----

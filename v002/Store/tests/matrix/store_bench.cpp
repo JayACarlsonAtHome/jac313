@@ -74,7 +74,6 @@ struct Params {
     std::uint64_t flags = 0;             // per-event user flag mask
     std::string db_path;                 // --db: append one row per run to this SQLite DB (via Qlite)
     std::string label;                   // --label: human label for the config (e.g. "2 flags, non-durable")
-    std::string jtext_ver;               // --jtext-ver: passed in (jText's version header isn't trivially reachable here)
     std::int64_t run_id = 0;             // runID: one per --suite run (0 = allocate one per single record)
 };
 
@@ -524,10 +523,17 @@ void record_to_results_db(const Params& p, const BenchSummary& s) {
             return;
         }
         const std::int64_t run_id = (p.run_id != 0) ? p.run_id : results_next_run_id(db);
+        // All three component versions come from the package_version table (pinned from the code
+        // version() literals by the CLI at host-pin time) — the single source store_bench can reach for
+        // jText, whose header isn't visible in this TU. Store/Qlite fall back to their in-process literal
+        // if the table is somehow unpinned (same value; belt-and-suspenders), jText to empty.
+        namespace R = jac313::results;
+        const std::string& jver = bench_harness_version();   // 'v001'|'v002' — the world scope for package_version
         jac313::results::insert_run(db, run_id, group_id, jac313::results::host_label(group_id),
-                                    bench_harness_version(),
-                                    std::string(jac313::Store::v002::version()),
-                                    std::string(jac313::Qlite::v002::version()), p.jtext_ver);
+                                    jver,
+                                    R::package_version_get(db, group_id, jver, "Store", std::string(jac313::Store::v002::version())),
+                                    R::package_version_get(db, group_id, jver, "Qlite", std::string(jac313::Qlite::v002::version())),
+                                    R::package_version_get(db, group_id, jver, "jText"));
         std::string base = p.label;
         if (const auto pos = base.find(" @10M"); pos != std::string::npos) base.erase(pos, 5);
         const std::int64_t test_list_id = results_lookup_id(db, "SELECT id FROM testList WHERE name=?", base);
@@ -824,7 +830,6 @@ int main(int argc, char** argv) {
         else if (a == "--verify") verify_flag = true;                 // worker: structural-verify this run
         else if (a == "--db") p.db_path = next();
         else if (a == "--label") p.label = next();
-        else if (a == "--jtext-ver") p.jtext_ver = next();
         else if (a == "--suite") do_suite = true;
         else if (a == "--smoke") { do_suite = true; smoke = true; }   // smoke = the suite as a pass/fail gate
         else if (a == "--calibrate") do_calibrate = true;            // sweep batch per durable backend -> io_best_fit

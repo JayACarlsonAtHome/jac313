@@ -172,10 +172,43 @@ HostPinFlags host_pin_flags_from(const GlobalOptions& global) {
 }
 
 // Pin this machine; returns nullopt on ambiguity or error (message on err).
+// Read the "vNNN.NNN" literal from a package's version() source file (the same file version-check
+// treats as authoritative). Empty if the file/line can't be read.
+std::string read_version_literal(const fs::path& file) {
+    std::ifstream in(file);
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.find("version()") == std::string::npos) continue;   // the constexpr version() line
+        const auto q1 = line.find('"'); if (q1 == std::string::npos) continue;
+        const auto q2 = line.find('"', q1 + 1); if (q2 == std::string::npos) continue;
+        return line.substr(q1 + 1, q2 - q1 - 1);
+    }
+    return {};
+}
+
+// Pin each package's code version() into results.db for THIS machine (group), sourced from the
+// version() literals — so every tool (store_bench included, which can't reach jText's header from
+// its TU) reads current versions straight from the DB. Paths match version-check's version files.
+void write_package_versions(jac313::Qlite::v001::Sqlite& db, std::int64_t gid,
+                            const fs::path& src, const std::string& version) {
+    struct Pkg { const char* name; const char* file; };
+    static const Pkg pkgs[] = {
+        {"Store", "Store/include/jac313/Store/v001/headers/ts_store_config.hpp"},
+        {"Qlite", "Qlite/include/jac313/Qlite/v001/Sqlite.body.hpp"},
+        {"jText", "jText/jText.api.inc"},
+    };
+    for (const auto& p : pkgs) {
+        const std::string v = read_version_literal(src / p.file);
+        if (!v.empty()) jac313::results::upsert_package_version(db, gid, version, p.name, v);
+    }
+}
+
 std::optional<std::int64_t> pin_current_host(jac313::Qlite::v001::Sqlite& db, const GlobalOptions& global,
                                                std::ostream& err = std::cerr) {
     const auto hw = collect_host_hardware_record(detect_disk_type("."));
-    return try_resolve_and_pin(db, hw, host_pin_flags_from(global), harness_version(global), err);
+    const auto gid = try_resolve_and_pin(db, hw, host_pin_flags_from(global), harness_version(global), err);
+    if (gid) write_package_versions(db, *gid, global.source_dir, harness_version(global));   // refresh code versions (per group+world)
+    return gid;
 }
 
 // "jac313-### · compiler · disk" — the host/compiler/disk line shown above each summary's pass/fail.
@@ -2066,7 +2099,7 @@ int run_preset_command(const GlobalOptions& global, const ConfigureOptions& conf
             emit("cmake --build " + dir + " --target jac313_store_bench");
             emit("BENCH=\"" + dir + "/Store/tests/matrix/jac313_store_bench\"");
             // bench auto-records like every other gate (no --report needed); --report only renders.
-            emit("\"$BENCH\" --suite --db " + JAC313_RESULTS_DB + " --jtext-ver v001.004");
+            emit("\"$BENCH\" --suite --db " + JAC313_RESULTS_DB);   // versions read from package_version (by group)
         }
         if (preset.report) emit("\"$CLI\" --report");            // render-only, ONCE after both compilers
         emit("");
@@ -2306,7 +2339,7 @@ int run_everything_command(const GlobalOptions& global) {
     for (const std::string& cc : {gcc_label, clang_label}) {
         const std::string dir = "build-bench-" + cc;
         step("bench " + cc, dir + "/Store/tests/matrix/jac313_store_bench --suite "
-                            "--db " + SHARED_DB + " --jtext-ver v001.004");
+                            "--db " + SHARED_DB);   // versions read from package_version (by group)
     }
     step("verify gcc",   CLI + " matrix verify --compiler " + gcc_label);
     step("verify clang", CLI + " matrix verify --compiler " + clang_label);
