@@ -157,6 +157,7 @@ public:
             sqlite3_close(db_);
             throw SqliteError("Failed to open database: " + filename + " - " + msg);
         }
+        sqlite3_busy_timeout(db_, 5000);  // tolerate transient locks from sibling gate processes (e.g. gcc-then-clang in --ctest)
     }
 
     ~Sqlite() {
