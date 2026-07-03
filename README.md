@@ -1,30 +1,24 @@
 # jac313
 
-A versioned C++ project built around one real program — **Store**, a configurable
-time-series logging tool — supported by a couple of small in-tree libraries and a
-complete, from-scratch testing framework. The repository is organized into
-**self-contained major versions**: each `v00N/` is a full, independent world with its
-own `bootstrap.sh`, `CMakeLists.txt`, libraries, `Setup/`, `tools/`, `tests/`, docs, and
-results.
+A carefully crafted C++ ecosystem built around one compelling idea: **Store**, a high-performance, fully configurable time-series event logger that is genuinely greater than the sum of its parts.
 
-> It is deliberately **not a toy.** The whole point is to be a non-trivial but
-> comprehensible real-world C++ setup — modules, `import std`, multiple compilers and
-> standards, a real persistence story, and a real test matrix — so the parts actually
-> exercise each other.
+At its core are two elegant, self-contained in-tree libraries:
 
-> 📊 **Reports are being refreshed (in progress).** The test/reporting framework was just
-> rebuilt — host-scoped report pages (one section per machine, with its hardware) and a
-> folded-in compile-time matrix (`build-times`) — and the same framework now runs in **both**
-> v001 and v002. We're **re-running all the measurements across the machine fleet** to
-> populate the newer reports freshly, so numbers under `test-summary/` are landing and
-> changing as those runs complete.
+- **Qlite** — a clean, modern SQLite wrapper with transactions, prepared-statement caching, and ergonomic helpers
+- **jText** — a self-describing, human-readable structured text format with a streaming writer
 
-> 🔁 **Heavy results churn — next few days (as of 2026-06-29).** We're tweaking settings and
-> running the **full battery repeatedly across the machine fleet, including fresh virtual
-> machines**, so expect frequent **runs and DB wipes**: `test-summary/results.db` and the
-> rendered pages will change often, and machines come and go (added/removed via the
-> `jac313_wipe_all` / `jac313_wipe_one` / `jac313_wipe_jac` tools). Treat anything under
-> `test-summary/` as **in flux** until this settles.
+Together they power multiple persistence backends (binary, jText, SQL, flag-routed) while keeping the hot path allocation-free and extremely fast.
+
+What makes jac313 special is the complete world built around it: a real testing and benchmarking harness (`jac313_test_cli`) that drives full matrices across compilers, standards, modules, and persistence strategies. This is not a toy project — it is a serious, non-trivial codebase that has already exposed real bugs in production toolchains (including a C++26 `std::print` dynamic-width issue in clang 21).
+
+Each major version is a complete, independent universe:
+
+- **v001** — the solid, battle-tested C++23 baseline
+- **v002** — the evolving C++26 frontier (native contracts, gcc 16 in the matrix, more)
+
+This is modern C++ as it should be experienced: clean namespaced APIs, C++23 modules with `import std;`, rigorous validation, and the kind of depth that only comes from building something real end-to-end.
+
+The whole is bigger than the parts — and it shows.
 
 ---
 

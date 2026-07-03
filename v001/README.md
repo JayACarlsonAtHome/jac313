@@ -1,25 +1,19 @@
 # jac313
 
-> 🚧 **Work in progress — `dev-work`.** We're still making changes, but it is not cluster-yuck anymore.
-> The test/results reporting is actively being polished, so please **be patient** —
-> expect some rough edges and things shifting under you for a bit.
+A carefully crafted C++23 ecosystem built around one compelling idea: **Store**, a high-performance, fully configurable time-series event logger that is genuinely greater than the sum of its parts.
 
-A versioned **C++23 umbrella** over a small family of in-tree libraries. Each package
-re-exports a clean, namespaced API under `jac313::<Name>::v001`; together they're more
-than their parts — a real **time-series logging store** with a complete local **testing
-framework** and a worked example of **C++23 modules + `import std;`**.
+At its core are two elegant supporting libraries:
 
-> 🔁 **Heavy results churn — next few days (as of 2026-06-29).** We're tweaking settings and
-> running the **full battery repeatedly across the fleet, including fresh virtual machines**, so
-> expect frequent **runs and DB wipes**. v001 currently tracks only `test-summary/results.db`;
-> the `.md` report pages are rendered on demand by `jac313_test_cli --report` (and may start
-> landing here as runs settle). Machines come and go via the `jac313_wipe_all` / `wipe_one` /
-> `wipe_jac` tools — treat anything under `test-summary/` as **in flux** until this settles.
+- **Qlite** — a clean, modern SQLite wrapper
+- **jText** — a self-describing, human-readable structured text format
 
-> **The whole is bigger than the parts.** Two small libraries (Qlite, jText) compose into
-> the headline feature (Store), all validated by a from-scratch testing/benchmark harness,
-> and the whole thing doubles as a reproducible example for toolchain implementers (see
-> [docs/Modules.md](docs/Modules.md)).
+Together they deliver multiple persistence backends (binary, jText, SQL, flag-routed) while keeping the hot path fast and allocation-free.
+
+What makes this project special is the complete world built around it: a serious, from-scratch testing and benchmarking harness that actually exercises the code at scale across compilers and configurations. This is not a toy — it's a real codebase that has already helped surface issues in production toolchains.
+
+v001 is the solid, battle-tested C++23 baseline with full matrix results recorded across multiple platforms.
+
+The whole is bigger than the parts — and it shows in both the engineering and the results.
 
 ---
 

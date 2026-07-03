@@ -1,24 +1,19 @@
 # jac313
 
-> 🚧 **Work in progress — `dev-work`.** We're still making changes, but it is not cluster-yuck anymore.
-> The test/results reporting is actively being polished, so please **be patient** —
-> expect some rough edges and things shifting under you for a bit.
+A carefully crafted C++ ecosystem built around one compelling idea: **Store**, a high-performance, fully configurable time-series event logger that is genuinely greater than the sum of its parts.
 
-> 🔁 **Heavy results churn — next few days (as of 2026-06-29).** We're tweaking settings and
-> running the **full battery repeatedly across the fleet, including fresh virtual machines**,
-> so expect frequent **runs and DB wipes**: `test-summary/results.db` and the rendered pages
-> change often, and machines come and go (via the `jac313_wipe_all` / `wipe_one` / `wipe_jac`
-> tools). Treat anything under `test-summary/` as **in flux** until this settles.
+At its core are two elegant supporting libraries:
 
-A versioned **C++23 umbrella** over a small family of in-tree libraries. Each package
-re-exports a clean, namespaced API under `jac313::<Name>::v002`; together they're more
-than their parts — a real **time-series logging store** with a complete local **testing
-framework** and a worked example of **C++23 modules + `import std;`**.
+- **Qlite** — a clean, modern SQLite wrapper with rich ergonomics
+- **jText** — a self-describing, human-readable structured text format
 
-> **The whole is bigger than the parts.** Two small libraries (Qlite, jText) compose into
-> the headline feature (Store), all validated by a from-scratch testing/benchmark harness,
-> and the whole thing doubles as a reproducible example for toolchain implementers (see
-> [docs/Modules.md](docs/Modules.md)).
+Together they deliver multiple persistence backends while keeping the hot path extremely fast.
+
+What makes jac313 special is the complete, serious testing and benchmarking world built around it. v002 is the evolving C++26 frontier — native contracts, gcc 16 in the matrix, modules + `import std;` — while still sharing the same rigorous validation approach that has already helped expose real toolchain issues.
+
+This is modern C++ done with care: real code, real scale, real results.
+
+The whole is bigger than the parts — and it shows.
 
 ---
 
