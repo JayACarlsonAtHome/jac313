@@ -158,12 +158,11 @@ You don't have to adopt all of it; the pieces are independent enough to borrow.
 
 ---
 
-## Working in a version
+## Quick start (for either version)
 
-Each version is self-contained — `cd` into it and use its own entry points:
+Each version is self-contained. `cd` into `v001/` or `v002/` and use these:
 
 ```bash
-cd v001
 ./bootstrap.sh                      # (you may have to run this more than once)
 
 ./jac313_test_cli --ctest           # the smallest of all testing
@@ -171,9 +170,16 @@ cd v001
 ./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
 ```
 
-Always run from **inside** the version directory: build trees, `test-results/`, and the
-results DB are written relative to the version root, which is what keeps the worlds
-isolated.
+`./bootstrap.sh` prepares the environment (may need sudo, run twice first time).
+
+`./jac313_test_cli` is the main command for testing.
+
+- Use `--ctest --smoke` to start.
+- Use `--run-everything` for the full suite.
+
+Always run from **inside** the version directory.
+
+See that version's README for more (or the docs/ inside it).
 
 ---
 

@@ -33,7 +33,7 @@ store.save_event(0, 0, Config::ValueT("hello"), 0, Config::CategoryT("demo"));
 `jac313::Store::v002::version()` returns the package's `"major.minor"` version (`"v002.008"`
 now): major is the `v002` API line, minor bumps on each small code change (a real break moves
 it to `"v003.001"`). The `version-check` pre-push gate enforces the bump
-(see [docs/Setup.md](../docs/Setup.md)).
+(see the version's top-level README.md).
 
 ## Layout
 
@@ -75,7 +75,7 @@ When built with `-DJAC313_BUILD_STORE_TESTS=ON` from the monorepo root:
 - **Examples** — binary/jText/SQL/flag-routing persistence smokes (ctest)
 - **Matrix** — ported ts_store stress tests `001`–`008` (TS/XS) plus `flags`
 
-Run the full matrix locally via [`jac313_test_cli`](../tools/jac313_test_cli/) (see [docs/Setup.md → Testing](../docs/Setup.md#4-testing)).
+Run the full matrix locally via [`jac313_test_cli`](../tools/jac313_test_cli/) (see the version's top-level README.md Quick start section).
 
 For **throughput benchmarking** — the curated `store_bench --suite` (median + low–high band, durable flush inside the clock, results recorded to a SQLite DB via `--db` and rendered by `--report`), kept separate from the correctness matrix — see [docs/Benchmarks.md](../docs/Benchmarks.md). Quick: `./jac313_store_bench --suite --dry-run` from the build dir.
 

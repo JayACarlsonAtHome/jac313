@@ -57,8 +57,7 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
   CI — it probes compilers, configures/builds, runs ctest, and drives a **persist × scale
   matrix** (115 smoke scenarios → full stress runs), recording every metric to a tracked
   results DB keyed by a `(os, compiler, build_type, disk, size)` **RunIdentity**. No GitHub
-  Actions, no shell scripts. See [docs/Architecture.md](docs/Architecture.md) and
-  [docs/Setup.md](docs/Setup.md#4-testing).
+  Actions, no shell scripts. See [docs/Architecture.md](docs/Architecture.md). Testing details are in this README's Quick start section.
 - **C++23 modules and `import std;`, with all its quirks, blessings, and curses.** All three
   umbrella modules build module-native against `import std;` (opt-in, gcc-only). It measured
   **break-even** here — and the real value is as a worked, reproducible example for **CMake,
@@ -71,8 +70,9 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 
 | Doc | Contents |
 |-----|----------|
-| [docs/Setup.md](docs/Setup.md) | Toolchain, **bootstrapping**, building, and **running the tests** |
-| [docs/RunAllTests.md](docs/RunAllTests.md) | One-stop **runbook** — the full battery (gcc15 + clang; smoke + full Debug + full Release; modules + no-modules; optional valgrind) |
+| This README (Quick start) | **Start here** — the 5 lines to bootstrap + run tests |
+| [docs/Benchmarks.md](docs/Benchmarks.md) | Throughput benchmarks |
+| [docs/Results.md](docs/Results.md) | Results per platform |
 | [docs/Modules.md](docs/Modules.md) | C++23 modules + the `import std;` story (quirks / blessings / curses) |
 | [docs/Architecture.md](docs/Architecture.md) | Layout, the umbrella model, the test pipeline, customization, design principles |
 | [docs/store/](docs/store/) | Store by feature — logging, categories, bitmaps, persistence, reporting |
@@ -88,6 +88,8 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 
 ## Quick start
 
+Run from inside the `v001/` directory.
+
 ```bash
 ./bootstrap.sh                      # (you may have to run this more than once)
 
@@ -96,12 +98,17 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 ./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
 ```
 
-Run from inside the `v001/` directory.
+`./bootstrap.sh` prepares everything (compilers, headers, valgrind, etc.). You may need sudo once and will likely run it twice the first time.
 
-C++23 required (`g++-15` / Clang 20 standard). On a fresh box `bootstrap.sh` provisions the full
-one-pass baseline (compilers, Ninja, CMake, sqlite3 + valgrind/helgrind/DRD headers) via the
-committed static `jac313_setup` provisioner — see [docs/Setup.md](docs/Setup.md) for that, the
-`jac313_wipe_all`/`wipe_one`/`wipe_jac` reset tools, and full test details in [docs/RunAllTests.md](docs/RunAllTests.md).
+`./jac313_test_cli` is the one main command:
+
+- `--ctest` — smallest check
+- `--smoke` — typical daily test (recommended starting point)
+- `--run-everything` — full battery on both compilers (ctest + smoke + bench + verify)
+
+This is the minimum to get set up and see results. The tools hide the complexity so you can start working immediately.
+
+For more details on the project, see the other docs in this directory (Benchmarks.md, Results.md, Architecture.md, etc.).
 
 **Status:** all three packages in-tree (no sibling repos); ctest + 116/116 smoke matrix green on
 GCC and Clang on **Linux Mint**, **RHEL 9.8**, and **RHEL 10.2** — on **both RHEL 9.8 and RHEL 10.2,

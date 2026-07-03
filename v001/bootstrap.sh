@@ -144,7 +144,7 @@ maybe_offer_local_cmake() {  # offer the pinned CMake whenever the import-std ga
     echo "(-DJAC313_*_IMPORT_STD=ON) needs *exactly* CMake $PINNED_CMAKE_VER (version-pinned gate UUID)."
   fi
   if [ ! -t 0 ]; then
-    echo "(non-interactive — skipping; see README / docs/Setup.md for the no-sudo install.)"; return 0
+    echo "(non-interactive — skipping; see the version README for the no-sudo install.)"; return 0
   fi
   printf "Download CMake %s to ~/.local without sudo? [y/N] " "$PINNED_CMAKE_VER"
   read -r ans || ans=""
@@ -339,7 +339,7 @@ if ! $ACT "$CLI" host; then
   echo "  3. Re-run: ./bootstrap.sh"
   echo
   echo "Read-only precheck: $ACT $CLI --group-id"
-  echo "Details: docs/Setup.md (Machine identity)"
+  echo "Details: the version README (Machine identity)"
   exit 1
 fi
 
@@ -348,4 +348,4 @@ echo "Bootstrap complete. Run the FULL battery (every gate on both compilers + b
 echo "  $ACT $CLI --run-everything"
 echo
 echo "Or compose individual gates: --ctest, --smoke, --bench --report, --verify-lite, --verify."
-echo "Full matrix details: docs/RunAllTests.md"
+echo "Full matrix details: the version README"

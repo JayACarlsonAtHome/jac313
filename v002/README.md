@@ -57,8 +57,7 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
   CI — it probes compilers, configures/builds, runs ctest, and drives a **persist × scale
   matrix** (115 smoke scenarios → full stress runs), recording every metric to a tracked
   results DB keyed by a `(os, compiler, build_type, disk, size)` **RunIdentity**. No GitHub
-  Actions, no shell scripts. See [docs/Architecture.md](docs/Architecture.md) and
-  [docs/Setup.md](docs/Setup.md#4-testing).
+  Actions, no shell scripts. See [docs/Architecture.md](docs/Architecture.md). Testing details are in this README's Quick start section.
 - **C++23 modules and `import std;`, with all its quirks, blessings, and curses.** All three
   umbrella modules build module-native against `import std;` (opt-in; gcc and clang on libstdc++). It measured
   **break-even** here — and the real value is as a worked, reproducible example for **CMake,
@@ -71,9 +70,9 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 
 | Doc | Contents |
 |-----|----------|
-| [docs/QuickStart.md](docs/QuickStart.md) | **Start here** — the fast **base check** plus full battery: bootstrap + `--ctest` (smallest), `--smoke` (mid), `--run-everything` |
-| [docs/Setup.md](docs/Setup.md) | Toolchain, **bootstrapping**, building, and **running the tests** |
-| [docs/RunAllTests.md](docs/RunAllTests.md) | One-stop **runbook** — the full battery (gcc15 + clang; smoke + full Debug + full Release; modules + no-modules; optional valgrind) |
+| This README (Quick start) | **Start here** — the 5 lines to bootstrap + run tests |
+| [docs/Benchmarks.md](docs/Benchmarks.md) | Throughput benchmarks |
+| [docs/Results.md](docs/Results.md) | Results per platform |
 | [docs/Modules.md](docs/Modules.md) | C++23 modules + the `import std;` story (quirks / blessings / curses) |
 | [docs/Architecture.md](docs/Architecture.md) | Layout, the umbrella model, the test pipeline, customization, design principles |
 | [docs/store/](docs/store/) | Store by feature — logging, categories, bitmaps, persistence, reporting |
@@ -97,9 +96,7 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 
 ## Quick start
 
-Run everything from the version directory (`v002/`). The shared `.git` lives at the repo root
-(`jac313/`), so `bootstrap.sh` installs the pre-push hook to the **parent** `.git/hooks` — that's
-expected under the `v00N/` layout, not a bug.
+Run from inside the `v002/` directory.
 
 ```bash
 ./bootstrap.sh                      # (you may have to run this more than once)
@@ -109,42 +106,17 @@ expected under the `v00N/` layout, not a bug.
 ./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
 ```
 
-`bootstrap.sh` senses the compiler (on RHEL it activates `gcc-toolset-15` for you), checks the full
-one-pass baseline (g++ ≥ 14, Clang ≥ 20, CMake ≥ 3.26 — exactly **4.3.3** for the `import std` pilot,
-Ninja ≥ 1.11, the sqlite3 dev header, **valgrind + the memcheck/helgrind/DRD headers**, a UTF-8
-locale), and if anything is missing hands a manifest to the **committed, fully-static `jac313_setup`**
-provisioner — which installs it with a plan preview + `[y/N]` (or, if that binary can't run here, a
-resilient generated `Setup.sh`). It then builds **only the test runner** (Debug) and drops
-`./jac313_test_cli` (plus `./jac313_wipe_all`/`wipe_one`/`wipe_jac`) symlinks at the `v002/` root.
-See [docs/Setup.md](docs/Setup.md) for the provisioner, the wipe tools, and rebuilding `jac313_setup`.
+`./bootstrap.sh` prepares everything (compilers, headers, valgrind, etc.). You may need sudo once and will likely run it twice the first time.
 
-**Base check** — one entry point, composable gate flags; no `scl` prefix, no raw cmake (see
-**[docs/QuickStart.md](docs/QuickStart.md)**). Use `--ctest --smoke` for the fast daily gate (~20 s),
-or `--run-everything` for the full battery:
+`./jac313_test_cli` is the one main command:
 
-```bash
-./jac313_test_cli --ctest --smoke      # ctest unit suite (36) + persist×output smoke matrix (116), ~20 s
-```
+- `--ctest` — smallest check
+- `--smoke` — typical daily test (recommended starting point)
+- `--run-everything` — full battery on both compilers (ctest + smoke + bench + verify)
 
-Every preset invocation writes the exact commands to **`./run_latest_config.sh`** and runs them, so
-you can re-run the identical run with `bash run_latest_config.sh`. The gates compose:
+This is the minimum to get set up and see results. The tools hide the complexity so you can start working immediately.
 
-```bash
-./jac313_test_cli --ctest              # just the unit suite
-./jac313_test_cli --smoke              # just the smoke matrix
-./jac313_test_cli --bench              # throughput numbers (not recorded)
-./jac313_test_cli --bench --report     # record → test-summary/ + render the report
-./jac313_test_cli --verify-lite        # valgrind memcheck gate (the pre-push hook)
-```
-
-`--bench --report` auto-resolves the machine to `jac313-<group_id>` by matching its **hardware + OS**
-`(cpu, cores, ram_gb, os)` against the recorded groups — same hardware+OS reuses its group, no real
-hostname stored, no manual `host_label.local` (run `--group-id` to preview). For a second compiler,
-add `--clang` and re-run into the same DB. Full battery
-(clang, `--size full`, modules) and the explicit single-cell `runner`: [docs/RunAllTests.md](docs/RunAllTests.md).
-
-C++26 baseline (`cxx_std_26`; g++-15 / Clang 21). Full prerequisites, the toolchain story, and the
-benchmark runbook are in [docs/Setup.md](docs/Setup.md) and [docs/Benchmarks.md](docs/Benchmarks.md).
+For more details on the project, see the other docs in this directory (Benchmarks.md, Results.md, Architecture.md, etc.).
 
 **Status:** v002 is a **faithful copy of v001**, rebranded to `jac313::*::v002`. It builds clean
 (g++-15, modules + textual) and passed validation (smoke **116/116**; `matrix verify` **60/60**

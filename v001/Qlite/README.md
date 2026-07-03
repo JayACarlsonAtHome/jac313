@@ -9,7 +9,7 @@ only on system SQLite3. Public symbols: `Sqlite` (with `Statement`, `Transaction
 
 `version()` returns the package's `"major.minor"` version (`"v001.006"` now): major is the
 `v001` API line, minor bumps on each small code change (a real break moves it to `"v002.001"`).
-The `version-check` pre-push gate enforces the bump (see [docs/Setup.md](../docs/Setup.md)).
+The `version-check` pre-push gate enforces the bump (see the version's top-level README.md).
 
 Part of the [jac313](../) monorepo.
 
@@ -83,7 +83,7 @@ Notes:
   enabled … `__CMAKE::CXX23` … not provided by the toolchain"*. Confirmed empirically:
   CMake **3.31.8 (≥ 3.30) fails**; **4.3.3 builds and times at break-even** (see
   [docs/Results.md → CMake 3.31.8 vs 4.3.3](../docs/Results.md#cmake-3318-vs-433)).
-  Install 4.3.3 user-locally (no root) per the root README / [docs/Setup.md](../docs/Setup.md).
+  Install 4.3.3 user-locally (no root) per the root README.
 - The experimental feature is armed by `CMAKE_EXPERIMENTAL_CXX_IMPORT_STD` (set
   before `project()` in both the root and standalone CMakeLists); update the pinned
   UUID if you standardize on a different CMake version.

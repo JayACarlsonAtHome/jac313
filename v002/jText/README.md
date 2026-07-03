@@ -10,7 +10,7 @@ lives here and the public API is declared directly in namespace `jac313::jText::
 
 `version()` returns the package's `"major.minor"` version (`"v002.005"` now): major is the
 `v002` API line, minor bumps on each small code change (a real break moves it to `"v003.001"`).
-The `version-check` pre-push gate enforces the bump (see [docs/Setup.md](../docs/Setup.md)).
+The `version-check` pre-push gate enforces the bump (see the version's top-level README.md).
 
 Part of the [jac313](../) monorepo.
 
