@@ -7,7 +7,7 @@ the legacy `jacQlite` / `jac::qlite` repo — no sibling checkout needed). It de
 only on system SQLite3. Public symbols: `Sqlite` (with `Statement`, `Transaction`, `prepare`/`prepare_cached`,
 `get_one_*` helpers), `SqliteError`, `bind_value`, `column`, `version`.
 
-`version()` returns the package's `"major.minor"` version (`"v001.005"` now): major is the
+`version()` returns the package's `"major.minor"` version (`"v001.006"` now): major is the
 `v001` API line, minor bumps on each small code change (a real break moves it to `"v002.001"`).
 The `version-check` pre-push gate enforces the bump (see [docs/Setup.md](../docs/Setup.md)).
 
