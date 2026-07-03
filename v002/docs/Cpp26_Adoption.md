@@ -4,9 +4,23 @@
 
 # C++26 Adoption — v002
 
+**Current state (as of 2026-07):** v002 is compiled as C++26 (`cxx_std_26`), but adoption of new C++26 language and library features remains limited and deliberate. We are mostly "compiling higher" to prepare for future features (especially contracts) while using only a small number of C++26-era facilities today, often through compatibility shims or workarounds.
+
+We are not actively expanding C++26 usage at this time. Sometime within the next 12 months we plan to re-evaluate the toolchain landscape and adopt additional C++26 features where they provide clear value.
+
 v002's build baseline is **`cxx_std_26`** (see the per-module `target_compile_features`).
 The code compiles clean under `-std=c++26` on the toolchains below; this page records
 *what the compilers actually support*, what we've adopted, and what's deferred.
+
+## Current reality
+
+- We request C++26 via `target_compile_features( ... cxx_std_26 )`.
+- Real use of new *language* features (pack indexing, placeholder `_`, `= delete("reason")`, native `pre()/post()` on declarators outside of tests, etc.) is minimal to none in the main libraries.
+- We do use a few C++26 *library* facilities or behaviors:
+  - Saturating arithmetic (via a portable shim that matches the C++26 semantics).
+  - `std::runtime_format` (required as a workaround for changes in format string evaluation rules under C++26).
+  - A contracts shim (`jac313::contracts`) that provides `JAC313_PRE` / `JAC313_POST` / `JAC313_ASSERT`. These currently expand to runtime checks on our supported compilers. One test function exercises the native `pre (expr)` syntax when `__cpp_contracts` is available.
+- Most of what enables "C++26 mode" today is preparation and a few targeted safety improvements rather than broad use of new language capabilities.
 
 ## Toolchains & feature availability (measured 2026-06)
 
@@ -75,10 +89,11 @@ Trade-off: those strings lose compile-time format checking (they're now validate
 they are fixed internal literals, so the risk is negligible. With the workaround, v002 builds
 **green on both gcc 15 and clang 21** at C++26, and the full matrix runs on both.
 
-## Adopted in v002 (safety-first)
+## Adopted so far (conservative / safety-focused)
 
-The lens for adoption has been **memory/overflow safety** — and it has already found and
-fixed real bugs:
+Adoption has been deliberately limited. The main things pulled in from the C++26 world
+are safety-related library facilities (sometimes via shims) and the contracts preparation
+layer. We are not yet using most new C++26 language features in production code.
 
 1. **Saturating arithmetic** (`std::mul_sat` / `std::add_sat`, `<numeric>`):
    - `ts_store::expected_size()` and the constructor memory guard — an overflowing
@@ -97,13 +112,19 @@ fixed real bugs:
 
 Each landed with a ctest regression test; the suite is **32/32 green** at C++26.
 
-## Migration plan — native contracts
+## Current contracts situation
 
-When a contracts-capable compiler is available (`__cpp_contracts` defined):
-- `JAC313_PRE(cond)` / `JAC313_POST(cond)` → native `pre(cond)` / `post(r: cond)` on the
-  function declarator.
-- `JAC313_ASSERT(cond)` → `contract_assert(cond)`.
-The shim header is the single place to flip; call sites are written to port mechanically.
+We ship a portable `jac313::contracts` shim (`JAC313_PRE` / `JAC313_POST` / `JAC313_ASSERT`).
+On current supported toolchains (GCC 15 toolset, clang 21) these expand to runtime checks.
+A small number of test functions exercise the native `pre (expr)` syntax when the compiler
+defines `__cpp_contracts` (currently only on GCC 16 builds).
+
+We are not expanding contract usage at this time.
+
+## Future plans
+
+Sometime within the next 12 months we will re-evaluate the C++26 feature and toolchain
+landscape and decide what additional features to adopt.
 
 ## Building with C++26
 
@@ -115,6 +136,6 @@ cmake --build build-gcc15 && ctest --test-dir build-gcc15
 # clang is the second gate (clang 21 supports -std=c++26)
 ```
 
-## Candidate next adoptions (not yet done)
-`= delete("reason")` once a class adds deleted specials; pack indexing / `_` placeholders
-in variadic code; broader contract call-sites at module boundaries; native contracts on GCC 16.
+## Candidate future adoptions (not yet decided)
+`= delete("reason")`, pack indexing, placeholder variables (`_`), broader use of native
+contracts, and other C++26 language features will be reconsidered in the next 12 months.

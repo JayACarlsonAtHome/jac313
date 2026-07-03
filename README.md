@@ -9,12 +9,12 @@ At its core are two elegant, self-contained in-tree libraries:
 
 Together they power multiple persistence backends (binary, jText, SQL, flag-routed) while keeping the hot path allocation-free and extremely fast.
 
-What makes jac313 special is the complete world built around it: a real testing and benchmarking harness (`jac313_test_cli`) that drives full matrices across compilers, standards, modules, and persistence strategies. This is not a toy project — it is a serious, non-trivial codebase that has already exposed real bugs in production toolchains (including a C++26 `std::print` dynamic-width issue in clang 21).
+What makes jac313 special is the complete world built around it: a real testing and benchmarking harness (`jac313_test_cli`) that drives full matrices across compilers, standards, modules, and persistence strategies. This is not a toy project — it is a serious, non-trivial codebase that has already exposed real bugs in production toolchains.
 
 Each major version is a complete, independent universe:
 
 - **v001** — the solid, battle-tested C++23 baseline
-- **v002** — the evolving C++26 frontier (native contracts, gcc 16 in the matrix, more)
+- **v002** — the evolving C++26 frontier (compiled as C++26; limited feature adoption so far, with plans to add more within ~12 months)
 
 This is modern C++ as it should be experienced: clean namespaced APIs, C++23 modules with `import std;`, rigorous validation, and the kind of depth that only comes from building something real end-to-end.
 
@@ -92,7 +92,7 @@ language standard independently.
 | Version | Standard | State |
 |---------|----------|-------|
 | [**v001/**](v001/README.md) | **C++23** | The proven baseline — builds and tests green on g++-15 and Clang across multiple Linux distros; the full persist × scale matrix is recorded. Modules + `import std` work (opt-in, gcc-only). |
-| [**v002/**](v002/README.md) | **C++26** | The evolving frontier — diverging from v001 into real C++26. Native ISO **contracts (P2900)** are in via the `jac313::contracts` pre/post/assert shim: first-class `contract_assert` on **gcc 16** (`-std=c++26 -fcontracts`), with a runtime-checked fallback on compilers that don't yet define `__cpp_contracts`. **gcc 16 is now in the matrix**, which runs green (1,856/1,856 functional scenarios; throughput is measured separately by the curated `store_bench` suite). Modules + `import std` work (opt-in; gcc and clang on libstdc++). The Qlite wrapper has its expanded surface (transaction guard, statement cache, `get_one_*` helpers, `std::expected` path). |
+| [**v002/**](v002/README.md) | **C++26** | The evolving frontier — compiled as C++26. Currently using a small number of C++26 library facilities (via shims/workarounds) and a contracts shim (runtime checks today). Most new C++26 language features not yet adopted in main code. We plan to re-evaluate and add more within the next 12 months. Modules + `import std` work (opt-in). |
 
 The one coordination cost of full duplication: a shared-infra fix made *before* the two
 versions diverge must be applied to each `v00N/`. After they diverge, they are free to
@@ -185,7 +185,7 @@ jac313/
 ├── LICENSE           # governs all versions
 ├── AI_files/         # cross-version coordination notes (handoffs between collaborators)
 ├── v001/             # complete C++23 world  (libraries, Setup, tools, tests, docs, results)
-└── v002/             # complete C++26 world  (diverging from v001: native C++26 contracts; gcc 16 in the matrix)
+└── v002/             # complete C++26 world  (currently compiled as C++26 with limited new feature adoption)
 ```
 
 ## License

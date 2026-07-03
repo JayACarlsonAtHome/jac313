@@ -9,7 +9,7 @@ At its core are two elegant supporting libraries:
 
 Together they deliver multiple persistence backends while keeping the hot path extremely fast.
 
-What makes jac313 special is the complete, serious testing and benchmarking world built around it. v002 is the evolving C++26 frontier — native contracts, gcc 16 in the matrix, modules + `import std;` — while still sharing the same rigorous validation approach that has already helped expose real toolchain issues.
+What makes jac313 special is the complete, serious testing and benchmarking world built around it. v002 is the evolving C++26 frontier (currently compiled as C++26 with limited feature adoption so far) while still sharing the same rigorous validation approach that has already helped expose real toolchain issues.
 
 This is modern C++ done with care: real code, real scale, real results.
 
@@ -116,13 +116,13 @@ For more details on the project, see the other docs in this directory (Benchmark
 **Status:** v002 is a **faithful copy of v001**, rebranded to `jac313::*::v002`. It builds clean
 (g++-15, modules + textual) and passed validation (smoke **116/116**; `matrix verify` **60/60**
 valgrind-clean), but has **not** recorded its own per-platform results matrix yet — see
-[docs/Results.md](docs/Results.md). The ISO **C++26** baseline is now in: the build is on
-`cxx_std_26` (compiles clean on gcc-toolset-15 / GCC 15.2) and a `jac313::contracts`
-pre/post/assert shim has landed (runtime checks today; migrates to native P2900 contracts
-once `__cpp_contracts` is available — gcc-15/clang-21 don't define it yet). v002 is
-staged and isolation-verified, continuing to diverge. `import std;` carries over from v001
-(opt-in; gcc + clang; needs the pinned CMake 4.3.3). The legacy repos (`jacQlite`, `jText`,
-`ts_store`) remain only as historical origin.
+[docs/Results.md](docs/Results.md). The ISO **C++26** baseline is now in (`cxx_std_26`). We currently use a small number of C++26-era
+library facilities (via shims or workarounds) and a contracts shim that provides runtime checks
+today. Most new C++26 language features are not yet used in the main code. We expect to
+re-evaluate and adopt more C++26 features within the next 12 months. `import std;` carries over
+from v001 (opt-in; gcc + clang; needs the pinned CMake 4.3.3). v002 is staged and
+isolation-verified, continuing to diverge. The legacy repos (`jacQlite`, `jText`, `ts_store`)
+remain only as historical origin.
 
 ---
 
