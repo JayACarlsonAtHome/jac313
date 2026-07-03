@@ -90,7 +90,7 @@ For more details on the project, see the other docs in this directory (Benchmark
 
 | Doc | Contents |
 |-----|----------|
-| [This README (Quick start)](#quick-start) | **Start here** — the 5 lines to bootstrap + run tests |
+| [Quick Start](#quick-start) | `./bootstrap.sh` (you may have to run this more than once) |
 | [docs/Benchmarks.md](docs/Benchmarks.md) | Throughput benchmarks |
 | [docs/Results.md](docs/Results.md) | Results per platform |
 | [docs/Modules.md](docs/Modules.md) | C++23 modules + the `import std;` story (quirks / blessings / curses) |
