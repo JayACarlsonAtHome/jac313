@@ -38,42 +38,6 @@ See also: [QuickStart.md](QuickStart.md) · [Setup.md](Setup.md) · [Benchmarks.
 
 ---
 
-## Prerequisites (one-time)
-
-Run everything **from `v002/`**.
-
-```bash
-cd v002 && ./bootstrap.sh        # senses toolchain, REQUIRES valgrind, builds the runner + drops the symlink
-```
-
-After bootstrap, the everyday surface is just `./jac313_test_cli <flags>`.
-
-**First-time machine pin** (clean `results.db`): `./jac313_test_cli host` auto-assigns `jac313-###`
-when unambiguous. Same hardware+OS siblings need `--assign-new-###`; reclaiming an existing slot
-uses `--claim jac313-###`. Identity is cpu+cores+ram+disk+os+`instance_hash`. See [Setup.md](Setup.md).
-
----
-
-## Quick presets
-
-```bash
-./jac313_test_cli --ctest                 # ctest unit suite (smallest)
-./jac313_test_cli --smoke                 # persist × output smoke matrix (mid)
-./jac313_test_cli --ctest --smoke         # everyday base check (~20 s, gcc15/Debug)
-./jac313_test_cli --bench                 # throughput benchmark (numbers to stdout)
-./jac313_test_cli --bench --report        # record → results.db + render report
-./jac313_test_cli --verify-lite           # valgrind memcheck gate (pre-push)
-./jac313_test_cli --verify                # valgrind memcheck + helgrind + DRD
-./jac313_test_cli --run-everything        # full battery (both compilers + everything)
-./jac313_test_cli --report                # (re)render host-scoped pages from results.db
-```
-
-`--ctest --smoke` is the common fast green check.
-
-`--run-everything` is the "leave it running" full gate.
-
----
-
 ## Functional correctness — matrix runner for any cell
 
 To test a specific configuration, use the explicit runner:

@@ -22,50 +22,6 @@ See also: [Setup.md](Setup.md) · [README.md](../README.md)
 
 ---
 
-## Prerequisites (one-time)
-
-```bash
-./bootstrap.sh        # senses toolchain, REQUIRES valgrind (+ dev headers), builds the runner
-```
-
-`bootstrap.sh` creates convenience symlinks at the version root:
-
-- `./jac313_test_cli` → `build-bootstrap/tools/jac313_test_cli`
-- `./jac313_wipe_all`, `./jac313_wipe_one`, `./jac313_wipe_jac`
-
-Run everything **from the v001 directory**. On some platforms you need an activation wrapper
-(RHEL uses the toolset; Mint usually does not):
-
-```bash
-ACT="scl enable gcc-toolset-15 --"   # Linux Mint / normal PATH: ACT=""
-```
-
-`DISK_TYPE=auto` is the default — the disk tier (ssd/x7k/10k) is detected from the disk the
-repo lives on.
-
-After bootstrap, the simple forms above (without `$ACT`) often work directly. Prefix with
-`$ACT` when your compiler is behind an `scl` / env wrapper.
-
----
-
-## Quick presets
-
-```bash
-./jac313_test_cli --ctest         # ctest unit suite (smallest)
-./jac313_test_cli --smoke         # persist × output smoke matrix (mid)
-./jac313_test_cli --bench         # throughput benchmark
-./jac313_test_cli --report        # (re)render host-scoped pages from results.db
-./jac313_test_cli --verify-lite   # valgrind memcheck gate (pre-push)
-./jac313_test_cli --verify        # valgrind memcheck + helgrind + DRD
-./jac313_test_cli --run-everything # full battery (both compilers + everything)
-```
-
-`--ctest --smoke` is the common fast green check (~20 s).
-
-`--run-everything` is the "leave it running" full gate.
-
----
-
 ## Run ONE configuration — `matrix runner`
 
 To test a single combo, use the explicit runner:
