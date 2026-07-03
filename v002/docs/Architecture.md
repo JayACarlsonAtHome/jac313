@@ -33,7 +33,7 @@ everything at once, but to give new code a stable, namespaced home while legacy 
 keep working until they are migrated in place.
 
 Every package lives under `jac313::<Name>::v002`. The `v002` suffix is a **contract, not a
-comment**: it reserves room for a future `v002` without breaking callers who pin a version in
+comment**: it reserves room for a future `v003` without breaking callers who pin a version in
 their includes or module imports. Legacy names (`jac::qlite`, `jText.h`,
 `jac::ts_store::inline_v002`) keep working alongside the umbrellas.
 

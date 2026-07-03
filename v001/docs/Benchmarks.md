@@ -12,8 +12,8 @@ It is honest by construction:
 
 - The headline is the **median** with a **low–high band** over N runs — never
   "fastest" or "peak".
-- For durable persistence the flush happens **inside** the timed region, so the
-  cost of getting bytes to disk is counted.
+- Durable runs time the **whole process** (fork→exit), so each backend's finalize —
+  draining its writer and **syncing bytes to disk** (`fsync`/`msync`) — lands inside the clock.
 - Verify is **last-run-only**, so checking correctness never taxes the timed
   runs.
 
@@ -87,29 +87,30 @@ cd <your-build-dir>/Store/tests/matrix          # where jac313_store_bench was b
 A reference run (one machine — your numbers will differ):
 
 ```
-Host:     Intel Core Ultra 7 265 · 12 cores · 23 GB · Fedora Linux 44 · Release · threads=50
+Host:     Intel Core Ultra 7 265 · 20 cores · 62 GB · RHEL 9.8 · Release · threads=50
 Versions: Store v001.005 · Qlite v001.006 · jText v001.005
 ```
 
-Flag-overhead (non-durable) — 10M Events × 10 Runs = 100M Events per config:
+Flag-overhead (non-durable) — 10M Events × 10 Runs = 100M Events per config (median | low–high band):
 
-| Flags | Median Ops/Sec | σ    |
-|-------|----------------|------|
-| 0     | 23,329,003     | 1.6% |
-| 2     | 23,253,779     | 1.0% |
-| 4     | 23,425,087     | 1.2% |
-| 6     | 23,832,126     | 1.8% |
+| Flags | Median Ops/Sec | Band — Low–High (Ops/Sec) |
+|-------|----------------|---------------------------|
+| 0     | 12,638,618     | 11.29M – 15.57M           |
+| 2     | 11,370,100     | 10.50M – 15.72M           |
+| 4     | 11,620,606     | 11.13M – 15.97M           |
+| 6     | 15,043,162     | 11.32M – 15.93M           |
 
 Durable — 1M Events × 3 Runs = 3M Events per config (median | low–high band):
 
 | Backend | Median Ops/Sec | Band — Low–High (Ops/Sec) |
 |---------|----------------|---------------------------|
-| binary  | 597,485        | 0.59M – 0.63M             |
-| SQL     | 459,149        | 0.45M – 0.49M             |
-| jText   | 255,744        | 0.24M – 0.26M             |
+| binary  | 2,568,970      | 2.57M – 2.60M             |
+| jText   | 2,053,047      | 2.02M – 2.09M             |
+| SQL     | 1,492,332      | 1.48M – 1.51M             |
 
-_Representative (this box, gcc15, 5 runs, all backends fsync'd inside the clock). Live per-machine
-numbers are in the rendered `test-summary/bench/` report and refresh on each `--run-everything`._
+_Representative (jac313-004, gcc15, 3 runs; each backend fsync'd to disk inside the clock — the
+jText/SQL order is disk-dependent). Live per-machine numbers are in the rendered
+`test-summary/bench/` report and refresh on each `--run-everything`._
 
 ## Takeaways
 
@@ -117,13 +118,15 @@ numbers are in the rendered `test-summary/bench/` report and refresh on each `--
 even trend — it's pure noise.<br>
 Setting flags has no measurable hot-path cost.
 
-**The honest durable ranking is binary (~0.6M) > SQL (~0.46M) > jText (~0.26M)** —
-every backend now fsync'd to disk inside the clock. Getting there took two flush
-fixes: binary's old ~2.7M stopped the clock *before* its `msync`, and jText's old
-~2.4M only stream-flushed to the OS page cache — **no `fsync` at all**. Once each
-backend is forced to the platter, jText is actually the *slowest* (text formatting
-plus three files to sync), not the fastest. Read the **median + band**: a one-off
-fsync stall lands in the band, where median+band beats average (which the stall
-drags down) and "fastest" (which hides it).
+**Durable ranking (this box): binary (~2.6M) > jText (~2.0M) > SQL (~1.5M).** A durable run
+times the whole process (fork→exit) with each backend's flush-to-disk inside the clock, so
+every number counts real durability: binary `msync(MS_SYNC)`s its mmap at finalize, jText
+`fsync`s each of its three files, and SQL commits transactionally through SQLite. Binary wins
+as the most compact path (a packed `mmap` append; async `msync` per batch, one blocking `msync`
+at finalize). The jText and SQL numbers are closer and depend on the machine's disk —
+text-formatting-plus-three-`fsync`s vs SQLite's per-commit sync — so treat their order as
+hardware-dependent, not fixed (a slower-disk representative measured them the other way around).
+Read the **median + band**: a one-off fsync stall lands in the band, where median+band beats both
+the average (which the stall drags down) and "fastest" (which hides it).
 
 For what each number means, see the Quick Start in this README or the live reports in `test-summary/bench/`.

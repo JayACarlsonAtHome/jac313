@@ -10,14 +10,14 @@ valgrind gates, or anything in [Setup.md](Setup.md)'s testing section. This page
 | Package | Namespace | What it's for |
 |---|---|---|
 | **jText** | `jac313::jText::v002` | structured text / log records — fast formatting, parse + validate |
-| **Store** | `jac313::Store::v002` | a time-series logging **store** with pluggable persistence (binary / jText / SQL / in-mem) |
+| **Store** | `jac313::Store::v002` | a time-series logging **store** with pluggable persistence (binary / jText / SQL / flag-routing; or `persist=none` for in-memory, no sink) |
 | **Qlite** | `jac313::Qlite::v002` | a thin, safe **SQLite** wrapper (variadic bind/exec/step/get, RAII transactions, stmt cache, `column<int>`, `try_*` when `<expected>` is available) |
 
 They compose — Store uses Qlite + jText under the hood — but you can take just the one you need.
 
 ## What could I use this for?
 
-**Store** — timestamped `{floats/ints + category + event-name}` records, persisted (binary / jText / SQL / in-mem):
+**Store** — timestamped `{floats/ints + category + event-name}` records, persisted (binary / jText / SQL / flag-routing; or `persist=none` = in-memory, not persisted):
 - **Robot arm** — joint angles + gripper state · cat `manipulation` · *"Moving arm to weld seam 3"*
 - **AGV / fleet, 2D map** — x, y, heading, load_id · cat `logistics` · *"Forklift picking up load at dock 7"*, *"Truck arrived, gate 4"*
 - **Drone / vehicle telemetry** — lat/lon/alt, or rpm/speed/temp · *"Waypoint 5 reached"*, *"Hard brake −0.8 g"*

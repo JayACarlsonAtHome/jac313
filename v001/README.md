@@ -49,7 +49,7 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 
 - **A complete testing framework.** [`jac313_test_cli`](tools/jac313_test_cli/) is the whole
   CI — it probes compilers, configures/builds, runs ctest, and drives a **persist × scale
-  matrix** (115 smoke scenarios → full stress runs), recording every metric to a tracked
+  matrix** (116 smoke scenarios → full stress runs), recording every metric to a tracked
   results DB keyed by a `(os, compiler, build_type, disk, size)` **RunIdentity**. No GitHub
   Actions, no shell scripts. See [docs/Architecture.md](docs/Architecture.md). Testing details are in this README's Quick start section.
 - **C++23 modules and `import std;`, with all its quirks, blessings, and curses.** All three

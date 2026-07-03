@@ -50,7 +50,7 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 
 - **A complete testing framework.** [`jac313_test_cli`](tools/jac313_test_cli/) is the whole
   CI — it probes compilers, configures/builds, runs ctest, and drives a **persist × scale
-  matrix** (115 smoke scenarios → full stress runs), recording every metric to a tracked
+  matrix** (116 smoke scenarios → full stress runs), recording every metric to a tracked
   results DB keyed by a `(os, compiler, build_type, disk, size)` **RunIdentity**. No GitHub
   Actions, no shell scripts. See [docs/Architecture.md](docs/Architecture.md). Testing details are in this README's Quick start section.
 - **C++23 modules and `import std;`, with all its quirks, blessings, and curses.** All three
@@ -98,21 +98,13 @@ For more details on the project, see the other docs in this directory (Benchmark
 | [docs/Verify.md](docs/Verify.md) | valgrind memcheck + helgrind/DRD — method, the tail-reader data race found & fixed, results, and honest limits |
 | [docs/Maturity.md](docs/Maturity.md) | Honest self-assessment on a 12-level scale — where jac313 sits (7.5), and why that's a deliberate ceiling |
 | [docs/Benchmarks.md](docs/Benchmarks.md) | **How to run the throughput suite** — `store_bench --suite` / `--report`, the curated 10 configs, the `--dry-run` command list, and a DB-backed [results page](test-summary/) |
-| [docs/Results.md](docs/Results.md) | v002 results — **pending its first matrix run** (faithful copy of v001; validated green, but no per-platform throughput recorded yet) |
+| [docs/Results.md](docs/Results.md) | v002 results — recorded per-platform in `results.db` and rendered under [test-summary/](test-summary/) (median + low–high band) |
 | Package READMEs | [Qlite](Qlite/README.md) · [jText](jText/README.md) · [Store](Store/README.md) |
-
-> **🚧 Results are being simplified.** The old matrix's `results_db` + committed
-> `test-summary/` report pages are being **retired** — those numbers were never
-> trustworthy (lucky-max headlines, smeared durable rows), so nothing of value is lost.
-> Going forward, throughput comes from the lean [`store_bench` suite](docs/Benchmarks.md)
-> (median + low–high band) and the new results land in **one small database**. The old
-> convoluted reports are going away and the new simple ones are the way forward —
-> **within a few days.**
 
 **Status:** v002 is a **faithful copy of v001**, rebranded to `jac313::*::v002`. It builds clean
 (g++-15, modules + textual) and passed validation (smoke **116/116**; `matrix verify` **60/60**
-valgrind-clean), but has **not** recorded its own per-platform results matrix yet — see
-[docs/Results.md](docs/Results.md). The ISO **C++26** baseline is now in (`cxx_std_26`). We currently use a small number of C++26-era
+valgrind-clean), and records its per-platform results in `results.db` (rendered under
+[test-summary/](test-summary/)). The ISO **C++26** baseline is now in (`cxx_std_26`). We currently use a small number of C++26-era
 library facilities (via shims or workarounds) and a contracts shim that provides runtime checks
 today. Most new C++26 language features are not yet used in the main code. We expect to
 re-evaluate and adopt more C++26 features within the next 12 months. `import std;` carries over
