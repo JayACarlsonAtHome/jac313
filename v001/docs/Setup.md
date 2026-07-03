@@ -213,6 +213,21 @@ differ in any dimension never overwrite each other:
 test-summary/<os>/<compiler>/<build_type>/<disk>/<size>/RUN.md
 ```
 
+### Machine identity (`jac313-###`)
+
+Each VM is keyed in `host_spec` by **cpu + cores + ram_gb + disk + os + instance_hash**, where
+`instance_hash = SHA256(uname nodename)` (computed locally; raw hostname never committed).
+`group_id` is the friendly label `jac313-###`. `host_spec` is shared across v001/v002 (one slot per
+machine); `current_host` is pinned per tree (`v001` / `v002`) so neither overwrites the other's pin.
+After a wipe or on a new VM:
+
+1. `git pull` (code + `results.db`)
+2. `./jac313_test_cli host` — auto-pins when unambiguous
+3. If the fleet table appears: `--claim jac313-###` (same OS+hardware slot) or `--assign-new-###`
+4. Commit + push `results.db` so other machines see the fleet map
+
+Read-only check: `./jac313_test_cli --group-id`.
+
 ### Resetting results
 
 `results.db` is tracked but regenerable. Three committed tools (symlinked at the version root by

@@ -1,0 +1,6 @@
+# Committed per-machine compiler pin. One row per machine, keyed on the hardware identity
+# (cpu / cores / ram_gb / os), labeled jac313-###. bootstrap find-or-creates a row; the
+# chosen gcc/clang are then DETERMINISTIC across runs. Change by editing a row, or:
+#   jac313_test_cli pin --gcc <label> --clang <label>   (labels are from Setup/compilers.conf)
+# TAB-separated: label  cpu_model  cores  ram_gb  os_pretty  gcc_label  clang_label
+jac313-001	Intel(R) Core(TM) Ultra 7 265	4	11	Fedora Linux 44 (Workstation Edition)	gcc16	clang

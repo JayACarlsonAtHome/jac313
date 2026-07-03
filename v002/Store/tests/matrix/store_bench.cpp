@@ -52,6 +52,7 @@
 #include <unistd.h>     // gethostname
 #include "jac313/Qlite/v002/Sqlite.hpp"   // jac313::Qlite::v002::Sqlite — the results DB receiver
 #include "jac313_results_db.hpp"           // jac313::results — shared schema + dimension helpers
+#include "jac313_harness_version.hpp"
 #endif
 
 using namespace jac313::Store::v002;
@@ -447,6 +448,11 @@ std::filesystem::path results_db_path(const std::string& bench_db_path) {
     return (p.has_parent_path() ? p.parent_path() : fs::path(".")) / "results.db";
 }
 
+const std::string& bench_harness_version() {
+    static const std::string ver = jac313::harness_version_from_cwd();
+    return ver;
+}
+
 // Shared schema + the 7 bench-suite testList names (store_bench owns those; the CLI seeds its own).
 void ensure_results_schema(jac313::Qlite::v002::Sqlite& db) {
     jac313::results::ensure_schema(db);
@@ -455,8 +461,8 @@ void ensure_results_schema(jac313::Qlite::v002::Sqlite& db) {
             " ('6 flags, non-durable'),('durable jtext'),('durable sql'),('durable binary')");
 }
 
-std::int64_t results_group_id(jac313::Qlite::v002::Sqlite& db, const HostInfo& h) {
-    return jac313::results::group_id(db, {h.cpu, h.cores, h.ram_gb, h.os});
+std::int64_t results_group_id(jac313::Qlite::v002::Sqlite& db, const HostInfo& /*h*/) {
+    return jac313::results::current_host(db, bench_harness_version());
 }
 
 std::int64_t results_next_run_id(jac313::Qlite::v002::Sqlite& db) {
@@ -511,7 +517,7 @@ void record_to_results_db(const Params& p, const BenchSummary& s) {
         ensure_results_schema(db);
         // Read the pinned machine (set by the CLI/bootstrap). store_bench no longer self-senses the
         // host, so it can't disagree on disk/cores and split the machine into a separate group.
-        const std::int64_t group_id = jac313::results::current_host(db);
+        const std::int64_t group_id = jac313::results::current_host(db, bench_harness_version());
         if (group_id == 0) {
             std::cerr << "[results] no current_host pinned (run a CLI gate or ./bootstrap.sh first) — "
                          "not recording bench rows.\n";
@@ -519,7 +525,7 @@ void record_to_results_db(const Params& p, const BenchSummary& s) {
         }
         const std::int64_t run_id = (p.run_id != 0) ? p.run_id : results_next_run_id(db);
         jac313::results::insert_run(db, run_id, group_id, jac313::results::host_label(group_id),
-                                    "v002",  // JAC313_VERSION value (this tree) — scopes vs v001
+                                    bench_harness_version(),
                                     std::string(jac313::Store::v002::version()),
                                     std::string(jac313::Qlite::v002::version()), p.jtext_ver);
         std::string base = p.label;
@@ -590,7 +596,7 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
     try {
         jac313::Qlite::v002::Sqlite db(results_db_path(base.db_path).string());
         ensure_results_schema(db);
-        gid = jac313::results::current_host(db);
+        gid = jac313::results::current_host(db, bench_harness_version());
     } catch (const std::exception& e) { std::cerr << "[calibrate] DB error: " << e.what() << "\n"; return 1; }
     if (gid == 0) {
         std::cerr << "[calibrate] no current_host pinned (run ./bootstrap.sh or a CLI gate first)\n";
@@ -682,7 +688,7 @@ std::int64_t calibrated_use(const std::string& db_path, const std::string& type,
     try {
         jac313::Qlite::v002::Sqlite db(results_db_path(db_path).string());
         ensure_results_schema(db);
-        const std::int64_t gid = jac313::results::current_host(db);
+        const std::int64_t gid = jac313::results::current_host(db, bench_harness_version());
         if (gid == 0) return fallback;
         return jac313::results::io_best_fit_use(db, gid, type, fallback);
     } catch (...) { return fallback; }

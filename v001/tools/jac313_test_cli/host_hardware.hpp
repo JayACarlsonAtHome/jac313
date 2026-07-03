@@ -22,6 +22,12 @@ struct HostHardwareRecord {
     std::string os_specs;
 };
 
+// uname nodename only — used for instance_hash (never host_label.local override).
+std::string nodename_for_hash();
+
+// True for localhost / localhost.localdomain — forces operator disambiguation.
+bool is_generic_nodename(const std::string& nodename);
+
 HostHardwareRecord collect_host_hardware_record(const std::string& disk_type_label,
                                                 const std::string& os_id = {});
 

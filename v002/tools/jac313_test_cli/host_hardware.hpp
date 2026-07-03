@@ -22,6 +22,9 @@ struct HostHardwareRecord {
     std::string os_specs;
 };
 
+std::string nodename_for_hash();
+bool is_generic_nodename(const std::string& nodename);
+
 HostHardwareRecord collect_host_hardware_record(const std::string& disk_type_label,
                                                 const std::string& os_id = {});
 

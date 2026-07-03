@@ -39,6 +39,12 @@ cd v002 && ./bootstrap.sh        # senses toolchain, REQUIRES valgrind, builds t
 
 After bootstrap, the everyday surface is just `./jac313_test_cli <flags>`.
 
+**First-time machine pin** (clean `results.db`): `./jac313_test_cli host` auto-assigns `jac313-###`
+when unambiguous. Same hardware+OS siblings need `--assign-new-###`; reclaiming an existing slot
+uses `--claim jac313-###`. Identity is cpu+cores+ram+disk+os+`instance_hash` (SHA256 of `uname`
+nodename — never committed raw). `host_spec` is fleet-shared; `current_host` is pinned per tree
+(`v001`/`v002`) so neither overwrites the other on the same machine. See [Setup.md](Setup.md).
+
 ---
 
 ## 1. Functional correctness

@@ -363,6 +363,25 @@ void append_segment(std::ostringstream& out, bool& first, const std::optional<st
 
 } // namespace
 
+std::string nodename_for_hash() {
+    utsname info{};
+    if (uname(&info) == 0 && info.nodename[0] != '\0') {
+        return std::string(info.nodename);
+    }
+    return {};
+}
+
+bool is_generic_nodename(const std::string& nodename) {
+    if (nodename.empty()) {
+        return true;
+    }
+    std::string lower = nodename;
+    for (char& c : lower) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    return lower == "localhost" || lower == "localhost.localdomain";
+}
+
 std::string detect_disk_type(const std::string& dir) {
     const auto disks = backing_disks(dir.empty() ? std::string(".") : dir);
     if (disks.empty()) {

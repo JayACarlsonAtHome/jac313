@@ -2,6 +2,7 @@ add_executable(jac313_test_cli
     jac313_test_cli/main.cpp
     jac313_test_cli/manifest.cpp
     jac313_test_cli/host_hardware.cpp
+    jac313_test_cli/host_pin.cpp
     jac313_test_cli/runner.cpp
     jac313_test_cli/report.cpp
     jac313_test_cli/process.cpp
@@ -42,6 +43,23 @@ if(TARGET jac313::Qlite)
     target_link_libraries(jac313_identity_dedup_test PRIVATE jac313::Qlite)
 endif()
 add_test(NAME jac313_identity_dedup_test COMMAND jac313_identity_dedup_test)
+
+add_executable(jac313_host_group_test
+    jac313_test_cli/tests/host_group_test.cpp
+)
+target_include_directories(jac313_host_group_test PRIVATE ${CMAKE_SOURCE_DIR}/shared)
+target_compile_features(jac313_host_group_test PRIVATE cxx_std_23)
+if(TARGET jac313::Qlite)
+    target_link_libraries(jac313_host_group_test PRIVATE jac313::Qlite)
+endif()
+add_test(NAME jac313_host_group_test COMMAND jac313_host_group_test)
+
+add_executable(jac313_instance_hash_test
+    jac313_test_cli/tests/instance_hash_test.cpp
+)
+target_include_directories(jac313_instance_hash_test PRIVATE ${CMAKE_SOURCE_DIR}/shared)
+target_compile_features(jac313_instance_hash_test PRIVATE cxx_std_23)
+add_test(NAME jac313_instance_hash_test COMMAND jac313_instance_hash_test)
 
 # jac313_wipe_all — standalone results.db reset tool (schema + testType enum kept;
 # data + host_spec + current_host pin cleared). Built by bootstrap; symlinked at the v001 root.

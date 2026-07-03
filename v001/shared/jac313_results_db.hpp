@@ -17,7 +17,9 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace jac313::results {
 
@@ -159,9 +161,10 @@ inline void ensure_schema(Sqlite& db) {
             db.exec("ALTER TABLE run ADD COLUMN version TEXT");
         }
     }
-    // host_spec = the hardware identity, ONE row per machine (group_id). cpu/cores/ram_gb/os/disk are
-    // the group_id key (disk in the key: x7k vs 10k vs ssd on one box -> distinct groups, durable
-    // throughput being disk-bound); p_cores / cpu_mhz_min / cpu_mhz_max are display-only (machines table).
+    // host_spec = the hardware identity, ONE row per machine (group_id). cpu/cores/ram_gb/os/disk/
+    // instance_hash are the group_id key (disk in the key: x7k vs 10k vs ssd on one box -> distinct
+    // groups; instance_hash = SHA256(uname nodename) distinguishes same-hw/same-os VMs). p_cores /
+    // cpu_mhz_min / cpu_mhz_max are display-only (machines table).
     db.exec("CREATE TABLE IF NOT EXISTS host_spec (\n"
             "    group_id INTEGER PRIMARY KEY\n"
             "  , cpu TEXT\n"
@@ -172,12 +175,14 @@ inline void ensure_schema(Sqlite& db) {
             "  , cpu_mhz_max INTEGER\n"
             "  , disk TEXT\n"
             "  , os TEXT\n"
+            "  , instance_hash TEXT NOT NULL\n"
             ")");
-    // current_host = the single row naming which machine THIS checkout is (group_id). bootstrap/CLI
-    // set it when they sense; store_bench READS it instead of self-sensing.
+    // current_host = per JAC313_VERSION pin (group_id) for THIS checkout. v001 and v002 on the same
+    // machine share host_spec (one jac313-###) but each tree keeps its own pin row so neither
+    // overwrites the other's committed pin in results.db. store_bench READS its version's row.
     db.exec("CREATE TABLE IF NOT EXISTS current_host (\n"
-            "    id INTEGER PRIMARY KEY CHECK(id=1)\n"
-            "  , group_id INTEGER\n"
+            "    version TEXT PRIMARY KEY\n"
+            "  , group_id INTEGER NOT NULL\n"
             ")");
     db.exec("CREATE TABLE IF NOT EXISTS testRun (\n"
             "    id INTEGER PRIMARY KEY\n"
@@ -357,49 +362,267 @@ inline std::int64_t compiler_id(Sqlite& db, const CompilerInfo& c) {
 }
 
 // ---- machine identity + run ----
-// Identity (group_id key) = cpu, cores, ram_gb, os, disk. The trailing p_cores / cpu_mhz_min /
-// cpu_mhz_max are DISPLAY-ONLY (machines table) — carried here for convenience, NOT part of the key.
+// Identity (group_id key) = cpu, cores, ram_gb, os, disk, instance_hash. The trailing p_cores /
+// cpu_mhz_min / cpu_mhz_max are DISPLAY-ONLY (machines table) — carried here for convenience,
+// NOT part of the key.
 struct HostId { std::string cpu; std::int64_t cores = 0; std::int64_t ram_gb = 0; std::string os; std::string disk;
+                std::string instance_hash;
                 std::int64_t p_cores = 0; std::int64_t cpu_mhz_min = 0; std::int64_t cpu_mhz_max = 0; };
 
 inline std::string host_label(std::int64_t group_id) {
     char b[24]; std::snprintf(b, sizeof b, "jac313-%03lld", static_cast<long long>(group_id)); return b;
 }
 
-// group_id is keyed on hardware+os+disk (host is recorded as the anonymized label). Disk tier is in
-// the key so the same box on x7k vs 10k vs ssd resolves to DISTINCT groups (durable throughput is
-// disk-bound). Both writers must build HostId identically so a machine resolves to one group.
-inline std::int64_t group_id(Sqlite& db, const HostId& h) {
+inline std::string hash_prefix(const std::string& hash, std::size_t n = 8) {
+    return hash.size() <= n ? hash : hash.substr(0, n);
+}
+
+// Parse jac313-### (or plain ###) into group_id; throws on bad input.
+inline std::int64_t parse_group_label(const std::string& label) {
+    std::string s = label;
+    if (s.rfind("jac313-", 0) == 0) {
+        s = s.substr(7);
+    }
+    if (s.empty()) {
+        throw std::invalid_argument("empty group label");
+    }
+    for (char c : s) {
+        if (c < '0' || c > '9') {
+            throw std::invalid_argument("group label must be numeric: " + label);
+        }
+    }
+    return std::stoll(s);
+}
+
+// True when two sensed identities are the same machine (the host_spec / group_id key).
+inline bool host_identity_matches(const HostId& a, const HostId& b) {
+    return a.cpu == b.cpu && a.cores == b.cores && a.ram_gb == b.ram_gb
+        && a.os == b.os && a.disk == b.disk && a.instance_hash == b.instance_hash;
+}
+
+// Same hardware + OS template, ignoring instance_hash (for ambiguity / claim checks).
+inline bool same_os_hw(const HostId& a, const HostId& b) {
+    return a.cpu == b.cpu && a.cores == b.cores && a.ram_gb == b.ram_gb
+        && a.os == b.os && a.disk == b.disk;
+}
+
+// Load the stored identity for a group_id; returns false when the row is missing.
+inline bool load_host_spec(Sqlite& db, std::int64_t gid, HostId& out) {
+    auto st = db.prepare("SELECT cpu, cores, ram_gb, os, disk, instance_hash, p_cores, cpu_mhz_min, cpu_mhz_max "
+                         "FROM host_spec WHERE group_id=? LIMIT 1");
+    st.bind(gid);
+    if (!st.step()) return false;
+    st.get(out.cpu, out.cores, out.ram_gb, out.os, out.disk, out.instance_hash,
+           out.p_cores, out.cpu_mhz_min, out.cpu_mhz_max);
+    return true;
+}
+
+inline std::int64_t find_exact_group(Sqlite& db, const HostId& h) {
     std::int64_t gid = 0;
-    { auto st = db.prepare("SELECT group_id FROM host_spec WHERE cpu=? AND cores=? AND ram_gb=? AND os=? AND disk=? LIMIT 1");
-      st.bind(h.cpu, h.cores, h.ram_gb, h.os, h.disk); if (st.step()) st.get(gid); }
-    if (gid == 0) { auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM host_spec"); if (st.step()) st.get(gid); }
+    auto st = db.prepare("SELECT group_id FROM host_spec WHERE cpu=? AND cores=? AND ram_gb=? AND os=? AND disk=? "
+                         "AND instance_hash=? LIMIT 1");
+    st.bind(h.cpu, h.cores, h.ram_gb, h.os, h.disk, h.instance_hash);
+    if (st.step()) st.get(gid);
     return gid;
+}
+
+inline std::vector<std::int64_t> find_same_os_hw_candidates(Sqlite& db, const HostId& h) {
+    std::vector<std::int64_t> out;
+    auto st = db.prepare("SELECT group_id FROM host_spec WHERE cpu=? AND cores=? AND ram_gb=? AND os=? AND disk=? "
+                         "AND instance_hash<>? ORDER BY group_id");
+    st.bind(h.cpu, h.cores, h.ram_gb, h.os, h.disk, h.instance_hash);
+    while (st.step()) {
+        std::int64_t gid = 0;
+        st.get(gid);
+        out.push_back(gid);
+    }
+    return out;
+}
+
+inline std::int64_t next_auto_group_id(Sqlite& db) {
+    std::int64_t gid = 1;
+    auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM host_spec");
+    if (st.step()) st.get(gid);
+    return gid;
+}
+
+inline bool group_id_taken(Sqlite& db, std::int64_t gid) {
+    std::int64_t n = 0;
+    auto st = db.prepare("SELECT COUNT(*) FROM host_spec WHERE group_id=?");
+    st.bind(gid);
+    if (st.step()) st.get(n);
+    return n > 0;
 }
 
 // Upsert this machine's hardware row (one per group_id).
 inline void upsert_host_spec(Sqlite& db, std::int64_t gid, const HostId& h) {
-    db.exec("INSERT OR REPLACE INTO host_spec(group_id, cpu, cores, p_cores, ram_gb, cpu_mhz_min, cpu_mhz_max, disk, os) "
-            "VALUES(?,?,?,?,?,?,?,?,?)",
-            gid, h.cpu, h.cores, h.p_cores, h.ram_gb, h.cpu_mhz_min, h.cpu_mhz_max, h.disk, h.os);
+    db.exec("INSERT OR REPLACE INTO host_spec(group_id, cpu, cores, p_cores, ram_gb, cpu_mhz_min, cpu_mhz_max, "
+            "disk, os, instance_hash) VALUES(?,?,?,?,?,?,?,?,?,?)",
+            gid, h.cpu, h.cores, h.p_cores, h.ram_gb, h.cpu_mhz_min, h.cpu_mhz_max, h.disk, h.os, h.instance_hash);
 }
-// Pin which machine THIS checkout is (the single current_host row).
-inline void set_current_host(Sqlite& db, std::int64_t gid) {
-    db.exec("INSERT OR REPLACE INTO current_host(id, group_id) VALUES(1, ?)", gid);
+// Pin which machine THIS checkout is (one row per JAC313_VERSION).
+inline void set_current_host(Sqlite& db, std::int64_t gid, const std::string& version) {
+    db.exec("INSERT OR REPLACE INTO current_host(version, group_id) VALUES(?, ?)", version, gid);
 }
-// Read the pinned group_id (0 if not yet set).
-inline std::int64_t current_host(Sqlite& db) {
+// Read the pinned group_id for this tree (0 if not yet set).
+inline std::int64_t current_host(Sqlite& db, const std::string& version) {
     std::int64_t gid = 0;
-    { auto st = db.prepare("SELECT group_id FROM current_host WHERE id=1"); if (st.step()) st.get(gid); }
+    { auto st = db.prepare("SELECT group_id FROM current_host WHERE version=?");
+      st.bind(version); if (st.step()) st.get(gid); }
     return gid;
 }
-// Resolve this machine: find-or-assign group_id, write host_spec + current_host, return group_id.
-// The CLI/bootstrap call this when they sense; store_bench just reads current_host().
-inline std::int64_t pin_host(Sqlite& db, const HostId& h) {
-    const std::int64_t gid = group_id(db, h);
-    upsert_host_spec(db, gid, h);
-    set_current_host(db, gid);
-    return gid;
+
+// True when this version's pin names a host_spec row that does not match the sensed machine
+// (stale pin from another box in the committed results.db).
+inline bool current_host_is_stale(Sqlite& db, const HostId& h, const std::string& version) {
+    const std::int64_t pinned = current_host(db, version);
+    if (pinned == 0) return false;
+    HostId stored{};
+    if (!load_host_spec(db, pinned, stored)) return true;
+    return !host_identity_matches(h, stored);
+}
+
+enum class HostPinError {
+    None,
+    Ambiguous,
+    InvalidLabel,
+    ClaimNotFound,
+    ClaimOsMismatch,
+    ClaimHwMismatch,
+    ClaimHashConflict,
+    AssignTaken,
+    ConflictingFlags,
+};
+
+struct HostPinOptions {
+    std::string claim;          // jac313-### or ###
+    std::int64_t assign_new = 0; // explicit ### (0 = unset)
+};
+
+struct HostPinResult {
+    HostPinError error = HostPinError::None;
+    std::int64_t gid = 0;
+    std::string message;
+    std::vector<std::int64_t> ambiguous_candidates;
+    bool generic_nodename = false;
+};
+
+// Read-only: propose group_id without writing host_spec or current_host.
+inline HostPinResult propose_group_id(Sqlite& db, const HostId& h, bool generic_nodename) {
+    HostPinResult r;
+    r.generic_nodename = generic_nodename;
+    if (const std::int64_t exact = find_exact_group(db, h); exact != 0) {
+        r.gid = exact;
+        return r;
+    }
+    r.ambiguous_candidates = find_same_os_hw_candidates(db, h);
+    if (!r.ambiguous_candidates.empty() || generic_nodename) {
+        r.error = HostPinError::Ambiguous;
+        r.message = generic_nodename
+            ? "generic nodename — use --claim jac313-### or --assign-new-###"
+            : "same hardware+OS, different instance_hash — use --claim jac313-### or --assign-new-###";
+        return r;
+    }
+    r.gid = next_auto_group_id(db);
+    return r;
+}
+
+// Bind sensed identity to an existing jac313-### slot (same OS+hw only).
+inline HostPinResult claim_group(Sqlite& db, const HostId& h, const std::string& label) {
+    HostPinResult r;
+    std::int64_t gid = 0;
+    try {
+        gid = parse_group_label(label);
+    } catch (const std::exception& e) {
+        r.error = HostPinError::InvalidLabel;
+        r.message = e.what();
+        return r;
+    }
+    HostId stored{};
+    if (!load_host_spec(db, gid, stored)) {
+        r.error = HostPinError::ClaimNotFound;
+        r.message = "no host_spec row for " + host_label(gid);
+        return r;
+    }
+    if (stored.os != h.os) {
+        r.error = HostPinError::ClaimOsMismatch;
+        r.message = host_label(gid) + " is " + stored.os + ", this machine is " + h.os;
+        return r;
+    }
+    if (!same_os_hw(h, stored)) {
+        r.error = HostPinError::ClaimHwMismatch;
+        r.message = host_label(gid) + " hardware does not match this machine";
+        return r;
+    }
+    if (!stored.instance_hash.empty() && stored.instance_hash != h.instance_hash) {
+        r.error = HostPinError::ClaimHashConflict;
+        r.message = host_label(gid) + " is bound to instance_hash " + hash_prefix(stored.instance_hash)
+                  + " (this machine is " + hash_prefix(h.instance_hash) + ")";
+        return r;
+    }
+    r.gid = gid;
+    return r;
+}
+
+// Create a new slot at an explicit ###.
+inline HostPinResult assign_new_group(Sqlite& db, const HostId& h, std::int64_t gid) {
+    HostPinResult r;
+    if (gid <= 0) {
+        r.error = HostPinError::InvalidLabel;
+        r.message = "assign-new requires a positive group number";
+        return r;
+    }
+    if (group_id_taken(db, gid)) {
+        r.error = HostPinError::AssignTaken;
+        r.message = host_label(gid) + " is already taken";
+        return r;
+    }
+    r.gid = gid;
+    return r;
+}
+
+// Resolve group_id from flags or auto path (does not write).
+inline HostPinResult resolve_group_id(Sqlite& db, const HostId& h, const HostPinOptions& opts,
+                                     bool generic_nodename) {
+    HostPinResult r;
+    if (!opts.claim.empty() && opts.assign_new > 0) {
+        r.error = HostPinError::ConflictingFlags;
+        r.message = "use only one of --claim or --assign-new-###";
+        return r;
+    }
+    if (!opts.claim.empty()) {
+        return claim_group(db, h, opts.claim);
+    }
+    if (opts.assign_new > 0) {
+        return assign_new_group(db, h, opts.assign_new);
+    }
+    return propose_group_id(db, h, generic_nodename);
+}
+
+// Resolve group_id, upsert host_spec (shared fleet row), THEN pin current_host for this version.
+inline HostPinResult resolve_and_pin(Sqlite& db, const HostId& h, const HostPinOptions& opts,
+                                     bool generic_nodename, const std::string& version) {
+    HostPinResult r = resolve_group_id(db, h, opts, generic_nodename);
+    if (r.error != HostPinError::None) {
+        return r;
+    }
+    upsert_host_spec(db, r.gid, h);
+    set_current_host(db, r.gid, version);
+    return r;
+}
+
+// Convenience wrapper (no flags, no generic-nodename guard).
+inline std::int64_t pin_host(Sqlite& db, const HostId& h, const std::string& version) {
+    const HostPinResult r = resolve_and_pin(db, h, {}, false, version);
+    if (r.error != HostPinError::None) {
+        throw std::runtime_error(r.message.empty() ? "host pin failed" : r.message);
+    }
+    return r.gid;
+}
+
+// Read-only: exact 6-tuple match only (0 if none).
+inline std::int64_t group_id(Sqlite& db, const HostId& h) {
+    return find_exact_group(db, h);
 }
 
 // Delete the most recent run (and its testRun/runEvent rows) for this group + optional JAC313_VERSION.

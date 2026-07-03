@@ -6,13 +6,25 @@
 #include <string>
 #include <vector>
 
+#include "jac313_harness_version.hpp"
+
 namespace jac313::test_cli {
 
 struct GlobalOptions {
     std::filesystem::path build_dir{"build"};
     std::filesystem::path source_dir;
     bool verbose{false};
+    std::string host_claim;           // --claim jac313-###
+    std::int64_t host_assign_new{0};  // --assign-new-### or --assign-new N
 };
+
+inline std::string harness_version(const GlobalOptions& global) {
+    // Subcommands invoked from run_latest_config.sh often pass only --build-dir; fall back to cwd.
+    if (global.source_dir.empty()) {
+        return jac313::harness_version_from_cwd();
+    }
+    return jac313::harness_version_from_source_dir(global.source_dir);
+}
 
 struct ConfigureOptions {
     std::optional<std::string> compiler;  // set by --compiler; empty = auto-detect
