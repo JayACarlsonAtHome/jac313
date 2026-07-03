@@ -45,35 +45,35 @@ _Generated from `results.db`. Throughput is hardware-specific, so each machine (
 
 ### Non-durable (flag sweep)  _(median ops/sec, descending)_
 
-| config | [clang21](Run_031.md)<br>median ops/sec | clang21<br>band | clang21<br>size | [gcc15](Run_030.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
+| config | [clang21](Run_127.md)<br>median ops/sec | clang21<br>band | clang21<br>size | [gcc15](Run_126.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
 |---|--:|:--:|--:|--:|:--:|--:|
-| 4 flags, non-durable | 9,249,419 | 8.69M–9.62M | 0 B | 8,877,728 | 7.87M–9.05M | 0 B |
-| 6 flags, non-durable | 9,214,058 | 8.27M–9.46M | 0 B | 8,398,778 | 8.20M–8.95M | 0 B |
-| 2 flags, non-durable | 9,150,812 | 8.46M–9.37M | 0 B | 8,467,365 | 8.15M–8.90M | 0 B |
-| 0 flags, non-durable | 9,090,803 | 8.43M–9.50M | 0 B | 8,321,865 | 3.66M–8.92M | 0 B |
+| 0 flags, non-durable | 9,242,117 | 8.90M–9.74M | 0 B | 6,280,291 | 5.87M–6.55M | 0 B |
+| 2 flags, non-durable | 9,234,381 | 9.00M–9.69M | 0 B | 6,562,452 | 6.23M–6.73M | 0 B |
+| 4 flags, non-durable | 9,182,549 | 8.91M–9.57M | 0 B | 7,475,593 | 6.55M–7.87M | 0 B |
+| 6 flags, non-durable | 9,155,985 | 8.66M–9.55M | 0 B | 7,608,716 | 7.31M–7.89M | 0 B |
 
 ### Durable @ 1M events  _(median ops/sec, descending)_
 
-| config | [clang21](Run_031.md)<br>median ops/sec | clang21<br>band | clang21<br>size | [gcc15](Run_030.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
+| config | [clang21](Run_127.md)<br>median ops/sec | clang21<br>band | clang21<br>size | [gcc15](Run_126.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
 |---|--:|:--:|--:|--:|:--:|--:|
-| durable binary | 878,779 | 842.02K–903.18K | 83.78 MB | 910,453 | 810.36K–941.95K | 83.78 MB |
-| durable jtext | 746,595 | 629.34K–794.76K | 80.77 MB | 785,311 | 757.18K–847.56K | 80.77 MB |
-| durable sql | 525,342 | 513.66K–533.04K | 75.03 MB | 530,686 | 515.20K–540.16K | 75.01 MB |
+| durable binary | 853,714 | 841.67K–900.48K | 83.78 MB | 852,227 | 850.69K–853.65K | 83.78 MB |
+| durable jtext | 797,118 | 762.86K–804.03K | 80.78 MB | 775,695 | 706.10K–798.57K | 80.75 MB |
+| durable sql | 574,099 | 558.24K–575.46K | 75.05 MB | 559,121 | 558.02K–572.48K | 75.01 MB |
 
 ### Durable @ 10M events  _(median ops/sec, descending)_
 
-| config | [clang21](Run_031.md)<br>median ops/sec | clang21<br>band | clang21<br>size | [gcc15](Run_030.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
+| config | [clang21](Run_127.md)<br>median ops/sec | clang21<br>band | clang21<br>size | [gcc15](Run_126.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
 |---|--:|:--:|--:|--:|:--:|--:|
-| durable binary | 939,190 | 897.31K–954.00K | 837.80 MB | 998,842 | 847.81K–1.02M | 837.80 MB |
-| durable jtext | 797,754 | 773.06K–798.41K | 836.19 MB | 779,552 | 742.09K–787.38K | 836.17 MB |
-| durable sql | 669,713 | 644.89K–697.49K | 772.01 MB | 683,286 | 673.70K–689.40K | 771.95 MB |
+| durable binary | 939,580 | 825.50K–947.33K | 837.80 MB | 958,542 | 886.91K–965.73K | 837.80 MB |
+| durable jtext | 790,111 | 788.61K–826.08K | 836.12 MB | 773,727 | 720.84K–791.10K | 836.06 MB |
+| durable sql | 688,598 | 679.17K–701.73K | 772.31 MB | 705,485 | 694.48K–760.47K | 772.04 MB |
 
 **Runs** (newest first):
 
 | run | compiler · recorded |
 |---|---|
-| [Run_031](Run_031.md) | clang21 · 2026-07-03T06:00:59Z |
-| [Run_030](Run_030.md) | gcc15 · 2026-07-03T05:58:01Z |
+| [Run_127](Run_127.md) | clang21 · 2026-07-03T21:39:06Z |
+| [Run_126](Run_126.md) | gcc15 · 2026-07-03T21:36:03Z |
 
 ## jac313-003 — Intel(R) Core(TM) Ultra 7 265 · 4 cores · 11 GB · linuxmint-22.3 · x7k
 

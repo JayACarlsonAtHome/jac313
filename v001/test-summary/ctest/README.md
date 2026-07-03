@@ -53,7 +53,7 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 
 ## jac313-002 — Intel(R) Core(TM) Ultra 7 265 · 4 cores · 11 GB · rhel-10.2 · x7k
 
-| scenario | [clang21](Run_028.md) | [gcc15](Run_025.md) |
+| scenario | [clang21](Run_124.md) | [gcc15](Run_121.md) |
 |---|--:|--:|
 | jac313_host_group_test | 50 | 50 |
 | jac313_identity_dedup_test | 50 | 50 |
@@ -76,26 +76,26 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | jac313_store_006_XS | 50 | 50 |
 | jac313_store_007_TS | 50 | 50 |
 | jac313_store_007_XS | 50 | 50 |
-| jac313_store_008_TS | 150 | 100 |
-| jac313_store_008_XS | 200 | 150 |
+| jac313_store_008_TS | 250 | 501 |
+| jac313_store_008_XS | 251 | 300 |
 | jac313_store_bench_smoke | 50 | 50 |
-| jac313_store_binary_persist_smoke | 50 | 50 |
-| jac313_store_binary_reader_test | 100 | 100 |
+| jac313_store_binary_persist_smoke | 50 | 51 |
+| jac313_store_binary_reader_test | 150 | 150 |
 | jac313_store_binary_to_jtext_smoke | 150 | 150 |
-| jac313_store_flag_routing_smoke | 251 | 251 |
+| jac313_store_flag_routing_smoke | 401 | 150 |
 | jac313_store_flags | 50 | 50 |
-| jac313_store_jtext_persist_smoke | 100 | 100 |
+| jac313_store_jtext_persist_smoke | 150 | 100 |
 | jac313_store_metric_view | 50 | 50 |
 | jac313_store_metric_view_test | 50 | 50 |
-| jac313_store_sql_persist_smoke | 300 | 301 |
+| jac313_store_sql_persist_smoke | 404 | 200 |
 | jac313_store_v001_test | 50 | 50 |
 
 **Runs** (newest first):
 
 | run | compiler · recorded |
 |---|---|
-| [Run_028](Run_028.md) | clang21 · 2026-07-03T05:54:32Z |
-| [Run_025](Run_025.md) | gcc15 · 2026-07-03T05:53:56Z |
+| [Run_124](Run_124.md) | clang21 · 2026-07-03T21:32:31Z |
+| [Run_121](Run_121.md) | gcc15 · 2026-07-03T21:31:42Z |
 
 ## jac313-003 — Intel(R) Core(TM) Ultra 7 265 · 4 cores · 11 GB · linuxmint-22.3 · x7k
 

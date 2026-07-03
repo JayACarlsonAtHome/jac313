@@ -57,10 +57,10 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 
 ## jac313-002 — Intel(R) Core(TM) Ultra 7 265 · 4 cores · 11 GB · rhel-10.2 · x7k
 
-| scenario | [clang21](Run_041.md) | [gcc15](Run_038.md) |
+| scenario | [clang21](Run_137.md) | [gcc15](Run_134.md) |
 |---|--:|--:|
 | jac313_contracts_disabled_test | 50 | 50 |
-| jac313_contracts_enforce_test | 200 | 203 |
+| jac313_contracts_enforce_test | 200 | 300 |
 | jac313_contracts_test | 50 | 50 |
 | jac313_host_group_test | 50 | 50 |
 | jac313_identity_dedup_test | 50 | 50 |
@@ -83,27 +83,27 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | jac313_store_006_XS | 50 | 50 |
 | jac313_store_007_TS | 50 | 50 |
 | jac313_store_007_XS | 50 | 50 |
-| jac313_store_008_TS | 200 | 200 |
-| jac313_store_008_XS | 200 | 201 |
+| jac313_store_008_TS | 200 | 251 |
+| jac313_store_008_XS | 150 | 150 |
 | jac313_store_bench_smoke | 50 | 50 |
 | jac313_store_binary_persist_smoke | 50 | 50 |
-| jac313_store_binary_reader_test | 150 | 150 |
-| jac313_store_binary_to_jtext_smoke | 101 | 100 |
-| jac313_store_flag_routing_smoke | 250 | 250 |
+| jac313_store_binary_reader_test | 200 | 200 |
+| jac313_store_binary_to_jtext_smoke | 151 | 150 |
+| jac313_store_flag_routing_smoke | 301 | 301 |
 | jac313_store_flags | 50 | 50 |
 | jac313_store_jtext_persist_smoke | 100 | 100 |
 | jac313_store_metric_view | 50 | 50 |
 | jac313_store_metric_view_test | 50 | 50 |
 | jac313_store_saturating_capacity_test | 50 | 50 |
-| jac313_store_sql_persist_smoke | 300 | 250 |
+| jac313_store_sql_persist_smoke | 502 | 401 |
 | jac313_store_v002_test | 50 | 50 |
 
 **Runs** (newest first):
 
 | run | compiler · recorded |
 |---|---|
-| [Run_041](Run_041.md) | clang21 · 2026-07-03T06:12:42Z |
-| [Run_038](Run_038.md) | gcc15 · 2026-07-03T06:11:58Z |
+| [Run_137](Run_137.md) | clang21 · 2026-07-03T21:47:31Z |
+| [Run_134](Run_134.md) | gcc15 · 2026-07-03T21:46:10Z |
 
 ## jac313-003 — Intel(R) Core(TM) Ultra 7 265 · 4 cores · 11 GB · linuxmint-22.3 · x7k
 
