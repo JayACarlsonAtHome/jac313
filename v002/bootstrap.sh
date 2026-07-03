@@ -19,8 +19,10 @@
 #      never requires it.
 #   4. Otherwise -> build jac313_test_cli once and hand off ('setup' for readiness;
 #      '--run-everything' for the full battery).
+#   5. Sense + pin this machine as jac313-### (host_spec + current_host). Auto-pins when
+#      unambiguous; otherwise bootstrap stops with --claim / --assign-new-### directions.
 #
-# Re-run after Setup.sh. Idempotent.
+# Re-run after Setup.sh or after a manual host pin. Idempotent.
 set -eu
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -333,7 +335,21 @@ $ACT "$CLI" setup
 # Sense + pin THIS machine (host_spec + current_host) and show the hardware grid, so every later
 # gate — and store_bench — record under the same jac313-### without re-sensing.
 echo
-$ACT "$CLI" host
+if ! $ACT "$CLI" host; then
+  echo
+  echo "=== host pin required — bootstrap paused ==="
+  echo "Every gate records under a fleet label (jac313-###). Auto-pin failed above."
+  echo
+  echo "  1. Inspect the fleet table and this machine's hardware (printed above)."
+  echo "  2. Choose ONE:"
+  echo "       $ACT $CLI host --claim jac313-###       # reuse an existing slot (same OS+hardware)"
+  echo "       $ACT $CLI host --assign-new-###         # new slot (e.g. --assign-new-002)"
+  echo "  3. Re-run: ./bootstrap.sh"
+  echo
+  echo "Read-only precheck: $ACT $CLI --group-id"
+  echo "Details: docs/Setup.md (Machine identity)"
+  exit 1
+fi
 
 echo
 echo "Bootstrap complete. Run the everyday base check from v002/:"

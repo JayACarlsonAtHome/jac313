@@ -7,7 +7,9 @@ _Generated from `results.db`._
 
 | label | name | version | major | runs |
 |---|---|---|--:|--:|
+| clang21 | clang | 21.1.8 | 21 | 6 |
 | clang22 | clang | 22.1.8 | 22 | 6 |
+| gcc15 | gcc | 15.2.1 | 15 | 7 |
 | gcc16 | gcc | 16.1.1 | 16 | 7 |
 
 ---

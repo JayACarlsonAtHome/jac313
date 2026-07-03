@@ -95,6 +95,19 @@ installs after it. Either path does privileged installs; review, then proceed.
 # answer [y/N] when the provisioner shows its plan; re-run bootstrap when it finishes — idempotent
 ```
 
+Bootstrap ends with a **host pin** (`jac313_test_cli host`): it senses this machine's hardware and
+records it as `jac313-###` in `test-summary/results.db` so every gate shares one fleet label.
+Auto-pin works when identity is unambiguous; otherwise bootstrap **pauses** and prints the fleet
+table plus next steps:
+
+```bash
+./jac313_test_cli host --claim jac313-###       # bind to an existing slot (same OS+hardware)
+./jac313_test_cli host --assign-new-###         # new slot at an explicit number
+./bootstrap.sh                                  # re-run after pinning
+```
+
+Read-only check: `./jac313_test_cli --group-id`. See [Machine identity](#machine-identity-jac313-) below.
+
 If CMake is present but not the exact pinned version `import std;` needs (RHEL's 3.31.8, Mint's
 3.28), bootstrap **offers** the no-sudo `~/.local` install above (`y/N`, advisory only — the
 baseline never requires it).
