@@ -7,7 +7,6 @@ generated from `results.db` by `jac313_test_cli --report`. See:
 - `test-summary/bench/README.md` for throughput (per-machine, median + band for non-durable
   and durable configs at 1M/10M scales)
 
-**Before trusting any `ops/sec` figure, read [HowToReadResults.md](HowToReadResults.md).**
 Current reports use **median ops/sec + low–high band** (durable flushes counted inside the
 timed region). Older "Peak ops/sec (fastest-of-N)" figures from functional-matrix logs are
 historical/legacy.

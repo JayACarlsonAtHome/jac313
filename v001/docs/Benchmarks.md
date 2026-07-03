@@ -126,4 +126,4 @@ fixes: binary's old ~2.7M stopped the clock *before* its `msync`, and jText's ol
 band**: a one-off fsync stall lands in the band, where median+band beats average
 (which the stall drags down) and "fastest" (which hides it).
 
-For what each number means, see [HowToReadResults.md](HowToReadResults.md).
+For what each number means, see the Quick Start in this README or the live reports in `test-summary/bench/`.

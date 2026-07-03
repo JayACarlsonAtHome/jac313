@@ -6,7 +6,6 @@ rendered into per-version `test-summary/` directories from the shared `results.d
 - The version's `test-summary/README.md` for safeness summary + links to detailed reports
 - `test-summary/bench/README.md` for throughput (per-machine median + band)
 
-**Before trusting any `ops/sec` figure, read [HowToReadResults.md](HowToReadResults.md).**
 Current reports use **median + low–high band**. Older "Peak ops/sec (fastest-of-N)" figures
 from functional-matrix logs are historical.
 
