@@ -47,7 +47,7 @@ run's output (it lands in `test-results/`, gitignored, regenerable) and is **ide
 Debug/Release** — same data written. The run is **CPU-bound, not disk-bound** (~610 MB over
 ~9 min ≈ 1 MB/s), so disk type barely matters. (Peak is the lock-free path; with persistence
 attached a per-event mutex serializes the producer — see
-[memory & concurrency](verify.md).)
+[memory & concurrency](Verify.md).)
 
 ### g++-15 vs clang (Linux Mint)
 
@@ -251,7 +251,7 @@ reference on absolute throughput, as expected, and RunIdentity keeps each
 wall times (~10 m) land right alongside the SSD boxes. Same data is written under Debug and Release;
 it lands in `test-results/` (gitignored, regenerable). The peak figure is the lock-free in-memory
 path; with persistence attached a per-event mutex serializes the producer (see
-[memory & concurrency](verify.md)).
+[memory & concurrency](Verify.md)).
 
 On CMake 4.3.3 the **`import std;`** pilot configures and builds for all three modules; the
 std-module build measured **≈ +0.6 s (~+6%)** against textual modules on this box's g++-15 — small,

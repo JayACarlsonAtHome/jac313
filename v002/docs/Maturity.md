@@ -33,7 +33,7 @@ The honest split is **craft vs. structure**, and they're at different rungs.
 - **RunIdentity**: one definition driving DB keys, the results path, and rendered pages, so they can't drift;
 - a multi-compiler × build-type × persist-backend matrix, smoke and full tiers;
 - a measured `import std` module experiment (recorded, not hand-waved);
-- a **valgrind memcheck + helgrind/DRD pre-push gate** ([verify-lite](verify.md)) that already found and fixed a real data race (and, recently, scrubs the std::atomic helgrind/DRD false positives before recording);
+- a **valgrind memcheck + helgrind/DRD pre-push gate** ([verify-lite](Verify.md)) that already found and fixed a real data race (and, recently, scrubs the std::atomic helgrind/DRD false positives before recording);
 - and the recent doc consolidation + simplified results reporting (deleting the detailed HowToReadResults.md because "the results are simple now") showing high confidence and craft in self-documentation.
 
 **The structure is what caps it.** No CI, no releases, one author, results committed into the repo. That's a 6–7 shape. The composite lands at a defensible **7.5 — "very good professional *solo* work, with craft pushing toward hardened."**
