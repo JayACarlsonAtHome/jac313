@@ -66,6 +66,32 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 
 ---
 
+## Quick start
+
+Run from inside the `v002/` directory.
+
+```bash
+./bootstrap.sh                      # (you may have to run this more than once)
+
+./jac313_test_cli --ctest           # the smallest of all testing
+./jac313_test_cli --smoke           # mid level testing
+./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
+```
+
+`./bootstrap.sh` prepares everything (compilers, headers, valgrind, etc.). You may need sudo once and will likely run it twice the first time.
+
+`./jac313_test_cli` is the one main command:
+
+- `--ctest` — smallest check
+- `--smoke` — typical daily test (recommended starting point)
+- `--run-everything` — full battery on both compilers (ctest + smoke + bench + verify)
+
+This is the minimum to get set up and see results. The tools hide the complexity so you can start working immediately.
+
+For more details on the project, see the other docs in this directory (Benchmarks.md, Results.md, Architecture.md, etc.).
+
+---
+
 ## Documentation
 
 | Doc | Contents |
@@ -91,32 +117,6 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 > [`store_bench` suite](docs/Benchmarks.md) (median + low–high band) and the new results
 > land in **one small database**. The old convoluted reports are going away and the new
 > simple ones are the way forward — **within a few days.**
-
----
-
-## Quick start
-
-Run from inside the `v002/` directory.
-
-```bash
-./bootstrap.sh                      # (you may have to run this more than once)
-
-./jac313_test_cli --ctest           # the smallest of all testing
-./jac313_test_cli --smoke           # mid level testing
-./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
-```
-
-`./bootstrap.sh` prepares everything (compilers, headers, valgrind, etc.). You may need sudo once and will likely run it twice the first time.
-
-`./jac313_test_cli` is the one main command:
-
-- `--ctest` — smallest check
-- `--smoke` — typical daily test (recommended starting point)
-- `--run-everything` — full battery on both compilers (ctest + smoke + bench + verify)
-
-This is the minimum to get set up and see results. The tools hide the complexity so you can start working immediately.
-
-For more details on the project, see the other docs in this directory (Benchmarks.md, Results.md, Architecture.md, etc.).
 
 **Status:** v002 is a **faithful copy of v001**, rebranded to `jac313::*::v002`. It builds clean
 (g++-15, modules + textual) and passed validation (smoke **116/116**; `matrix verify` **60/60**
