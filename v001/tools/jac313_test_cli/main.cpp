@@ -853,8 +853,12 @@ void write_build_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
     std::ofstream md(out / "compiler-build-times" / "README.md");
     nav_top(md, "../README.md");
     md << "# Compiler build times\n\n_Generated from `results.db`. Compile time is hardware-specific, so "
-          "each machine (`jac313-###`) is its own section. Cell = compile+link seconds · status · binary "
-          "size (latest build); per test × front-end × compiler._\n";
+          "each machine (`jac313-###`) is its own section.\n\n"
+          "Column headers are `compiler·fe`:\n"
+          "- `hdr` — code uses headers only\n"
+          "- `mod` — code uses modules\n"
+          "- `istd` — code uses modules with `import std` (gcc-only)\n\n"
+          "Cell = compile+link seconds · status · binary size (latest build); per test × front-end × compiler._\n";
 
     struct Config { std::string label, cname, bt, mod, imp; std::int64_t cmajor; };
     for (const std::int64_t g : groups) {

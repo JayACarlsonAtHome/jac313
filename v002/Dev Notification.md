@@ -2,7 +2,8 @@
 
 _`dev-work` — 2026-06-26 · still in progress (see the README banner)_
 
-The **test/results reporting** has been substantially rebuilt — "cluster-yuck → work of art."
+The **test/results reporting** has been substantially rebuilt (no more cluster-yuck).
+We're still making changes and polishing the rendered pages.
 Here's what changed so far.
 
 ## Unified results database

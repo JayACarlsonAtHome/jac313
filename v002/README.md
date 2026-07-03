@@ -1,8 +1,8 @@
 # jac313
 
-> 🚧 **Work in progress — `dev-work`.** We're moving from **cluster-yuck to work of art**.
-> Right now it's still in-work (the test/results reporting is actively being rebuilt), so
-> please **be patient** — expect rough edges and things shifting under you for a bit.
+> 🚧 **Work in progress — `dev-work`.** We're still making changes, but it is not cluster-yuck anymore.
+> The test/results reporting is actively being polished, so please **be patient** —
+> expect some rough edges and things shifting under you for a bit.
 
 > 🔁 **Heavy results churn — next few days (as of 2026-06-29).** We're tweaking settings and
 > running the **full battery repeatedly across the fleet, including fresh virtual machines**,

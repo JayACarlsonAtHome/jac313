@@ -48,7 +48,7 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 | [smoke](smoke/README.md) | 4 | 464 |
 | [bench](bench/README.md) | 4 | 40 |
 | [verify](verify/README.md) | 4 | 240 |
-| [compiler-build-times](compiler-build-times/README.md) | 10 | 190 |
+| [compiler-build-times](compiler-build-times/README.md) | 10 | 130 |
 
 ---
 [← back](../README.md) · [↑ top](#top)
