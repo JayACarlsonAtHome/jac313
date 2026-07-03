@@ -14,6 +14,7 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 | jac313-001 | Intel(R) Core(TM) Ultra 7 265 | 2.4 GHz | 4 | 4 | 11 GB | x7k | fedora-44 |
 | jac313-002 | Intel(R) Core(TM) Ultra 7 265 | 2.4 GHz | 4 | 4 | 11 GB | x7k | rhel-10.2 |
 | jac313-003 | Intel(R) Core(TM) Ultra 7 265 | 2.4 GHz | 4 | 4 | 11 GB | x7k | linuxmint-22.3 |
+| jac313-004 | Intel(R) Core(TM) Ultra 7 265 | 0.8–5.3 GHz | 20 | 20 | 62 GB | ssd | rhel-9.8 |
 
 \* P.Cores = Physical Cores; T.Cores = Threading Cores
 
@@ -23,7 +24,8 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 |---|---|--:|--:|--:|:--:|:--:|:--:|
 | jac313-001 | ✅ PRESUMED SAFE | 68/0 | 232/0 | 20/0 | ✅ | ✅ | ✅ |
 | jac313-002 | ✅ PRESUMED SAFE | 68/0 | 232/0 | 20/0 | ✅ | ✅ | ✅ |
-| jac313-003 | ✅ PRESUMED SAFE | 68/0 | 232/0 | 20/0 | ✅ | ✅ | ✅ |
+| jac313-003 | ✅ PRESUMED SAFE | 102/0 | 232/0 | 20/0 | ✅ | ✅ | ✅ |
+| jac313-004 | ✅ PRESUMED SAFE | 68/0 | 232/0 | 20/0 | ✅ | ✅ | ✅ |
 
 \* ✅ PRESUMED SAFE = builds + ctest/smoke/bench 0-fail + memcheck/helgrind/drd clean, both compilers. Presumed, not proven.
 
@@ -47,6 +49,14 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 
 | gate | pass | fail | memcheck | helgrind | drd |
 |---|--:|--:|:--:|:--:|:--:|
+| ctest | 102 | 0 | ✅ | ✅ | ✅ |
+| smoke | 232 | 0 | n/a | n/a | n/a |
+| bench | 20 | 0 | n/a | n/a | n/a |
+
+### jac313-004 — gate detail
+
+| gate | pass | fail | memcheck | helgrind | drd |
+|---|--:|--:|:--:|:--:|:--:|
 | ctest | 68 | 0 | ✅ | ✅ | ✅ |
 | smoke | 232 | 0 | n/a | n/a | n/a |
 | bench | 20 | 0 | n/a | n/a | n/a |
@@ -54,11 +64,11 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 | area | runs | rows |
 |---|--:|--:|
 | [compilers](compiler/README.md) | — | — |
-| [ctest](ctest/README.md) | 6 | 204 |
-| [smoke](smoke/README.md) | 6 | 696 |
-| [bench](bench/README.md) | 6 | 60 |
-| [verify](verify/README.md) | 6 | 360 |
-| [compiler-build-times](compiler-build-times/README.md) | 14 | 236 |
+| [ctest](ctest/README.md) | 9 | 306 |
+| [smoke](smoke/README.md) | 8 | 928 |
+| [bench](bench/README.md) | 8 | 80 |
+| [verify](verify/README.md) | 8 | 480 |
+| [compiler-build-times](compiler-build-times/README.md) | 19 | 301 |
 
 ---
 [← back](../README.md) · [↑ top](#top)

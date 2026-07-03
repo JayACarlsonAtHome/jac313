@@ -110,6 +110,41 @@ _Generated from `results.db`. Throughput is hardware-specific, so each machine (
 | [Run_079](Run_079.md) | clang20 · 2026-07-03T09:30:02Z |
 | [Run_078](Run_078.md) | gcc15 · 2026-07-03T09:25:47Z |
 
+## jac313-004 — Intel(R) Core(TM) Ultra 7 265 · 20 cores · 62 GB · rhel-9.8 · ssd
+
+
+### Non-durable (flag sweep)  _(median ops/sec, descending)_
+
+| config | [clang21](Run_103.md)<br>median ops/sec | clang21<br>band | clang21<br>size | [gcc15](Run_102.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
+|---|--:|:--:|--:|--:|:--:|--:|
+| 4 flags, non-durable | 14,649,270 | 11.19M–15.04M | 0 B | 12,765,779 | 11.25M–15.71M | 0 B |
+| 2 flags, non-durable | 13,440,388 | 11.10M–15.21M | 0 B | 13,423,641 | 10.45M–15.89M | 0 B |
+| 0 flags, non-durable | 11,868,855 | 10.86M–15.13M | 0 B | 13,061,789 | 11.11M–15.92M | 0 B |
+| 6 flags, non-durable | 12,792,863 | 10.79M–15.04M | 0 B | 11,450,885 | 10.75M–15.56M | 0 B |
+
+### Durable @ 1M events  _(median ops/sec, descending)_
+
+| config | [clang21](Run_103.md)<br>median ops/sec | clang21<br>band | clang21<br>size | [gcc15](Run_102.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
+|---|--:|:--:|--:|--:|:--:|--:|
+| durable binary | 2,556,904 | 2.41M–2.58M | 83.78 MB | 2,594,714 | 2.55M–2.61M | 83.78 MB |
+| durable jtext | 2,002,038 | 1.99M–2.04M | 80.79 MB | 2,043,991 | 2.03M–2.10M | 80.79 MB |
+| durable sql | 1,459,447 | 1.43M–1.50M | 75.00 MB | 1,456,859 | 1.45M–1.48M | 75.01 MB |
+
+### Durable @ 10M events  _(median ops/sec, descending)_
+
+| config | [clang21](Run_103.md)<br>median ops/sec | clang21<br>band | clang21<br>size | [gcc15](Run_102.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
+|---|--:|:--:|--:|--:|:--:|--:|
+| durable binary | 2,711,242 | 2.64M–2.72M | 837.80 MB | 2,634,850 | 2.63M–2.69M | 837.80 MB |
+| durable jtext | 2,096,429 | 2.08M–2.12M | 836.38 MB | 2,150,736 | 2.14M–2.16M | 836.24 MB |
+| durable sql | 1,551,152 | 1.55M–1.56M | 772.90 MB | 1,560,586 | 1.56M–1.57M | 772.77 MB |
+
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_103](Run_103.md) | clang21 · 2026-07-03T10:30:09Z |
+| [Run_102](Run_102.md) | gcc15 · 2026-07-03T10:28:47Z |
+
 ---
 [← back](../README.md) · [↑ top](#top)
 <a id="bottom"></a>

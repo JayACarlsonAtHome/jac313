@@ -155,6 +155,56 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | [Run_076](Run_076.md) | clang20 · 2026-07-03T09:20:33Z |
 | [Run_073](Run_073.md) | gcc15 · 2026-07-03T09:19:26Z |
 
+## jac313-004 — Intel(R) Core(TM) Ultra 7 265 · 20 cores · 62 GB · rhel-9.8 · ssd
+
+| scenario | [clang21](Run_100.md) | [gcc15](Run_097.md) |
+|---|--:|--:|
+| jac313_contracts_disabled_test | 50 | 50 |
+| jac313_contracts_enforce_test | 100 | 100 |
+| jac313_contracts_test | 50 | 50 |
+| jac313_host_group_test | 50 | 50 |
+| jac313_identity_dedup_test | 50 | 50 |
+| jac313_instance_hash_test | 50 | 50 |
+| jac313_jtext_v002_parser_validator_test | 50 | 50 |
+| jac313_jtext_v002_test | 50 | 50 |
+| jac313_qlite_v002_test | 50 | 50 |
+| jac313_run_identity_test | 50 | 50 |
+| jac313_store_001_TS | 50 | 50 |
+| jac313_store_001_XS | 50 | 50 |
+| jac313_store_002_TS | 50 | 50 |
+| jac313_store_002_XS | 50 | 50 |
+| jac313_store_003_TS | 50 | 50 |
+| jac313_store_003_XS | 50 | 50 |
+| jac313_store_004_TS | 50 | 50 |
+| jac313_store_004_XS | 50 | 50 |
+| jac313_store_005_TS | 50 | 50 |
+| jac313_store_005_XS | 50 | 50 |
+| jac313_store_006_TS | 50 | 50 |
+| jac313_store_006_XS | 50 | 50 |
+| jac313_store_007_TS | 50 | 50 |
+| jac313_store_007_XS | 50 | 50 |
+| jac313_store_008_TS | 50 | 50 |
+| jac313_store_008_XS | 50 | 50 |
+| jac313_store_bench_smoke | 50 | 50 |
+| jac313_store_binary_persist_smoke | 50 | 50 |
+| jac313_store_binary_reader_test | 50 | 50 |
+| jac313_store_binary_to_jtext_smoke | 50 | 50 |
+| jac313_store_flag_routing_smoke | 50 | 50 |
+| jac313_store_flags | 50 | 50 |
+| jac313_store_jtext_persist_smoke | 50 | 50 |
+| jac313_store_metric_view | 50 | 50 |
+| jac313_store_metric_view_test | 50 | 50 |
+| jac313_store_saturating_capacity_test | 50 | 50 |
+| jac313_store_sql_persist_smoke | 50 | 50 |
+| jac313_store_v002_test | 50 | 50 |
+
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_100](Run_100.md) | clang21 · 2026-07-03T10:27:13Z |
+| [Run_097](Run_097.md) | gcc15 · 2026-07-03T10:26:46Z |
+
 ---
 [← back](../README.md) · [↑ top](#top)
 <a id="bottom"></a>
