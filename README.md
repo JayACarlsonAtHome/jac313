@@ -2,6 +2,8 @@
 
 A carefully crafted C++ ecosystem built around one compelling idea: **Store**, a high-performance, fully configurable time-series event logger that is genuinely greater than the sum of its parts.
 
+> **Linux only.** The project uses Linux/POSIX-specific facilities (`/proc/meminfo`, `posix_fallocate` + `mmap`, `fork`/`exec`, pipes, etc.) and does not support macOS or Windows.
+
 At its core are two elegant, self-contained in-tree libraries:
 
 - **Qlite** — a clean, modern SQLite wrapper with transactions, prepared-statement caching, and ergonomic helpers

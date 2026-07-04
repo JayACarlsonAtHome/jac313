@@ -15,6 +15,9 @@ v001 is the solid, battle-tested C++23 baseline with full matrix results recorde
 
 The whole is bigger than the parts — and it shows in both the engineering and the results.
 
+> **Linux only.** Uses Linux/POSIX APIs (`fork`/`exec`, `mmap`, `/proc`, etc.).
+
+
 ---
 
 ## The three packages
