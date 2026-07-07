@@ -68,14 +68,14 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 Run from inside the `v001/` directory.
 
 ```bash
-./bootstrap.sh                      # (you may have to run this more than once)
+./bootstrap.sh                      # provisions + continues in one run (sudo may prompt inside)
 
 ./jac313_test_cli --ctest           # the smallest of all testing
 ./jac313_test_cli --smoke           # mid level testing
 ./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
 ```
 
-`./bootstrap.sh` prepares everything (compilers, headers, valgrind, etc.). You may need sudo once and will likely run it twice the first time.
+`./bootstrap.sh` prepares everything (compilers, headers, valgrind, etc.). It runs the (sudo) provisioning and continues in a single invocation when using the committed provisioner. (Fallback path or host pinning may still require a re-run.)
 
 `./jac313_test_cli` is the one main command:
 

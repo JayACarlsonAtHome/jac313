@@ -159,14 +159,14 @@ You don't have to adopt all of it; the pieces are independent enough to borrow.
 Each version is self-contained. `cd` into `v001/` or `v002/` and use these:
 
 ```bash
-./bootstrap.sh                      # (you may have to run this more than once)
+./bootstrap.sh                      # provisions + continues in one run (sudo may prompt inside)
 
 ./jac313_test_cli --ctest           # the smallest of all testing
 ./jac313_test_cli --smoke           # mid level testing
 ./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
 ```
 
-`./bootstrap.sh` prepares the environment (may need sudo, run twice first time).
+`./bootstrap.sh` prepares the environment (sudo provisioning + non-sudo steps now continue in one run).
 
 `./jac313_test_cli` is the main command for testing.
 

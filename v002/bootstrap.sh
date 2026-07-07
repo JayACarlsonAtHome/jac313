@@ -12,7 +12,9 @@
 #      dev header, and valgrind with the memcheck/helgrind/DRD dev headers — the full set
 #      needed to build AND run the gates, so a fresh box is provisioned in ONE pass.
 #   3. If any baseline is missing -> hand off to the committed Setup/jac313_setup
-#      provisioner (reads Setup/.setup_handoff), or fall back to a generated Setup.sh.
+#      provisioner (reads Setup/.setup_handoff) which runs the sudo steps and continues
+#      in the *same* bootstrap invocation; falls back to a generated Setup.sh (which
+#      still needs a manual re-run of bootstrap after).
 #   3b. If the present CMake is not the EXACT version the `import std` pilot is pinned to
 #      (PINNED_CMAKE_VER), OFFER a no-sudo CMake install into ~/.local (y/N). The pilot's
 #      gate UUID is version-specific, so >= 3.30 is necessary but NOT sufficient. Baseline
@@ -22,7 +24,8 @@
 #   5. Sense + pin this machine as jac313-### (host_spec + current_host). Auto-pins when
 #      unambiguous; otherwise bootstrap stops with --claim / --assign-new-### directions.
 #
-# Re-run after Setup.sh or after a manual host pin. Idempotent.
+# Idempotent. Re-run after a manual Setup.sh (fallback path) or after host pin.
+# The preferred path (committed jac313_setup) provisions and continues in one run.
 set -eu
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -81,6 +84,41 @@ recipe_cmd() {
 ninja_ok() {
   v=$(ninja --version 2>/dev/null) && [ -n "$v" ] \
     && [ "$(printf '1.11\n%s\n' "$v" | sort -V | head -n1)" = "1.11" ]
+}
+
+# --- compiler + baseline detection (factored so we can re-detect after provisioning) ---
+detect_cxx() {
+  CXX=""; ACT=""
+  try_cxx "" g++-15 \
+    || try_cxx "" g++-14 \
+    || try_cxx "gcc-toolset-15-env" g++ \
+    || try_cxx "scl enable gcc-toolset-15 --" g++ \
+    || try_cxx "gcc-toolset-14-env" g++ \
+    || try_cxx "scl enable gcc-toolset-14 --" g++ \
+    || try_cxx "" g++ \
+    || true
+}
+
+compute_missing() {
+  missing=""
+  [ -n "$CXX" ]                    || missing="$missing gcc15"
+  ( command -v clang >/dev/null 2>&1 || command -v clang-20 >/dev/null 2>&1 ) || missing="$missing clang"
+  command -v cmake >/dev/null 2>&1 || missing="$missing cmake"
+  ninja_ok                         || missing="$missing ninja"
+  [ -e /usr/include/sqlite3.h ]    || missing="$missing sqlite"
+  { command -v valgrind >/dev/null 2>&1 \
+      && [ -e /usr/include/valgrind/valgrind.h ] \
+      && [ -e /usr/include/valgrind/helgrind.h ] \
+      && [ -e /usr/include/valgrind/drd.h ]; }  || missing="$missing valgrind"
+}
+
+try_cxx() {  # $1 = activation prefix (may be empty), $2 = compiler name
+  p=$($1 sh -c "command -v $2" 2>/dev/null) || return 1
+  [ -n "$p" ] || return 1
+  major=$($1 "$2" -dumpversion 2>/dev/null | cut -d. -f1) || return 1
+  case "$major" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$major" -ge 14 ] || return 1
+  CXX="$p"; ACT="$1"; return 0
 }
 
 # --- optional: a newer CMake (no sudo) for the `import std` pilot ----------------
@@ -155,39 +193,15 @@ maybe_offer_local_cmake() {  # offer the pinned CMake whenever the import-std ga
 }
 
 # --- 2. find a C++23 g++ (>= 14) and the activation prefix needed to invoke it ---
-CXX=""; ACT=""
-try_cxx() {  # $1 = activation prefix (may be empty), $2 = compiler name
-  p=$($1 sh -c "command -v $2" 2>/dev/null) || return 1
-  [ -n "$p" ] || return 1
-  major=$($1 "$2" -dumpversion 2>/dev/null | cut -d. -f1) || return 1
-  case "$major" in ''|*[!0-9]*) return 1 ;; esac
-  [ "$major" -ge 14 ] || return 1
-  CXX="$p"; ACT="$1"; return 0
-}
-try_cxx "" g++-15 \
-  || try_cxx "" g++-14 \
-  || try_cxx "gcc-toolset-15-env" g++ \
-  || try_cxx "scl enable gcc-toolset-15 --" g++ \
-  || try_cxx "gcc-toolset-14-env" g++ \
-  || try_cxx "scl enable gcc-toolset-14 --" g++ \
-  || try_cxx "" g++ \
-  || true
+# (use the helpers defined above so we can re-detect cleanly after sudo provisioning)
+detect_cxx
+compute_missing
 
 # --- 3. baseline check; provision (exe or Setup.sh) if anything is missing ---
 # The valgrind check requires the memcheck header AND the helgrind + DRD headers: the
 # annotated verify tree (-DJAC313_STORE_HELGRIND_ANNOTATE=ON) #includes <valgrind/helgrind.h>
 # and the DRD annotations, which ship in valgrind-devel (Debian bundles them in `valgrind`).
 # So baseline can't pass with a partial valgrind that would break the verify/verify-lite gate.
-missing=""
-[ -n "$CXX" ]                    || missing="$missing gcc15"
-( command -v clang >/dev/null 2>&1 || command -v clang-20 >/dev/null 2>&1 ) || missing="$missing clang"
-command -v cmake >/dev/null 2>&1 || missing="$missing cmake"
-ninja_ok                         || missing="$missing ninja"
-[ -e /usr/include/sqlite3.h ]    || missing="$missing sqlite"
-{ command -v valgrind >/dev/null 2>&1 \
-    && [ -e /usr/include/valgrind/valgrind.h ] \
-    && [ -e /usr/include/valgrind/helgrind.h ] \
-    && [ -e /usr/include/valgrind/drd.h ]; }  || missing="$missing valgrind"
 
 if [ -n "$missing" ]; then
   echo "Baseline missing:$missing"
@@ -214,11 +228,21 @@ if [ -n "$missing" ]; then
     echo "Provisioning via the committed Setup/jac313_setup (handoff: Setup/.setup_handoff)."
     echo "Preview without changes:  ./Setup/jac313_setup --source-dir \"$ROOT\" --dry-run \"$HANDOFF\""
     if "$SETUP_EXE" --source-dir "$ROOT" "$HANDOFF"; then
-      echo; echo "Provisioning finished. Re-run: ./bootstrap.sh"
+      echo; echo "Provisioning finished."
+      # Re-detect now that the (sudo) packages are present; continue in this same run
+      # so the no-sudo CMake offer + build + cli handoff all happen without a manual re-run.
+      detect_cxx
+      compute_missing
+      if [ -n "$missing" ]; then
+        echo "Baseline still missing after provisioning:$missing"
+        echo "Fix the issues and re-run: ./bootstrap.sh"
+        exit 1
+      fi
+      # fall through to build/handoff in this invocation
     else
       echo; echo "Provisioning did not fully complete (see above). Fix, then re-run: ./bootstrap.sh"
+      exit 1
     fi
-    exit 1
   fi
 
   # --- fallback: no usable committed binary -> generate a reviewable Setup.sh ---------
