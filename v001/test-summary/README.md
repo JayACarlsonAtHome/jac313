@@ -27,7 +27,7 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 | jac313-002 | ✅ PRESUMED SAFE | 68/0 | 232/0 | 20/0 | ✅ | ✅ | ✅ |
 | jac313-003 | ✅ PRESUMED SAFE | 102/0 | 232/0 | 20/0 | ✅ | ✅ | ✅ |
 | jac313-004 | ✅ PRESUMED SAFE | 68/0 | 232/0 | 20/0 | ✅ | ✅ | ✅ |
-| jac313-005 | ✅ PRESUMED SAFE | 74/0 | 344/0 | 20/0 | ✅ | ✅ | ✅ |
+| jac313-005 | ✅ PRESUMED SAFE | 74/0 | 344/0 | 28/0 | ✅ | ✅ | ✅ |
 
 \* ✅ PRESUMED SAFE = builds + ctest/smoke/bench 0-fail + memcheck/helgrind/drd clean, both compilers. Presumed, not proven.
 
@@ -69,14 +69,14 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 |---|--:|--:|:--:|:--:|:--:|
 | ctest | 74 | 0 | ✅ | ✅ | ✅ |
 | smoke | 344 | 0 | n/a | n/a | n/a |
-| bench | 20 | 0 | n/a | n/a | n/a |
+| bench | 28 | 0 | n/a | n/a | n/a |
 
 | area | runs | rows |
 |---|--:|--:|
 | [compilers](compiler/README.md) | — | — |
 | [ctest](ctest/README.md) | 11 | 380 |
 | [smoke](smoke/README.md) | 10 | 1272 |
-| [bench](bench/README.md) | 10 | 100 |
+| [bench](bench/README.md) | 10 | 108 |
 | [verify](verify/README.md) | 10 | 632 |
 | [compiler-build-times](compiler-build-times/README.md) | 21 | 315 |
 

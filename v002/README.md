@@ -99,7 +99,7 @@ For more details on the project, see the other docs in this directory (Benchmark
 | [docs/Architecture.md](docs/Architecture.md) | Layout, the umbrella model, the test pipeline, customization, design principles |
 | [docs/Verify.md](docs/Verify.md) | valgrind memcheck + helgrind/DRD — method, the tail-reader data race found & fixed, results, and honest limits |
 | [docs/Maturity.md](docs/Maturity.md) | Honest self-assessment on a 12-level scale — where jac313 sits (7.5), and why that's a deliberate ceiling |
-| [docs/Benchmarks.md](docs/Benchmarks.md) | **How to run the throughput suite** — `store_bench --suite` / `--report`, the curated 10 configs, the `--dry-run` command list, and a DB-backed [results page](test-summary/) |
+| [docs/Benchmarks.md](docs/Benchmarks.md) | **How to run the throughput suite** — `store_bench --suite` / `--report`, the curated 14 configs, the `--dry-run` command list, and a DB-backed [results page](test-summary/) |
 | [docs/Results.md](docs/Results.md) | v002 results — recorded per-platform in `results.db` and rendered under [test-summary/](test-summary/) (median + low–high band) |
 | Package READMEs | [Qlite](Qlite/README.md) · [jText](jText/README.md) · [Store](Store/README.md) |
 

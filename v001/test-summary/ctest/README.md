@@ -215,8 +215,8 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | jac313_store_006_XS | 50 | 50 |
 | jac313_store_007_TS | 50 | 50 |
 | jac313_store_007_XS | 50 | 50 |
-| jac313_store_008_TS | 200 | 401 |
-| jac313_store_008_XS | 200 | 401 |
+| jac313_store_008_TS | 401 | 200 |
+| jac313_store_008_XS | 351 | 351 |
 | jac313_store_bench_smoke | 50 | 50 |
 | jac313_store_binary_persist_smoke | 50 | 50 |
 | jac313_store_binary_reader_test | 50 | 50 |
@@ -236,8 +236,8 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 
 | run | compiler · recorded |
 |---|---|
-| [Run_194](Run_194.md) | clang22 · 2026-07-08T18:00:04Z |
-| [Run_191](Run_191.md) | gcc16 · 2026-07-08T17:58:03Z |
+| [Run_194](Run_194.md) | clang22 · 2026-07-08T21:00:58Z |
+| [Run_191](Run_191.md) | gcc16 · 2026-07-08T20:59:09Z |
 
 ---
 [← back](../README.md) · [↑ top](#top)

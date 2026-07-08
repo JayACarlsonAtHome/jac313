@@ -351,7 +351,7 @@ jac313::results::CompilerInfo this_compiler() {
 }
 
 // total bytes of the persisted output (every file starting with base_name) — the on-disk
-// footprint of jtext / binary / sql for this config.
+// footprint of jtext / binary / sql / html / json for this config.
 std::uint64_t measure_output_bytes(const std::string& base) {
     namespace fs = std::filesystem;
     std::uint64_t total = 0;
@@ -449,12 +449,13 @@ const std::string& bench_harness_version() {
     return ver;
 }
 
-// Shared schema + the 7 bench-suite testList names (store_bench owns those; the CLI seeds its own).
+// Shared schema + the 11 bench-suite testList names (store_bench owns those; the CLI seeds its own).
 void ensure_results_schema(jac313::Qlite::v001::Sqlite& db) {
     jac313::results::ensure_schema(db);
     db.exec("INSERT OR IGNORE INTO testList(name) VALUES"
             " ('0 flags, non-durable'),('2 flags, non-durable'),('4 flags, non-durable'),"
-            " ('6 flags, non-durable'),('durable jtext'),('durable sql'),('durable binary')");
+            " ('6 flags, non-durable'),('durable jtext'),('durable sql'),('durable binary'),"
+            " ('durable html'),('durable json')");
 }
 
 // Bench recording uses current_host (set by CLI/bootstrap). Full 6-field precheck lives in
@@ -581,7 +582,7 @@ inline std::vector<std::size_t> build_batch_schedule(std::size_t lo, std::size_t
 }
 
 #ifdef JAC313_STORE_HAS_SQL_PERSIST
-// Per-machine durable-backend calibration. For each of binary/jtext/sql, sweep the double-buffer
+// Per-machine durable-backend calibration. For each of binary/jtext/sql/html/json, sweep the double-buffer
 // record size (batch) over a schedule under the same process-level timing as everything else, keeping
 // two running numbers: the best median ops/sec seen and the batch that produced it. useThis is that
 // PEAK batch — the record size at the max ops/sec — NOT an average. (The old "middle of the plateau
@@ -619,7 +620,7 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
               << "  (plateau = within " << tol_pct << "% of peak)\n";
 
     std::vector<CalResult> results;
-    for (const char* ty : {"binary", "jtext", "sql"}) {
+    for (const char* ty : {"binary", "jtext", "sql", "html", "json"}) {
         Params p = base;
         p.persist = ty;
         p.flags = 0;
@@ -705,7 +706,7 @@ int run_calibration(Params, const std::vector<std::size_t>&, std::size_t, const 
 std::int64_t calibrated_use(const std::string&, const std::string&, std::int64_t fb) { return fb; }
 #endif
 
-// Two scales of the SAME 10 configs:
+// Two scales of the SAME 14 configs:
 //   full  (--suite)         — the big numbers; the recorded throughput benchmark (Release).
 //   smoke (--suite --smoke) — the same 10 capped to <=10k events, run as a CORRECTNESS GATE:
 //                             pass iff ALL configs run clean (incl. structural verify); the
@@ -716,9 +717,9 @@ int run_suite(Params base, bool dry, bool smoke) {
     std::vector<Cfg> cfgs;
     for (int n : {0, 2, 4, 6})
         cfgs.push_back({"none", n, std::to_string(n) + " flags, non-durable", 200000, 10});
-    for (const char* pn : {"jtext", "sql", "binary"})
+    for (const char* pn : {"jtext", "sql", "binary", "html", "json"})
         cfgs.push_back({std::string(pn), 0, std::string("durable ") + pn, 20000, 3});          // 1M × 3
-    for (const char* pn : {"jtext", "sql", "binary"})
+    for (const char* pn : {"jtext", "sql", "binary", "html", "json"})
         cfgs.push_back({std::string(pn), 0, std::string("durable ") + pn + " @10M", 200000, 3}); // 10M × 3 (scaling)
 
     if (smoke) {
@@ -773,7 +774,7 @@ int run_suite(Params base, bool dry, bool smoke) {
     // backend — so the recorded numbers are tied to a visible batch (falls back to the default if a
     // backend isn't calibrated yet; run --calibrate to populate io_best_fit).
     std::cout << "durable batch (io_best_fit.useThis):";
-    for (const char* ty : {"jtext", "sql", "binary"})
+    for (const char* ty : {"jtext", "sql", "binary", "html", "json"})
         std::cout << "  " << ty << "=" << bench_group_thousands(
             static_cast<std::uint64_t>(calibrated_use(base.db_path, ty, static_cast<std::int64_t>(base.batch))));
     std::cout << std::endl;   // flush: surface the chosen batches promptly (before the long runs)

@@ -4,7 +4,7 @@
 
 Throughput is measured by the `store_bench` instrument (in
 `Store/tests/matrix/`); the curated suite is its own built-in `--suite` mode —
-no driver script. It is a *curated* 10-config suite — deliberately small and
+no driver script. It is a *curated* 14-config suite — deliberately small and
 trustworthy, not the big functional test matrix. Its job is to give numbers
 you can stand behind, not coverage.
 
@@ -35,7 +35,7 @@ config, `--dry-run`, or `--anonymize`.
 
 ```bash
 ./jac313_store_bench --suite --dry-run         # print the copy-paste command list
-./jac313_store_bench --suite --db results.db   # run the curated 10 and record each
+./jac313_store_bench --suite --db results.db   # run the curated 14 and record each
 ./jac313_test_cli --report                     # render the comparison pages from results.db
 ```
 
@@ -63,7 +63,7 @@ locale-formatted. Re-run `--report` any time to refresh the pages. Pass `--jtext
 `store_bench --suite` call so the recorded row carries the jText version. Each config is also a
 standalone `store_bench` command (see below) for running one in isolation.
 
-## The 10 configs
+## The 14 configs
 
 This is the `--dry-run` output (build dir shown as a placeholder): 4 non-durable flag
 steps, then the durable backends at **1M** and again at **10M** (the scaling grid).
@@ -77,9 +77,13 @@ cd <your-build-dir>/Store/tests/matrix          # where jac313_store_bench was b
 ./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist jtext                 # durable jtext  (1M)
 ./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist sql                   # durable sql    (1M)
 ./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist binary                # durable binary (1M)
+./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist html                  # durable html   (1M)
+./jac313_store_bench --threads 50 --events-per-thread  20000 --runs  3 --persist json                  # durable json   (1M)
 ./jac313_store_bench --threads 50 --events-per-thread 200000 --runs  3 --persist jtext                 # durable jtext  @10M
 ./jac313_store_bench --threads 50 --events-per-thread 200000 --runs  3 --persist sql                   # durable sql    @10M
 ./jac313_store_bench --threads 50 --events-per-thread 200000 --runs  3 --persist binary                # durable binary @10M
+./jac313_store_bench --threads 50 --events-per-thread 200000 --runs  3 --persist html                  # durable html   @10M
+./jac313_store_bench --threads 50 --events-per-thread 200000 --runs  3 --persist json                  # durable json   @10M
 ```
 
 ## Sample report

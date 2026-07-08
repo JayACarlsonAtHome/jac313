@@ -151,7 +151,7 @@ Cell = compile+link seconds · status · binary size (latest build); per test ×
 | jac313_store_007_XS | 2.85s · built · 3.39 MB | 2.97s · built · 4.02 MB |
 | jac313_store_008_TS | 2.39s · built · 3.15 MB | 3.04s · built · 3.73 MB |
 | jac313_store_008_XS | 2.03s · built · 3.15 MB | 2.21s · built · 3.73 MB |
-| jac313_store_bench | 2.84s · built · 4.72 MB | 3.56s · built · 5.72 MB |
+| jac313_store_bench | 1.85s · built · 4.72 MB | 2.56s · built · 5.72 MB |
 | jac313_store_binary_persist_smoke | 2.14s · built · 1.39 MB | 2.18s · built · 1.61 MB |
 | jac313_store_binary_reader_test | 2.28s · built · 2.68 MB | 2.42s · built · 3.24 MB |
 | jac313_store_binary_to_jtext_smoke | 2.30s · built · 2.67 MB | 2.50s · built · 3.22 MB |
