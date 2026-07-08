@@ -5,6 +5,7 @@
 #include <jac313/Store/v002/headers/persistence/BinaryEventSink.hpp>
 #include <jac313/Store/v002/headers/persistence/FlagRoutingEventSink.hpp>
 #include <jac313/Store/v002/headers/persistence/HtmlEventSink.hpp>
+#include <jac313/Store/v002/headers/persistence/JsonEventSink.hpp>
 #include <jac313/Store/v002/headers/persistence/JTextEventSink.hpp>
 
 #include <algorithm>
@@ -66,6 +67,9 @@ inline std::unique_ptr<IEventSink> make_persistence_sink(const std::string& ptyp
     if (ptype == "html") {
         return std::make_unique<HtmlEventSink>(bname, im, dm, mode);
     }
+    if (ptype == "json") {
+        return std::make_unique<JsonEventSink>(bname, im, dm, mode);
+    }
     if (ptype == "sql") {
 #ifdef JAC313_STORE_HAS_SQL_PERSIST
         return std::make_unique<SqlEventSink>(bname, im, dm, mode, false);
@@ -102,3 +106,7 @@ bool attach_persistence_from_opts(Store& prod, const TestOptions& opts) {
 }
 
 } // namespace jac313::Store::v002::matrix_test
+
+namespace jac313::Store::v002 {
+using matrix_test::make_persistence_sink;
+}

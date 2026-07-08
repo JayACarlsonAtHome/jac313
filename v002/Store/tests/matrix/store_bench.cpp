@@ -69,7 +69,7 @@ struct Params {
     std::size_t events_per_thread = 20'000;
     std::size_t runs = 20;
     std::size_t batch = 10'000;          // durable double-buffer batch
-    std::string persist = "none";        // none | binary | jtext | html | sql
+    std::string persist = "none";        // none | binary | jtext | html | json | sql
     std::string base_name = "bench";
     std::uint64_t flags = 0;             // per-event user flag mask
     std::string db_path;                 // --db: append one row per run to this SQLite DB (via Qlite)

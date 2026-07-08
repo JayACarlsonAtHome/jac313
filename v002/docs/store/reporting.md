@@ -14,6 +14,7 @@ related: [persistence](persistence.md) · [logging](logging.md) · [sample outpu
 |------|-------------|-----------|
 | **Human-readable** | jText sink → `base.jtext` + `base_Ints.jtext` + `base_Floats.jtext` | any text tool; the [jText](../../jText/README.md) format is self-describing (light/full profiles, `//` metadata header) |
 | **Browser-readable** | HTML sink → `base.html` + `base_Ints.html` + `base_Floats.html` | any web browser; `//` metadata header then HTML tables (writer only — no Store reader) |
+| **Machine-readable text** | JSON sink → `base.json` + `base_Ints.json` + `base_Floats.json` (NDJSON) | `JsonEventLogReader` (`next(JsonRecord&)`), or any JSON/NDJSON tool |
 | **Queryable** | SQL sink → `main` + `_ints` + `_floats` tables | SQL, e.g. `SELECT * FROM base WHERE flags_raw & (1<<2)` for `DatabaseEntry` events |
 | **Compact / fast** | binary sink → `.bin` (mmap, length-prefixed) | `BinaryEventLogReader` (`next(BinaryRecord&)`), or `convert_to_jtext()` to turn a capture into readable logs in post |
 

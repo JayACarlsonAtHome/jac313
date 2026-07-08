@@ -11,7 +11,7 @@ option(JAC313_STORE_HELGRIND_ANNOTATE
        "Annotate lock-free matrix tests for helgrind/DRD (needs valgrind headers)" OFF)
 
 function(jac313_store_link_matrix_target target)
-    target_link_libraries(${target} PRIVATE jac313::Store jac313::store_html_persist)
+    target_link_libraries(${target} PRIVATE jac313::Store jac313::store_html_persist jac313::store_json_persist)
     if(JAC313_STORE_HELGRIND_ANNOTATE)
         target_compile_definitions(${target} PRIVATE JAC313_HELGRIND_ANNOTATE=1)
     endif()

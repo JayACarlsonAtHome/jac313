@@ -19,7 +19,7 @@ namespace jac313::Store::v002 {
 struct TestOptions {
     bool interactive = false;
     bool color = false;
-    std::string persist = "jtext";   // "jtext", "binary", "html", "sql", or "none" (pure in-memory)
+    std::string persist = "jtext";   // "jtext", "binary", "html", "json", "sql", or "none"
     std::string base_name;           // base name (can include path) for the persist log files
     // Test size parameters (smoke by default; full intensity via --test-size=full)
     size_t threads = 5;

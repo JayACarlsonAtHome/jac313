@@ -54,6 +54,18 @@ target_compile_features(jac313_store_html_persist PUBLIC cxx_std_26)
 target_link_libraries(jac313_store_html_persist PUBLIC jac313_Store)
 message(STATUS "jac313::Store HTML persistence ENABLED")
 
+add_library(jac313_store_json_persist STATIC
+    include/jac313/Store/v002/headers/persistence/JsonSplitEventLog.cpp
+    include/jac313/Store/v002/headers/persistence/JsonEventLogReader.cpp
+)
+add_library(jac313::store_json_persist ALIAS jac313_store_json_persist)
+target_include_directories(jac313_store_json_persist
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_compile_features(jac313_store_json_persist PUBLIC cxx_std_26)
+target_link_libraries(jac313_store_json_persist PUBLIC jac313_Store)
+message(STATUS "jac313::Store JSON persistence ENABLED")
+
 if(JAC313_STORE_JTEXT_PERSIST)
     # In the monorepo jtext_core is built first by jac313/jText. For a standalone
     # store build, pull the in-tree jac313/jText (library only).
@@ -153,7 +165,7 @@ if(JAC313_STORE_BUILD_MODULES)
                 BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
                 FILES modules/jac313.store.v002.cppm
         )
-        target_link_libraries(jac313_store_module PUBLIC jac313_Store jac313_store_binary_read jac313_store_html_persist)
+        target_link_libraries(jac313_store_module PUBLIC jac313_Store jac313_store_binary_read jac313_store_html_persist jac313_store_json_persist)
         if(TARGET jac313_store_sql_persist)
             target_link_libraries(jac313_store_module PUBLIC jac313_store_sql_persist)
         endif()
