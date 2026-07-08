@@ -70,21 +70,10 @@ int main(int argc, char** argv) {
         if (bname.empty()) bname = "persist";
 
         if (ptype != "none") {
-            std::unique_ptr<IEventSink> sink;
             const size_t im = LogConfig::the_IntMetrics;
             const size_t dm = LogConfig::the_DblMetrics;
-            if (ptype == "binary") {
-                sink = std::make_unique<BinaryEventSink>(bname, im, dm, PersistMode::All);
-            } else if (ptype == "sql") {
-#ifdef JAC313_STORE_HAS_SQL_PERSIST
-                sink = std::make_unique<SqlEventSink>(bname, im, dm, PersistMode::All, false);
-#else
-                std::cerr << "ERROR: SQL persistence not enabled at compile time (rebuild with -DJAC313_STORE_HAS_SQL_PERSIST=ON)\n";
-                return 1;
-#endif
-            } else {
-                sink = std::make_unique<JTextEventSink>(bname, im, dm, PersistMode::All);
-            }
+            auto sink = make_persistence_sink(ptype, bname, im, dm, PersistMode::All);
+            if (!sink) return 1;
             auto writer = std::make_unique<DoubleBufferedWriter>(std::move(sink), 10'000);
             store.attach_persistence(std::move(writer));
         } else {

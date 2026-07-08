@@ -31,12 +31,13 @@ Amortized O(1) per event, and the logger never blocks on sink I/O.
 
 ---
 
-## The four backends
+## The backends
 
 | Sink | Format | Uses | Notes |
 |------|--------|------|-------|
 | **Binary** (`BinaryEventSink` / `BinaryEventLog`) | length-prefixed records in an **mmap**-backed file (`posix_fallocate` pre-sizes; `ftruncate`+remap on grow) | POSIX | fastest (memcpy into the mapping); read back with `BinaryEventLogReader` |
 | **jText** (`JTextEventSink` / `JTextSplitEventLog`) | three `.jtext` files: **main** + **`_Ints`** + **`_Floats`** | [jac313::jText](../../jText/README.md) `JTextWriter` | human-readable; metrics split out so slow-changing events don't bloat metric tables |
+| **HTML** (`HtmlEventSink` / `HtmlSplitEventLog`) | three `.html` files: **main** + **`_Ints`** + **`_Floats`** | — (no external deps) | browser-viewable tables; writer only (no reader) |
 | **SQL** (`SqlEventSink`) | three tables: **main** + **`_ints`** + **`_floats`** (dynamic metric columns), `INSERT OR IGNORE` in transactions | [jac313::Qlite](../../Qlite/README.md) `Sqlite` | queryable; optional debug `.sql` of textual INSERTs |
 | **Flag-routing** (`FlagRoutingEventSink`) | composite — multiplexes a batch across two inner sinks by per-event flags | — | the file-vs-SQL split; see [bitmaps](bitmaps.md) |
 
@@ -52,8 +53,8 @@ the binary sink and neither sibling is invoked.
 
 ## Strengths
 
-- **Pick your trade-off per sink:** speed (binary), readability (jText), queryability (SQL) — or
-  several at once via flag routing.
+- **Pick your trade-off per sink:** speed (binary), readability (jText / HTML), queryability (SQL)
+  — or several at once via flag routing.
 - **Non-blocking** logging regardless of sink speed (double-buffered).
 - **Clean `IEventSink` seam** — adding a backend is implementing three methods.
 

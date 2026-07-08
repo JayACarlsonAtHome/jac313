@@ -22,6 +22,13 @@ target_link_libraries(jac313_store_binary_persist_smoke PRIVATE
 )
 jac313_store_add_smoke_test(jac313_store_binary_persist_smoke)
 
+add_executable(jac313_store_html_persist_smoke html_persist_smoke.cpp)
+target_link_libraries(jac313_store_html_persist_smoke PRIVATE
+    jac313::Store
+    jac313::store_html_persist
+)
+jac313_store_add_smoke_test(jac313_store_html_persist_smoke)
+
 if(TARGET jac313_store_jtext_persist)
     add_executable(jac313_store_jtext_persist_smoke jtext_persist_smoke.cpp)
     target_link_libraries(jac313_store_jtext_persist_smoke PRIVATE

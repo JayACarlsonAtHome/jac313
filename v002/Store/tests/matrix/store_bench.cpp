@@ -69,7 +69,7 @@ struct Params {
     std::size_t events_per_thread = 20'000;
     std::size_t runs = 20;
     std::size_t batch = 10'000;          // durable double-buffer batch
-    std::string persist = "none";        // none | binary | jtext | sql
+    std::string persist = "none";        // none | binary | jtext | html | sql
     std::string base_name = "bench";
     std::uint64_t flags = 0;             // per-event user flag mask
     std::string db_path;                 // --db: append one row per run to this SQLite DB (via Qlite)
@@ -162,12 +162,8 @@ std::string host_tag() {
 std::unique_ptr<IEventSink> make_sink(const Params& p) {
     const std::size_t im = LogConfig::the_IntMetrics;
     const std::size_t dm = LogConfig::the_DblMetrics;
-    if (p.persist == "binary") return std::make_unique<BinaryEventSink>(p.base_name, im, dm, PersistMode::All);
-    if (p.persist == "jtext")  return std::make_unique<JTextEventSink>(p.base_name, im, dm, PersistMode::All);
-#ifdef JAC313_STORE_HAS_SQL_PERSIST
-    if (p.persist == "sql")    return std::make_unique<SqlEventSink>(p.base_name, im, dm, PersistMode::All, false);
-#endif
-    return nullptr;
+    if (p.persist == "none") return nullptr;
+    return make_persistence_sink(p.persist, p.base_name, im, dm, PersistMode::All);
 }
 
 // Remove prior persisted output (base_name*) so each run's footprint is measured alone

@@ -4,6 +4,7 @@
 #include <jac313/Store/v002/headers/impl_details/format_locale.hpp>
 #include <jac313/Store/v002/headers/persistence/BinaryEventSink.hpp>
 #include <jac313/Store/v002/headers/persistence/FlagRoutingEventSink.hpp>
+#include <jac313/Store/v002/headers/persistence/HtmlEventSink.hpp>
 #include <jac313/Store/v002/headers/persistence/JTextEventSink.hpp>
 
 #include <algorithm>
@@ -53,6 +54,33 @@ inline void consume_pending_stdin() {
     }
 }
 
+inline std::unique_ptr<IEventSink> make_persistence_sink(const std::string& ptype,
+                                                         const std::string& bname,
+                                                         const size_t im,
+                                                         const size_t dm,
+                                                         const PersistMode mode = PersistMode::All)
+{
+    if (ptype == "binary") {
+        return std::make_unique<BinaryEventSink>(bname, im, dm, mode);
+    }
+    if (ptype == "html") {
+        return std::make_unique<HtmlEventSink>(bname, im, dm, mode);
+    }
+    if (ptype == "sql") {
+#ifdef JAC313_STORE_HAS_SQL_PERSIST
+        return std::make_unique<SqlEventSink>(bname, im, dm, mode, false);
+#else
+        std::cerr << "ERROR: SQL persistence not enabled at compile time\n";
+        return nullptr;
+#endif
+    }
+    if (ptype == "jtext") {
+        return std::make_unique<JTextEventSink>(bname, im, dm, mode);
+    }
+    std::cerr << "ERROR: unknown persistence type: " << ptype << "\n";
+    return nullptr;
+}
+
 template<typename Config, typename Store>
 bool attach_persistence_from_opts(Store& prod, const TestOptions& opts) {
     std::string ptype = opts.persist.empty() ? "jtext" : opts.persist;
@@ -63,22 +91,10 @@ bool attach_persistence_from_opts(Store& prod, const TestOptions& opts) {
         return true;
     }
 
-    std::unique_ptr<IEventSink> sink;
     const size_t im = Config::the_IntMetrics;
     const size_t dm = Config::the_DblMetrics;
-
-    if (ptype == "binary") {
-        sink = std::make_unique<BinaryEventSink>(bname, im, dm, PersistMode::All);
-    } else if (ptype == "sql") {
-#ifdef JAC313_STORE_HAS_SQL_PERSIST
-        sink = std::make_unique<SqlEventSink>(bname, im, dm, PersistMode::All, false);
-#else
-        std::cerr << "ERROR: SQL persistence not enabled at compile time\n";
-        return false;
-#endif
-    } else {
-        sink = std::make_unique<JTextEventSink>(bname, im, dm, PersistMode::All);
-    }
+    auto sink = make_persistence_sink(ptype, bname, im, dm, PersistMode::All);
+    if (!sink) return false;
 
     auto writer = std::make_unique<DoubleBufferedWriter>(std::move(sink), 10'000);
     prod.attach_persistence(std::move(writer));
