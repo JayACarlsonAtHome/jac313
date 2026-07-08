@@ -133,7 +133,7 @@ int main(int argc, char** argv)
     std::string ptype = _opts.persist.empty() ? "jtext" : _opts.persist;
     std::string bname = _opts.base_name.empty() ? "persist" : _opts.base_name;
 
-    if (ptype == "none") {
+    if (persist_skips_sink(ptype)) {
         std::cout << "No persistence attached — pure in-memory hot path\n\n";
     } else {
         std::cout << "Persistence will only be attached on the *last* run "
@@ -155,7 +155,7 @@ int main(int argc, char** argv)
 
             // Only attach persistence on the final run (when not --persist=none).
             // This ensures persist data / log files are generated only from the last run.
-            if (ptype != "none") {
+            if (!persist_skips_sink(ptype)) {
                 std::unique_ptr<IEventSink> sink;
                 const size_t im = LogConfig::the_IntMetrics;
                 const size_t dm = LogConfig::the_DblMetrics;

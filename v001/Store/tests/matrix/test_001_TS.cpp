@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
         std::string bname = _opts.base_name;
         if (bname.empty()) bname = "persist";
 
-        if (ptype != "none") {
+        if (!persist_skips_sink(ptype)) {
             std::unique_ptr<IEventSink> sink;
             const size_t im = LogConfig::the_IntMetrics;
             const size_t dm = LogConfig::the_DblMetrics;

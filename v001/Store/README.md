@@ -17,8 +17,8 @@ strengths + weaknesses; a good target for AI-assisted exploration against your w
 - [**Categories**](../docs/store/categories.md) — `bounded_string`, UTF-8 codepoint sizing of category + payload
 - [**Flags**](../docs/store/flags.md) — the complete `StoreFlags` catalog: every bit + meaning + honest wired/advisory/placeholder status
 - [**Routing**](../docs/store/bitmaps.md) — how flags + `PersistMode` route events (keeper/database masks)
-- [**Persistence**](../docs/store/persistence.md) — the sinks (binary, jText, SQL, flag-routing) + double-buffered drain
-- [**Reporting**](../docs/store/reporting.md) — reading the logs back: human-readable jText, queryable SQL, binary + reader
+- [**Persistence**](../docs/store/persistence.md) — the sinks (binary, jText, HTML, JSON, SQL, flag-routing) + double-buffered drain
+- [**Reporting**](../docs/store/reporting.md) — reading the logs back: jText, HTML, JSON, SQL, binary + reader
 
 ## Quick start
 
@@ -30,7 +30,7 @@ jac313::Store::v001::ts_store<Config> store(threads, events_per_thread);
 store.save_event(0, 0, Config::ValueT("hello"), 0, Config::CategoryT("demo"));
 ```
 
-`jac313::Store::v001::version()` returns the package's `"major.minor"` version (`"v001.005"`
+`jac313::Store::v001::version()` returns the package's `"major.minor"` version (`"v001.007"`
 now): major is the `v001` API line, minor bumps on each small code change (a real break moves
 it to `"v002.001"`). The `version-check` pre-push gate enforces the bump
 (see the version's top-level README.md).
@@ -47,6 +47,8 @@ Core includes in-memory `ts_store`, `ts_store_config`, `bounded_string`, and per
 
 - **Binary** — `BinaryEventSink`, `BinaryEventLog` (header-only), `BinaryEventLogReader` (`jac313::store_binary_read`, `convert_to_jtext` via `jac313::store_jtext_persist`)
 - **jText** — `JTextEventSink`, `JTextSplitEventLog` (`jac313::store_jtext_persist`, links in-tree `jtext_core`)
+- **HTML** — `HtmlEventSink`, `HtmlSplitEventLog` (`jac313::store_html_persist`, writer only)
+- **JSON** — `JsonEventSink`, `JsonSplitEventLog`, `JsonEventLogReader` (`jac313::store_json_persist`)
 - **Routing** — `FlagRoutingEventSink` (header-only)
 
 ## Build

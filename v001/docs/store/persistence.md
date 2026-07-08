@@ -31,12 +31,14 @@ Amortized O(1) per event, and the logger never blocks on sink I/O.
 
 ---
 
-## The four backends
+## The backends
 
 | Sink | Format | Uses | Notes |
 |------|--------|------|-------|
 | **Binary** (`BinaryEventSink` / `BinaryEventLog`) | length-prefixed records in an **mmap**-backed file (`posix_fallocate` pre-sizes; `ftruncate`+remap on grow) | POSIX | fastest (memcpy into the mapping); read back with `BinaryEventLogReader` |
 | **jText** (`JTextEventSink` / `JTextSplitEventLog`) | three `.jtext` files: **main** + **`_Ints`** + **`_Floats`** | [jac313::jText](../../jText/README.md) `JTextWriter` | human-readable; metrics split out so slow-changing events don't bloat metric tables |
+| **HTML** (`HtmlEventSink` / `HtmlSplitEventLog`) | three `.html` files: **main** + **`_Ints`** + **`_Floats`** | — (no external deps) | browser-viewable tables; writer only (no reader) |
+| **JSON** (`JsonEventSink` / `JsonSplitEventLog`) | three NDJSON files: **main** + **`_Ints`** + **`_Floats`** (one object per line) | — (no external deps) | machine-readable text; read back with `JsonEventLogReader` |
 | **SQL** (`SqlEventSink`) | three tables: **main** + **`_ints`** + **`_floats`** (dynamic metric columns), `INSERT OR IGNORE` in transactions | [jac313::Qlite](../../Qlite/README.md) `Sqlite` | queryable; optional debug `.sql` of textual INSERTs |
 | **Flag-routing** (`FlagRoutingEventSink`) | composite — multiplexes a batch across two inner sinks by per-event flags | — | the file-vs-SQL split; see [bitmaps](bitmaps.md) |
 
@@ -71,20 +73,4 @@ the binary sink and neither sibling is invoked.
 > growth, batched draining, the binary codec). It's the prime candidate for an AI-assisted deep
 > read against your durability/throughput requirements.
 
----
 
-## Parked ideas
-
-**JSON durability** (`--persist json` in the test matrix)
-
-A JSON-based text durability backend was considered as a direct comparison point for jText's
-human-readable format (likely NDJSON or a split `main + _Ints + _Floats` layout to keep the
-comparison fair).
-
-It would be another `IEventSink` implementation, just like the existing backends.
-
-**Status:** Parked for now.
-
-We're not building it until there is visible demand. If you're reading this and would actually use
-(or at least benchmark) a JSON durability option, speak up — that would be enough to take it off
-the shelf.

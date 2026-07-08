@@ -293,6 +293,94 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | [Run_092](Run_092.md) | clang21 · 2026-07-03T10:24:19Z |
 | [Run_091](Run_091.md) | gcc15 · 2026-07-03T10:23:33Z |
 
+## jac313-005 — Intel(R) Core(TM) Ultra 7 265 · 14 cores · 42 GB · fedora-44 · x7k
+
+| scenario | [clang22](Run_199.md) | [gcc16](Run_198.md) |
+|---|--:|--:|
+| jac313_store_001_TS · binary · drd | pass · 953 | pass · 953 |
+| jac313_store_001_TS · binary · helgrind | pass · 1,254 | pass · 1,303 |
+| jac313_store_001_TS · binary · memcheck | pass · 1,053 | pass · 1,055 |
+| jac313_store_001_TS · html · memcheck | pass · 1,153 | pass · 1,153 |
+| jac313_store_001_TS · inmem · memcheck | pass · 953 | pass · 953 |
+| jac313_store_001_TS · json · memcheck | pass · 1,203 | pass · 1,155 |
+| jac313_store_001_TS · jtext · drd | pass · 1,053 | pass · 1,003 |
+| jac313_store_001_TS · jtext · helgrind | pass · 1,303 | pass · 1,303 |
+| jac313_store_001_TS · jtext · memcheck | pass · 1,153 | pass · 1,153 |
+| jac313_store_001_TS · none · memcheck | pass · 953 | pass · 953 |
+| jac313_store_001_TS · sql · drd | pass · 1,103 | pass · 1,152 |
+| jac313_store_001_TS · sql · helgrind | pass · 1,404 | pass · 1,405 |
+| jac313_store_001_TS · sql · memcheck | pass · 1,304 | pass · 1,254 |
+| jac313_store_002_TS · binary · memcheck | pass · 902 | pass · 903 |
+| jac313_store_002_TS · html · memcheck | pass · 1,003 | pass · 1,004 |
+| jac313_store_002_TS · inmem · memcheck | pass · 802 | pass · 803 |
+| jac313_store_002_TS · json · memcheck | pass · 1,003 | pass · 1,003 |
+| jac313_store_002_TS · jtext · memcheck | pass · 1,002 | pass · 1,002 |
+| jac313_store_002_TS · none · memcheck | pass · 802 | pass · 805 |
+| jac313_store_002_TS · sql · memcheck | pass · 1,153 | pass · 1,156 |
+| jac313_store_003_TS · binary · memcheck | pass · 1,060 | pass · 1,056 |
+| jac313_store_003_TS · html · memcheck | pass · 1,153 | pass · 1,153 |
+| jac313_store_003_TS · inmem · memcheck | pass · 952 | pass · 953 |
+| jac313_store_003_TS · json · memcheck | pass · 1,203 | pass · 1,153 |
+| jac313_store_003_TS · jtext · memcheck | pass · 1,202 | pass · 1,153 |
+| jac313_store_003_TS · none · drd | pass · 902 | pass · 902 |
+| jac313_store_003_TS · none · helgrind | pass · 1,203 | pass · 1,204 |
+| jac313_store_003_TS · none · memcheck | pass · 1,003 | pass · 953 |
+| jac313_store_003_TS · sql · memcheck | pass · 1,304 | pass · 1,254 |
+| jac313_store_004_TS · binary · memcheck | pass · 1,052 | pass · 1,053 |
+| jac313_store_004_TS · html · memcheck | pass · 1,153 | pass · 1,153 |
+| jac313_store_004_TS · inmem · memcheck | pass · 1,002 | pass · 1,003 |
+| jac313_store_004_TS · json · memcheck | pass · 1,153 | pass · 1,202 |
+| jac313_store_004_TS · jtext · memcheck | pass · 1,152 | pass · 1,154 |
+| jac313_store_004_TS · none · memcheck | pass · 953 | pass · 953 |
+| jac313_store_004_TS · sql · memcheck | pass · 1,304 | pass · 1,303 |
+| jac313_store_005_TS · binary · memcheck | pass · 852 | pass · 852 |
+| jac313_store_005_TS · html · memcheck | pass · 902 | pass · 903 |
+| jac313_store_005_TS · inmem · memcheck | pass · 802 | pass · 802 |
+| jac313_store_005_TS · json · memcheck | pass · 902 | pass · 953 |
+| jac313_store_005_TS · jtext · memcheck | pass · 902 | pass · 903 |
+| jac313_store_005_TS · none · memcheck | pass · 802 | pass · 802 |
+| jac313_store_005_TS · sql · memcheck | pass · 1,102 | pass · 1,103 |
+| jac313_store_006_TS · binary · memcheck | pass · 1,053 | pass · 1,003 |
+| jac313_store_006_TS · html · memcheck | pass · 1,152 | pass · 1,153 |
+| jac313_store_006_TS · inmem · memcheck | pass · 953 | pass · 953 |
+| jac313_store_006_TS · json · memcheck | pass · 1,154 | pass · 1,152 |
+| jac313_store_006_TS · jtext · memcheck | pass · 1,203 | pass · 1,154 |
+| jac313_store_006_TS · none · drd | pass · 903 | pass · 902 |
+| jac313_store_006_TS · none · helgrind | pass · 1,203 | pass · 1,203 |
+| jac313_store_006_TS · none · memcheck | pass · 1,003 | pass · 953 |
+| jac313_store_006_TS · sql · memcheck | pass · 1,304 | pass · 1,254 |
+| jac313_store_007_TS · binary · memcheck | pass · 903 | pass · 902 |
+| jac313_store_007_TS · html · memcheck | pass · 1,003 | pass · 1,003 |
+| jac313_store_007_TS · inmem · memcheck | pass · 802 | pass · 802 |
+| jac313_store_007_TS · json · memcheck | pass · 1,003 | pass · 1,003 |
+| jac313_store_007_TS · jtext · memcheck | pass · 1,003 | pass · 1,002 |
+| jac313_store_007_TS · none · memcheck | pass · 802 | pass · 802 |
+| jac313_store_007_TS · sql · memcheck | pass · 1,103 | pass · 1,103 |
+| jac313_store_008_TS · binary · memcheck | pass · 1,203 | pass · 1,204 |
+| jac313_store_008_TS · html · memcheck | pass · 1,203 | pass · 1,203 |
+| jac313_store_008_TS · inmem · memcheck | pass · 1,203 | pass · 1,204 |
+| jac313_store_008_TS · json · memcheck | pass · 1,153 | pass · 1,153 |
+| jac313_store_008_TS · jtext · memcheck | pass · 1,204 | pass · 1,254 |
+| jac313_store_008_TS · none · memcheck | pass · 1,202 | pass · 1,203 |
+| jac313_store_008_TS · sql · memcheck | pass · 1,204 | pass · 1,203 |
+| jac313_store_binary_persist_smoke · memcheck | pass · 752 | pass · 752 |
+| jac313_store_binary_reader_test · memcheck | pass · 802 | pass · 802 |
+| jac313_store_binary_to_jtext_smoke · memcheck | pass · 802 | pass · 802 |
+| jac313_store_flag_routing_smoke · memcheck | pass · 1,052 | pass · 1,053 |
+| jac313_store_flags · memcheck | pass · 652 | pass · 652 |
+| jac313_store_jtext_persist_smoke · memcheck | pass · 802 | pass · 802 |
+| jac313_store_metric_view · memcheck | pass · 751 | pass · 752 |
+| jac313_store_sql_persist_smoke · memcheck | pass · 952 | pass · 952 |
+| jac313_store_v001_example · memcheck | pass · 653 | pass · 652 |
+| jac313_store_v001_test · memcheck | pass · 652 | pass · 652 |
+
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_199](Run_199.md) | clang22 · 2026-07-08T18:12:51Z |
+| [Run_198](Run_198.md) | gcc16 · 2026-07-08T18:10:34Z |
+
 ---
 [← back](../README.md) · [↑ top](#top)
 <a id="bottom"></a>

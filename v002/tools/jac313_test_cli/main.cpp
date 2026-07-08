@@ -1763,7 +1763,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
     mem.push_back({"ex:v002_example", exdir / "jac313_store_v002_example", {}});
     // matrix memcheck surface: lite = binary (+ 001 across sinks); full = every sink (full coverage).
     const std::vector<std::string> sinks =
-        full ? std::vector<std::string>{"binary", "jtext", "sql", "none", "inmem"}
+        full ? std::vector<std::string>{"binary", "jtext", "html", "json", "sql", "none", "inmem"}
              : std::vector<std::string>{"binary"};
     for (const auto* n : {"001", "002", "003", "004", "005", "006", "007", "008"}) {
         for (const std::string& p : sinks) {

@@ -13,6 +13,7 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #ifdef JAC313_STORE_HAS_SQL_PERSIST
 #include <jac313/Store/v002/headers/persistence/SqlEventSink.hpp>
@@ -55,6 +56,11 @@ inline void consume_pending_stdin() {
     }
 }
 
+// verify labels the pure hot-path as "inmem"; smoke/matrix use "none" — same behavior.
+inline bool persist_skips_sink(std::string_view ptype) {
+    return ptype == "none" || ptype == "inmem";
+}
+
 inline std::unique_ptr<IEventSink> make_persistence_sink(const std::string& ptype,
                                                          const std::string& bname,
                                                          const size_t im,
@@ -90,7 +96,7 @@ bool attach_persistence_from_opts(Store& prod, const TestOptions& opts) {
     std::string ptype = opts.persist.empty() ? "jtext" : opts.persist;
     std::string bname = opts.base_name.empty() ? "persist" : opts.base_name;
 
-    if (ptype == "none") {
+    if (persist_skips_sink(ptype)) {
         std::cout << "No persistence attached — pure in-memory hot path\n";
         return true;
     }
@@ -109,4 +115,5 @@ bool attach_persistence_from_opts(Store& prod, const TestOptions& opts) {
 
 namespace jac313::Store::v002 {
 using matrix_test::make_persistence_sink;
+using matrix_test::persist_skips_sink;
 }

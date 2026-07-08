@@ -6,6 +6,9 @@ module;
 #include <jac313/Store/v001/headers/persistence/BinaryEventLogReader.hpp>
 #include <jac313/Store/v001/headers/persistence/BinaryEventSink.hpp>
 #include <jac313/Store/v001/headers/persistence/FlagRoutingEventSink.hpp>
+#include <jac313/Store/v001/headers/persistence/HtmlEventSink.hpp>
+#include <jac313/Store/v001/headers/persistence/JsonEventLogReader.hpp>
+#include <jac313/Store/v001/headers/persistence/JsonEventSink.hpp>
 #include <jac313/Store/v001/headers/persistence/JTextEventSink.hpp>
 #include <jac313/Store/v001/headers/persistence/SqlEventSink.hpp>
 #include <jac313/Store/v001/headers/metric_view.hpp>
@@ -28,6 +31,10 @@ export namespace jac313::Store::v001 {
     using jac313::Store::v001::BinaryEventLogReader;
     using jac313::Store::v001::BinaryEventSink;
     using jac313::Store::v001::FlagRoutingEventSink;
+    using jac313::Store::v001::HtmlEventSink;
+    using jac313::Store::v001::JsonEventLogReader;
+    using jac313::Store::v001::JsonRecord;
+    using jac313::Store::v001::JsonEventSink;
     using jac313::Store::v001::JTextEventSink;
     using jac313::Store::v001::SqlEventSink;
     using jac313::Store::v001::Sqlite;

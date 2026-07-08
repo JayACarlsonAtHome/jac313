@@ -15,6 +15,8 @@ namespace {
 
 std::string persist_log_dir_name(const std::string& persist) {
     if (persist == "jtext") return "jText_logs";
+    if (persist == "html")  return "html_logs";
+    if (persist == "json")  return "json_logs";
     if (persist == "sql")   return "sql_logs";
     if (persist == "none")  return "inmem_logs";
     if (persist == "unit")  return "unit_logs";
@@ -119,8 +121,7 @@ void expand_store_matrix_scenarios(std::vector<MatrixScenario>& out,
         return;
     }
 
-    static const std::vector<std::string> persist_types = {"binary", "jtext", "sql", "none"};
-    // "json" is a parked idea (see docs/store/persistence.md) — not included until there is demand.
+    static const std::vector<std::string> persist_types = {"binary", "jtext", "html", "json", "sql", "none"};
     static const std::vector<std::string> output_modes  = {"on", "off"};
 
     for (const auto& persist : persist_types) {

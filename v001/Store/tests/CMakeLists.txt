@@ -7,6 +7,14 @@ if(JAC313_STORE_BUILD_TESTS)
     target_link_libraries(jac313_store_metric_view_test PRIVATE jac313::Store)
     add_test(NAME jac313_store_metric_view_test COMMAND jac313_store_metric_view_test)
 
+    add_executable(jac313_store_json_reader_test json_reader_test.cpp)
+    target_link_libraries(jac313_store_json_reader_test PRIVATE
+        jac313::Store
+        jac313::store_json_persist
+    )
+    add_test(NAME jac313_store_json_reader_test COMMAND jac313_store_json_reader_test)
+    set_tests_properties(jac313_store_json_reader_test PROPERTIES TIMEOUT 60)
+
     add_executable(jac313_store_binary_reader_test binary_reader_test.cpp)
     target_link_libraries(jac313_store_binary_reader_test PRIVATE
         jac313::Store

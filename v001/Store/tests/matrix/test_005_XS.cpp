@@ -142,7 +142,7 @@ int main(int argc, char** argv)
               << " entries × " << format_locale_int(RUNS) << " runs ===\n";
     std::cout << "Using store.clear() — fastest, most realistic reuse\n\n";
 
-    if (ptype == "none") {
+    if (persist_skips_sink(ptype)) {
         std::cout << "No persistence attached — pure in-memory hot path\n\n";
     } else {
         std::cout << "Persistence will only be attached on the *last* run "
@@ -164,7 +164,7 @@ int main(int argc, char** argv)
 
             // Only attach persistence on the final run (when not --persist=none).
             // This ensures persist data / log files are generated only from the last run.
-            if (ptype != "none") {
+            if (!persist_skips_sink(ptype)) {
                 std::unique_ptr<IEventSink> sink;
                 const size_t im = LogConfig::the_IntMetrics;
                 const size_t dm = LogConfig::the_DblMetrics;

@@ -5,7 +5,7 @@ macro(jac313_store_add_smoke_test target)
     if(TARGET ${target})
         add_test(NAME ${target} COMMAND ${target})
         # Time limits from tests/test_limits.txt (prevents infinite runs).
-        if("${target}" MATCHES "binary_to_jtext|binary_persist|jtext_persist|flag_routing")
+        if("${target}" MATCHES "binary_to_jtext|binary_persist|jtext_persist|html_persist|json_persist|flag_routing")
             set_tests_properties(${target} PROPERTIES TIMEOUT 30)
         else()
             set_tests_properties(${target} PROPERTIES TIMEOUT 60)
@@ -19,6 +19,20 @@ target_link_libraries(jac313_store_binary_persist_smoke PRIVATE
     jac313::store_binary_read
 )
 jac313_store_add_smoke_test(jac313_store_binary_persist_smoke)
+
+add_executable(jac313_store_html_persist_smoke html_persist_smoke.cpp)
+target_link_libraries(jac313_store_html_persist_smoke PRIVATE
+    jac313::Store
+    jac313::store_html_persist
+)
+jac313_store_add_smoke_test(jac313_store_html_persist_smoke)
+
+add_executable(jac313_store_json_persist_smoke json_persist_smoke.cpp)
+target_link_libraries(jac313_store_json_persist_smoke PRIVATE
+    jac313::Store
+    jac313::store_json_persist
+)
+jac313_store_add_smoke_test(jac313_store_json_persist_smoke)
 
 if(TARGET jac313_store_jtext_persist)
     add_executable(jac313_store_jtext_persist_smoke jtext_persist_smoke.cpp)

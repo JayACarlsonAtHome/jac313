@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
         std::string bname = _opts.base_name;
         if (bname.empty()) bname = "persist";
 
-        if (ptype != "none") {
+        if (!persist_skips_sink(ptype)) {
             const size_t im = LogConfig::the_IntMetrics;
             const size_t dm = LogConfig::the_DblMetrics;
             auto sink = make_persistence_sink(ptype, bname, im, dm, PersistMode::All);
