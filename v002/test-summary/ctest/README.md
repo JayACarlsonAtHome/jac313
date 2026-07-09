@@ -207,10 +207,10 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 
 ## jac313-005 — Intel(R) Core(TM) Ultra 7 265 · 14 cores · 42 GB · fedora-44 · x7k
 
-| scenario | [clang22](Run_181.md) | [gcc16](Run_178.md) |
+| scenario | [clang22](Run_204.md) | [gcc16](Run_201.md) |
 |---|--:|--:|
 | jac313_contracts_disabled_test | 50 | 50 |
-| jac313_contracts_enforce_test | 652 | 852 |
+| jac313_contracts_enforce_test | 703 | 702 |
 | jac313_contracts_test | 50 | 50 |
 | jac313_host_group_test | 50 | 50 |
 | jac313_identity_dedup_test | 50 | 50 |
@@ -233,8 +233,8 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | jac313_store_006_XS | 50 | 50 |
 | jac313_store_007_TS | 50 | 50 |
 | jac313_store_007_XS | 50 | 50 |
-| jac313_store_008_TS | 351 | 401 |
-| jac313_store_008_XS | 351 | 150 |
+| jac313_store_008_TS | 150 | 200 |
+| jac313_store_008_XS | 150 | 400 |
 | jac313_store_bench_smoke | 50 | 50 |
 | jac313_store_binary_persist_smoke | 50 | 50 |
 | jac313_store_binary_reader_test | 50 | 50 |
@@ -255,8 +255,8 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 
 | run | compiler · recorded |
 |---|---|
-| [Run_181](Run_181.md) | clang22 · 2026-07-08T17:31:17Z |
-| [Run_178](Run_178.md) | gcc16 · 2026-07-08T17:28:54Z |
+| [Run_204](Run_204.md) | clang22 · 2026-07-08T21:24:33Z |
+| [Run_201](Run_201.md) | gcc16 · 2026-07-08T21:22:13Z |
 
 ---
 [← back](../README.md) · [↑ top](#top)
