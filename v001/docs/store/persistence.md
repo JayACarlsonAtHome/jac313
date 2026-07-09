@@ -54,7 +54,7 @@ the binary sink and neither sibling is invoked.
 
 ## Strengths
 
-- **Pick your trade-off per sink:** speed (binary), readability (jText), queryability (SQL) — or
+- **Pick your trade-off per sink:** speed (binary), readability (jText / HTML / JSON), queryability (SQL) — or
   several at once via flag routing.
 - **Non-blocking** logging regardless of sink speed (double-buffered).
 - **Clean `IEventSink` seam** — adding a backend is implementing three methods.
@@ -72,5 +72,13 @@ the binary sink and neither sibling is invoked.
 > Persistence is the densest part of Store and where most of the real engineering lives (mmap
 > growth, batched draining, the binary codec). It's the prime candidate for an AI-assisted deep
 > read against your durability/throughput requirements.
+
+---
+
+## JSON split layout
+
+The JSON sink writes **NDJSON** — one JSON object per line after the standard `//` metadata
+header — in three files (main, `_Ints`, `_Floats`) so the comparison to jText stays fair.
+Read back with `JsonEventLogReader` (`next(JsonRecord&)`), mirroring the binary reader pattern.
 
 

@@ -1,0 +1,27 @@
+# jac313 test log
+test=jac313_store_metric_view_test
+command=/home/jay/git/jac313/v002/build-clang/Store/tests/jac313_store_metric_view_test
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+=== PersistedEvent ===
+  event_id            : 42
+  thread_id           : 3
+  per_thread_event_id : 7
+  category            : sensor.imu
+  payload             : calibration sweep complete
+  timestamp_us        : 1718650000000000
+  flags (raw)         : 12887523334
+  flags (decoded)     : KeeperRecord, DatabaseEntry, HasIntStats, HasDblStats | Severity: Info
+  int_metrics (raw)   : 10 20 30 40 
+  dbl_metrics (raw)   : 1 3 
+
+=== metric_view (the summary row that replaces the raw metrics) ===
+  ints   : count=4 min=10 max=40 avg=25
+  floats : count=2 min=1 max=3 avg=2
+  one-row: ints[count=4 min=10 max=40 avg=25] floats[count=2 min=1 max=3 avg=2]
+
+=== all metric_view checks passed ===
+
+--- stderr ---

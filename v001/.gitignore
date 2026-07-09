@@ -31,8 +31,15 @@ Thumbs.db
 # Local scratch (smoke monitor + ad-hoc helpers)
 /.tmp_*
 
-# Local matrix run artifacts (logs, persist files)
-test-results/
+# Local matrix run artifacts — persist files stay ignored; .log text is committable
+test-results/**
+!test-results/**/
+!test-results/**/*.log
+!test-results/README.md
+kept-logs/**
+!kept-logs/**/
+!kept-logs/**/*.log
+!kept-logs/README.md
 
 # Matrix persist spillover at repo root (cwd-relative test output)
 /persist*

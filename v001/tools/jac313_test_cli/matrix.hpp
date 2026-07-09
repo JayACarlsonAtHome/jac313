@@ -28,6 +28,9 @@ struct MatrixRunOptions {
     bool verbose{false};
     bool fail_fast{false};
     int failsafe_sec{kDefaultFailsafeSec};
+    bool keep_logs{false};
+    std::filesystem::path version_root;
+    std::filesystem::path keep_logs_root;
     // Global scenario progress across a whole run-all sweep (0 total = don't show).
     // Lets each line read "[i/116 · G of TOTAL]" so the expected grand total is
     // always visible and an inflated combo count is impossible to miss.
@@ -88,5 +91,10 @@ struct MatrixTally {
 };
 
 MatrixTally tally_matrix_results(const std::vector<MatrixRunResult>& results);
+
+void write_test_result_log(const std::filesystem::path& log_path,
+                           const TestEntry& entry,
+                           const TestResult& result,
+                           const std::vector<std::string>& args = {});
 
 } // namespace jac313::test_cli

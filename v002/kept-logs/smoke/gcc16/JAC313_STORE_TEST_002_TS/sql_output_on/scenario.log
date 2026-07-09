@@ -1,0 +1,240 @@
+# jac313 matrix log
+test=jac313_store_002_TS
+package=store
+category=matrix
+persist=sql
+output_mode=on
+command=/home/jay/git/jac313/v002/build-clang/Store/tests/matrix/jac313_store_002_TS
+args=--no-interactive --color=1 --test-size=smoke --persist=sql --base-name=/home/jay/git/jac313/v002/kept-logs/smoke/gcc16/JAC313_STORE_TEST_002_TS/sql_output_on/capture
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+             Expected Len(34): Error in processing notification 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:26  Thread_ID:4  Event_ID:0 
+                  Actual   Len(26): Not Set, default payload 😎
+                  Expected Len(26): Not Set, default payload 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:27  Thread_ID:2  Event_ID:6 
+                  Actual   Len(29): Critical processing request 😣
+                  Expected Len(29): Critical processing request 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:28  Thread_ID:2  Event_ID:7 
+                  Actual   Len(40): Fatal error in processing notification 💀
+                  Expected Len(40): Fatal error in processing notification 💀
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:29  Thread_ID:2  Event_ID:8 
+                  Actual   Len(26): Not Set, default payload 😎
+                  Expected Len(26): Not Set, default payload 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:30  Thread_ID:2  Event_ID:9 
+                  Actual   Len(26): Trace processing request 😎
+                  Expected Len(26): Trace processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:31  Thread_ID:2  Event_ID:10 
+                  Actual   Len(26): Debug processing request 😎
+                  Expected Len(26): Debug processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:32  Thread_ID:4  Event_ID:1 
+                  Actual   Len(26): Trace processing request 😎
+                  Expected Len(26): Trace processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:33  Thread_ID:2  Event_ID:11 
+                  Actual   Len(25): Info processing request 😊
+                  Expected Len(25): Info processing request 😊
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:34  Thread_ID:4  Event_ID:2 
+                  Actual   Len(26): Debug processing request 😎
+                  Expected Len(26): Debug processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:35  Thread_ID:2  Event_ID:12 
+                  Actual   Len(36): Warning in processing notification 😕
+                  Expected Len(36): Warning in processing notification 😕
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:36  Thread_ID:4  Event_ID:3 
+                  Actual   Len(25): Info processing request 😊
+                  Expected Len(25): Info processing request 😊
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:37  Thread_ID:2  Event_ID:13 
+                  Actual   Len(34): Error in processing notification 😣
+                  Expected Len(34): Error in processing notification 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:38  Thread_ID:4  Event_ID:4 
+                  Actual   Len(36): Warning in processing notification 😕
+                  Expected Len(36): Warning in processing notification 😕
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:39  Thread_ID:2  Event_ID:14 
+                  Actual   Len(29): Critical processing request 😣
+                  Expected Len(29): Critical processing request 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:40  Thread_ID:4  Event_ID:5 
+                  Actual   Len(34): Error in processing notification 😣
+                  Expected Len(34): Error in processing notification 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:41  Thread_ID:2  Event_ID:15 
+                  Actual   Len(40): Fatal error in processing notification 💀
+                  Expected Len(40): Fatal error in processing notification 💀
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:42  Thread_ID:4  Event_ID:6 
+                  Actual   Len(29): Critical processing request 😣
+                  Expected Len(29): Critical processing request 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:43  Thread_ID:2  Event_ID:16 
+                  Actual   Len(26): Not Set, default payload 😎
+                  Expected Len(26): Not Set, default payload 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:44  Thread_ID:2  Event_ID:17 
+                  Actual   Len(26): Trace processing request 😎
+                  Expected Len(26): Trace processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:45  Thread_ID:4  Event_ID:7 
+                  Actual   Len(40): Fatal error in processing notification 💀
+                  Expected Len(40): Fatal error in processing notification 💀
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:46  Thread_ID:2  Event_ID:18 
+                  Actual   Len(26): Debug processing request 😎
+                  Expected Len(26): Debug processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:47  Thread_ID:2  Event_ID:19 
+                  Actual   Len(25): Info processing request 😊
+                  Expected Len(25): Info processing request 😊
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:48  Thread_ID:4  Event_ID:8 
+                  Actual   Len(26): Not Set, default payload 😎
+                  Expected Len(26): Not Set, default payload 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:49  Thread_ID:4  Event_ID:9 
+                  Actual   Len(26): Trace processing request 😎
+                  Expected Len(26): Trace processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:50  Thread_ID:4  Event_ID:10 
+                  Actual   Len(26): Debug processing request 😎
+                  Expected Len(26): Debug processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:51  Thread_ID:4  Event_ID:11 
+                  Actual   Len(25): Info processing request 😊
+                  Expected Len(25): Info processing request 😊
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:52  Thread_ID:4  Event_ID:12 
+                  Actual   Len(36): Warning in processing notification 😕
+                  Expected Len(36): Warning in processing notification 😕
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:53  Thread_ID:4  Event_ID:13 
+                  Actual   Len(34): Error in processing notification 😣
+                  Expected Len(34): Error in processing notification 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:54  Thread_ID:4  Event_ID:14 
+                  Actual   Len(29): Critical processing request 😣
+                  Expected Len(29): Critical processing request 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:55  Thread_ID:4  Event_ID:15 
+                  Actual   Len(40): Fatal error in processing notification 💀
+                  Expected Len(40): Fatal error in processing notification 💀
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:56  Thread_ID:4  Event_ID:16 
+                  Actual   Len(26): Not Set, default payload 😎
+                  Expected Len(26): Not Set, default payload 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:57  Thread_ID:4  Event_ID:17 
+                  Actual   Len(26): Trace processing request 😎
+                  Expected Len(26): Trace processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:58  Thread_ID:4  Event_ID:18 
+                  Actual   Len(26): Debug processing request 😎
+                  Expected Len(26): Debug processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:59  Thread_ID:4  Event_ID:19 
+                  Actual   Len(25): Info processing request 😊
+                  Expected Len(25): Info processing request 😊
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:60  Thread_ID:3  Event_ID:0 
+                  Actual   Len(26): Not Set, default payload 😎
+                  Expected Len(26): Not Set, default payload 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:61  Thread_ID:3  Event_ID:1 
+                  Actual   Len(26): Trace processing request 😎
+                  Expected Len(26): Trace processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:62  Thread_ID:3  Event_ID:2 
+                  Actual   Len(26): Debug processing request 😎
+                  Expected Len(26): Debug processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:63  Thread_ID:3  Event_ID:3 
+                  Actual   Len(25): Info processing request 😊
+                  Expected Len(25): Info processing request 😊
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:64  Thread_ID:3  Event_ID:4 
+                  Actual   Len(36): Warning in processing notification 😕
+                  Expected Len(36): Warning in processing notification 😕
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:65  Thread_ID:3  Event_ID:5 
+                  Actual   Len(34): Error in processing notification 😣
+                  Expected Len(34): Error in processing notification 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:66  Thread_ID:3  Event_ID:6 
+                  Actual   Len(29): Critical processing request 😣
+                  Expected Len(29): Critical processing request 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:67  Thread_ID:3  Event_ID:7 
+                  Actual   Len(40): Fatal error in processing notification 💀
+                  Expected Len(40): Fatal error in processing notification 💀
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:68  Thread_ID:3  Event_ID:8 
+                  Actual   Len(26): Not Set, default payload 😎
+                  Expected Len(26): Not Set, default payload 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:69  Thread_ID:3  Event_ID:9 
+                  Actual   Len(26): Trace processing request 😎
+                  Expected Len(26): Trace processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:70  Thread_ID:3  Event_ID:10 
+                  Actual   Len(26): Debug processing request 😎
+                  Expected Len(26): Debug processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:71  Thread_ID:3  Event_ID:11 
+                  Actual   Len(25): Info processing request 😊
+                  Expected Len(25): Info processing request 😊
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:72  Thread_ID:3  Event_ID:12 
+                  Actual   Len(36): Warning in processing notification 😕
+                  Expected Len(36): Warning in processing notification 😕
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:73  Thread_ID:3  Event_ID:13 
+                  Actual   Len(34): Error in processing notification 😣
+                  Expected Len(34): Error in processing notification 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:74  Thread_ID:3  Event_ID:14 
+                  Actual   Len(29): Critical processing request 😣
+                  Expected Len(29): Critical processing request 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:75  Thread_ID:3  Event_ID:15 
+                  Actual   Len(40): Fatal error in processing notification 💀
+                  Expected Len(40): Fatal error in processing notification 💀
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:76  Thread_ID:3  Event_ID:16 
+                  Actual   Len(26): Not Set, default payload 😎
+                  Expected Len(26): Not Set, default payload 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:77  Thread_ID:3  Event_ID:17 
+                  Actual   Len(26): Trace processing request 😎
+                  Expected Len(26): Trace processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:78  Thread_ID:3  Event_ID:18 
+                  Actual   Len(26): Debug processing request 😎
+                  Expected Len(26): Debug processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:79  Thread_ID:3  Event_ID:19 
+                  Actual   Len(25): Info processing request 😊
+                  Expected Len(25): Info processing request 😊
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:80  Thread_ID:1  Event_ID:0 
+                  Actual   Len(26): Not Set, default payload 😎
+                  Expected Len(26): Not Set, default payload 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:81  Thread_ID:1  Event_ID:1 
+                  Actual   Len(26): Trace processing request 😎
+                  Expected Len(26): Trace processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:82  Thread_ID:1  Event_ID:2 
+                  Actual   Len(26): Debug processing request 😎
+                  Expected Len(26): Debug processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:83  Thread_ID:1  Event_ID:3 
+                  Actual   Len(25): Info processing request 😊
+                  Expected Len(25): Info processing request 😊
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:84  Thread_ID:1  Event_ID:4 
+                  Actual   Len(36): Warning in processing notification 😕
+                  Expected Len(36): Warning in processing notification 😕
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:85  Thread_ID:1  Event_ID:5 
+                  Actual   Len(34): Error in processing notification 😣
+                  Expected Len(34): Error in processing notification 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:86  Thread_ID:1  Event_ID:6 
+                  Actual   Len(29): Critical processing request 😣
+                  Expected Len(29): Critical processing request 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:87  Thread_ID:1  Event_ID:7 
+                  Actual   Len(40): Fatal error in processing notification 💀
+                  Expected Len(40): Fatal error in processing notification 💀
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:88  Thread_ID:1  Event_ID:8 
+                  Actual   Len(26): Not Set, default payload 😎
+                  Expected Len(26): Not Set, default payload 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:89  Thread_ID:1  Event_ID:9 
+                  Actual   Len(26): Trace processing request 😎
+                  Expected Len(26): Trace processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:90  Thread_ID:1  Event_ID:10 
+                  Actual   Len(26): Debug processing request 😎
+                  Expected Len(26): Debug processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:91  Thread_ID:1  Event_ID:11 
+                  Actual   Len(25): Info processing request 😊
+                  Expected Len(25): Info processing request 😊
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:92  Thread_ID:1  Event_ID:12 
+                  Actual   Len(36): Warning in processing notification 😕
+                  Expected Len(36): Warning in processing notification 😕
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:93  Thread_ID:1  Event_ID:13 
+                  Actual   Len(34): Error in processing notification 😣
+                  Expected Len(34): Error in processing notification 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:94  Thread_ID:1  Event_ID:14 
+                  Actual   Len(29): Critical processing request 😣
+                  Expected Len(29): Critical processing request 😣
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:95  Thread_ID:1  Event_ID:15 
+                  Actual   Len(40): Fatal error in processing notification 💀
+                  Expected Len(40): Fatal error in processing notification 💀
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:96  Thread_ID:1  Event_ID:16 
+                  Actual   Len(26): Not Set, default payload 😎
+                  Expected Len(26): Not Set, default payload 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:97  Thread_ID:1  Event_ID:17 
+                  Actual   Len(26): Trace processing request 😎
+                  Expected Len(26): Trace processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:98  Thread_ID:1  Event_ID:18 
+                  Actual   Len(26): Debug processing request 😎
+                  Expected Len(26): Debug processing request 😎
+[0m[32m[TEST-VERIFY] TEST PAYLOADS VALID  ID:99  Thread_ID:1  Event_ID:19 
+                  Actual   Len(25): Info processing request 😊
+                  Expected Len(25): Info processing request 😊
+[0m[1m[34m╔════════════════════════════════════════════════╗
+║ All 100 entries passed verification!                  ║
+╚════════════════════════════════════════════════╝
+[0m
+--- stderr ---

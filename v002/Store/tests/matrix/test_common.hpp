@@ -114,6 +114,7 @@ bool attach_persistence_from_opts(Store& prod, const TestOptions& opts) {
 } // namespace jac313::Store::v002::matrix_test
 
 namespace jac313::Store::v002 {
+using matrix_test::attach_persistence_from_opts;
 using matrix_test::make_persistence_sink;
 using matrix_test::persist_skips_sink;
 }

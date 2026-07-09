@@ -10,6 +10,8 @@ add_executable(jac313_test_cli
     jac313_test_cli/platform.cpp
     jac313_test_cli/params.cpp
     jac313_test_cli/matrix.cpp
+    jac313_test_cli/kept_logs.cpp
+    jac313_test_cli/test_logs.cpp
     jac313_test_cli/build_pipeline.cpp
     jac313_test_cli/run_identity.cpp
 )

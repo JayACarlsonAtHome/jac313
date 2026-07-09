@@ -1,0 +1,10 @@
+# jac313 test log
+test=jac313_store_html_persist_smoke
+command=/home/jay/git/jac313/v002/build-gcc16/Store/examples/jac313_store_html_persist_smoke
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+jac313::Store::v002 HTML persistence smoke OK
+
+--- stderr ---

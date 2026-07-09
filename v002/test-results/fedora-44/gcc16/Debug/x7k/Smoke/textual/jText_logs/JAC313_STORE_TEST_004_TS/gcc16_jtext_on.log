@@ -1,0 +1,84 @@
+# jac313 matrix log
+test=jac313_store_004_TS
+package=store
+category=matrix
+persist=jtext
+output_mode=on
+command=/home/jay/git/jac313/v002/build-clang/Store/tests/matrix/jac313_store_004_TS
+args=--no-interactive --color=1 --test-size=smoke --persist=jtext --base-name=/home/jay/git/jac313/v002/test-results/fedora-44/gcc16/Debug/x7k/Smoke/textual/jText_logs/JAC313_STORE_TEST_004_TS/persist_on
+duration_ms=201
+exit_code=0
+
+--- stdout ---
+33                  393   Info....   NET.................        0      19   Info processing request 😊...............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Info 
+ 34                  394   Critical   UI..................        2      14   Critical processing request 😣...........................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Critical 
+ 35                  397   Fatal...   UI..................        2      15   Fatal error in processing notification 💀................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Fatal 
+ 36                  398   Not Set.   UI..................        2      16   Not Set, default payload 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Not Set 
+ 37                  400   Trace...   UI..................        2      17   Trace processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Trace 
+ 38                  402   Debug...   UI..................        2      18   Debug processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Debug 
+ 39                  404   Info....   UI..................        2      19   Info processing request 😊...............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Info 
+ 40                  645   Not Set.   DB..................        1       0   Not Set, default payload 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Not Set 
+ 41                  648   Not Set.   SYS.................        3       0   Not Set, default payload 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Not Set 
+ 42                  649   Trace...   DB..................        1       1   Trace processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Trace 
+ 43                  652   Debug...   DB..................        1       2   Debug processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Debug 
+ 44                  652   Trace...   SYS.................        3       1   Trace processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Trace 
+ 45                  654   Info....   DB..................        1       3   Info processing request 😊...............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Info 
+ 46                  655   Debug...   SYS.................        3       2   Debug processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Debug 
+ 47                  656   Warn....   DB..................        1       4   Warning in processing notification 😕....................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Warn 
+ 48                  657   Info....   SYS.................        3       3   Info processing request 😊...............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Info 
+ 49                  659   Error...   DB..................        1       5   Error in processing notification 😣......................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Error 
+ 50                  659   Warn....   SYS.................        3       4   Warning in processing notification 😕....................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Warn 
+ 51                  661   Critical   DB..................        1       6   Critical processing request 😣...........................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Critical 
+ 52                  662   Error...   SYS.................        3       5   Error in processing notification 😣......................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Error 
+ 53                  664   Fatal...   DB..................        1       7   Fatal error in processing notification 💀................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Fatal 
+ 54                  664   Critical   SYS.................        3       6   Critical processing request 😣...........................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Critical 
+ 55                  670   Not Set.   DB..................        1       8   Not Set, default payload 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Not Set 
+ 56                  672   Trace...   DB..................        1       9   Trace processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Trace 
+ 57                  673   Fatal...   SYS.................        3       7   Fatal error in processing notification 💀................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Fatal 
+ 58                  674   Debug...   DB..................        1      10   Debug processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Debug 
+ 59                  675   Not Set.   SYS.................        3       8   Not Set, default payload 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Not Set 
+ 60                  676   Info....   DB..................        1      11   Info processing request 😊...............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Info 
+ 61                  677   Trace...   SYS.................        3       9   Trace processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Trace 
+ 62                  679   Warn....   DB..................        1      12   Warning in processing notification 😕....................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Warn 
+ 63                  679   Debug...   SYS.................        3      10   Debug processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Debug 
+ 64                  681   Error...   DB..................        1      13   Error in processing notification 😣......................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Error 
+ 65                  681   Info....   SYS.................        3      11   Info processing request 😊...............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Info 
+ 66                  683   Critical   DB..................        1      14   Critical processing request 😣...........................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Critical 
+ 67                  683   Warn....   SYS.................        3      12   Warning in processing notification 😕....................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Warn 
+ 68                  685   Fatal...   DB..................        1      15   Fatal error in processing notification 💀................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Fatal 
+ 69                  686   Error...   SYS.................        3      13   Error in processing notification 😣......................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Error 
+ 70                  687   Not Set.   DB..................        1      16   Not Set, default payload 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Not Set 
+ 71                  688   Critical   SYS.................        3      14   Critical processing request 😣...........................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Critical 
+ 72                  689   Trace...   DB..................        1      17   Trace processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Trace 
+ 73                  690   Fatal...   SYS.................        3      15   Fatal error in processing notification 💀................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Fatal 
+ 74                  691   Debug...   DB..................        1      18   Debug processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Debug 
+ 75                  692   Not Set.   SYS.................        3      16   Not Set, default payload 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Not Set 
+ 76                  693   Info....   DB..................        1      19   Info processing request 😊...............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Info 
+ 77                  694   Trace...   SYS.................        3      17   Trace processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Trace 
+ 78                  696   Debug...   SYS.................        3      18   Debug processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Debug 
+ 79                  698   Info....   SYS.................        3      19   Info processing request 😊...............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Info 
+ 80                  702   Not Set.   GFX.................        4       0   Not Set, default payload 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Not Set 
+ 81                  712   Trace...   GFX.................        4       1   Trace processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Trace 
+ 82                  715   Debug...   GFX.................        4       2   Debug processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Debug 
+ 83                  718   Info....   GFX.................        4       3   Info processing request 😊...............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Info 
+ 84                  721   Warn....   GFX.................        4       4   Warning in processing notification 😕....................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Warn 
+ 85                  724   Error...   GFX.................        4       5   Error in processing notification 😣......................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Error 
+ 86                  730   Critical   GFX.................        4       6   Critical processing request 😣...........................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Critical 
+ 87                  734   Fatal...   GFX.................        4       7   Fatal error in processing notification 💀................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Fatal 
+ 88                  737   Not Set.   GFX.................        4       8   Not Set, default payload 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Not Set 
+ 89                  740   Trace...   GFX.................        4       9   Trace processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Trace 
+ 90                  743   Debug...   GFX.................        4      10   Debug processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Debug 
+ 91                  746   Info....   GFX.................        4      11   Info processing request 😊...............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Info 
+ 92                  749   Warn....   GFX.................        4      12   Warning in processing notification 😕....................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Warn 
+ 93                  752   Error...   GFX.................        4      13   Error in processing notification 😣......................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Error 
+ 94                  755   Critical   GFX.................        4      14   Critical processing request 😣...........................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Critical 
+ 95                  758   Fatal...   GFX.................        4      15   Fatal error in processing notification 💀................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Fatal 
+ 96                  761   Not Set.   GFX.................        4      16   Not Set, default payload 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Not Set 
+ 97                  764   Trace...   GFX.................        4      17   Trace processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Trace 
+ 98                  767   Debug...   GFX.................        4      18   Debug processing request 😎..............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Debug 
+ 99                  770   Info....   GFX.................        4      19   Info processing request 😊...............................................   FLAGS: LogConsole, KeeperRecord, HasData, HasIntData, HasDblData | Severity: Info 
+=========================================================================================================================================================
+Note: Output is zero-indexed → last printed entry is ID 99. Expected last ID = 99.
+Total entries stored: 100 (expected: 100)
+
+--- stderr ---

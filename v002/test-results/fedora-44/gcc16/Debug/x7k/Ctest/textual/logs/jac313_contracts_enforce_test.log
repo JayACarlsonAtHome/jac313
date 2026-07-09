@@ -1,0 +1,16 @@
+# jac313 test log
+test=jac313_contracts_enforce_test
+command=/home/jay/git/jac313/v002/build-gcc16/tools/jac313_contracts_enforce_test
+duration_ms=752
+exit_code=0
+
+--- stdout ---
+jac313 contracts — enforce/abort death-test OK (native=1)
+
+--- stderr ---
+contract violation in function int must_be_positive(int) at /home/jay/git/jac313/v002/tools/jac313_test_cli/tests/contracts_enforce_test.cpp:28: n > 0
+[assertion_kind: pre, semantic: enforce, mode: predicate_false, terminating: yes]
+terminate called without an active exception
+contract violation in function main()::<lambda()> at /home/jay/git/jac313/v002/tools/jac313_test_cli/tests/contracts_enforce_test.cpp:64: 1 == 2
+[assertion_kind: assert, semantic: enforce, mode: predicate_false, terminating: yes]
+terminate called without an active exception

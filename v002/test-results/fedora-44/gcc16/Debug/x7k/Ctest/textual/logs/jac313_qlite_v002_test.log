@@ -1,0 +1,11 @@
+# jac313 test log
+test=jac313_qlite_v002_test
+command=/home/jay/git/jac313/v002/build-gcc16/Qlite/tests/jac313_qlite_v002_test
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+  (std::expected unavailable — try_* path skipped)
+jac313::Qlite::v002 — all frozen-surface + additive-feature tests passed
+
+--- stderr ---

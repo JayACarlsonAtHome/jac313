@@ -75,7 +75,49 @@ struct Params {
     std::string db_path;                 // --db: append one row per run to this SQLite DB (via Qlite)
     std::string label;                   // --label: human label for the config (e.g. "2 flags, non-durable")
     std::int64_t run_id = 0;             // runID: one per --suite run (0 = allocate one per single record)
+    bool keep_logs = false;              // --keep-logs: retain durable artifacts (skip clean_output)
+    std::string keep_logs_dir;           // --keep-logs-dir: output root (default: <version>/kept-logs/bench)
 };
+
+bool keep_logs_enabled(const Params& p) {
+    if (p.keep_logs) return true;
+    if (const char* e = std::getenv("JAC313_KEEP_LOGS")) {
+        if (!e[0]) return false;
+        return e[0] == '1' || e[0] == 'y' || e[0] == 'Y' || e[0] == 't' || e[0] == 'T';
+    }
+    return false;
+}
+
+std::filesystem::path find_version_root() {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    for (fs::path d = fs::current_path(ec); !ec && !d.empty(); d = d.parent_path()) {
+        if (fs::exists(d / "Store") && fs::exists(d / "CMakeLists.txt")) return d;
+        if (d == d.parent_path()) break;
+    }
+    return fs::current_path(ec);
+}
+
+std::string resolved_keep_logs_dir(const Params& p) {
+    if (!p.keep_logs_dir.empty()) return p.keep_logs_dir;
+    return (find_version_root() / "kept-logs" / "bench" / "local").string();
+}
+
+// Match jac313_test_cli kept_logs.hpp: <persist>_1M|10M/capture under --keep-logs-dir.
+std::string bench_option_dir(const std::string& persist, const std::string& label) {
+    return persist + "_" + (label.find("@10M") != std::string::npos ? "10M" : "1M");
+}
+
+std::string suite_persist_base(const Params& base, const std::string& persist, const std::string& label) {
+    return resolved_keep_logs_dir(base) + "/" + bench_option_dir(persist, label) + "/capture";
+}
+
+void ensure_capture_parent_dir(const std::string& base_name) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    fs::path bp(base_name);
+    if (bp.has_parent_path()) fs::create_directories(bp.parent_path(), ec);
+}
 
 struct Sweep {
     std::string axis;                    // "events" | "threads" | "batch"
@@ -192,6 +234,7 @@ bool do_workload(const Params& p, bool verify) {
     LogxStore store(p.threads, p.events_per_thread);
 
     if (p.persist != "none") {
+        ensure_capture_parent_dir(p.base_name);
         if (auto sink = make_sink(p)) {
             store.attach_persistence(std::make_unique<DoubleBufferedWriter>(std::move(sink), p.batch));
         } else {
@@ -259,6 +302,13 @@ std::vector<std::string> worker_argv(const std::string& exe, const Params& p, bo
         "--flags-raw",         std::to_string(p.flags),
     };
     if (verify) a.push_back("--verify");
+    if (keep_logs_enabled(p)) {
+        a.push_back("--keep-logs");
+        if (!p.keep_logs_dir.empty()) {
+            a.push_back("--keep-logs-dir");
+            a.push_back(p.keep_logs_dir);
+        }
+    }
     return a;
 }
 
@@ -272,8 +322,8 @@ std::optional<std::size_t> run_one(const Params& p, bool verify) {
     if (exe.empty()) { std::cerr << "ERROR: cannot resolve /proc/self/exe for worker spawn\n"; return std::nullopt; }
 
     // Clean prior output in the PARENT so the child's measured lifetime is pure workload
-    // (a real program doesn't delete leftovers first). No-op when non-durable.
-    if (p.persist != "none") clean_output(p.base_name);
+    // (a real program doesn't delete leftovers first). Skipped when --keep-logs retains artifacts.
+    if (p.persist != "none" && !keep_logs_enabled(p)) clean_output(p.base_name);
 
     const std::vector<std::string> sargs = worker_argv(exe, p, verify);
     std::vector<char*> argv;
@@ -728,6 +778,13 @@ int run_suite(Params base, bool dry, bool smoke) {
         }
     }
 
+    const bool retaining = keep_logs_enabled(base);
+    if (retaining) {
+        std::error_code ec;
+        std::filesystem::create_directories(resolved_keep_logs_dir(base), ec);
+        std::cout << "keep-logs: durable suite output -> " << resolved_keep_logs_dir(base) << "\n";
+    }
+
     if (dry) {
         std::cout << "# Store benchmark suite — " << cfgs.size() << " configs"
                   << (smoke ? " [SMOKE gate: <=10k events, pass/fail, not recorded]" : "")
@@ -749,6 +806,7 @@ int run_suite(Params base, bool dry, bool smoke) {
             Params p = base;
             p.persist = cf.persist; p.flags = flags_by_count(cf.flags); p.label = cf.label;
             p.events_per_thread = cf.evt; p.runs = cf.runs;
+            if (retaining && cf.persist != "none") p.base_name = suite_persist_base(base, cf.persist, cf.label);
             std::cout << "\n=== " << cf.label << " ===\n";
             if (measure_set(p).empty()) { std::cerr << "FAIL: " << cf.label << "\n"; failed.push_back(cf.label); }
             else                        { ++passed;  std::cout << "PASS: " << cf.label << "\n"; }
@@ -779,6 +837,7 @@ int run_suite(Params base, bool dry, bool smoke) {
         Params p = base;
         p.persist = cf.persist; p.flags = flags_by_count(cf.flags); p.label = cf.label;
         p.events_per_thread = cf.evt; p.runs = cf.runs;
+        if (retaining && cf.persist != "none") p.base_name = suite_persist_base(base, cf.persist, cf.label);
         // Durable configs run at this machine's calibrated double-buffer size (io_best_fit.useThis);
         // falls back to the default batch when uncalibrated. Non-durable has no writer, so batch is moot.
         if (cf.persist != "none") p.batch = static_cast<std::size_t>(calibrated_use(base.db_path, cf.persist, static_cast<std::int64_t>(base.batch)));
@@ -827,6 +886,8 @@ int main(int argc, char** argv) {
         else if (a == "--verify") verify_flag = true;                 // worker: structural-verify this run
         else if (a == "--db") p.db_path = next();
         else if (a == "--label") p.label = next();
+        else if (a == "--keep-logs") p.keep_logs = true;
+        else if (a == "--keep-logs-dir") p.keep_logs_dir = next();
         else if (a == "--suite") do_suite = true;
         else if (a == "--smoke") { do_suite = true; smoke = true; }   // smoke = the suite as a pass/fail gate
         else if (a == "--calibrate") do_calibrate = true;            // sweep batch per durable backend -> io_best_fit

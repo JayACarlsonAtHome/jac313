@@ -66,20 +66,7 @@ int main(int argc, char** argv) {
     // Chosen via --persist binary|jtext (default jtext). --base-name can override the
     // output file prefix (runner uses this to place files under test_results/*/TS_STORE_TEST_.../).
     {
-        std::string ptype = _opts.persist.empty() ? "jtext" : _opts.persist;
-        std::string bname = _opts.base_name;
-        if (bname.empty()) bname = "persist";
-
-        if (!persist_skips_sink(ptype)) {
-            const size_t im = LogConfig::the_IntMetrics;
-            const size_t dm = LogConfig::the_DblMetrics;
-            auto sink = make_persistence_sink(ptype, bname, im, dm, PersistMode::All);
-            if (!sink) return 1;
-            auto writer = std::make_unique<DoubleBufferedWriter>(std::move(sink), 10'000);
-            store.attach_persistence(std::move(writer));
-        } else {
-            std::cout << "No persistence attached — pure in-memory hot path\n";
-        }
+        if (!attach_persistence_from_opts<LogConfig>(store, _opts)) return 1;
     }
 
     std::vector<std::thread> writers;

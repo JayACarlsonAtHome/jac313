@@ -77,7 +77,7 @@ flowchart TB
 |-------|------|
 | **Umbrella headers** | Public entry points (`include/jac313/.../v001.hpp`). |
 | **C++23 modules** | Optional `import jac313.*.v001` path (Ninja module scanning). See [Modules.md](Modules.md). |
-| **Store (in-tree)** | Owns the hot path + persistence sinks (binary, jText, SQL, flag-routing). Uses jText and Qlite. See [Store docs](store/). |
+| **Store (in-tree)** | Owns the hot path + persistence sinks (binary, jText, HTML, JSON, SQL, flag-routing). Uses jText and Qlite. See [Store docs](store/). |
 | **jac313_test_cli** | Local runner: configure/build, ctest discovery, matrix grids. No shell scripts. |
 
 ---
@@ -136,7 +136,7 @@ build profile to your domain.
 | **Pre-sized block files** | Fixed event counts — `mmap` once, write by slot instead of append growth |
 | **Sharded persist channels** | Many-core writers — per-lane queues instead of one mutex + append cursor |
 | **Verification tier** | Dev: full structural verify; prod: lighter or sampled checks |
-| **`persist=none` hot path** | Maximum in-memory rate; attach binary/SQL/jText when durability matters |
+| **`persist=none` hot path** | Maximum in-memory rate; attach binary/jtext/html/json/sql when durability matters |
 
 The matrix gate validates the baseline; your box and your workload set the ceiling.
 

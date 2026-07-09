@@ -17,8 +17,9 @@ strengths + weaknesses; a good target for AI-assisted exploration against your w
 - [**Categories**](../docs/store/categories.md) — `bounded_string`, UTF-8 codepoint sizing of category + payload
 - [**Flags**](../docs/store/flags.md) — the complete `StoreFlags` catalog: every bit + meaning + honest wired/advisory/placeholder status
 - [**Routing**](../docs/store/bitmaps.md) — how flags + `PersistMode` route events (keeper/database masks)
-- [**Persistence**](../docs/store/persistence.md) — the sinks (binary, jText, SQL, flag-routing) + double-buffered drain
-- [**Reporting**](../docs/store/reporting.md) — reading the logs back: human-readable jText, queryable SQL, binary + reader
+- [**Persistence**](../docs/store/persistence.md) — the sinks (binary, jText, HTML, JSON, SQL, flag-routing) + double-buffered drain
+- [**Reporting**](../docs/store/reporting.md) — reading the logs back: jText, HTML, JSON, SQL, binary + readers
+- [**Log viewer (planned)**](../docs/store/log-viewer-plan.md) — wxWidgets browser for large captures; sidecar index for 1M/10M scale
 
 ## Quick start
 
@@ -47,9 +48,9 @@ Core includes in-memory `ts_store`, `ts_store_config`, `bounded_string`, and per
 
 - **Binary** — `BinaryEventSink`, `BinaryEventLog` (header-only), `BinaryEventLogReader` (`jac313::store_binary_read`, `convert_to_jtext` via `jac313::store_jtext_persist`)
 - **jText** — `JTextEventSink`, `JTextSplitEventLog` (`jac313::store_jtext_persist`, links in-tree `jtext_core`)
+- **HTML** — `HtmlEventSink`, `HtmlSplitEventLog` (`jac313::store_html_persist`, writer only)
+- **JSON** — `JsonEventSink`, `JsonSplitEventLog`, `JsonEventLogReader` (`jac313::store_json_persist`)
 - **Routing** — `FlagRoutingEventSink` (header-only)
-
-See [persistence docs](../docs/store/persistence.md) for full details (including a parked JSON backend idea).
 
 ## Build
 
@@ -72,7 +73,7 @@ cmake -G Ninja -S . -B build -DCMAKE_CXX_COMPILER=g++-14 -DJAC313_STORE_BUILD_MO
 When built with `-DJAC313_BUILD_STORE_TESTS=ON` from the monorepo root:
 
 - **Unit** — `jac313_store_v002_test`, `jac313_store_binary_reader_test`
-- **Examples** — binary/jText/SQL/flag-routing persistence smokes (ctest)
+- **Examples** — binary/jText/HTML/JSON/SQL/flag-routing persistence smokes (ctest)
 - **Matrix** — ported ts_store stress tests `001`–`008` (TS/XS) plus `flags`
 
 Run the full matrix locally via [`jac313_test_cli`](../tools/jac313_test_cli/) (see the version's top-level README.md Quick start section).

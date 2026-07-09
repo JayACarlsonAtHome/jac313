@@ -1,0 +1,10 @@
+# jac313 test log
+test=jac313_instance_hash_test
+command=/home/jay/git/jac313/v001/build-clang/tools/jac313_instance_hash_test
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+instance_hash — sha256_hex_lower known vectors
+
+--- stderr ---

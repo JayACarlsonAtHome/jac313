@@ -178,7 +178,7 @@ If you size the record to your world, the list keeps going.
    `get_ids_sorted_by_timestamp()`.
 4. **Text** — size `MaxCategoryLength` / `MaxPayloadLength` to your real strings (UTF-8 codepoints;
    over-length is silently truncated — see [categories](categories.md)).
-5. **Persistence** — choose a sink (binary / jText / SQL / flag-routing) for replay & audit; the
+5. **Persistence** — choose a sink (binary / jtext / html / json / sql / flag-routing) for replay & audit; the
    drain never blocks the logger — see [persistence](persistence.md).
 
 ---

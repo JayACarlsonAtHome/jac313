@@ -198,33 +198,33 @@ Cell = compile+link seconds · status · binary size (latest build); per test ×
 | jac313_jtext_v002_test | 1.34s · built · 1.43 MB | - | 1.22s · built · 1.68 MB | - | - |
 | jac313_qlite_v002_test | 0.82s · built · 580.23 KB | - | 0.77s · built · 639.06 KB | - | - |
 | jac313_run_identity_test | 2.52s · built · 467.34 KB | - | 2.35s · built · 591.10 KB | - | - |
-| jac313_store_001_TS | 6.41s · built · 4.41 MB | 3.10s · built · 4.41 MB | 3.58s · built · 5.47 MB | 3.53s · built · 5.47 MB | 4.58s · built · 5.47 MB |
-| jac313_store_001_XS | 5.13s · built · 4.40 MB | 3.26s · built · 4.40 MB | 3.69s · built · 5.45 MB | 4.52s · built · 5.45 MB | 4.09s · built · 5.45 MB |
-| jac313_store_002_TS | 4.56s · built · 4.26 MB | 2.47s · built · 4.26 MB | 3.73s · built · 5.31 MB | 3.18s · built · 5.31 MB | 4.30s · built · 5.31 MB |
-| jac313_store_002_XS | 6.25s · built · 4.24 MB | 2.80s · built · 4.24 MB | 3.36s · built · 5.28 MB | 4.05s · built · 5.28 MB | 3.28s · built · 5.28 MB |
-| jac313_store_003_TS | 6.62s · built · 4.45 MB | 2.52s · built · 4.45 MB | 3.20s · built · 5.49 MB | 3.45s · built · 5.49 MB | 3.93s · built · 5.49 MB |
-| jac313_store_003_XS | 8.58s · built · 4.43 MB | 3.12s · built · 4.43 MB | 2.95s · built · 5.47 MB | 3.65s · built · 5.47 MB | 3.61s · built · 5.47 MB |
-| jac313_store_004_TS | 9.10s · built · 4.40 MB | 2.57s · built · 4.40 MB | 2.95s · built · 5.45 MB | 3.58s · built · 5.45 MB | 3.84s · built · 5.45 MB |
-| jac313_store_004_XS | 5.94s · built · 4.38 MB | 3.29s · built · 4.38 MB | 2.89s · built · 5.42 MB | 3.71s · built · 5.42 MB | 4.10s · built · 5.42 MB |
-| jac313_store_005_TS | 7.07s · built · 4.29 MB | 2.52s · built · 4.29 MB | 2.69s · built · 5.34 MB | 3.62s · built · 5.34 MB | 3.71s · built · 5.34 MB |
-| jac313_store_005_XS | 7.12s · built · 4.27 MB | 3.03s · built · 4.27 MB | 2.95s · built · 5.32 MB | 3.23s · built · 5.32 MB | 3.05s · built · 5.32 MB |
-| jac313_store_006_TS | 5.55s · built · 4.45 MB | 3.12s · built · 4.45 MB | 4.26s · built · 5.49 MB | 3.36s · built · 5.49 MB | 3.38s · built · 5.49 MB |
-| jac313_store_006_XS | 9.97s · built · 4.43 MB | 3.19s · built · 4.43 MB | 3.16s · built · 5.47 MB | 3.34s · built · 5.47 MB | 3.05s · built · 5.47 MB |
-| jac313_store_007_TS | 7.69s · built · 4.29 MB | 2.55s · built · 4.29 MB | 3.66s · built · 5.34 MB | 3.57s · built · 5.34 MB | 3.78s · built · 5.34 MB |
-| jac313_store_007_XS | 6.12s · built · 4.28 MB | 2.56s · built · 4.28 MB | 2.98s · built · 5.33 MB | 3.15s · built · 5.33 MB | 3.42s · built · 5.33 MB |
-| jac313_store_008_TS | 4.97s · built · 3.16 MB | 2.54s · built · 3.16 MB | 2.51s · built · 3.82 MB | 3.04s · built · 3.82 MB | 3.09s · built · 3.82 MB |
-| jac313_store_008_XS | 4.71s · built · 3.16 MB | 2.28s · built · 3.16 MB | 2.25s · built · 3.82 MB | 2.70s · built · 3.82 MB | 2.34s · built · 3.82 MB |
-| jac313_store_bench | 1.87s · built · 4.74 MB | 3.87s · built · 4.74 MB | 2.68s · built · 5.86 MB | 4.24s · built · 5.86 MB | 4.06s · built · 5.86 MB |
+| jac313_store_001_TS | 3.03s · built · 4.41 MB | 2.81s · built · 4.41 MB | 3.35s · built · 5.47 MB | 4.16s · built · 5.47 MB | 4.67s · built · 5.47 MB |
+| jac313_store_001_XS | 2.85s · built · 4.40 MB | 3.10s · built · 4.40 MB | 3.52s · built · 5.45 MB | 3.76s · built · 5.45 MB | 3.98s · built · 5.45 MB |
+| jac313_store_002_TS | 3.59s · built · 4.26 MB | 2.74s · built · 4.26 MB | 2.96s · built · 5.31 MB | 3.48s · built · 5.31 MB | 4.14s · built · 5.31 MB |
+| jac313_store_002_XS | 2.47s · built · 4.24 MB | 3.32s · built · 4.24 MB | 3.03s · built · 5.28 MB | 3.70s · built · 5.28 MB | 3.63s · built · 5.28 MB |
+| jac313_store_003_TS | 2.93s · built · 4.45 MB | 3.94s · built · 4.45 MB | 3.77s · built · 5.49 MB | 3.35s · built · 5.49 MB | 3.83s · built · 5.49 MB |
+| jac313_store_003_XS | 3.32s · built · 4.43 MB | 2.90s · built · 4.43 MB | 3.61s · built · 5.47 MB | 3.62s · built · 5.47 MB | 4.00s · built · 5.47 MB |
+| jac313_store_004_TS | 3.36s · built · 4.40 MB | 3.31s · built · 4.40 MB | 3.14s · built · 5.45 MB | 3.25s · built · 5.45 MB | 4.04s · built · 5.45 MB |
+| jac313_store_004_XS | 2.49s · built · 4.38 MB | 3.21s · built · 4.38 MB | 3.51s · built · 5.42 MB | 4.22s · built · 5.42 MB | 3.56s · built · 5.42 MB |
+| jac313_store_005_TS | 2.31s · built · 4.29 MB | 2.41s · built · 4.29 MB | 3.09s · built · 5.34 MB | 4.10s · built · 5.34 MB | 3.40s · built · 5.34 MB |
+| jac313_store_005_XS | 3.68s · built · 4.27 MB | 2.70s · built · 4.27 MB | 2.76s · built · 5.32 MB | 3.29s · built · 5.32 MB | 3.50s · built · 5.32 MB |
+| jac313_store_006_TS | 3.40s · built · 4.45 MB | 2.96s · built · 4.45 MB | 4.08s · built · 5.49 MB | 3.59s · built · 5.49 MB | 3.52s · built · 5.49 MB |
+| jac313_store_006_XS | 3.13s · built · 4.43 MB | 2.91s · built · 4.43 MB | 3.10s · built · 5.47 MB | 3.50s · built · 5.47 MB | 3.65s · built · 5.47 MB |
+| jac313_store_007_TS | 3.84s · built · 4.29 MB | 2.87s · built · 4.29 MB | 3.22s · built · 5.34 MB | 3.10s · built · 5.34 MB | 3.78s · built · 5.34 MB |
+| jac313_store_007_XS | 3.45s · built · 4.28 MB | 2.50s · built · 4.28 MB | 2.66s · built · 5.33 MB | 3.58s · built · 5.33 MB | 3.28s · built · 5.33 MB |
+| jac313_store_008_TS | 2.85s · built · 3.16 MB | 2.44s · built · 3.16 MB | 2.27s · built · 3.82 MB | 3.27s · built · 3.82 MB | 3.70s · built · 3.82 MB |
+| jac313_store_008_XS | 2.26s · built · 3.16 MB | 2.53s · built · 3.16 MB | 2.16s · built · 3.82 MB | 2.70s · built · 3.82 MB | 2.54s · built · 3.82 MB |
+| jac313_store_bench | 4.01s · built · 4.75 MB | 3.66s · built · 4.75 MB | 4.03s · built · 5.86 MB | 4.97s · built · 5.87 MB | 5.08s · built · 5.87 MB |
 | jac313_store_binary_persist_smoke | 2.33s · built · 1.41 MB | - | 2.52s · built · 1.66 MB | - | - |
 | jac313_store_binary_reader_test | 4.43s · built · 2.71 MB | - | 2.17s · built · 3.35 MB | - | - |
 | jac313_store_binary_to_jtext_smoke | 3.16s · built · 2.69 MB | - | 2.67s · built · 3.32 MB | - | - |
 | jac313_store_flag_routing_smoke | 2.86s · built · 1.88 MB | - | 2.81s · built · 2.21 MB | - | - |
-| jac313_store_flags | 3.59s · built · 202.70 KB | 1.24s · built · 202.72 KB | 0.99s · built · 235.80 KB | 1.11s · built · 236.09 KB | 1.13s · built · 236.09 KB |
+| jac313_store_flags | 3.59s · built · 202.70 KB | 1.22s · built · 202.72 KB | 0.99s · built · 235.80 KB | 1.02s · built · 236.09 KB | 1.18s · built · 236.09 KB |
 | jac313_store_html_persist_smoke | 2.42s · built · 1.50 MB | - | 2.07s · built · 1.77 MB | - | - |
 | jac313_store_json_persist_smoke | 2.40s · built · 1.47 MB | - | 1.81s · built · 1.74 MB | - | - |
 | jac313_store_json_reader_test | 1.73s · built · 1.74 MB | - | 1.79s · built · 2.11 MB | - | - |
 | jac313_store_jtext_persist_smoke | 2.38s · built · 2.32 MB | - | 2.06s · built · 2.80 MB | - | - |
-| jac313_store_metric_view | 3.33s · built · 774.52 KB | 2.45s · built · 774.53 KB | 2.52s · built · 913.10 KB | 2.11s · built · 913.43 KB | 2.00s · built · 913.43 KB |
+| jac313_store_metric_view | 3.33s · built · 774.52 KB | 2.61s · built · 774.53 KB | 2.52s · built · 913.10 KB | 2.24s · built · 913.43 KB | 2.06s · built · 913.43 KB |
 | jac313_store_metric_view_test | 2.03s · built · 766.18 KB | - | 2.37s · built · 900.95 KB | - | - |
 | jac313_store_saturating_capacity_test | 1.18s · built · 33.16 KB | - | 0.85s · built · 51.75 KB | - | - |
 | jac313_store_sql_persist_smoke | 2.22s · built · 939.53 KB | - | 2.28s · built · 1.06 MB | - | - |

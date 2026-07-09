@@ -16,7 +16,9 @@
 #include "host_hardware.hpp"
 #include "host_identity.hpp"
 #include "host_pin.hpp"
+#include "kept_logs.hpp"
 #include "runner.hpp"
+#include "test_logs.hpp"
 
 #include <jac313/Qlite/v002.hpp>   // shared testList catalog in the bench results DB
 #include "jac313_results_db.hpp"   // jac313::results — shared schema + dimension helpers
@@ -65,19 +67,28 @@ void print_usage() {
         "  -h, --help           Show help\n\n"
         "Preset gates (no subcommand — compose freely; writes & runs ./run_latest_config.sh):\n"
         "  --ctest              ctest unit suite\n"
-        "  --smoke              persist x output smoke matrix\n"
-        "  --bench              throughput benchmark (auto-records to results.db, like every gate)\n"
+        "  --smoke              smoke matrix: persist (binary/jtext/html/json/sql/none) × output on/off\n"
+        "  --bench              throughput benchmark — durable jtext/html/json/binary/sql\n"
+        "                       (auto-records to results.db, like every gate)\n"
         "  --report             render-only: (re)build the .md report pages from results.db\n"
-        "  --verify-lite        valgrind memcheck over the ctest + smoke surface\n"
-        "  --verify             valgrind memcheck + helgrind + DRD\n"
+        "  --verify-lite        valgrind: ctest + matrix 001 (binary; 001 across jtext/html/json/sql)\n"
+        "  --verify             valgrind: full smoke matrix (all sinks incl. html/json) + helgrind/DRD\n"
         "  --group-id           read-only precheck: which jac313-<group_id> this machine records under\n"
         "  --claim <jac313-###> bind this machine to an existing fleet slot (same OS+hardware)\n"
         "  --assign-new-###     create a new slot at explicit ### (e.g. --assign-new-003)\n"
         "  --run-everything     the FULL battery: every gate on both compilers + build-times + report\n"
+        "                       (does NOT keep durable captures — add --keep-logs for that)\n"
+        "  --keep-logs          opt-in: retain durable captures under kept-logs/ (see kept-logs/README.md)\n"
+        "                       layout: bench/<compiler>/<option>/capture (e.g. json_10M, html_1M),\n"
+        "                                smoke/<compiler>/<test>/<option>/ (e.g. jtext_output_on)\n"
+        "  --keep-logs-dir <p>  root for kept output (default: kept-logs; needs ~12+ GB for full run)\n"
+        "  --wipe-logs          delete test-results/ + kept-logs/ (keeps README.md); alone or before a run\n"
         "  (every gate auto-records; --report only renders. everyday: --ctest --smoke ;\n"
-        "   bench: --bench ; render: --report ; all of it: --run-everything)\n\n"
+        "   bench: --bench ; render: --report ; full battery: --run-everything ;\n"
+        "   full battery + retained captures: --run-everything --keep-logs)\n\n"
         "Run options:\n"
-        "  --filter <regex>     Run only matching tests (matrix: scenario filter)\n"
+        "  --filter <regex>     Run only matching tests (matrix: test, persist backend,\n"
+        "                       or name|persist|mode — binary|jtext|html|json|sql|none)\n"
         "  --fail-fast          Stop on first failure\n"
         "  --failsafe <sec>     Kill stuck test/compile after N seconds (smoke: "
         + std::to_string(kSmokeFailsafeSec) + ", full: " + std::to_string(kFullFailsafeSec)
@@ -166,6 +177,7 @@ void seed_test_catalog(const fs::path& source_dir, const std::vector<TestEntry>&
 // Defined further down (next to the other results.db recorders); declared here for run_tests_command.
 void record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
                           const std::vector<TestResult>& results, std::int64_t run_id = 0);
+
 
 std::int64_t cli_begin_run(jac313::Qlite::v002::Sqlite& db, const GlobalOptions& global);
 
@@ -291,6 +303,7 @@ int run_tests_command(const GlobalOptions& global, const RunOptions& opts,
     }
 
     record_ctest_results(global.source_dir, global.build_dir, results, run_id);   // reuse the early run_id for testRun rows + live runEvent logging
+    write_ctest_logs(global, compiler_label_from_build(global.build_dir), results);
 
     if (report_path) {
         if (write_summary_file(*report_path, summary, results)) {
@@ -1569,6 +1582,8 @@ int run_matrix_run_command(const GlobalOptions& global,
         std::cout << "Failsafe: " << format_count(failsafe_sec) << "s per scenario\n";
     }
     std::cout << "Results: " << results_base.string() << '\n';
+    std::cout << "Logs:    " << results_base.string() << "/…/*.log  (text only — safe to commit; see test-results/README.md)\n";
+    print_keep_logs_status(global);
 
     // Global scenario accounting for a run-all sweep: TOTAL = combo_count * this
     // combo's scenario count (constant across combos). Surfaced so every line and
@@ -1616,6 +1631,9 @@ int run_matrix_run_command(const GlobalOptions& global,
     run_opts_matrix.failsafe_sec = failsafe_sec;
     run_opts_matrix.global_done_before = global_before;
     run_opts_matrix.global_total = grand_total;
+    run_opts_matrix.keep_logs = global.keep_logs;
+    run_opts_matrix.version_root = global.source_dir;
+    run_opts_matrix.keep_logs_root = global.keep_logs_dir;
 
     const auto results = run_matrix(scenarios, params, results_base, run_opts_matrix);
     MatrixTally tally = tally_matrix_results(results);
@@ -2102,7 +2120,7 @@ int run_preset_command(const GlobalOptions& global, const ConfigureOptions& conf
             emit("\"$CLI\" configure --build-dir " + dir + " --compiler " + label + func_extra);
             emit("\"$CLI\" build --build-dir " + dir);
             if (preset.ctest) emit("\"$CLI\" run --build-dir " + dir);         // ctest unit suite
-            if (preset.smoke) emit("\"$CLI\" matrix run --build-dir " + dir);  // persist x output smoke grid
+            if (preset.smoke) emit("\"$CLI\" matrix run --build-dir " + dir + keep_logs_cli_suffix(global));
         }
         emit("");
     }
@@ -2128,7 +2146,7 @@ int run_preset_command(const GlobalOptions& global, const ConfigureOptions& conf
             emit("cmake --build " + dir + " --target jac313_store_bench");
             emit("BENCH=\"" + dir + "/Store/tests/matrix/jac313_store_bench\"");
             // bench auto-records like every other gate (no --report needed); --report only renders.
-            emit("\"$BENCH\" --suite --db " + JAC313_RESULTS_DB);   // versions read from package_version (by group)
+            emit("\"$BENCH\" --suite --db " + JAC313_RESULTS_DB + bench_keep_logs_args(global, label));
         }
         if (preset.report) emit("\"$CLI\" --report");            // render-only, ONCE after both compilers
         emit("");
@@ -2305,7 +2323,9 @@ int run_everything_command(const GlobalOptions& global) {
         return 1;
     }
     std::cout << "######## run-everything: full battery — gcc=" << gcc_label
-              << "  clang=" << clang_label << "  (pinned) ########\n";
+              << "  clang=" << clang_label << "  (pinned)"
+              << "  keep-logs=" << (global.keep_logs ? "on" : "off (default)") << " ########\n";
+    print_keep_logs_status(global);
     // Clear ONLY this machine's prior results (the pinned group), NOT the whole fleet DB — every
     // other machine's committed results survive. host_spec + the current_host pin are kept (we
     // re-record the SAME machine, reusing its group_id); the gates below repopulate this group.
@@ -2349,7 +2369,7 @@ int run_everything_command(const GlobalOptions& global) {
         step("configure " + cc, CLI + " configure --build-dir " + dir + " --compiler " + cc);
         step("build " + cc,     CLI + " build --build-dir " + dir);
         step("ctest " + cc,     CLI + " run --build-dir " + dir);
-        step("smoke " + cc,     CLI + " matrix run --build-dir " + dir);
+        step("smoke " + cc,     CLI + " matrix run --build-dir " + dir + keep_logs_cli_suffix(global));
     }
     // Build the Release bench for each compiler.
     for (const std::string& cc : {gcc_label, clang_label}) {
@@ -2368,7 +2388,7 @@ int run_everything_command(const GlobalOptions& global) {
     for (const std::string& cc : {gcc_label, clang_label}) {
         const std::string dir = "build-bench-" + cc;
         step("bench " + cc, dir + "/Store/tests/matrix/jac313_store_bench --suite "
-                            "--db " + SHARED_DB);   // versions read from package_version (by group)
+                            "--db " + SHARED_DB + bench_keep_logs_args(global, cc));
     }
     step("verify gcc",   CLI + " matrix verify --compiler " + gcc_label);
     step("verify clang", CLI + " matrix verify --compiler " + clang_label);
@@ -2595,6 +2615,12 @@ int main(int argc, char** argv) {
                 preset.group_id = true;
             } else if (arg == "--run-everything") {
                 preset.run_everything = true;
+            } else if (arg == "--keep-logs") {
+                global.keep_logs = true;
+            } else if (arg == "--keep-logs-dir" && i + 1 < argc) {
+                global.keep_logs_dir = argv[++i];
+            } else if (arg == "--wipe-logs") {
+                global.wipe_logs = true;
             } else if (arg == "--params" && i + 1 < argc) {
                 matrix_opts.params_file = argv[++i];
             } else if (arg == "--dry-run") {
@@ -2631,15 +2657,17 @@ int main(int argc, char** argv) {
                 "matrix commands:\n"
                 "  run            Run selected package scenarios\n"
                 "  runner         Run ONE explicit config: --compiler --build-type --modules --size\n"
-                "  verify-lite    valgrind gate: ctest under memcheck + helgrind/DRD\n"
-                "  verify         valgrind gate: ctest + smoke matrix (full sink coverage)\n\n"
+                "  verify-lite    valgrind gate: ctest + matrix 001 (binary; representative sinks)\n"
+                "  verify         valgrind gate: ctest + smoke matrix (all sinks incl. html/json)\n\n"
+                "Smoke matrix persist backends: binary, jtext, html, json, sql, none — each × output on/off.\n"
                 "A matrix run is a correctness gate only. Throughput is the `--bench --report` gate,\n"
                 "and `jac313_test_cli --report` renders every result from test-summary/results.db.\n\n"
                 "matrix options:\n"
                 "  --params <file>   Params file (default: tests/test_params.txt)\n"
                 "  --dry-run         List scenarios only\n"
                 "  --modules         Configure+build with modules before run\n"
-                "  --filter <regex>  Match test name, persist, or name|persist|mode\n"
+                "  --filter <regex>  Match test, persist (binary|jtext|html|json|sql|none),\n"
+                "                    or name|persist|mode\n"
                 "  --failsafe <sec>  Kill stuck scenario after N seconds (smoke: "
                 + std::to_string(kSmokeFailsafeSec) + ", full: " + std::to_string(kFullFailsafeSec)
                 + ", 0=off)\n"
@@ -2754,8 +2782,9 @@ int main(int argc, char** argv) {
                     global.verbose = true;
                 } else if (a == "--help" || a == "-h") {
                     std::cout << "matrix " << sub << " — valgrind gate ("
-                              << (full ? "ctest + smoke matrix" : "ctest representative")
-                              << ", memcheck + helgrind/DRD)\n\n"
+                              << (full ? "ctest + smoke matrix — all sinks (binary/jtext/html/json/sql/none)"
+                                      : "ctest + matrix 001 — representative sinks (binary; 001 across jtext/html/json/sql)")
+                              << "; memcheck + helgrind/DRD)\n\n"
                                  "  --gcc15 | --clang | --compiler <cxx>   (default: auto-detect)\n"
                                  "  --source-dir <path>\n";
                     return 0;
@@ -2790,6 +2819,9 @@ int main(int argc, char** argv) {
         if (preset.group_id) {
             return run_group_id_command(global);
         }
+        if (global.wipe_logs) {
+            if (run_wipe_logs_command(global) != 0) return 1;
+        }
         if (preset.run_everything) {
             return run_everything_command(global);
         }
@@ -2800,6 +2832,9 @@ int main(int argc, char** argv) {
                 return run_report_command(global.source_dir);   // generate the report pages from results.db
             }
             return run_preset_command(global, configure_opts, preset);
+        }
+        if (global.wipe_logs) {
+            return 0;
         }
         return run_tests_command(global, run_opts, report_path);
     }

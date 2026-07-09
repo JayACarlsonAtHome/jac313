@@ -38,7 +38,7 @@ batteries. Current data is per-machine in the reports.
 | **Full matrix** — 116 at stress scale (**Release**) | 116/116 ✅ | ~9 m 26 s | **8.8M events/s** | ~610 MB |
 
 The matrix is `116 = matrix tests (001–008 TS/XS + flags + metric_view) × persist backend
-(binary / jText / SQL / in-memory / flag-routing) × output on/off`.
+(binary / jtext / html / json / sql / in-memory / flag-routing) × output on/off`.
 
 **Headline:** the lock-free in-memory hot path hits **~8.8M events/sec at Release** — about
 **3× the Debug figure**. The test gates run on **Debug**, so the day-to-day numbers are the

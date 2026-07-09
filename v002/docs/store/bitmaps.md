@@ -16,7 +16,7 @@ change (the `event_flags` argument to [`save_event`](logging.md) carries them):
 
 | Flag | Bit | Sends the event to |
 |------|-----|--------------------|
-| `KeeperRecord` | 1 | the **keeper (file)** sink (binary / jText) |
+| `KeeperRecord` | 1 | the **keeper (file)** sink (binary / jtext / html / json) |
 | `DatabaseEntry` | 2 | the **SQL** sink |
 
 ---
@@ -29,7 +29,7 @@ Two layers decide where an event goes:
 (`persistence/FlagRoutingEventSink.hpp`) — a composite sink that multiplexes a batch across two
 inner sinks:
 
-- `KEEPER_MASK` (bit 1, `KeeperRecord`) → the **file** sink (binary / jText)
+- `KEEPER_MASK` (bit 1, `KeeperRecord`) → the **file** sink (binary / jtext / html / json)
 - `DATABASE_MASK` (bit 2, `DatabaseEntry`) → the **SQL** sink
 - An event can route to both, one, or neither.
 

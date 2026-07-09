@@ -110,10 +110,12 @@ Durable — 1M Events × 3 Runs = 3M Events per config (median | low–high band
 |---------|----------------|---------------------------|
 | binary  | 2,594,714      | 2.55M – 2.61M             |
 | jText   | 2,043,991      | 2.03M – 2.10M             |
+| HTML    | (see report)   | text tables + `fsync`     |
+| JSON    | (see report)   | NDJSON + `fsync`          |
 | SQL     | 1,456,859      | 1.45M – 1.48M             |
 
 _Representative (jac313-004, gcc15, 3 runs; each backend fsync'd to disk inside the clock — the
-jText/SQL order is disk-dependent). Live per-machine numbers are in the rendered
+text-sink and SQL order is disk-dependent). Live per-machine numbers are in the rendered
 `test-summary/bench/` report and refresh on each `--run-everything`._
 
 ## Takeaways
@@ -122,13 +124,13 @@ jText/SQL order is disk-dependent). Live per-machine numbers are in the rendered
 even trend — it's pure noise.<br>
 Setting flags has no measurable hot-path cost.
 
-**Durable ranking (this box): binary (~2.6M) > jText (~2.0M) > SQL (~1.5M).** A durable run
+**Durable ranking (this box): binary (~2.6M) > jText (~2.0M) > SQL (~1.5M); HTML and JSON sit with the other text sinks.** A durable run
 times the whole process (fork→exit) with each backend's flush-to-disk inside the clock, so
-every number counts real durability: binary `msync(MS_SYNC)`s its mmap at finalize, jText
-`fsync`s each of its three files, and SQL commits transactionally through SQLite. Binary wins
+every number counts real durability: binary `msync(MS_SYNC)`s its mmap at finalize, jText/HTML/JSON
+`fsync` each of their three files, and SQL commits transactionally through SQLite. Binary wins
 as the most compact path (a packed `mmap` append; async `msync` per batch, one blocking `msync`
-at finalize). The jText and SQL numbers are closer and depend on the machine's disk —
-text-formatting-plus-three-`fsync`s vs SQLite's per-commit sync — so treat their order as
+at finalize). The text sinks and SQL numbers are closer and depend on the machine's disk —
+formatting-plus-three-`fsync`s vs SQLite's per-commit sync — so treat their order as
 hardware-dependent, not fixed (a slower-disk representative measured them the other way around).
 Read the **median + band**: a one-off fsync stall lands in the band, where median+band beats both
 the average (which the stall drags down) and "fastest" (which hides it).

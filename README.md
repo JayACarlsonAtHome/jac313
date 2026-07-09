@@ -9,7 +9,7 @@ At its core are two elegant, self-contained in-tree libraries:
 - **Qlite** — a clean, modern SQLite wrapper with transactions, prepared-statement caching, and ergonomic helpers
 - **jText** — a self-describing, human-readable structured text format with a streaming writer
 
-Together they power multiple persistence backends (binary, jText, SQL, flag-routed) while keeping the hot path allocation-free and extremely fast.
+Together they power multiple persistence backends (binary, jText, HTML, JSON, SQL, flag-routed) while keeping the hot path allocation-free and extremely fast.
 
 What makes jac313 special is the complete world built around it: a real testing and benchmarking harness (`jac313_test_cli`) that drives full matrices across compilers, standards, modules, and persistence strategies. This is not a toy project — it is a serious, non-trivial codebase that has already exposed real bugs in production toolchains.
 

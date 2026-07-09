@@ -11,7 +11,7 @@ is AI-assisted work; the findings below were verified by running the tools, not 
 ## Why
 
 Store advertises a **lock-free in-memory hot path** and a set of pluggable persistence
-sinks (binary, jText, SQL, flag-routing). Both are concurrency-shaped code — exactly where
+sinks (binary, jText, HTML, JSON, SQL, flag-routing). Both are concurrency-shaped code — exactly where
 memory and threading bugs hide and where unit tests rarely catch them. memcheck answers
 "is every byte allocated, freed, and accessed legally?"; helgrind and DRD answer "do the
 threads coordinate correctly?" — two different questions, two different tools.
@@ -25,7 +25,7 @@ threads coordinate correctly?" — two different questions, two different tools.
   committed `persist_*` sample artifacts at the repo root.
 - The matrix tests are the real concurrency surface (each spins multiple writer threads);
   they were exercised on both the **lock-free path** (`--persist=none`) and the
-  **mutex+condvar persistence path** (`--persist=binary|jtext|sql`).
+  **mutex+condvar persistence path** (`--persist=binary|jtext|html|json|sql`).
 
 ```bash
 # one-time
@@ -45,14 +45,14 @@ valgrind --tool=drd      <bin> --no-interactive --test-size=smoke --persist=none
 
 22 binaries — the two unit tests, the six example smokes (incl. `binary_to_jtext`, which
 exercises the `mmap` `BinaryEventLogReader`), all eight matrix tests on the binary sink,
-matrix 001 across jText/SQL/none, plus `flags` and `metric_view`:
+matrix 001 across jtext/html/json/sql/none, plus `flags` and `metric_view`:
 
 > **22/22 clean — 0 errors, 0 leaks.**
 
 Verified to be real instrumentation, not no-ops: e.g. `binary_to_jtext` ran 129 allocs /
 129 frees ("all blocks freed"); a matrix test ran 5 threads × 20 events with payloads
 validated. The memory surface — multithreaded hot path, binary sink + `mmap` reader, jText
-sink, SQL/SQLite sink, flag routing, metric view — is memcheck-clean at smoke scale.
+sink, HTML sink, JSON sink + reader, SQL/SQLite sink, flag routing, metric view — is memcheck-clean at smoke scale.
 
 ## The lock-free boundary (an architectural finding)
 
@@ -140,7 +140,7 @@ valgrind --tool=helgrind build-hg/Store/tests/matrix/jac313_store_003_TS --no-in
 |---------|--------|-------|
 | memcheck (22 binaries) | clean | clean |
 | 003 / 006 (helgrind & DRD) | 200 err, 2 contexts | **0** (code fix + annotation) |
-| Writer dubious-notify (008 + binary/jText/SQL) | 1 err each | **0** |
+| Writer dubious-notify (008 + binary/jtext/html/json/sql) | 1 err each | **0** |
 | Lock-free path 001/002/004/005/007 | 0 | 0 |
 | `ctest` (gcc-15 Debug) | 30/30 | **30/30** |
 | 003/006 functional (native) | 100 hits / 0 misses | 100 hits / 0 misses |

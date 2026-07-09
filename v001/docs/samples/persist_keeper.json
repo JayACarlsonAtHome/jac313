@@ -1,0 +1,105 @@
+//File:    /home/jay/git/jac313/v002/test-results/fedora-44/gcc16/Debug/x7k/Smoke/textual/json_logs/JAC313_STORE_TEST_001_TS/persist.json
+//Date:    2026-07-08
+//Purpose: JSON Data File
+//Related: type=ts_store table=persist
+//
+{"id":0,"thread_id":2,"per_thread_event_id":0,"flags_raw":"0x0000000000150013","category":"UI","payload":"Not Set, default payload 😎","timestamp_us":205}
+{"id":1,"thread_id":2,"per_thread_event_id":1,"flags_raw":"0x0000000100150013","category":"UI","payload":"Trace processing request 😎","timestamp_us":224}
+{"id":2,"thread_id":2,"per_thread_event_id":2,"flags_raw":"0x0000000200150013","category":"UI","payload":"Debug processing request 😎","timestamp_us":226}
+{"id":3,"thread_id":2,"per_thread_event_id":3,"flags_raw":"0x0000000300150013","category":"UI","payload":"Info processing request 😊","timestamp_us":229}
+{"id":4,"thread_id":2,"per_thread_event_id":4,"flags_raw":"0x0000000400150013","category":"UI","payload":"Warning in processing notification 😕","timestamp_us":235}
+{"id":5,"thread_id":3,"per_thread_event_id":0,"flags_raw":"0x0000000000150013","category":"SYS","payload":"Not Set, default payload 😎","timestamp_us":238}
+{"id":6,"thread_id":3,"per_thread_event_id":1,"flags_raw":"0x0000000100150013","category":"SYS","payload":"Trace processing request 😎","timestamp_us":244}
+{"id":7,"thread_id":3,"per_thread_event_id":2,"flags_raw":"0x0000000200150013","category":"SYS","payload":"Debug processing request 😎","timestamp_us":246}
+{"id":8,"thread_id":3,"per_thread_event_id":3,"flags_raw":"0x0000000300150013","category":"SYS","payload":"Info processing request 😊","timestamp_us":248}
+{"id":9,"thread_id":3,"per_thread_event_id":4,"flags_raw":"0x0000000400150013","category":"SYS","payload":"Warning in processing notification 😕","timestamp_us":251}
+{"id":10,"thread_id":3,"per_thread_event_id":5,"flags_raw":"0x0000000500150013","category":"SYS","payload":"Error in processing notification 😣","timestamp_us":253}
+{"id":12,"thread_id":3,"per_thread_event_id":6,"flags_raw":"0x0000000600150013","category":"SYS","payload":"Critical processing request 😣","timestamp_us":257}
+{"id":11,"thread_id":2,"per_thread_event_id":5,"flags_raw":"0x0000000500150013","category":"UI","payload":"Error in processing notification 😣","timestamp_us":256}
+{"id":13,"thread_id":3,"per_thread_event_id":7,"flags_raw":"0x0000000700150013","category":"SYS","payload":"Fatal error in processing notification 💀","timestamp_us":259}
+{"id":14,"thread_id":2,"per_thread_event_id":6,"flags_raw":"0x0000000600150013","category":"UI","payload":"Critical processing request 😣","timestamp_us":261}
+{"id":15,"thread_id":3,"per_thread_event_id":8,"flags_raw":"0x0000000000150013","category":"SYS","payload":"Not Set, default payload 😎","timestamp_us":262}
+{"id":16,"thread_id":2,"per_thread_event_id":7,"flags_raw":"0x0000000700150013","category":"UI","payload":"Fatal error in processing notification 💀","timestamp_us":263}
+{"id":17,"thread_id":3,"per_thread_event_id":9,"flags_raw":"0x0000000100150013","category":"SYS","payload":"Trace processing request 😎","timestamp_us":264}
+{"id":18,"thread_id":2,"per_thread_event_id":8,"flags_raw":"0x0000000000150013","category":"UI","payload":"Not Set, default payload 😎","timestamp_us":266}
+{"id":19,"thread_id":3,"per_thread_event_id":10,"flags_raw":"0x0000000200150013","category":"SYS","payload":"Debug processing request 😎","timestamp_us":266}
+{"id":20,"thread_id":2,"per_thread_event_id":9,"flags_raw":"0x0000000100150013","category":"UI","payload":"Trace processing request 😎","timestamp_us":268}
+{"id":21,"thread_id":3,"per_thread_event_id":11,"flags_raw":"0x0000000300150013","category":"SYS","payload":"Info processing request 😊","timestamp_us":269}
+{"id":22,"thread_id":2,"per_thread_event_id":10,"flags_raw":"0x0000000200150013","category":"UI","payload":"Debug processing request 😎","timestamp_us":271}
+{"id":23,"thread_id":3,"per_thread_event_id":12,"flags_raw":"0x0000000400150013","category":"SYS","payload":"Warning in processing notification 😕","timestamp_us":272}
+{"id":24,"thread_id":2,"per_thread_event_id":11,"flags_raw":"0x0000000300150013","category":"UI","payload":"Info processing request 😊","timestamp_us":273}
+{"id":25,"thread_id":3,"per_thread_event_id":13,"flags_raw":"0x0000000500150013","category":"SYS","payload":"Error in processing notification 😣","timestamp_us":274}
+{"id":26,"thread_id":2,"per_thread_event_id":12,"flags_raw":"0x0000000400150013","category":"UI","payload":"Warning in processing notification 😕","timestamp_us":276}
+{"id":28,"thread_id":2,"per_thread_event_id":13,"flags_raw":"0x0000000500150013","category":"UI","payload":"Error in processing notification 😣","timestamp_us":283}
+{"id":29,"thread_id":2,"per_thread_event_id":14,"flags_raw":"0x0000000600150013","category":"UI","payload":"Critical processing request 😣","timestamp_us":286}
+{"id":30,"thread_id":2,"per_thread_event_id":15,"flags_raw":"0x0000000700150013","category":"UI","payload":"Fatal error in processing notification 💀","timestamp_us":288}
+{"id":27,"thread_id":3,"per_thread_event_id":14,"flags_raw":"0x0000000600150013","category":"SYS","payload":"Critical processing request 😣","timestamp_us":277}
+{"id":31,"thread_id":2,"per_thread_event_id":16,"flags_raw":"0x0000000000150013","category":"UI","payload":"Not Set, default payload 😎","timestamp_us":291}
+{"id":32,"thread_id":3,"per_thread_event_id":15,"flags_raw":"0x0000000700150013","category":"SYS","payload":"Fatal error in processing notification 💀","timestamp_us":306}
+{"id":33,"thread_id":2,"per_thread_event_id":17,"flags_raw":"0x0000000100150013","category":"UI","payload":"Trace processing request 😎","timestamp_us":308}
+{"id":34,"thread_id":3,"per_thread_event_id":16,"flags_raw":"0x0000000000150013","category":"SYS","payload":"Not Set, default payload 😎","timestamp_us":309}
+{"id":35,"thread_id":2,"per_thread_event_id":18,"flags_raw":"0x0000000200150013","category":"UI","payload":"Debug processing request 😎","timestamp_us":311}
+{"id":36,"thread_id":3,"per_thread_event_id":17,"flags_raw":"0x0000000100150013","category":"SYS","payload":"Trace processing request 😎","timestamp_us":311}
+{"id":37,"thread_id":2,"per_thread_event_id":19,"flags_raw":"0x0000000300150013","category":"UI","payload":"Info processing request 😊","timestamp_us":313}
+{"id":38,"thread_id":3,"per_thread_event_id":18,"flags_raw":"0x0000000200150013","category":"SYS","payload":"Debug processing request 😎","timestamp_us":314}
+{"id":40,"thread_id":3,"per_thread_event_id":19,"flags_raw":"0x0000000300150013","category":"SYS","payload":"Info processing request 😊","timestamp_us":316}
+{"id":39,"thread_id":4,"per_thread_event_id":0,"flags_raw":"0x0000000000150013","category":"GFX","payload":"Not Set, default payload 😎","timestamp_us":315}
+{"id":41,"thread_id":4,"per_thread_event_id":1,"flags_raw":"0x0000000100150013","category":"GFX","payload":"Trace processing request 😎","timestamp_us":320}
+{"id":42,"thread_id":0,"per_thread_event_id":0,"flags_raw":"0x0000000000150013","category":"NET","payload":"Not Set, default payload 😎","timestamp_us":321}
+{"id":43,"thread_id":4,"per_thread_event_id":2,"flags_raw":"0x0000000200150013","category":"GFX","payload":"Debug processing request 😎","timestamp_us":323}
+{"id":44,"thread_id":4,"per_thread_event_id":3,"flags_raw":"0x0000000300150013","category":"GFX","payload":"Info processing request 😊","timestamp_us":325}
+{"id":45,"thread_id":0,"per_thread_event_id":1,"flags_raw":"0x0000000100150013","category":"NET","payload":"Trace processing request 😎","timestamp_us":326}
+{"id":46,"thread_id":4,"per_thread_event_id":4,"flags_raw":"0x0000000400150013","category":"GFX","payload":"Warning in processing notification 😕","timestamp_us":328}
+{"id":47,"thread_id":0,"per_thread_event_id":2,"flags_raw":"0x0000000200150013","category":"NET","payload":"Debug processing request 😎","timestamp_us":329}
+{"id":49,"thread_id":0,"per_thread_event_id":3,"flags_raw":"0x0000000300150013","category":"NET","payload":"Info processing request 😊","timestamp_us":331}
+{"id":48,"thread_id":4,"per_thread_event_id":5,"flags_raw":"0x0000000500150013","category":"GFX","payload":"Error in processing notification 😣","timestamp_us":331}
+{"id":51,"thread_id":0,"per_thread_event_id":4,"flags_raw":"0x0000000400150013","category":"NET","payload":"Warning in processing notification 😕","timestamp_us":334}
+{"id":52,"thread_id":4,"per_thread_event_id":6,"flags_raw":"0x0000000600150013","category":"GFX","payload":"Critical processing request 😣","timestamp_us":336}
+{"id":50,"thread_id":1,"per_thread_event_id":0,"flags_raw":"0x0000000000150013","category":"DB","payload":"Not Set, default payload 😎","timestamp_us":333}
+{"id":54,"thread_id":4,"per_thread_event_id":7,"flags_raw":"0x0000000700150013","category":"GFX","payload":"Fatal error in processing notification 💀","timestamp_us":339}
+{"id":55,"thread_id":4,"per_thread_event_id":8,"flags_raw":"0x0000000000150013","category":"GFX","payload":"Not Set, default payload 😎","timestamp_us":344}
+{"id":53,"thread_id":0,"per_thread_event_id":5,"flags_raw":"0x0000000500150013","category":"NET","payload":"Error in processing notification 😣","timestamp_us":336}
+{"id":56,"thread_id":4,"per_thread_event_id":9,"flags_raw":"0x0000000100150013","category":"GFX","payload":"Trace processing request 😎","timestamp_us":347}
+{"id":58,"thread_id":0,"per_thread_event_id":6,"flags_raw":"0x0000000600150013","category":"NET","payload":"Critical processing request 😣","timestamp_us":350}
+{"id":59,"thread_id":4,"per_thread_event_id":10,"flags_raw":"0x0000000200150013","category":"GFX","payload":"Debug processing request 😎","timestamp_us":350}
+{"id":57,"thread_id":1,"per_thread_event_id":1,"flags_raw":"0x0000000100150013","category":"DB","payload":"Trace processing request 😎","timestamp_us":349}
+{"id":60,"thread_id":0,"per_thread_event_id":7,"flags_raw":"0x0000000700150013","category":"NET","payload":"Fatal error in processing notification 💀","timestamp_us":353}
+{"id":61,"thread_id":4,"per_thread_event_id":11,"flags_raw":"0x0000000300150013","category":"GFX","payload":"Info processing request 😊","timestamp_us":353}
+{"id":62,"thread_id":0,"per_thread_event_id":8,"flags_raw":"0x0000000000150013","category":"NET","payload":"Not Set, default payload 😎","timestamp_us":355}
+{"id":63,"thread_id":4,"per_thread_event_id":12,"flags_raw":"0x0000000400150013","category":"GFX","payload":"Warning in processing notification 😕","timestamp_us":356}
+{"id":64,"thread_id":1,"per_thread_event_id":2,"flags_raw":"0x0000000200150013","category":"DB","payload":"Debug processing request 😎","timestamp_us":356}
+{"id":65,"thread_id":0,"per_thread_event_id":9,"flags_raw":"0x0000000100150013","category":"NET","payload":"Trace processing request 😎","timestamp_us":357}
+{"id":66,"thread_id":4,"per_thread_event_id":13,"flags_raw":"0x0000000500150013","category":"GFX","payload":"Error in processing notification 😣","timestamp_us":358}
+{"id":67,"thread_id":0,"per_thread_event_id":10,"flags_raw":"0x0000000200150013","category":"NET","payload":"Debug processing request 😎","timestamp_us":359}
+{"id":69,"thread_id":4,"per_thread_event_id":14,"flags_raw":"0x0000000600150013","category":"GFX","payload":"Critical processing request 😣","timestamp_us":361}
+{"id":68,"thread_id":1,"per_thread_event_id":3,"flags_raw":"0x0000000300150013","category":"DB","payload":"Info processing request 😊","timestamp_us":360}
+{"id":70,"thread_id":0,"per_thread_event_id":11,"flags_raw":"0x0000000300150013","category":"NET","payload":"Info processing request 😊","timestamp_us":362}
+{"id":71,"thread_id":4,"per_thread_event_id":15,"flags_raw":"0x0000000700150013","category":"GFX","payload":"Fatal error in processing notification 💀","timestamp_us":363}
+{"id":72,"thread_id":0,"per_thread_event_id":12,"flags_raw":"0x0000000400150013","category":"NET","payload":"Warning in processing notification 😕","timestamp_us":364}
+{"id":74,"thread_id":4,"per_thread_event_id":16,"flags_raw":"0x0000000000150013","category":"GFX","payload":"Not Set, default payload 😎","timestamp_us":366}
+{"id":75,"thread_id":0,"per_thread_event_id":13,"flags_raw":"0x0000000500150013","category":"NET","payload":"Error in processing notification 😣","timestamp_us":367}
+{"id":73,"thread_id":1,"per_thread_event_id":4,"flags_raw":"0x0000000400150013","category":"DB","payload":"Warning in processing notification 😕","timestamp_us":366}
+{"id":76,"thread_id":4,"per_thread_event_id":17,"flags_raw":"0x0000000100150013","category":"GFX","payload":"Trace processing request 😎","timestamp_us":369}
+{"id":77,"thread_id":0,"per_thread_event_id":14,"flags_raw":"0x0000000600150013","category":"NET","payload":"Critical processing request 😣","timestamp_us":369}
+{"id":79,"thread_id":4,"per_thread_event_id":18,"flags_raw":"0x0000000200150013","category":"GFX","payload":"Debug processing request 😎","timestamp_us":371}
+{"id":78,"thread_id":1,"per_thread_event_id":5,"flags_raw":"0x0000000500150013","category":"DB","payload":"Error in processing notification 😣","timestamp_us":371}
+{"id":81,"thread_id":4,"per_thread_event_id":19,"flags_raw":"0x0000000300150013","category":"GFX","payload":"Info processing request 😊","timestamp_us":374}
+{"id":80,"thread_id":0,"per_thread_event_id":15,"flags_raw":"0x0000000700150013","category":"NET","payload":"Fatal error in processing notification 💀","timestamp_us":372}
+{"id":82,"thread_id":1,"per_thread_event_id":6,"flags_raw":"0x0000000600150013","category":"DB","payload":"Critical processing request 😣","timestamp_us":376}
+{"id":84,"thread_id":1,"per_thread_event_id":7,"flags_raw":"0x0000000700150013","category":"DB","payload":"Fatal error in processing notification 💀","timestamp_us":379}
+{"id":83,"thread_id":0,"per_thread_event_id":16,"flags_raw":"0x0000000000150013","category":"NET","payload":"Not Set, default payload 😎","timestamp_us":379}
+{"id":85,"thread_id":1,"per_thread_event_id":8,"flags_raw":"0x0000000000150013","category":"DB","payload":"Not Set, default payload 😎","timestamp_us":381}
+{"id":86,"thread_id":0,"per_thread_event_id":17,"flags_raw":"0x0000000100150013","category":"NET","payload":"Trace processing request 😎","timestamp_us":382}
+{"id":87,"thread_id":1,"per_thread_event_id":9,"flags_raw":"0x0000000100150013","category":"DB","payload":"Trace processing request 😎","timestamp_us":383}
+{"id":88,"thread_id":1,"per_thread_event_id":10,"flags_raw":"0x0000000200150013","category":"DB","payload":"Debug processing request 😎","timestamp_us":385}
+{"id":89,"thread_id":0,"per_thread_event_id":18,"flags_raw":"0x0000000200150013","category":"NET","payload":"Debug processing request 😎","timestamp_us":385}
+{"id":90,"thread_id":1,"per_thread_event_id":11,"flags_raw":"0x0000000300150013","category":"DB","payload":"Info processing request 😊","timestamp_us":386}
+{"id":91,"thread_id":1,"per_thread_event_id":12,"flags_raw":"0x0000000400150013","category":"DB","payload":"Warning in processing notification 😕","timestamp_us":388}
+{"id":92,"thread_id":0,"per_thread_event_id":19,"flags_raw":"0x0000000300150013","category":"NET","payload":"Info processing request 😊","timestamp_us":388}
+{"id":93,"thread_id":1,"per_thread_event_id":13,"flags_raw":"0x0000000500150013","category":"DB","payload":"Error in processing notification 😣","timestamp_us":390}
+{"id":94,"thread_id":1,"per_thread_event_id":14,"flags_raw":"0x0000000600150013","category":"DB","payload":"Critical processing request 😣","timestamp_us":392}
+{"id":95,"thread_id":1,"per_thread_event_id":15,"flags_raw":"0x0000000700150013","category":"DB","payload":"Fatal error in processing notification 💀","timestamp_us":394}
+{"id":96,"thread_id":1,"per_thread_event_id":16,"flags_raw":"0x0000000000150013","category":"DB","payload":"Not Set, default payload 😎","timestamp_us":395}
+{"id":97,"thread_id":1,"per_thread_event_id":17,"flags_raw":"0x0000000100150013","category":"DB","payload":"Trace processing request 😎","timestamp_us":397}
+{"id":98,"thread_id":1,"per_thread_event_id":18,"flags_raw":"0x0000000200150013","category":"DB","payload":"Debug processing request 😎","timestamp_us":398}
+{"id":99,"thread_id":1,"per_thread_event_id":19,"flags_raw":"0x0000000300150013","category":"DB","payload":"Info processing request 😊","timestamp_us":399}

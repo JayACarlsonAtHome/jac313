@@ -54,7 +54,7 @@ the binary sink and neither sibling is invoked.
 
 ## Strengths
 
-- **Pick your trade-off per sink:** speed (binary), readability (jText / HTML), queryability (SQL)
+- **Pick your trade-off per sink:** speed (binary), readability (jText / HTML / JSON), queryability (SQL)
   — or several at once via flag routing.
 - **Non-blocking** logging regardless of sink speed (double-buffered).
 - **Clean `IEventSink` seam** — adding a backend is implementing three methods.

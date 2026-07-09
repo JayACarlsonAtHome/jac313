@@ -18,15 +18,16 @@ related: [persistence](persistence.md) · [logging](logging.md) · [sample outpu
 | **Queryable** | SQL sink → `main` + `_ints` + `_floats` tables | SQL, e.g. `SELECT * FROM base WHERE flags_raw & (1<<2)` for `DatabaseEntry` events |
 | **Compact / fast** | binary sink → `.bin` (mmap, length-prefixed) | `BinaryEventLogReader` (`next(BinaryRecord&)`), or `convert_to_jtext()` to turn a capture into readable logs in post |
 
-The common pattern: **capture fast** (binary, on the hot path), **report slow** (convert to jText
-or load into SQL) in post-processing.
+The common pattern: **capture fast** (binary, on the hot path), **report slow** (convert to jText,
+browse HTML, parse JSON, or load into SQL) in post-processing.
 
-## jText split, by design
+## Split text sinks (jText, HTML, JSON)
 
-The jText sink writes **three** files — main events, integer metrics, float metrics — so a
+The jText, HTML, and JSON sinks each write **three** files — main events, integer metrics, float metrics — so a
 high-rate event stream doesn't drag its metric columns through every line. Store writes its own
-`//` metadata comments first, then hands events to jText's `JTextWriter` (with high-throughput
-batching). Profiles (light/full) are a jText concern; Store just feeds the writer.
+`//` metadata comments first. jText hands events to `JTextWriter` (with high-throughput batching;
+profiles light/full are a jText concern). HTML and JSON emit tables / NDJSON lines directly from
+the same split layout.
 
 ## SQL schema
 
@@ -46,7 +47,7 @@ zero-padded. There's no built-in dashboard: you write the queries (and indexes) 
 
 ## Weaknesses / footguns
 
-- **No unified reporting layer.** jText, SQL, and binary are independent; there's no dashboard or
+- **No unified reporting layer.** jText, HTML, JSON, SQL, and binary are independent; there's no dashboard or
   cross-view query — you assemble reports yourself.
 - **Metric joins are manual** in SQL (`main` + `_ints` + `_floats`).
 - **Binary is opaque and unversioned** — you need the reader, and a layout change breaks old
@@ -55,5 +56,5 @@ zero-padded. There's no built-in dashboard: you write the queries (and indexes) 
 
 > "Reporting" here is deliberately thin — Store gives you durable, legible, queryable *data* and
 > leaves the presentation to standard tools (text, SQL) or your own layer. If you want dashboards
-> or cross-view analytics, that's a build-on-top, and a good place to point an AI at the SQL
-> schema + the jText format to scaffold it.
+> or cross-format scroll/filter at 1M+ scale, see the planned
+> [log viewer](log-viewer-plan.md) (wxWidgets + sidecar index — not started yet).

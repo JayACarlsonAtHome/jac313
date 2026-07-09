@@ -150,39 +150,39 @@ _Generated from `results.db`. Throughput is hardware-specific, so each machine (
 
 ### Non-durable (flag sweep)  _(median ops/sec, descending)_
 
-| config | [clang22](Run_207.md)<br>median ops/sec | clang22<br>band | clang22<br>size | [gcc16](Run_206.md)<br>median ops/sec | gcc16<br>band | gcc16<br>size |
+| config | [clang22](Run_251.md)<br>median ops/sec | clang22<br>band | clang22<br>size | [gcc16](Run_250.md)<br>median ops/sec | gcc16<br>band | gcc16<br>size |
 |---|--:|:--:|--:|--:|:--:|--:|
-| 0 flags, non-durable | 6,114,832 | 5.87M–6.85M | 0 B | 6,780,682 | 5.66M–6.85M | 0 B |
-| 4 flags, non-durable | 6,054,646 | 5.79M–6.82M | 0 B | 5,840,283 | 5.64M–6.90M | 0 B |
-| 2 flags, non-durable | 6,031,522 | 5.62M–6.87M | 0 B | 5,751,870 | 5.65M–6.87M | 0 B |
-| 6 flags, non-durable | 6,027,759 | 5.81M–6.86M | 0 B | 5,790,878 | 5.68M–6.95M | 0 B |
+| 6 flags, non-durable | 6,684,398 | 5.98M–6.84M | 0 B | 6,758,327 | 5.55M–6.92M | 0 B |
+| 0 flags, non-durable | 6,320,925 | 5.73M–6.79M | 0 B | 6,076,898 | 5.54M–6.87M | 0 B |
+| 4 flags, non-durable | 6,287,796 | 5.93M–6.86M | 0 B | 6,046,716 | 5.60M–6.74M | 0 B |
+| 2 flags, non-durable | 5,975,128 | 5.71M–6.90M | 0 B | 5,773,883 | 5.45M–6.74M | 0 B |
 
 ### Durable @ 1M events  _(median ops/sec, descending)_
 
-| config | [clang22](Run_207.md)<br>median ops/sec | clang22<br>band | clang22<br>size | [gcc16](Run_206.md)<br>median ops/sec | gcc16<br>band | gcc16<br>size |
+| config | [clang22](Run_251.md)<br>median ops/sec | clang22<br>band | clang22<br>size | [gcc16](Run_250.md)<br>median ops/sec | gcc16<br>band | gcc16<br>size |
 |---|--:|:--:|--:|--:|:--:|--:|
-| durable json | 917,843 | 914.47K–1.02M | 165.70 MB | 1,025,793 | 961.52K–1.09M | 165.67 MB |
-| durable jtext | 1,005,115 | 753.09K–1.03M | 80.82 MB | 1,012,822 | 720.27K–1.03M | 80.80 MB |
-| durable html | 996,981 | 615.35K–1.07M | 138.00 MB | 949,304 | 753.79K–993.27K | 138.04 MB |
-| durable binary | 776,883 | 764.73K–798.72K | 83.78 MB | 721,122 | 718.54K–755.48K | 83.78 MB |
-| durable sql | 476,838 | 460.96K–485.56K | 75.14 MB | 458,399 | 432.29K–488.72K | 75.15 MB |
+| durable sql | 1,641,866 | 458.57K–1.77M | 75.14 MB | 1,767,053 | 454.98K–1.81M | 75.12 MB |
+| durable jtext | 1,096,654 | 956.95K–1.12M | 80.84 MB | 1,023,069 | 938.46K–1.06M | 80.85 MB |
+| durable json | 1,084,594 | 1.02M–1.10M | 165.73 MB | 887,600 | 817.47K–1.01M | 165.73 MB |
+| durable html | 1,067,684 | 1.04M–1.07M | 138.08 MB | 1,000,844 | 842.90K–1.02M | 138.06 MB |
+| durable binary | 732,324 | 703.48K–739.76K | 83.78 MB | 475,152 | 440.25K–500.17K | 83.78 MB |
 
 ### Durable @ 10M events  _(median ops/sec, descending)_
 
-| config | [clang22](Run_207.md)<br>median ops/sec | clang22<br>band | clang22<br>size | [gcc16](Run_206.md)<br>median ops/sec | gcc16<br>band | gcc16<br>size |
+| config | [clang22](Run_251.md)<br>median ops/sec | clang22<br>band | clang22<br>size | [gcc16](Run_250.md)<br>median ops/sec | gcc16<br>band | gcc16<br>size |
 |---|--:|:--:|--:|--:|:--:|--:|
-| durable jtext | 1,438,698 | 1.40M–1.50M | 836.43 MB | 1,379,137 | 1.35M–1.38M | 836.40 MB |
-| durable html | 1,160,859 | 1.10M–1.31M | 1.38 GB | 1,297,366 | 1.17M–1.30M | 1.38 GB |
-| durable json | 1,195,343 | 1.18M–1.24M | 1.65 GB | 1,171,344 | 1.10M–1.26M | 1.65 GB |
-| durable binary | 830,224 | 805.70K–837.34K | 837.80 MB | 839,515 | 816.54K–845.30K | 837.80 MB |
-| durable sql | 813,243 | 783.96K–813.58K | 773.54 MB | 678,932 | 671.31K–846.54K | 773.37 MB |
+| durable sql | 1,731,121 | 774.05K–1.77M | 773.25 MB | 1,752,771 | 830.63K–1.79M | 773.32 MB |
+| durable jtext | 1,366,217 | 1.31M–1.39M | 836.94 MB | 1,367,692 | 1.31M–1.46M | 836.79 MB |
+| durable html | 1,193,105 | 1.18M–1.26M | 1.38 GB | 1,250,731 | 1.22M–1.27M | 1.38 GB |
+| durable json | 1,245,645 | 1.17M–1.27M | 1.65 GB | 1,130,267 | 1.12M–1.15M | 1.65 GB |
+| durable binary | 750,796 | 717.30K–756.28K | 837.80 MB | 543,853 | 543.44K–750.35K | 837.80 MB |
 
 **Runs** (newest first):
 
 | run | compiler · recorded |
 |---|---|
-| [Run_207](Run_207.md) | clang22 · 2026-07-08T21:35:06Z |
-| [Run_206](Run_206.md) | gcc16 · 2026-07-08T21:30:59Z |
+| [Run_251](Run_251.md) | clang22 · 2026-07-09T03:04:23Z |
+| [Run_250](Run_250.md) | gcc16 · 2026-07-09T03:00:20Z |
 
 ---
 [← back](../README.md) · [↑ top](#top)

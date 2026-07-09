@@ -1,0 +1,33 @@
+# jac313 matrix log
+test=jac313_store_007_XS
+package=store
+category=matrix
+persist=binary
+output_mode=on
+command=/home/jay/git/jac313/v002/build-clang/Store/tests/matrix/jac313_store_007_XS
+args=--no-interactive --color=1 --test-size=smoke --persist=binary --base-name=/home/jay/git/jac313/v002/test-results/fedora-44/gcc16/Debug/x7k/Smoke/textual/binary_logs/JAC313_STORE_TEST_007_XS/persist_on --threads=10 --events-per-thread=100 --runs=1
+duration_ms=150
+exit_code=0
+
+--- stdout ---
+=== FINAL MASSIVE TEST — 1,000 entries × 1 runs ===
+Using store.clear() — fastest, most realistic reuse
+
+Persistence will only be attached on the *last* run (previous runs measure clean hot path; only final run produces persist artifacts).
+
+Run 1 / 1
+  sample metrics on event 42 (t=0): int=4200 dbl=0.42
+[VERIFY] ALL 1000 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
+PASS — 1,023 µs → 977,517 ops/sec
+
+
+═══════════════════════════════════════════════════════════════
+               FINAL RESULT — 1-RUN STATISTICS            
+═══════════════════════════════════════════════════════════════
+  Fastest run        : 1,023 µs  → 977,517 ops/sec
+  Slowest run        : 1,023 µs  → 977,517 ops/sec
+  Average            : 1,023 µs  → 977,517 ops/sec
+  (1,000 events per run, 100% verified, zero corruption)
+═══════════════════════════════════════════════════════════════
+
+--- stderr ---

@@ -7,7 +7,7 @@ At its core are two elegant supporting libraries:
 - **Qlite** — a clean, modern SQLite wrapper
 - **jText** — a self-describing, human-readable structured text format
 
-Together they deliver multiple persistence backends (binary, jText, SQL, flag-routed) while keeping the hot path fast and allocation-free.
+Together they deliver multiple persistence backends (binary, jText, HTML, JSON, SQL, flag-routed) while keeping the hot path fast and allocation-free.
 
 What makes this project special is the complete world built around it: a serious, from-scratch testing and benchmarking harness that actually exercises the code at scale across compilers and configurations. This is not a toy — it's a real codebase that has already helped surface issues in production toolchains.
 
@@ -43,8 +43,8 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 - [**Categories**](docs/store/categories.md) — how events are categorized and sized (`bounded_string`, payload caps)
 - [**Flags**](docs/store/flags.md) — the complete `StoreFlags` catalog: every bit, its meaning, and an honest wired / advisory / placeholder status
 - [**Routing**](docs/store/bitmaps.md) — how flags + `PersistMode` route events (keeper vs database masks)
-- [**Persistence**](docs/store/persistence.md) — the sinks: binary, jText, SQL, flag-routing; the binary log + reader
-- [**Reporting**](docs/store/reporting.md) — reading the logs back: human-readable jText, queryable SQL
+- [**Persistence**](docs/store/persistence.md) — the sinks: binary, jText, HTML, JSON, SQL, flag-routing; the binary log + reader
+- [**Reporting**](docs/store/reporting.md) — reading the logs back: jText, HTML, JSON, SQL, binary + readers
 
 ---
 

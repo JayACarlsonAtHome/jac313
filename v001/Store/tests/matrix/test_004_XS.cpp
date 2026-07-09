@@ -45,31 +45,7 @@ int main(int argc, char** argv) {
     // Attach double-buffered (asynchronous) persistence to the main event store.
     // (Results store is small summary info; we focus persist on the bulk "safepay" traffic.)
     {
-        std::string ptype = _opts.persist.empty() ? "jtext" : _opts.persist;
-        std::string bname = _opts.base_name;
-        if (bname.empty()) bname = "persist";
-
-        if (!persist_skips_sink(ptype)) {
-            std::unique_ptr<IEventSink> sink;
-            const size_t im = LogConfigxMainx::the_IntMetrics;
-            const size_t dm = LogConfigxMainx::the_DblMetrics;
-            if (ptype == "binary") {
-                sink = std::make_unique<BinaryEventSink>(bname, im, dm, PersistMode::All);
-            } else if (ptype == "sql") {
-#ifdef JAC313_STORE_HAS_SQL_PERSIST
-                sink = std::make_unique<SqlEventSink>(bname, im, dm, PersistMode::All, false);
-#else
-                std::cerr << "ERROR: SQL persistence not enabled at compile time (rebuild with -DJAC313_STORE_HAS_SQL_PERSIST=ON)\n";
-                return 1;
-#endif
-            } else {
-                sink = std::make_unique<JTextEventSink>(bname, im, dm, PersistMode::All);
-            }
-            auto writer = std::make_unique<DoubleBufferedWriter>(std::move(sink), 10'000);
-            safepay.attach_persistence(std::move(writer));
-        } else {
-            std::cout << "No persistence attached — pure in-memory hot path\n";
-        }
+        if (!attach_persistence_from_opts<LogConfigxMainx>(safepay, _opts)) return 1;
     }
 
     std::vector<std::thread> threads;

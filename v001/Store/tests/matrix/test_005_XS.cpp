@@ -165,24 +165,13 @@ int main(int argc, char** argv)
             // Only attach persistence on the final run (when not --persist=none).
             // This ensures persist data / log files are generated only from the last run.
             if (!persist_skips_sink(ptype)) {
-                std::unique_ptr<IEventSink> sink;
-                const size_t im = LogConfig::the_IntMetrics;
-                const size_t dm = LogConfig::the_DblMetrics;
-                if (ptype == "binary") {
-                    sink = std::make_unique<BinaryEventSink>(bname, im, dm, PersistMode::All);
-                } else if (ptype == "sql") {
-#ifdef JAC313_STORE_HAS_SQL_PERSIST
-                    sink = std::make_unique<SqlEventSink>(bname, im, dm, PersistMode::All, false);
-#else
-                    std::cerr << "ERROR: SQL persistence not enabled at compile time (rebuild with -DJAC313_STORE_HAS_SQL_PERSIST=ON)\n";
-                    return 1;
-#endif
-                } else {
-                    sink = std::make_unique<JTextEventSink>(bname, im, dm, PersistMode::All);
-                }
+            const size_t im = LogConfig::the_IntMetrics;
+            const size_t dm = LogConfig::the_DblMetrics;
+            auto sink = make_persistence_sink(ptype, bname, im, dm, PersistMode::All);
+            if (!sink) return 1;
                 auto writer = std::make_unique<DoubleBufferedWriter>(
                     std::move(sink),
-                    10'000                   // batch size for double buffer
+                    10'000
                 );
                 store.attach_persistence(std::move(writer));
             }

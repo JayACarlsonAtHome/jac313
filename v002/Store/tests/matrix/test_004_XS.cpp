@@ -45,20 +45,7 @@ int main(int argc, char** argv) {
     // Attach double-buffered (asynchronous) persistence to the main event store.
     // (Results store is small summary info; we focus persist on the bulk "safepay" traffic.)
     {
-        std::string ptype = _opts.persist.empty() ? "jtext" : _opts.persist;
-        std::string bname = _opts.base_name;
-        if (bname.empty()) bname = "persist";
-
-        if (!persist_skips_sink(ptype)) {
-            const size_t im = LogConfigxMainx::the_IntMetrics;
-            const size_t dm = LogConfigxMainx::the_DblMetrics;
-            auto sink = make_persistence_sink(ptype, bname, im, dm, PersistMode::All);
-            if (!sink) return 1;
-            auto writer = std::make_unique<DoubleBufferedWriter>(std::move(sink), 10'000);
-            safepay.attach_persistence(std::move(writer));
-        } else {
-            std::cout << "No persistence attached — pure in-memory hot path\n";
-        }
+        if (!attach_persistence_from_opts<LogConfigxMainx>(safepay, _opts)) return 1;
     }
 
     std::vector<std::thread> threads;

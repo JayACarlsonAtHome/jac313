@@ -1,0 +1,10 @@
+# jac313 test log
+test=jac313_run_identity_test
+command=/home/jay/git/jac313/v001/build-gcc16/tools/jac313_run_identity_test
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+RunIdentity — all identity/SQL/path/os-key tests passed
+
+--- stderr ---

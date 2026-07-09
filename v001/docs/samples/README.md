@@ -12,13 +12,19 @@ you can see the actual file formats without building and running anything. Small
 | `persist_keeper.sql` | SQL sink — `CREATE`/`INSERT` for the main table | yes (text) |
 | `persist_keeper_Ints.sql` | SQL sink — integer-metric table | yes (text) |
 | `persist_keeper_Floats.sql` | SQL sink — float-metric table | yes (text) |
+| `persist_keeper.html` | HTML sink — main event log (open in a **browser**) | yes (text; render in browser) |
+| `persist_keeper_Ints.html` | HTML sink — split integer-metric table | yes (text; render in browser) |
+| `persist_keeper_Floats.html` | HTML sink — split float-metric table | yes (text; render in browser) |
+| `persist_keeper.json` | JSON sink — main event log (NDJSON, one object per line) | yes (text) |
+| `persist_keeper_Ints.json` | JSON sink — integer-metric table | yes (text) |
+| `persist_keeper_Floats.json` | JSON sink — float-metric table | yes (text) |
 | `persist_database.db` | SQLite database the SQL sink wrote | no (binary — download + open with `sqlite3`) |
 
 Notes:
 - These are captured artifacts, **not live files** — paths inside them (e.g. a jText
   `<#include#>` schema reference) are as-generated at run time and don't resolve from here.
 - The binary keeper sink writes a length-prefixed `.bin`; it isn't included because it's
-  binary (GitHub won't render it). The jText/SQL text above shows the same events.
+  binary (GitHub won't render it). The jText/HTML/JSON/SQL text above shows the same events.
 - **Regenerate:** run a smoke matrix (`jac313_test_cli matrix run`); the keeper output lands
   at the repo root (gitignored as `/persist*`), then copy the files here.
 

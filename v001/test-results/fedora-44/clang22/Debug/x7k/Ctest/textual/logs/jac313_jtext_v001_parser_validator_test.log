@@ -1,0 +1,18 @@
+# jac313 test log
+test=jac313_jtext_v001_parser_validator_test
+command=/home/jay/git/jac313/v001/build-clang/jText/tests/jac313_jtext_v001_parser_validator_test
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+
+Layered validation proof — same document, varying --level:
+                              minimal   standard  strict
+  bad date '2026-13-45'        clean     ERROR     ERROR
+  template {3} (2 fields)      clean     clean     ERROR
+  missing Not Null field       ERROR     ERROR     ERROR
+  valid document               clean     clean     clean
+
+parser/validator negative tests: all passed
+
+--- stderr ---

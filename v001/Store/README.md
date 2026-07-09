@@ -19,6 +19,7 @@ strengths + weaknesses; a good target for AI-assisted exploration against your w
 - [**Routing**](../docs/store/bitmaps.md) — how flags + `PersistMode` route events (keeper/database masks)
 - [**Persistence**](../docs/store/persistence.md) — the sinks (binary, jText, HTML, JSON, SQL, flag-routing) + double-buffered drain
 - [**Reporting**](../docs/store/reporting.md) — reading the logs back: jText, HTML, JSON, SQL, binary + reader
+- [**Log viewer (planned)**](../docs/store/log-viewer-plan.md) — wxWidgets browser for large captures; sidecar index for 1M/10M scale
 
 ## Quick start
 
@@ -72,7 +73,7 @@ cmake -G Ninja -S . -B build -DCMAKE_CXX_COMPILER=g++-14 -DJAC313_STORE_BUILD_MO
 When built with `-DJAC313_BUILD_STORE_TESTS=ON` from the monorepo root:
 
 - **Unit** — `jac313_store_v001_test`, `jac313_store_binary_reader_test`
-- **Examples** — binary/jText/SQL/flag-routing persistence smokes (ctest)
+- **Examples** — binary/jText/HTML/JSON/SQL/flag-routing persistence smokes (ctest)
 - **Matrix** — ported ts_store stress tests `001`–`008` (TS/XS) plus `flags`
 
 Run the full matrix locally via [`jac313_test_cli`](../tools/jac313_test_cli/) (see the version's top-level README.md Quick start section).

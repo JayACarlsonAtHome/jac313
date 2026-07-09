@@ -1,6 +1,7 @@
 #include "matrix.hpp"
 #include "build_pipeline.hpp"
 #include "format.hpp"
+#include "kept_logs.hpp"
 #include "run_identity.hpp"
 #include "runner.hpp"
 
@@ -25,14 +26,7 @@ std::string persist_log_dir_name(const std::string& persist) {
 }
 
 std::string test_to_subdir_name(const std::string& test_name) {
-    if (test_name == "jac313_store_flags") {
-        return "JAC313_STORE_TEST_flags";
-    }
-    constexpr std::string_view prefix = "jac313_store_";
-    if (test_name.starts_with(prefix)) {
-        return "JAC313_STORE_TEST_" + test_name.substr(prefix.size());
-    }
-    return test_name;
+    return store_test_subdir_name(test_name);
 }
 
 std::string matrix_test_key(const std::string& test_name) {
@@ -157,8 +151,9 @@ fs::path scenario_log_path(const fs::path& results_base, const MatrixScenario& s
     return log_dir / file;
 }
 
-fs::path scenario_persist_base(const fs::path& log_dir) {
-    return log_dir / "persist";
+fs::path scenario_persist_base(const fs::path& log_dir, const MatrixScenario& scen) {
+    // output on/off previously shared one "persist" prefix and overwrote each other
+    return log_dir / ("persist_" + scen.output_mode);
 }
 
 std::vector<std::string> build_scenario_args(const MatrixScenario& scen,
@@ -200,28 +195,20 @@ std::vector<std::string> build_scenario_args(const MatrixScenario& scen,
     return args;
 }
 
-void write_log_file(const fs::path& log_path,
-                    const MatrixScenario& scen,
-                    const std::vector<std::string>& args,
-                    const TestResult& result)
+void write_log_tail(std::ostream& log,
+                    const TestEntry& entry,
+                    const TestResult& result,
+                    const std::vector<std::string>& args)
 {
-    std::ofstream log(log_path);
-    if (!log) {
-        return;
+    log << "command=" << entry.command.string() << '\n';
+    if (!args.empty()) {
+        log << "args=";
+        for (std::size_t i = 0; i < args.size(); ++i) {
+            if (i > 0) log << ' ';
+            log << args[i];
+        }
+        log << '\n';
     }
-    log << "# jac313 matrix log\n";
-    log << "test=" << scen.entry.name << '\n';
-    log << "package=" << scen.package << '\n';
-    log << "category=" << scen.category << '\n';
-    log << "persist=" << scen.persist << '\n';
-    log << "output_mode=" << scen.output_mode << '\n';
-    log << "command=" << scen.entry.command.string() << '\n';
-    log << "args=";
-    for (std::size_t i = 0; i < args.size(); ++i) {
-        if (i > 0) log << ' ';
-        log << args[i];
-    }
-    log << '\n';
     log << "duration_ms=" << result.duration.count() << '\n';
     log << "exit_code=" << result.exit_code << '\n';
     if (!result.message.empty()) {
@@ -231,7 +218,59 @@ void write_log_file(const fs::path& log_path,
     log << "\n--- stderr ---\n" << result.stderr_tail;
 }
 
+struct ScenarioPaths {
+    fs::path log_dir;
+    fs::path log_path;
+    fs::path persist_base;
+};
+
+ScenarioPaths resolve_scenario_paths(const fs::path& results_base,
+                                     const MatrixScenario& scen,
+                                     const MatrixRunOptions& opts)
+{
+    ScenarioPaths paths;
+    if (opts.keep_logs) {
+        const fs::path kept_root = resolve_kept_logs_root(opts.version_root, opts.keep_logs_root);
+        paths.log_dir = smoke_kept_capture_base(kept_root, scen).parent_path();
+        paths.log_path = smoke_kept_scenario_log(kept_root, scen);
+        paths.persist_base = smoke_kept_capture_base(kept_root, scen);
+    } else {
+        paths.log_dir = scenario_log_dir(results_base, scen);
+        paths.log_path = scenario_log_path(results_base, scen);
+        paths.persist_base = scenario_persist_base(paths.log_dir, scen);
+    }
+    return paths;
+}
+
 } // namespace
+
+void write_test_result_log(const fs::path& log_path,
+                           const TestEntry& entry,
+                           const TestResult& result,
+                           const std::vector<std::string>& args)
+{
+    std::ofstream log(log_path);
+    if (!log) return;
+    log << "# jac313 test log\n";
+    log << "test=" << entry.name << '\n';
+    write_log_tail(log, entry, result, args);
+}
+
+void write_log_file(const fs::path& log_path,
+                    const MatrixScenario& scen,
+                    const std::vector<std::string>& args,
+                    const TestResult& result)
+{
+    std::ofstream log(log_path);
+    if (!log) return;
+    log << "# jac313 matrix log\n";
+    log << "test=" << scen.entry.name << '\n';
+    log << "package=" << scen.package << '\n';
+    log << "category=" << scen.category << '\n';
+    log << "persist=" << scen.persist << '\n';
+    log << "output_mode=" << scen.output_mode << '\n';
+    write_log_tail(log, scen.entry, result, args);
+}
 
 BuildFeatures read_build_features(const fs::path& build_dir) {
     BuildFeatures features;
@@ -421,18 +460,16 @@ std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scena
     for (const auto& scen : scenarios) {
         ++index;
 
-        const fs::path log_dir = scenario_log_dir(results_base, scen);
-        fs::create_directories(log_dir);
-        const fs::path log_path = scenario_log_path(results_base, scen);
-        const fs::path persist_base = scenario_persist_base(log_dir);
-        const auto args = build_scenario_args(scen, params, persist_base);
+        const ScenarioPaths paths = resolve_scenario_paths(results_base, scen, opts);
+        fs::create_directories(paths.log_dir);
+        const auto args = build_scenario_args(scen, params, paths.persist_base);
 
         print_matrix_scenario_line(scen, index, total, true,
                                    opts.global_done_before + index, opts.global_total, name_width);
 
         MatrixRunResult run;
         run.scenario = scen;
-        run.log_path = log_path;
+        run.log_path = paths.log_path;
 
         run.result = run_test_with_args(scen.entry.command, args, opts.verbose, opts.failsafe_sec, 0);
         run.result.entry = scen.entry;
@@ -461,7 +498,7 @@ std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scena
             break;
         }
 
-        write_log_file(log_path, scen, args, run.result);
+        write_log_file(paths.log_path, scen, args, run.result);
 
         const TestStatus final_status = run.result.status;
         results.push_back(std::move(run));

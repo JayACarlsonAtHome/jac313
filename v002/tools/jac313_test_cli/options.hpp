@@ -14,6 +14,9 @@ struct GlobalOptions {
     std::filesystem::path build_dir{"build"};
     std::filesystem::path source_dir;
     bool verbose{false};
+    bool keep_logs{false};                       // retain durable capture files (bench + smoke)
+    std::filesystem::path keep_logs_dir;       // optional root; bench uses <dir>/bench/<compiler>
+    bool wipe_logs{false};                       // delete test-results/ + kept-logs/ (keep README.md)
     std::string host_claim;
     std::int64_t host_assign_new{0};
 };
