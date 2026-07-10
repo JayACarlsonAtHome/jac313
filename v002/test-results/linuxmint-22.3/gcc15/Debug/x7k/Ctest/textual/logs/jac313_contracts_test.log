@@ -1,0 +1,10 @@
+# jac313 test log
+test=jac313_contracts_test
+command=/home/jay/git/jac313/v002/build-gcc15/tools/jac313_contracts_test
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+jac313 contracts shim — pre/post/assert happy-path OK
+
+--- stderr ---

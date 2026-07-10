@@ -701,6 +701,190 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | [Run_249](Run_249.md) | clang22 · 2026-07-09T02:54:46Z |
 | [Run_246](Run_246.md) | gcc16 · 2026-07-09T02:52:29Z |
 
+## jac313-006 — Intel(R) Core(TM) Ultra 7 265 · 14 cores · 42 GB · linuxmint-22.3 · x7k
+
+| scenario | [clang20](Run_275.md) | [gcc15](Run_272.md) |
+|---|--:|--:|
+| jac313_store_001_TS · binary · off | 150 | 100 |
+| jac313_store_001_TS · binary · on | 150 | 100 |
+| jac313_store_001_TS · html · off | 150 | 150 |
+| jac313_store_001_TS · html · on | 150 | 150 |
+| jac313_store_001_TS · json · off | 201 | 250 |
+| jac313_store_001_TS · json · on | 200 | 150 |
+| jac313_store_001_TS · jtext · off | 251 | 150 |
+| jac313_store_001_TS · jtext · on | 3,163 | 200 |
+| jac313_store_001_TS · none · off | 50 | 50 |
+| jac313_store_001_TS · none · on | 50 | 50 |
+| jac313_store_001_TS · sql · off | 50 | 501 |
+| jac313_store_001_TS · sql · on | 50 | 501 |
+| jac313_store_001_XS · binary · off | 301 | 200 |
+| jac313_store_001_XS · binary · on | 100 | 100 |
+| jac313_store_001_XS · html · off | 200 | 150 |
+| jac313_store_001_XS · html · on | 150 | 150 |
+| jac313_store_001_XS · json · off | 150 | 150 |
+| jac313_store_001_XS · json · on | 351 | 150 |
+| jac313_store_001_XS · jtext · off | 1,003 | 150 |
+| jac313_store_001_XS · jtext · on | 251 | 200 |
+| jac313_store_001_XS · none · off | 50 | 50 |
+| jac313_store_001_XS · none · on | 50 | 50 |
+| jac313_store_001_XS · sql · off | 50 | 351 |
+| jac313_store_001_XS · sql · on | 50 | 351 |
+| jac313_store_002_TS · binary · off | 150 | 150 |
+| jac313_store_002_TS · binary · on | 150 | 100 |
+| jac313_store_002_TS · html · off | 150 | 100 |
+| jac313_store_002_TS · html · on | 150 | 150 |
+| jac313_store_002_TS · json · off | 150 | 200 |
+| jac313_store_002_TS · json · on | 150 | 200 |
+| jac313_store_002_TS · jtext · off | 150 | 250 |
+| jac313_store_002_TS · jtext · on | 251 | 200 |
+| jac313_store_002_TS · none · off | 50 | 50 |
+| jac313_store_002_TS · none · on | 50 | 50 |
+| jac313_store_002_TS · sql · off | 50 | 652 |
+| jac313_store_002_TS · sql · on | 50 | 552 |
+| jac313_store_002_XS · binary · off | 150 | 100 |
+| jac313_store_002_XS · binary · on | 100 | 100 |
+| jac313_store_002_XS · html · off | 150 | 200 |
+| jac313_store_002_XS · html · on | 200 | 200 |
+| jac313_store_002_XS · json · off | 251 | 250 |
+| jac313_store_002_XS · json · on | 150 | 251 |
+| jac313_store_002_XS · jtext · off | 200 | 100 |
+| jac313_store_002_XS · jtext · on | 251 | 150 |
+| jac313_store_002_XS · none · off | 50 | 50 |
+| jac313_store_002_XS · none · on | 50 | 50 |
+| jac313_store_002_XS · sql · off | 50 | 652 |
+| jac313_store_002_XS · sql · on | 50 | 401 |
+| jac313_store_003_TS · binary · off | 452 | 401 |
+| jac313_store_003_TS · binary · on | 1,004 | 501 |
+| jac313_store_003_TS · html · off | 552 | 502 |
+| jac313_store_003_TS · html · on | 552 | 552 |
+| jac313_store_003_TS · json · off | 552 | 502 |
+| jac313_store_003_TS · json · on | 602 | 602 |
+| jac313_store_003_TS · jtext · off | 501 | 502 |
+| jac313_store_003_TS · jtext · on | 602 | 602 |
+| jac313_store_003_TS · none · off | 351 | 351 |
+| jac313_store_003_TS · none · on | 401 | 401 |
+| jac313_store_003_TS · sql · off | 351 | 803 |
+| jac313_store_003_TS · sql · on | 401 | 803 |
+| jac313_store_003_XS · binary · off | 452 | 502 |
+| jac313_store_003_XS · binary · on | 552 | 552 |
+| jac313_store_003_XS · html · off | 502 | 502 |
+| jac313_store_003_XS · html · on | 602 | 552 |
+| jac313_store_003_XS · json · off | 602 | 502 |
+| jac313_store_003_XS · json · on | 552 | 552 |
+| jac313_store_003_XS · jtext · off | 502 | 451 |
+| jac313_store_003_XS · jtext · on | 602 | 602 |
+| jac313_store_003_XS · none · off | 351 | 351 |
+| jac313_store_003_XS · none · on | 402 | 401 |
+| jac313_store_003_XS · sql · off | 351 | 954 |
+| jac313_store_003_XS · sql · on | 401 | 1,004 |
+| jac313_store_004_TS · binary · off | 100 | 100 |
+| jac313_store_004_TS · binary · on | 150 | 100 |
+| jac313_store_004_TS · html · off | 250 | 150 |
+| jac313_store_004_TS · html · on | 150 | 150 |
+| jac313_store_004_TS · json · off | 150 | 200 |
+| jac313_store_004_TS · json · on | 150 | 150 |
+| jac313_store_004_TS · jtext · off | 301 | 150 |
+| jac313_store_004_TS · jtext · on | 250 | 150 |
+| jac313_store_004_TS · none · off | 50 | 50 |
+| jac313_store_004_TS · none · on | 50 | 50 |
+| jac313_store_004_TS · sql · off | 50 | 552 |
+| jac313_store_004_TS · sql · on | 50 | 552 |
+| jac313_store_004_XS · binary · off | 100 | 150 |
+| jac313_store_004_XS · binary · on | 100 | 100 |
+| jac313_store_004_XS · html · off | 201 | 150 |
+| jac313_store_004_XS · html · on | 200 | 100 |
+| jac313_store_004_XS · json · off | 250 | 150 |
+| jac313_store_004_XS · json · on | 150 | 150 |
+| jac313_store_004_XS · jtext · off | 251 | 150 |
+| jac313_store_004_XS · jtext · on | 251 | 200 |
+| jac313_store_004_XS · none · off | 50 | 50 |
+| jac313_store_004_XS · none · on | 50 | 50 |
+| jac313_store_004_XS · sql · off | 50 | 401 |
+| jac313_store_004_XS · sql · on | 50 | 752 |
+| jac313_store_005_TS · binary · off | 200 | 200 |
+| jac313_store_005_TS · binary · on | 150 | 100 |
+| jac313_store_005_TS · html · off | 100 | 100 |
+| jac313_store_005_TS · html · on | 150 | 150 |
+| jac313_store_005_TS · json · off | 100 | 100 |
+| jac313_store_005_TS · json · on | 100 | 100 |
+| jac313_store_005_TS · jtext · off | 200 | 200 |
+| jac313_store_005_TS · jtext · on | 200 | 200 |
+| jac313_store_005_TS · none · off | 50 | 50 |
+| jac313_store_005_TS · none · on | 50 | 50 |
+| jac313_store_005_TS · sql · off | 50 | 200 |
+| jac313_store_005_TS · sql · on | 50 | 250 |
+| jac313_store_005_XS · binary · off | 100 | 100 |
+| jac313_store_005_XS · binary · on | 100 | 150 |
+| jac313_store_005_XS · html · off | 100 | 100 |
+| jac313_store_005_XS · html · on | 100 | 100 |
+| jac313_store_005_XS · json · off | 100 | 100 |
+| jac313_store_005_XS · json · on | 100 | 100 |
+| jac313_store_005_XS · jtext · off | 351 | 652 |
+| jac313_store_005_XS · jtext · on | 200 | 200 |
+| jac313_store_005_XS · none · off | 50 | 50 |
+| jac313_store_005_XS · none · on | 50 | 50 |
+| jac313_store_005_XS · sql · off | 50 | 250 |
+| jac313_store_005_XS · sql · on | 50 | 301 |
+| jac313_store_006_TS · binary · off | 401 | 401 |
+| jac313_store_006_TS · binary · on | 452 | 452 |
+| jac313_store_006_TS · html · off | 502 | 501 |
+| jac313_store_006_TS · html · on | 602 | 501 |
+| jac313_store_006_TS · json · off | 502 | 502 |
+| jac313_store_006_TS · json · on | 602 | 652 |
+| jac313_store_006_TS · jtext · off | 501 | 552 |
+| jac313_store_006_TS · jtext · on | 602 | 602 |
+| jac313_store_006_TS · none · off | 351 | 351 |
+| jac313_store_006_TS · none · on | 401 | 401 |
+| jac313_store_006_TS · sql · off | 351 | 752 |
+| jac313_store_006_TS · sql · on | 401 | 753 |
+| jac313_store_006_XS · binary · off | 452 | 452 |
+| jac313_store_006_XS · binary · on | 502 | 552 |
+| jac313_store_006_XS · html · off | 552 | 552 |
+| jac313_store_006_XS · html · on | 602 | 602 |
+| jac313_store_006_XS · json · off | 552 | 502 |
+| jac313_store_006_XS · json · on | 552 | 552 |
+| jac313_store_006_XS · jtext · off | 602 | 501 |
+| jac313_store_006_XS · jtext · on | 552 | 552 |
+| jac313_store_006_XS · none · off | 351 | 351 |
+| jac313_store_006_XS · none · on | 401 | 402 |
+| jac313_store_006_XS · sql · off | 351 | 753 |
+| jac313_store_006_XS · sql · on | 401 | 753 |
+| jac313_store_007_TS · binary · off | 150 | 100 |
+| jac313_store_007_TS · binary · on | 100 | 100 |
+| jac313_store_007_TS · html · off | 251 | 301 |
+| jac313_store_007_TS · html · on | 251 | 200 |
+| jac313_store_007_TS · json · off | 251 | 200 |
+| jac313_store_007_TS · json · on | 250 | 200 |
+| jac313_store_007_TS · jtext · off | 201 | 200 |
+| jac313_store_007_TS · jtext · on | 250 | 200 |
+| jac313_store_007_TS · none · off | 50 | 50 |
+| jac313_store_007_TS · none · on | 50 | 50 |
+| jac313_store_007_TS · sql · off | 50 | 401 |
+| jac313_store_007_TS · sql · on | 50 | 451 |
+| jac313_store_007_XS · binary · off | 150 | 150 |
+| jac313_store_007_XS · binary · on | 351 | 100 |
+| jac313_store_007_XS · html · off | 200 | 251 |
+| jac313_store_007_XS · html · on | 301 | 251 |
+| jac313_store_007_XS · json · off | 301 | 251 |
+| jac313_store_007_XS · json · on | 250 | 251 |
+| jac313_store_007_XS · jtext · off | 200 | 150 |
+| jac313_store_007_XS · jtext · on | 200 | 200 |
+| jac313_store_007_XS · none · off | 50 | 50 |
+| jac313_store_007_XS · none · on | 50 | 50 |
+| jac313_store_007_XS · sql · off | 50 | 401 |
+| jac313_store_007_XS · sql · on | 50 | 501 |
+| jac313_store_008_TS · flags · off | 251 | 501 |
+| jac313_store_008_XS · flags · off | 200 | 552 |
+| jac313_store_flags · unit · off | 50 | 50 |
+| jac313_store_metric_view · unit · off | 50 | 50 |
+
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_275](Run_275.md) | clang20 · 2026-07-10T04:22:16Z |
+| [Run_272](Run_272.md) | gcc15 · 2026-07-10T04:20:30Z |
+
 ---
 [← back](../README.md) · [↑ top](#top)
 <a id="bottom"></a>

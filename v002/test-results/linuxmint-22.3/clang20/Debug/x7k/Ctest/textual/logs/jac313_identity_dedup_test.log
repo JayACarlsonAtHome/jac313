@@ -1,0 +1,10 @@
+# jac313 test log
+test=jac313_identity_dedup_test
+command=/home/jay/git/jac313/v002/build-clang/tools/jac313_identity_dedup_test
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+identity dedup — OS distinguishes runs; same-identity dedups
+
+--- stderr ---

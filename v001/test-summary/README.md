@@ -16,6 +16,7 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 | jac313-003 | Intel(R) Core(TM) Ultra 7 265 | 2.4 GHz | 4 | 4 | 11 GB | x7k | linuxmint-22.3 |
 | jac313-004 | Intel(R) Core(TM) Ultra 7 265 | 0.8–5.3 GHz | 20 | 20 | 62 GB | ssd | rhel-9.8 |
 | jac313-005 | Intel(R) Core(TM) Ultra 7 265 | 2.4 GHz | 14 | 14 | 42 GB | x7k | fedora-44 |
+| jac313-006 | Intel(R) Core(TM) Ultra 7 265 | 2.4 GHz | 14 | 14 | 42 GB | x7k | linuxmint-22.3 |
 
 \* P.Cores = Physical Cores; T.Cores = Threading Cores
 
@@ -28,6 +29,7 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 | jac313-003 | ✅ PRESUMED SAFE | 102/0 | 232/0 | 20/0 | ✅ | ✅ | ✅ |
 | jac313-004 | ✅ PRESUMED SAFE | 68/0 | 232/0 | 20/0 | ✅ | ✅ | ✅ |
 | jac313-005 | ✅ PRESUMED SAFE | 74/0 | 344/0 | 28/0 | ✅ | ✅ | ✅ |
+| jac313-006 | ✅ PRESUMED SAFE | 74/0 | 344/0 | 28/0 | ✅ | ✅ | ✅ |
 
 \* ✅ PRESUMED SAFE = builds + ctest/smoke/bench 0-fail + memcheck/helgrind/drd clean, both compilers. Presumed, not proven.
 
@@ -71,14 +73,22 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 | smoke | 344 | 0 | n/a | n/a | n/a |
 | bench | 28 | 0 | n/a | n/a | n/a |
 
+### jac313-006 — gate detail
+
+| gate | pass | fail | memcheck | helgrind | drd |
+|---|--:|--:|:--:|:--:|:--:|
+| ctest | 74 | 0 | ✅ | ✅ | ✅ |
+| smoke | 344 | 0 | n/a | n/a | n/a |
+| bench | 28 | 0 | n/a | n/a | n/a |
+
 | area | runs | rows |
 |---|--:|--:|
 | [compilers](compiler/README.md) | — | — |
-| [ctest](ctest/README.md) | 11 | 380 |
-| [smoke](smoke/README.md) | 10 | 1272 |
-| [bench](bench/README.md) | 10 | 108 |
-| [verify](verify/README.md) | 10 | 632 |
-| [compiler-build-times](compiler-build-times/README.md) | 21 | 315 |
+| [ctest](ctest/README.md) | 13 | 454 |
+| [smoke](smoke/README.md) | 12 | 1616 |
+| [bench](bench/README.md) | 12 | 136 |
+| [verify](verify/README.md) | 12 | 784 |
+| [compiler-build-times](compiler-build-times/README.md) | 26 | 380 |
 
 ---
 [← back](../README.md) · [↑ top](#top)

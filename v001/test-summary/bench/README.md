@@ -184,6 +184,45 @@ _Generated from `results.db`. Throughput is hardware-specific, so each machine (
 | [Run_241](Run_241.md) | clang22 · 2026-07-09T02:14:22Z |
 | [Run_240](Run_240.md) | gcc16 · 2026-07-09T02:10:36Z |
 
+## jac313-006 — Intel(R) Core(TM) Ultra 7 265 · 14 cores · 42 GB · linuxmint-22.3 · x7k
+
+
+### Non-durable (flag sweep)  _(median ops/sec, descending)_
+
+| config | [clang20](Run_264.md)<br>median ops/sec | clang20<br>band | clang20<br>size | [gcc15](Run_263.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
+|---|--:|:--:|--:|--:|:--:|--:|
+| 2 flags, non-durable | 5,437,667 | 5.01M–5.51M | 0 B | 5,003,939 | 4.71M–5.37M | 0 B |
+| 0 flags, non-durable | 5,414,604 | 4.78M–5.48M | 0 B | 4,973,011 | 4.85M–5.45M | 0 B |
+| 4 flags, non-durable | 5,205,365 | 4.78M–5.51M | 0 B | 5,179,046 | 4.75M–5.43M | 0 B |
+| 6 flags, non-durable | 5,118,736 | 4.90M–5.52M | 0 B | 5,003,580 | 4.74M–5.42M | 0 B |
+
+### Durable @ 1M events  _(median ops/sec, descending)_
+
+| config | [clang20](Run_264.md)<br>median ops/sec | clang20<br>band | clang20<br>size | [gcc15](Run_263.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
+|---|--:|:--:|--:|--:|:--:|--:|
+| durable binary | 676,448 | 595.74K–748.44K | 83.78 MB | 708,126 | 676.71K–803.54K | 83.78 MB |
+| durable jtext | 613,480 | 575.87K–640.78K | 80.82 MB | 666,525 | 653.73K–671.09K | 80.82 MB |
+| durable html | 498,333 | 446.10K–507.69K | 138.04 MB | 523,316 | 522.30K–543.03K | 138.06 MB |
+| durable sql | 440,400 | 420.37K–463.97K | 75.12 MB | 484,848 | 459.49K–487.01K | 75.12 MB |
+| durable json | 436,392 | 413.81K–454.21K | 165.69 MB | 448,705 | 447.47K–459.83K | 165.68 MB |
+
+### Durable @ 10M events  _(median ops/sec, descending)_
+
+| config | [clang20](Run_264.md)<br>median ops/sec | clang20<br>band | clang20<br>size | [gcc15](Run_263.md)<br>median ops/sec | gcc15<br>band | gcc15<br>size |
+|---|--:|:--:|--:|--:|:--:|--:|
+| durable jtext | 776,752 | 720.19K–784.20K | 836.35 MB | 753,009 | 738.75K–761.84K | 836.34 MB |
+| durable binary | 742,680 | 733.06K–782.91K | 837.80 MB | 764,530 | 753.10K–797.80K | 837.80 MB |
+| durable sql | 600,218 | 584.90K–604.67K | 773.22 MB | 641,112 | 621.71K–652.99K | 773.11 MB |
+| durable html | 526,493 | 525.19K–536.14K | 1.38 GB | 545,610 | 526.51K–547.33K | 1.38 GB |
+| durable json | 474,189 | 465.46K–484.35K | 1.65 GB | 473,628 | 473.34K–475.06K | 1.65 GB |
+
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_264](Run_264.md) | clang20 · 2026-07-10T03:47:53Z |
+| [Run_263](Run_263.md) | gcc15 · 2026-07-10T03:41:54Z |
+
 ---
 [← back](../README.md) · [↑ top](#top)
 <a id="bottom"></a>

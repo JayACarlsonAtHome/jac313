@@ -12,3 +12,4 @@ jac313-006	Intel(R) Core(TM) Ultra 7 265	4	11	Red Hat Enterprise Linux 10.2 (Cou
 jac313-007	Intel(R) Core(TM) Ultra 7 265	4	11	Fedora Linux 44 (Workstation Edition)	gcc16	clang
 jac313-008	Intel(R) Core(TM) Ultra 7 265	4	11	Linux Mint 22.3	gcc15	clang
 jac313-009	Intel(R) Core(TM) Ultra 7 265	14	42	Fedora Linux 44 (Workstation Edition)	gcc16	clang
+jac313-010	Intel(R) Core(TM) Ultra 7 265	14	42	Linux Mint 22.3	gcc15	clang

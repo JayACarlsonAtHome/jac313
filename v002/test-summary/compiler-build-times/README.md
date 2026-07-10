@@ -230,6 +230,52 @@ Cell = compile+link seconds · status · binary size (latest build); per test ×
 | jac313_store_sql_persist_smoke | 2.22s · built · 939.53 KB | - | 2.28s · built · 1.06 MB | - | - |
 | jac313_store_v002_test | 2.14s · built · 457.48 KB | - | 1.42s · built · 566.58 KB | - | - |
 
+## jac313-006 — Intel(R) Core(TM) Ultra 7 265 · 14 cores · 42 GB · linuxmint-22.3 · x7k
+
+| test | clang20·hdr | gcc15·hdr |
+|---|:--:|:--:|
+| jac313_contracts_disabled_test | 0.95s · built · 31.88 KB | 0.56s · built · 49.82 KB |
+| jac313_contracts_enforce_test | 0.80s · built · 528.20 KB | 0.91s · built · 670.59 KB |
+| jac313_contracts_test | 0.62s · built · 34.48 KB | 0.56s · built · 52.54 KB |
+| jac313_host_group_test | 1.23s · built · 380.62 KB | 1.34s · built · 473.47 KB |
+| jac313_identity_dedup_test | 2.16s · built · 538.84 KB | 1.97s · built · 690.20 KB |
+| jac313_instance_hash_test | 0.93s · built · 130.83 KB | 0.63s · built · 177.75 KB |
+| jac313_jtext_v002_parser_validator_test | 1.14s · built · 2.12 MB | 1.03s · built · 2.72 MB |
+| jac313_jtext_v002_test | 1.02s · built · 1.33 MB | 0.87s · built · 1.65 MB |
+| jac313_qlite_v002_test | 1.13s · built · 547.78 KB | 0.73s · built · 671.20 KB |
+| jac313_run_identity_test | 2.02s · built · 457.66 KB | 2.17s · built · 598.82 KB |
+| jac313_store_001_TS | 3.23s · built · 4.14 MB | 3.20s · built · 5.35 MB |
+| jac313_store_001_XS | 3.47s · built · 4.12 MB | 3.71s · built · 5.33 MB |
+| jac313_store_002_TS | 2.84s · built · 3.99 MB | 3.70s · built · 5.17 MB |
+| jac313_store_002_XS | 2.64s · built · 3.97 MB | 2.85s · built · 5.15 MB |
+| jac313_store_003_TS | 2.68s · built · 4.17 MB | 3.95s · built · 5.37 MB |
+| jac313_store_003_XS | 3.26s · built · 4.16 MB | 3.20s · built · 5.35 MB |
+| jac313_store_004_TS | 3.53s · built · 4.13 MB | 3.57s · built · 5.33 MB |
+| jac313_store_004_XS | 2.60s · built · 4.11 MB | 3.58s · built · 5.30 MB |
+| jac313_store_005_TS | 2.58s · built · 4.02 MB | 3.12s · built · 5.21 MB |
+| jac313_store_005_XS | 2.48s · built · 4.00 MB | 3.70s · built · 5.19 MB |
+| jac313_store_006_TS | 3.55s · built · 4.17 MB | 4.26s · built · 5.37 MB |
+| jac313_store_006_XS | 2.96s · built · 4.16 MB | 3.64s · built · 5.35 MB |
+| jac313_store_007_TS | 3.07s · built · 4.02 MB | 3.60s · built · 5.21 MB |
+| jac313_store_007_XS | 3.06s · built · 4.01 MB | 3.46s · built · 5.20 MB |
+| jac313_store_008_TS | 2.51s · built · 2.95 MB | 3.15s · built · 3.76 MB |
+| jac313_store_008_XS | 2.55s · built · 2.94 MB | 3.27s · built · 3.76 MB |
+| jac313_store_bench | 3.08s · built · 4.47 MB | 3.65s · built · 5.75 MB |
+| jac313_store_binary_persist_smoke | 1.80s · built · 1.32 MB | 2.10s · built · 1.64 MB |
+| jac313_store_binary_reader_test | 2.34s · built · 2.54 MB | 3.38s · built · 3.27 MB |
+| jac313_store_binary_to_jtext_smoke | 2.69s · built · 2.52 MB | 2.96s · built · 3.24 MB |
+| jac313_store_flag_routing_smoke | 2.35s · built · 1.75 MB | 2.45s · built · 2.20 MB |
+| jac313_store_flags | 1.03s · built · 200.99 KB | 0.89s · built · 243.38 KB |
+| jac313_store_html_persist_smoke | 1.76s · built · 1.40 MB | 1.75s · built · 1.74 MB |
+| jac313_store_json_persist_smoke | 1.54s · built · 1.37 MB | 1.65s · built · 1.70 MB |
+| jac313_store_json_reader_test | 2.01s · built · 1.63 MB | 1.95s · built · 2.08 MB |
+| jac313_store_jtext_persist_smoke | 1.90s · built · 2.16 MB | 1.51s · built · 2.74 MB |
+| jac313_store_metric_view | 2.03s · built · 725.92 KB | 1.53s · built · 922.68 KB |
+| jac313_store_metric_view_test | 1.72s · built · 717.05 KB | 1.81s · built · 907.11 KB |
+| jac313_store_saturating_capacity_test | 0.84s · built · 35.12 KB | 0.72s · built · 54.12 KB |
+| jac313_store_sql_persist_smoke | 1.96s · built · 859.80 KB | 2.13s · built · 1.07 MB |
+| jac313_store_v002_test | 1.38s · built · 431.88 KB | 1.52s · built · 591.26 KB |
+
 ---
 [← back](../README.md) · [↑ top](#top)
 <a id="bottom"></a>

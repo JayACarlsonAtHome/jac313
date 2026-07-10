@@ -1,0 +1,10 @@
+# jac313 test log
+test=jac313_store_json_persist_smoke
+command=/home/jay/git/jac313/v001/build-clang/Store/examples/jac313_store_json_persist_smoke
+duration_ms=100
+exit_code=0
+
+--- stdout ---
+jac313::Store::v001 JSON persistence smoke OK
+
+--- stderr ---

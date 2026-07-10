@@ -1,0 +1,10 @@
+# jac313 test log
+test=jac313_jtext_v002_test
+command=/home/jay/git/jac313/v002/build-gcc15/jText/tests/jac313_jtext_v002_test
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+jac313::jText::v002 aliases jText API
+
+--- stderr ---

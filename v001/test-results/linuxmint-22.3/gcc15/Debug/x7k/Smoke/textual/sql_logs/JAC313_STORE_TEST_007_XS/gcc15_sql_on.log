@@ -1,0 +1,33 @@
+# jac313 matrix log
+test=jac313_store_007_XS
+package=store
+category=matrix
+persist=sql
+output_mode=on
+command=/home/jay/git/jac313/v001/build-clang/Store/tests/matrix/jac313_store_007_XS
+args=--no-interactive --color=1 --test-size=smoke --persist=sql --base-name=/home/jay/git/jac313/v001/test-results/linuxmint-22.3/gcc15/Debug/x7k/Smoke/textual/sql_logs/JAC313_STORE_TEST_007_XS/persist_on --threads=10 --events-per-thread=100 --runs=1
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+=== FINAL MASSIVE TEST — 1,000 entries × 1 runs ===
+Using store.clear() — fastest, most realistic reuse
+
+Persistence will only be attached on the *last* run (previous runs measure clean hot path; only final run produces persist artifacts).
+
+Run 1 / 1
+  sample metrics on event 42 (t=0): int=4200 dbl=0.42
+[32m[VERIFY] ALL 1000 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
+[0mPASS — 1,369 µs → 730,460 ops/sec
+
+
+═══════════════════════════════════════════════════════════════
+               FINAL RESULT — 1-RUN STATISTICS            
+═══════════════════════════════════════════════════════════════
+  Fastest run        : 1,369 µs  → 730,460 ops/sec
+  Slowest run        : 1,369 µs  → 730,460 ops/sec
+  Average            : 1,369 µs  → 730,460 ops/sec
+  (1,000 events per run, 100% verified, zero corruption)
+═══════════════════════════════════════════════════════════════
+
+--- stderr ---

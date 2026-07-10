@@ -239,6 +239,55 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | [Run_238](Run_238.md) | clang22 · 2026-07-09T02:04:31Z |
 | [Run_235](Run_235.md) | gcc16 · 2026-07-09T02:02:15Z |
 
+## jac313-006 — Intel(R) Core(TM) Ultra 7 265 · 14 cores · 42 GB · linuxmint-22.3 · x7k
+
+| scenario | [clang20](Run_261.md) | [gcc15](Run_258.md) |
+|---|--:|--:|
+| jac313_host_group_test | 50 | 50 |
+| jac313_identity_dedup_test | 50 | 50 |
+| jac313_instance_hash_test | 50 | 50 |
+| jac313_jtext_v001_parser_validator_test | 50 | 50 |
+| jac313_jtext_v001_test | 50 | 50 |
+| jac313_qlite_v001_test | 50 | 50 |
+| jac313_run_identity_test | 50 | 50 |
+| jac313_store_001_TS | 50 | 50 |
+| jac313_store_001_XS | 50 | 50 |
+| jac313_store_002_TS | 50 | 50 |
+| jac313_store_002_XS | 50 | 50 |
+| jac313_store_003_TS | 50 | 50 |
+| jac313_store_003_XS | 50 | 50 |
+| jac313_store_004_TS | 50 | 50 |
+| jac313_store_004_XS | 50 | 50 |
+| jac313_store_005_TS | 50 | 50 |
+| jac313_store_005_XS | 50 | 50 |
+| jac313_store_006_TS | 50 | 50 |
+| jac313_store_006_XS | 50 | 50 |
+| jac313_store_007_TS | 50 | 50 |
+| jac313_store_007_XS | 50 | 50 |
+| jac313_store_008_TS | 250 | 402 |
+| jac313_store_008_XS | 301 | 402 |
+| jac313_store_bench_smoke | 50 | 50 |
+| jac313_store_binary_persist_smoke | 50 | 50 |
+| jac313_store_binary_reader_test | 150 | 200 |
+| jac313_store_binary_to_jtext_smoke | 200 | 201 |
+| jac313_store_flag_routing_smoke | 451 | 351 |
+| jac313_store_flags | 50 | 50 |
+| jac313_store_html_persist_smoke | 150 | 150 |
+| jac313_store_json_persist_smoke | 100 | 251 |
+| jac313_store_json_reader_test | 150 | 150 |
+| jac313_store_jtext_persist_smoke | 251 | 200 |
+| jac313_store_metric_view | 50 | 50 |
+| jac313_store_metric_view_test | 50 | 50 |
+| jac313_store_sql_persist_smoke | 451 | 351 |
+| jac313_store_v001_test | 50 | 50 |
+
+**Runs** (newest first):
+
+| run | compiler · recorded |
+|---|---|
+| [Run_261](Run_261.md) | clang20 · 2026-07-10T03:33:57Z |
+| [Run_258](Run_258.md) | gcc15 · 2026-07-10T03:32:31Z |
+
 ---
 [← back](../README.md) · [↑ top](#top)
 <a id="bottom"></a>

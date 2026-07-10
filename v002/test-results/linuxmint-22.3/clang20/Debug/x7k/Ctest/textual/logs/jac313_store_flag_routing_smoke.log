@@ -1,0 +1,10 @@
+# jac313 test log
+test=jac313_store_flag_routing_smoke
+command=/home/jay/git/jac313/v002/build-clang/Store/examples/jac313_store_flag_routing_smoke
+duration_ms=401
+exit_code=0
+
+--- stdout ---
+jac313::Store::v002 FlagRouting persistence smoke OK
+
+--- stderr ---

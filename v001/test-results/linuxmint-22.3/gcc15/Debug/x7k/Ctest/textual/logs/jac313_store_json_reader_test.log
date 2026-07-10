@@ -1,0 +1,10 @@
+# jac313 test log
+test=jac313_store_json_reader_test
+command=/home/jay/git/jac313/v001/build-gcc15/Store/tests/jac313_store_json_reader_test
+duration_ms=150
+exit_code=0
+
+--- stdout ---
+jac313::Store::v001 JSON reader test OK
+
+--- stderr ---

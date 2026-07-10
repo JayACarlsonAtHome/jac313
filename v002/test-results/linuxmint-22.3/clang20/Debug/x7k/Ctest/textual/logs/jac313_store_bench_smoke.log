@@ -1,0 +1,22 @@
+# jac313 test log
+test=jac313_store_bench_smoke
+command=/home/jay/git/jac313/v002/build-clang/Store/tests/matrix/jac313_store_bench
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+store_bench: threads=4 events/thread=200 runs=3 persist=none batch=10000
+
+═══════════════════════════════════════════════════════════════
+             FINAL RESULT — 3-RUN STATISTICS
+═══════════════════════════════════════════════════════════════
+  Median             : 438,596 ops/sec
+  Fastest run        : 502,513 ops/sec
+  Slowest run        : 407,332 ops/sec
+  Average            : 449,480 ops/sec
+  Std deviation      : 39,612 ops/sec
+  (800 events per run, 100% verified, zero corruption)
+═══════════════════════════════════════════════════════════════
+BENCHSTATS runs=3 events=800 high=502513 low=407332 avg=449480 median=438596 stddev=39612
+
+--- stderr ---

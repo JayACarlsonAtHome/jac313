@@ -1,0 +1,12 @@
+# jac313 test log
+test=jac313_contracts_enforce_test
+command=/home/jay/git/jac313/v002/build-gcc15/tools/jac313_contracts_enforce_test
+duration_ms=501
+exit_code=0
+
+--- stdout ---
+jac313 contracts — enforce/abort death-test OK (native=0)
+
+--- stderr ---
+jac313 contract precondition violated: (n > 0) at /home/jay/git/jac313/v002/tools/jac313_test_cli/tests/contracts_enforce_test.cpp:30 in int must_be_positive(int)
+jac313 contract assert violated: (1 == 2) at /home/jay/git/jac313/v002/tools/jac313_test_cli/tests/contracts_enforce_test.cpp:64 in main()::<lambda()>

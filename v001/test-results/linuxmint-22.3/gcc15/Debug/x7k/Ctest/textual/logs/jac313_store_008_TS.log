@@ -1,0 +1,41 @@
+# jac313 test log
+test=jac313_store_008_TS
+command=/home/jay/git/jac313/v001/build-gcc15/Store/tests/matrix/jac313_store_008_TS
+duration_ms=402
+exit_code=0
+
+--- stdout ---
+═══════════════════════════════════════════════════════════════
+ TEST 008 TS — Flag-selective persistence
+═══════════════════════════════════════════════════════════════
+ Purpose:
+   Prove KeeperRecord routes to jText file and DatabaseEntry routes to
+   SQLite while the other 80 events stay in-memory only on the persist path.
+   Expect higher ops/sec than persisting all 100 events.
+
+ Plan: 100 in-memory events × 1 runs
+   • indices 0..9     → KeeperRecord  (jText file)
+   • indices 10..19 → DatabaseEntry (SQLite)
+   • remainder           → no persist flags
+
+Flag routing persistence attaches only on the *last* run (previous runs measure clean hot path; final run verifies counts).
+
+Run 1 / 1
+[VERIFY] ALL 100 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
+PASS — 319 µs → 313,480 ops/sec
+
+Persist verification:
+  jText main rows (KeeperRecord):  10 (expected 10)
+  SQLite main rows (DatabaseEntry): 10 (expected 10)
+  PASS — flags honored; only 20 / 100 events reached durable storage
+
+═══════════════════════════════════════════════════════════════
+               FINAL RESULT — 1-RUN STATISTICS            
+═══════════════════════════════════════════════════════════════
+  Fastest run        : 319 µs  → 313,480 ops/sec
+  Slowest run        : 319 µs  → 313,480 ops/sec
+  Average            : 319 µs  → 313,480 ops/sec
+  (100 events per run, flag routing verified on final run)
+═══════════════════════════════════════════════════════════════
+
+--- stderr ---

@@ -1,0 +1,27 @@
+# jac313 test log
+test=jac313_store_007_TS
+command=/home/jay/git/jac313/v002/build-clang/Store/tests/matrix/jac313_store_007_TS
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+=== FINAL MASSIVE TEST — 100 entries × 1 runs ===
+Using store.clear() — fastest, most realistic reuse
+
+No persistence attached — pure in-memory hot path
+
+Run 1 / 1
+[VERIFY] ALL 100 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
+PASS — 312 µs → 320,513 ops/sec
+
+
+═══════════════════════════════════════════════════════════════
+               FINAL RESULT — 1-RUN STATISTICS            
+═══════════════════════════════════════════════════════════════
+  Fastest run        : 312 µs  → 320,513 ops/sec
+  Slowest run        : 312 µs  → 320,513 ops/sec
+  Average            : 312 µs  → 320,513 ops/sec
+  (100 events per run, 100% verified, zero corruption)
+═══════════════════════════════════════════════════════════════
+
+--- stderr ---

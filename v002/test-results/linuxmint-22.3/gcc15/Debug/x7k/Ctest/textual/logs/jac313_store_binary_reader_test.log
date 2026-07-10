@@ -1,0 +1,10 @@
+# jac313 test log
+test=jac313_store_binary_reader_test
+command=/home/jay/git/jac313/v002/build-gcc15/Store/tests/jac313_store_binary_reader_test
+duration_ms=301
+exit_code=0
+
+--- stdout ---
+jac313::Store::v002 BinaryEventLogReader OK (incl. malformed-record refusal + huge-len guard)
+
+--- stderr ---

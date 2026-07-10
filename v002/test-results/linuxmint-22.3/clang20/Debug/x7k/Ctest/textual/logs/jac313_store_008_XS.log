@@ -1,0 +1,37 @@
+# jac313 test log
+test=jac313_store_008_XS
+command=/home/jay/git/jac313/v002/build-clang/Store/tests/matrix/jac313_store_008_XS
+duration_ms=251
+exit_code=0
+
+--- stdout ---
+═══════════════════════════════════════════════════════════════
+ TEST 008 XS — Flag-selective persistence (smoke scale)
+═══════════════════════════════════════════════════════════════
+ Purpose:
+   Same as 008 TS: KeeperRecord → jText, DatabaseEntry → SQLite,
+   disjoint index sets, remainder in-memory on the persist path.
+
+ Plan: 100 events × 1 runs, 10 keeper + 10 database flags
+
+Flag routing persistence attaches only on the *last* run.
+
+Run 1 / 1
+[VERIFY] ALL 100 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
+PASS — 328 µs → 304,878 ops/sec
+
+Persist verification:
+  jText main rows:  10 (expected 10)
+  SQLite main rows: 10 (expected 10)
+  PASS — 20 / 100 persisted
+
+═══════════════════════════════════════════════════════════════
+               FINAL RESULT — 1-RUN STATISTICS            
+═══════════════════════════════════════════════════════════════
+  Fastest run        : 328 µs  → 304,878 ops/sec
+  Slowest run        : 328 µs  → 304,878 ops/sec
+  Average            : 328 µs  → 304,878 ops/sec
+  (100 events per run, flag routing verified on final run)
+═══════════════════════════════════════════════════════════════
+
+--- stderr ---
