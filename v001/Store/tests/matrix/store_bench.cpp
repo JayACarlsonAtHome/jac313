@@ -685,14 +685,34 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
             medians.push_back(s.median);
             if (s.median > best_median) { best_median = s.median; best_batch = b; }
         }
-        // Plateau = every swept batch within tol% of the peak; band edges = its lowest/highest batch.
-        const std::uint64_t thresh = best_median - (best_median * tol_pct) / 100;
-        std::size_t low_b = best_batch, high_b = best_batch;
+        // Robust plateau. At this scale the ops/sec curve is a flat, noisy band — run-to-run variance on
+        // an identical config is large — so the raw argmax (best_batch) is a coin toss over the plateau
+        // and a lone spike can either crown a random batch or, via a tight tol% window, punch legitimate
+        // low batches out of the band. Two defenses:
+        //   1. Smooth the per-batch medians with a small moving average, so a single spike neither defines
+        //      the peak nor holes the plateau. Threshold and membership are computed on the smoothed curve.
+        //   2. useThis = the SMALLEST batch within tol% of the smoothed peak (low_b), not the argmax. Every
+        //      batch in [low_b..high_b] delivers the same real throughput; among those the smallest is
+        //      strictly better on secondary costs (less memory pinned in the double buffer, lower drain
+        //      latency, smaller tail-loss on crash) and is far more stable across runs.
+        // best_batch/best_median stay as the RAW peak in the record/report for reference.
+        std::vector<std::uint64_t> smoothed(medians.size(), 0);
+        for (std::size_t i = 0; i < medians.size(); ++i) {
+            std::uint64_t sum = 0; std::size_t n = 0;
+            const std::size_t lo = (i == 0) ? 0 : i - 1;
+            for (std::size_t j = lo; j < medians.size() && j <= i + 1; ++j) { sum += medians[j]; ++n; }
+            smoothed[i] = n ? sum / n : medians[i];
+        }
+        std::uint64_t robust_peak = 0;
+        for (std::uint64_t v : smoothed) robust_peak = std::max(robust_peak, v);
+        const std::uint64_t thresh = robust_peak - (robust_peak * tol_pct) / 100;
+        std::size_t low_b = best_batch, high_b = best_batch; bool have_band = false;
         for (std::size_t i = 0; i < schedule.size(); ++i)
-            if (medians[i] >= thresh) { low_b = std::min(low_b, schedule[i]); high_b = std::max(high_b, schedule[i]); }
-        // useThis = the batch at the PEAK median (the max records @ max ops/sec tracked above) — the
-        // honest measured best, not a band average. low_b/high_b stay as the near-peak band for reference.
-        const std::size_t use = best_batch;
+            if (smoothed[i] >= thresh) {
+                if (!have_band) { low_b = high_b = schedule[i]; have_band = true; }
+                else { low_b = std::min(low_b, schedule[i]); high_b = std::max(high_b, schedule[i]); }
+            }
+        const std::size_t use = low_b;
         std::cout << "  band [" << bench_group_thousands(low_b) << ".." << bench_group_thousands(high_b)
                   << "]  peak " << bench_group_thousands(best_median) << " @ batch "
                   << bench_group_thousands(best_batch) << "  -> useThis " << bench_group_thousands(use) << "\n";
@@ -913,10 +933,14 @@ int main(int argc, char** argv) {
     if (single_run) return do_workload(p, verify_flag) ? 0 : 1;
 
     if (do_calibrate) {
-        // Calibration defaults to the durable 1M config's shape (50 threads, 1M events, 3 runs)
-        // unless the user overrode them — so the best-fit batch is found at the scale it's used.
+        // Calibration defaults to the durable 1M config's shape (50 threads, 1M events) unless the user
+        // overrode them — so the best-fit batch is found at the scale it's used. We KEEP threads=50 (that
+        // is production's contention regime; calibrating at fewer threads would pick for a different one).
+        // The plateau is noisy at this scale, so calibration runs more repetitions than a normal bench
+        // point to shrink per-batch variance (the median over N runs feeds the robust plateau selection);
+        // runtime scales with N but calibration is occasional, so this is a deliberate accuracy/time trade.
         if (!threads_set) p.threads = 50;
-        if (!runs_set)    p.runs = 3;
+        if (!runs_set)    p.runs = 9;
         const auto schedule = build_batch_schedule(cal_lo, cal_knee, cal_step, cal_hi, cal_step2);
         std::string desc = bench_group_thousands(cal_lo) + ".." + bench_group_thousands(cal_knee)
                          + ":" + bench_group_thousands(cal_step) + ", then .." + bench_group_thousands(cal_hi)
