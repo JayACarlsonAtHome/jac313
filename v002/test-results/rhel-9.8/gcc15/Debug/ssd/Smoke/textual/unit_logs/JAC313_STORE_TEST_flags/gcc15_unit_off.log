@@ -1,0 +1,21 @@
+# jac313 matrix log
+test=jac313_store_flags
+package=store
+category=matrix
+persist=unit
+output_mode=off
+command=/home/jay/git/jac313/v002/build-clang/Store/tests/matrix/jac313_store_flags
+args=--no-interactive --color=0 --test-size=smoke
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+Running StoreFlags standalone tests...
+
+Flags 1: LogConsole, KeeperRecord, DatabaseEntry, SendNetwork, HotCacheHint, IsResult, IsExplicitNull, HasData, IsInvalid, HasIntData, HasIntStats, HasDblData, HasDblStats | Severity: Critical
+Flags 2: LogConsole, KeeperRecord, DatabaseEntry, SendNetwork, HotCacheHint, IsResult, IsExplicitNull, HasData, IsInvalid, HasIntData, HasIntStats, HasDblData, HasDblStats | Severity: Critical
+
+
+All StoreFlags tests PASSED!
+
+--- stderr ---
