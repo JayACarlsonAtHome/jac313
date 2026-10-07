@@ -3,13 +3,13 @@
 
 Hot Store sink stays SQLite (Qlite). This is the LAN SoR so GS Family can join.
 
-Usage (creds from ~/.jac314-pg.env, not git):
+Usage (no credentials in git; role jac313's password is in /etc/gfs/pgpass):
 
-    set -a; source ~/.jac314-pg.env; set +a
     python3 v002/docs/store/schema/sync_sqlite_to_pg.py
 
 Env:
-    JAC313_PG_DSN     required (or PGDATABASE/PGHOST/…)
+    JAC313_PG_DSN     default: host=192.168.1.26 port=5432 dbname=jac313 user=jac313
+    PGPASSFILE        default: /etc/gfs/pgpass (the one GS Family password file)
     JAC313_ROOT       default: repo root inferred from this file
 """
 
@@ -27,17 +27,25 @@ from pathlib import Path
 SCHEMA_DIR = Path(__file__).resolve().parent
 ROOT = Path(os.environ.get("JAC313_ROOT", SCHEMA_DIR.parents[3]))
 
+# One PostgreSQL role per git project (2026-10-07): jac313 connects as role
+# jac313; libpq finds its password in the one password file, never in git.
+DEFAULT_DSN = "host=192.168.1.26 port=5432 dbname=jac313 user=jac313"
+DEFAULT_PASSFILE = "/etc/gfs/pgpass"
+
 
 def dsn() -> str:
-    d = os.environ.get("JAC313_PG_DSN") or os.environ.get("DATABASE_URL")
-    if not d:
-        sys.exit("sync_sqlite_to_pg: set JAC313_PG_DSN (source ~/.jac314-pg.env)")
-    return d
+    return os.environ.get("JAC313_PG_DSN") or DEFAULT_DSN
+
+
+def psql_env() -> dict[str, str]:
+    env = dict(os.environ)
+    env.setdefault("PGPASSFILE", DEFAULT_PASSFILE)
+    return env
 
 
 def psql(args: list[str], stdin: str | None = None) -> None:
     cmd = ["psql", "-v", "ON_ERROR_STOP=1", dsn(), *args]
-    r = subprocess.run(cmd, input=stdin, text=True, capture_output=True)
+    r = subprocess.run(cmd, input=stdin, text=True, capture_output=True, env=psql_env())
     if r.returncode != 0:
         sys.stderr.write(r.stderr)
         raise SystemExit(f"psql failed: {' '.join(args[:4])}")
