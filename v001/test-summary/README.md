@@ -27,7 +27,7 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 | jac313-001 | ✅ PRESUMED SAFE | 68/0 | 232/0 | 20/0 | ✅ | ✅ | ✅ |
 | jac313-002 | ✅ PRESUMED SAFE | 68/0 | 232/0 | 20/0 | ✅ | ✅ | ✅ |
 | jac313-003 | ✅ PRESUMED SAFE | 102/0 | 232/0 | 20/0 | ✅ | ✅ | ✅ |
-| jac313-004 | ✅ PRESUMED SAFE | 68/0 | 232/0 | 20/0 | ✅ | ✅ | ✅ |
+| jac313-004 | ✅ PRESUMED SAFE | 74/0 | 344/0 | 28/0 | ✅ | ✅ | ✅ |
 | jac313-005 | ✅ PRESUMED SAFE | 74/0 | 344/0 | 28/0 | ✅ | ✅ | ✅ |
 | jac313-006 | ✅ PRESUMED SAFE | 74/0 | 344/0 | 28/0 | ✅ | ✅ | ✅ |
 
@@ -61,9 +61,9 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 
 | gate | pass | fail | memcheck | helgrind | drd |
 |---|--:|--:|:--:|:--:|:--:|
-| ctest | 68 | 0 | ✅ | ✅ | ✅ |
-| smoke | 232 | 0 | n/a | n/a | n/a |
-| bench | 20 | 0 | n/a | n/a | n/a |
+| ctest | 74 | 0 | ✅ | ✅ | ✅ |
+| smoke | 344 | 0 | n/a | n/a | n/a |
+| bench | 28 | 0 | n/a | n/a | n/a |
 
 ### jac313-005 — gate detail
 
@@ -84,10 +84,10 @@ _Generated from `results.db` by `jac313_test_cli --report`._
 | area | runs | rows |
 |---|--:|--:|
 | [compilers](compiler/README.md) | — | — |
-| [ctest](ctest/README.md) | 13 | 454 |
-| [smoke](smoke/README.md) | 12 | 1616 |
-| [bench](bench/README.md) | 12 | 136 |
-| [verify](verify/README.md) | 12 | 784 |
+| [ctest](ctest/README.md) | 13 | 460 |
+| [smoke](smoke/README.md) | 12 | 1728 |
+| [bench](bench/README.md) | 12 | 144 |
+| [verify](verify/README.md) | 12 | 816 |
 | [compiler-build-times](compiler-build-times/README.md) | 26 | 380 |
 
 ---

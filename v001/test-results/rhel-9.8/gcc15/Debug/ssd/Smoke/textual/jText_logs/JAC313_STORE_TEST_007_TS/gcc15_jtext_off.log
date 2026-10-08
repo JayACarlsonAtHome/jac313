@@ -4,8 +4,8 @@ package=store
 category=matrix
 persist=jtext
 output_mode=off
-command=/home/jay/git/jac313/v001/build-clang/Store/tests/matrix/jac313_store_007_TS
-args=--no-interactive --color=0 --test-size=smoke --persist=jtext --base-name=/home/jay/git/jac313/v001/test-results/rhel-9.8/gcc15/Debug/ssd/Smoke/textual/jText_logs/JAC313_STORE_TEST_007_TS/persist --threads=10 --events-per-thread=100 --runs=1
+command=/run/media/jay/GFS/git/jac313/v001/build-clang/Store/tests/matrix/jac313_store_007_TS
+args=--no-interactive --color=0 --test-size=smoke --persist=jtext --base-name=/run/media/jay/GFS/git/jac313/v001/test-results/rhel-9.8/gcc15/Debug/ssd/Smoke/textual/jText_logs/JAC313_STORE_TEST_007_TS/persist_off --threads=10 --events-per-thread=100 --runs=1
 duration_ms=50
 exit_code=0
 
@@ -18,15 +18,15 @@ Persistence will only be attached on the *last* run (previous runs measure clean
 Run 1 / 1
   sample metrics on event 42 (t=0): int=4200 dbl=0.42
 [VERIFY] ALL 1000 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
-PASS — 661 µs → 1,512,859 ops/sec
+PASS — 678 µs → 1,474,926 ops/sec
 
 
 ═══════════════════════════════════════════════════════════════
                FINAL RESULT — 1-RUN STATISTICS            
 ═══════════════════════════════════════════════════════════════
-  Fastest run        : 661 µs  → 1,512,859 ops/sec
-  Slowest run        : 661 µs  → 1,512,859 ops/sec
-  Average            : 661 µs  → 1,512,859 ops/sec
+  Fastest run        : 678 µs  → 1,474,926 ops/sec
+  Slowest run        : 678 µs  → 1,474,926 ops/sec
+  Average            : 678 µs  → 1,474,926 ops/sec
   (1,000 events per run, 100% verified, zero corruption)
 ═══════════════════════════════════════════════════════════════
 

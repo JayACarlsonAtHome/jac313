@@ -4,7 +4,7 @@ package=store
 category=matrix
 persist=unit
 output_mode=off
-command=/home/jay/git/jac313/v001/build-clang/Store/tests/matrix/jac313_store_flags
+command=/run/media/jay/GFS/git/jac313/v001/build-clang/Store/tests/matrix/jac313_store_flags
 args=--no-interactive --color=0 --test-size=smoke
 duration_ms=50
 exit_code=0

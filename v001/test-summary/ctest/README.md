@@ -146,7 +146,7 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 
 ## jac313-004 — Intel(R) Core(TM) Ultra 7 265 · 20 cores · 62 GB · rhel-9.8 · ssd
 
-| scenario | [clang21](Run_087.md) | [gcc15](Run_084.md) |
+| scenario | [clang21](Run_285.md) | [gcc15](Run_282.md) |
 |---|--:|--:|
 | jac313_host_group_test | 50 | 50 |
 | jac313_identity_dedup_test | 50 | 50 |
@@ -177,6 +177,9 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 | jac313_store_binary_to_jtext_smoke | 50 | 50 |
 | jac313_store_flag_routing_smoke | 50 | 50 |
 | jac313_store_flags | 50 | 50 |
+| jac313_store_html_persist_smoke | 50 | 50 |
+| jac313_store_json_persist_smoke | 50 | 50 |
+| jac313_store_json_reader_test | 50 | 50 |
 | jac313_store_jtext_persist_smoke | 50 | 50 |
 | jac313_store_metric_view | 50 | 50 |
 | jac313_store_metric_view_test | 50 | 50 |
@@ -187,8 +190,8 @@ _Generated from `results.db`. Each machine (`jac313-###`) is its own section. Co
 
 | run | compiler · recorded |
 |---|---|
-| [Run_087](Run_087.md) | clang21 · 2026-07-03T10:19:21Z |
-| [Run_084](Run_084.md) | gcc15 · 2026-07-03T10:19:00Z |
+| [Run_285](Run_285.md) | clang21 · 2026-10-08T00:08:14Z |
+| [Run_282](Run_282.md) | gcc15 · 2026-10-08T00:07:39Z |
 
 ## jac313-005 — Intel(R) Core(TM) Ultra 7 265 · 14 cores · 42 GB · fedora-44 · x7k
 
