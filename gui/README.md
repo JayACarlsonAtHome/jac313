@@ -35,6 +35,13 @@ this box the pair is `$HOME/u++/umk` + `$HOME/u++/uppsrc`; by hand:
 $HOME/u++/umk <root>/gui,$HOME/u++/uppsrc Jac313Runner GCC -brsH <root>/gui/out/Jac313Runner
 ```
 
+### Wayland first (2026-10-16)
+
+Every package's `mainconfig` is `"GUI WAYLAND"`: U++'s GTK backend then tries **Wayland first**
+and falls back to X11 only when there is no Wayland session (U++'s default order is X11
+first). Keep the flag in any new main package. A build with it lands in U++'s
+`GCC.Blitz.Gui.Main.Shared.Wayland` output folder.
+
 ## Run
 
 ```
