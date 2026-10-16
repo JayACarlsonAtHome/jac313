@@ -10,13 +10,13 @@ store_bench: threads=4 events/thread=200 runs=3 persist=none batch=10000
 ═══════════════════════════════════════════════════════════════
              FINAL RESULT — 3-RUN STATISTICS
 ═══════════════════════════════════════════════════════════════
-  Median             : 486,322 ops/sec
-  Fastest run        : 601,052 ops/sec
-  Slowest run        : 444,198 ops/sec
-  Average            : 510,524 ops/sec
-  Std deviation      : 66,283 ops/sec
+  Median             : 279,232 ops/sec
+  Fastest run        : 295,639 ops/sec
+  Slowest run        : 270,636 ops/sec
+  Average            : 281,836 ops/sec
+  Std deviation      : 10,372 ops/sec
   (800 events per run, 100% verified, zero corruption)
 ═══════════════════════════════════════════════════════════════
-BENCHSTATS runs=3 events=800 high=601052 low=444198 avg=510524 median=486322 stddev=66283
+BENCHSTATS runs=3 events=800 high=295639 low=270636 avg=281836 median=279232 stddev=10372
 
 --- stderr ---

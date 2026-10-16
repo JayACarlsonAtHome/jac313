@@ -1,0 +1,34 @@
+# jac313 matrix log
+test=jac313_store_005_TS
+package=store
+category=matrix
+persist=pg-remote
+output_mode=off
+command=/run/media/jay/GFS/git/jac313/v001/build-clang/Store/tests/matrix/jac313_store_005_TS
+args=--no-interactive --color=0 --test-size=smoke --persist=pg-remote --base-name=/run/media/jay/GFS/git/jac313/v001/test-results/rhel-9.8/gcc15/Debug/ssd/Smoke/textual/pg_remote_logs/JAC313_STORE_TEST_005_TS/persist_off --threads=10 --events-per-thread=100 --runs=1 --max-persist-rows=1000 --readback=sample
+duration_ms=150
+exit_code=0
+
+--- stdout ---
+=== FINAL MASSIVE TEST — 1,000 entries × 1 runs ===
+Using store.clear() — fastest, most realistic reuse
+
+Persistence will only be attached on the *last* run (previous runs measure clean hot path; only final run produces persist artifacts).
+
+Run 1 / 1
+  sample event 42 (t=0) (0 metrics)
+[VERIFY] ALL 1000 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
+PASS — 730 µs → 1,369,863 ops/sec
+
+READBACK backend=pg-remote mode=sample status=PASS expected=1000 found=1000 count=PASS checksum=PASS sample=PASS checked=280 read_ms=30.850 connect_ms=24.755 ping_ms=1.765 batches=1 batch_med_ms=16.951 write_ms=16.951
+
+═══════════════════════════════════════════════════════════════
+               FINAL RESULT — 1-RUN STATISTICS            
+═══════════════════════════════════════════════════════════════
+  Fastest run        : 730 µs  → 1,369,863 ops/sec
+  Slowest run        : 730 µs  → 1,369,863 ops/sec
+  Average            : 730 µs  → 1,369,863 ops/sec
+  (1,000 events per run, 100% verified, zero corruption)
+═══════════════════════════════════════════════════════════════
+
+--- stderr ---

@@ -11,16 +11,17 @@ Using store.clear() — fastest, most realistic reuse
 No persistence attached — pure in-memory hot path
 
 Run 1 / 1
+No persistence attached — pure in-memory hot path
 [VERIFY] ALL 100 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
-PASS — 207 µs → 483,092 ops/sec
+PASS — 325 µs → 307,692 ops/sec
 
 
 ═══════════════════════════════════════════════════════════════
                FINAL RESULT — 1-RUN STATISTICS            
 ═══════════════════════════════════════════════════════════════
-  Fastest run        : 207 µs  → 483,092 ops/sec
-  Slowest run        : 207 µs  → 483,092 ops/sec
-  Average            : 207 µs  → 483,092 ops/sec
+  Fastest run        : 325 µs  → 307,692 ops/sec
+  Slowest run        : 325 µs  → 307,692 ops/sec
+  Average            : 325 µs  → 307,692 ops/sec
   (100 events per run, 100% verified, zero corruption)
 ═══════════════════════════════════════════════════════════════
 
