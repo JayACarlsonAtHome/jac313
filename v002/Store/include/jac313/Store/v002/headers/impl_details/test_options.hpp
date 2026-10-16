@@ -19,13 +19,17 @@ namespace jac313::Store::v002 {
 struct TestOptions {
     bool interactive = false;
     bool color = false;
-    std::string persist = "jtext";   // "jtext", "binary", "html", "json", "sql", or "none"
+    std::string persist = "jtext";   // "jtext", "binary", "html", "json", "sql", "pg-local", "pg-remote", or "none"
     std::string base_name;           // base name (can include path) for the persist log files
     // Test size parameters (smoke by default; full intensity via --test-size=full)
     size_t threads = 5;
     size_t events_per_thread = 20;
     size_t runs = 1;
     std::string test_size;  // "" | "smoke" | "full" (optional profile selector)
+    // Persist at most this many rows (event ids [0, N)); 0 = no limit. See ts_store::set_max_persist_rows.
+    size_t max_persist_rows = 0;
+    std::string readback = "sample";      // "off" | "count" | "sample" | "all" (tests/matrix/readback.hpp)
+    std::string pg_cleanup = "keep-last"; // PostgreSQL test tables after read-back: "keep-last" | "delete"
 };
 
 inline TestOptions parse_test_options(int argc, char** argv) {
@@ -85,6 +89,18 @@ inline TestOptions parse_test_options(int argc, char** argv) {
         } else if (std::strcmp(arg, "--runs") == 0 && (i + 1) < argc) {
             opts.runs = std::stoull(argv[++i]);
             runs_set = true;
+        } else if (std::strncmp(arg, "--max-persist-rows=", 19) == 0) {
+            opts.max_persist_rows = std::stoull(arg + 19);
+        } else if (std::strcmp(arg, "--max-persist-rows") == 0 && (i + 1) < argc) {
+            opts.max_persist_rows = std::stoull(argv[++i]);
+        } else if (std::strncmp(arg, "--readback=", 11) == 0) {
+            opts.readback = (arg + 11);
+        } else if (std::strcmp(arg, "--readback") == 0 && (i + 1) < argc) {
+            opts.readback = argv[++i];
+        } else if (std::strncmp(arg, "--pg-cleanup=", 13) == 0) {
+            opts.pg_cleanup = (arg + 13);
+        } else if (std::strcmp(arg, "--pg-cleanup") == 0 && (i + 1) < argc) {
+            opts.pg_cleanup = argv[++i];
         } else if (std::strncmp(arg, "--test-size=", 12) == 0) {
             opts.test_size = (arg + 12);
         } else if (std::strcmp(arg, "--test-size") == 0 && (i + 1) < argc) {

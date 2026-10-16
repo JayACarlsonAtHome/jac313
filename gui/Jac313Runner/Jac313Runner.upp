@@ -1,0 +1,13 @@
+description "jac315 Jac313Runner — run the jac313 test gates (jac313_test_cli), watch them, and view the persisted datasets as jText\n";
+
+uses
+	CtrlLib,
+	plugin/png;
+
+file
+	Model.h,
+	Model.cpp,
+	main.cpp;
+
+mainconfig
+	"" = "GUI";

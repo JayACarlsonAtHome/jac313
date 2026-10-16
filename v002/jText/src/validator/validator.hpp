@@ -64,6 +64,29 @@ auto to_string(field_type t) -> std::string_view;
 auto parse_field_type(std::string_view s) -> std::optional<field_type>;
 
 // ──────────────────────────────────────────────────────────────
+//  auto_id_spec / parse_auto_id_designation
+//
+//  SPEC Section 2.4.3: the record id (field 1) may be designated as
+//  auto-generated. The designation names vary by database, so any of
+//  these spellings is accepted (case-insensitive):
+//    AutoNumber, AutoID, AutoIncrement, Auto_Increment, Identity,
+//    Identity(seed,step), Serial, SmallSerial, BigSerial
+//  All of them mean "an integer the producer assigns": seed is the
+//  first id, step the increment (both default to 1).
+// ──────────────────────────────────────────────────────────────
+
+struct auto_id_spec {
+    std::int64_t seed = 1;
+    std::int64_t step = 1;
+};
+
+auto parse_auto_id_designation(std::string_view s) -> std::optional<auto_id_spec>;
+
+// True when `s` is an integer: optional sign, then one or more digits, and
+// nothing else (no decimal point, no exponent). The record id must be one.
+auto looks_like_integer(std::string_view s) -> bool;
+
+// ──────────────────────────────────────────────────────────────
 //  field
 //
 //  Typed metadata for one field, interpreted from a single
@@ -81,6 +104,9 @@ struct field {
     std::optional<std::size_t>     max_length;       // String length cap if declared
     bool                           required    = false;  // Not Null
     std::string                    comment;          // inline comment on the field line
+    // Set when the declaration carries an auto designation (Section 2.4.3);
+    // only meaningful on field 1, the record id.
+    std::optional<auto_id_spec>    auto_id;
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -105,7 +131,9 @@ struct field {
 struct record {
     std::size_t                              source_line_no = 0;
     std::vector<std::optional<std::string>>  values;
-    std::size_t                              record_id = 0;  // for ts_store style logs (the event id from the data line number)
+    // Field 1, the mandatory record id (SPEC Section 2.6.4), as an integer.
+    // nullopt when field 1 is missing or not an integer (both reported).
+    std::optional<std::int64_t>              record_id;
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -167,6 +195,7 @@ enum class issue_kind : std::uint8_t {
     field_position_out_of_range,      // position not in 1..N or duplicate
     field_position_gap,               // positions are not contiguous from 1
     field_position_duplicate,         // same position declared twice
+    field_record_id_invalid,          // field 1 is not an integer type, or is Nullable
 
     // Records
     record_field_out_of_range,        // record references field > field_count
@@ -176,6 +205,8 @@ enum class issue_kind : std::uint8_t {
     record_value_type_mismatch,       // value not parseable as declared type
     record_value_length_exceeded,     // String value longer than max_length
     record_hierarchical_value,        // value is a hierarchy (>1 segment) in a record line
+    record_missing_record_id,         // field 1 (the record id) absent or empty
+    record_id_not_integer,            // field 1 value is not an integer
 
     // Header
     header_unknown_field,             // header line number > recognized range

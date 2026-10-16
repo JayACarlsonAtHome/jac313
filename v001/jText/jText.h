@@ -9,6 +9,7 @@
 #include <format>
 #include <source_location>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 
 // Public jText API now lives under jac313::jText::v001 (migrated in-tree; the

@@ -19,6 +19,9 @@
 #include "kept_logs.hpp"
 #include "runner.hpp"
 #include "test_logs.hpp"
+#include "summary.hpp"
+#include "connections.hpp"
+#include "vendor.hpp"
 
 #include <jac313/Qlite/v001.hpp>   // shared testList catalog in the bench results DB
 #include "jac313_results_db.hpp"   // jac313::results — shared schema + dimension helpers
@@ -59,6 +62,11 @@ void print_usage() {
         "  compilers   Sense toolchains from the registry (writes FileCheckList.txt)\n"
         "  setup       Sense readiness; generate Setup.sh for missing prerequisites\n"
         "  version-check  check each package owes a version() bump (git, no build)\n"
+        "  vendor-check   drift of the vendored jText / Qlite copies (warnings only)\n"
+        "  vendor-sync    forward-port canonical into a vendored copy (dry run; --write)\n"
+        "  vendor-baseline  a starting-line VENDORED.jtext for an existing copy\n"
+        "  connections show / --init the PostgreSQL connections file (jText, outside git)\n"
+        "  gui-build   build the U++ GUI (<root>/gui/Jac313Runner) with umk -> <root>/gui/out/\n"
         "  matrix      run | runner | verify | verify-lite\n\n"
         "Common options:\n"
         "  --build-dir <path>   Build directory (default: build)\n"
@@ -100,6 +108,16 @@ void print_usage() {
         "  --clang              Select the clang toolchain (min Clang 20)\n"
         "  --modules            Enable JAC313_BUILD_MODULES=ON\n"
         "  --release            CMAKE_BUILD_TYPE=Release (default: Debug)\n"
+        "  --pg-remote \"host=H [port=P] dbname=D user=U\"   the remote PostgreSQL server for pg-remote\n"
+        "                       (no default; or $JAC313_PG_REMOTE). Password: ~/.pgpass or $PGPASSFILE\n"
+        "  --pg-local \"...\"     the local server for pg-local (default host=localhost dbname=jac313 user=jac313)\n"
+        "  --connections FILE   both servers from a jText connections file kept outside git (default:\n"
+        "                       <projects>/SQL_Secrets/jac313_connections.jtext; see `connections`)\n"
+        "  --strict             JAC313_STRICT=ON: -Wall -Wextra -Wpedantic and friends (ctest/smoke builds)\n"
+        "  --hardened           JAC313_HARDENED=ON: libstdc++ assertions, zero-init locals, stack/CF\n"
+        "                       protection (ctest/smoke builds; never bench or valgrind)\n"
+        "                       Either one builds in build-<cc>-strict / -hardened and records the\n"
+        "                       build type as Debug-strict / Debug-hardened / Debug-strict-hardened\n"
         "  --no-store-tests     Disable JAC313_BUILD_STORE_TESTS\n\n"
         "Toolchains are data-driven: see tools/jac313_test_cli/compilers.conf\n"
         "(activation-aware — handles gcc-toolset via scl / env-launcher / source-script).\n"
@@ -175,8 +193,20 @@ void seed_test_catalog(const fs::path& source_dir, const std::vector<TestEntry>&
 }
 
 // Defined further down (next to the other results.db recorders); declared here for run_tests_command.
-void record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
-                          const std::vector<TestResult>& results);
+std::int64_t record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
+                                  const std::vector<TestResult>& results);
+std::string run_host_label(std::int64_t run_id);
+std::string short_test_name(const std::string& n);
+const char* matrix_status_str(TestStatus s);
+// Status as the summary JSON spells it (PASS / FAIL / SKIP / ERROR).
+inline const char* summary_status(TestStatus s) {
+    switch (s) {
+        case TestStatus::Passed:  return "PASS";
+        case TestStatus::Failed:  return "FAIL";
+        case TestStatus::Skipped: return "SKIP";
+        default:                  return "ERROR";
+    }
+}
 
 HostPinFlags host_pin_flags_from(const GlobalOptions& global) {
     return HostPinFlags{global.host_claim, global.host_assign_new};
@@ -283,7 +313,17 @@ int run_tests_command(const GlobalOptions& global, const RunOptions& opts,
     const auto summary = summarize(results);
     print_summary(summary, results, summary_context_line(global));
 
-    record_ctest_results(global.source_dir, global.build_dir, results);   // capture into results.db
+    const std::int64_t ctest_run = record_ctest_results(global.source_dir, global.build_dir, results);   // capture into results.db
+    if (!global.summary_json.empty()) {
+        const std::string host = run_host_label(ctest_run);
+        const std::string cc = compiler_label_from_build(global.build_dir);
+        for (const auto& r : results) {
+            append_summary_part(global, std::format(
+                R"({{"gate":"ctest","test":"{}","backend":"-","status":"{}","ms":{},"compiler":"{}","run_id":{},"host":"{}"}})",
+                json_escape(short_test_name(r.entry.name)), summary_status(r.status),
+                r.duration.count(), json_escape(cc), ctest_run, json_escape(host)));
+        }
+    }
     write_ctest_logs(global, compiler_label_from_build(global.build_dir), results);
 
     if (report_path) {
@@ -1432,12 +1472,12 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
 }
 
 // Record one testRun row per ctest unit test into results.db.
-void record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
-                          const std::vector<TestResult>& results) {
-    if (results.empty()) return;
+std::int64_t record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
+                                  const std::vector<TestResult>& results) {
+    if (results.empty()) return 0;
     const fs::path db_path = JAC313_RESULTS_DB;
     std::error_code ec;
-    if (!fs::exists(db_path.parent_path(), ec)) return;
+    if (!fs::exists(db_path.parent_path(), ec)) return 0;
     try {
         jac313::Qlite::v001::Sqlite db(db_path.string());
         GlobalOptions rec; rec.source_dir = source_dir;
@@ -1460,19 +1500,22 @@ void record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
         jac313::results::rebuild_safeness(db);   // refresh the safeness summary (read by report + verdict)
         std::cout << "[results] recorded " << results.size() << " ctest results (run " << run_id << ") -> "
                   << db_path.string() << '\n';
+        return run_id;
     } catch (const std::exception& e) {
         std::cerr << "[results] ctest record failed: " << e.what() << '\n';
     }
+    return 0;
 }
 
 // Record one testRun row per scenario of a matrix (smoke) run into results.db.
-void record_matrix_results(const fs::path& source_dir, const fs::path& build_dir,
-                           const std::vector<MatrixRunResult>& results, const std::string& build_type,
-                           const std::string& modules, const std::string& size) {
-    if (results.empty()) return;
+std::int64_t record_matrix_results(const fs::path& source_dir, const fs::path& build_dir,
+                                   const std::vector<MatrixRunResult>& results, const std::string& build_type,
+                                   const std::string& modules, const std::string& size,
+                                   std::int64_t max_persist_rows = 0) {
+    if (results.empty()) return 0;
     const fs::path db_path = JAC313_RESULTS_DB;
     std::error_code ec;
-    if (!fs::exists(db_path.parent_path(), ec)) return;
+    if (!fs::exists(db_path.parent_path(), ec)) return 0;
     try {
         jac313::Qlite::v001::Sqlite db(db_path.string());
         GlobalOptions rec; rec.source_dir = source_dir;
@@ -1493,13 +1536,53 @@ void record_matrix_results(const fs::path& source_dir, const fs::path& build_dir
                     "VALUES(?,?,?,?,?,?)",
                     run_id, type_id, list_id, param_id, std::string(matrix_status_str(r.result.status)),
                     static_cast<std::int64_t>(r.result.duration.count()));
+            if (!r.readback.empty()) {
+                // read-back outcome (tests/matrix/readback.hpp) on the row just inserted
+                auto num = [&](const char* k) -> std::optional<double> {
+                    auto it = r.readback.find(k);
+                    if (it == r.readback.end()) return std::nullopt;
+                    try { return std::stod(it->second); } catch (...) { return std::nullopt; }
+                };
+                auto get = [&](const char* k) { auto it = r.readback.find(k); return it == r.readback.end() ? std::string{} : it->second; };
+                db.exec("UPDATE testRun SET max_persist_rows=?, rows_persisted=?, readback_mode=?, readback_status=?, "
+                        "rows_checked=?, read_ms=?, pg_connect_ms=?, pg_ping_ms=?, pg_write_ms=? "
+                        "WHERE id = last_insert_rowid()",
+                        max_persist_rows,
+                        static_cast<std::int64_t>(num("expected").value_or(0)), get("mode"), get("status"),
+                        static_cast<std::int64_t>(num("checked").value_or(0)), num("read_ms"),
+                        num("connect_ms"), num("ping_ms"), num("write_ms"));
+            }
         }
         jac313::results::rebuild_safeness(db);   // refresh the safeness summary (read by report + verdict)
         std::cout << "[results] recorded " << results.size() << " smoke results (run " << run_id << ") -> "
                   << db_path.string() << '\n';
+        return run_id;
     } catch (const std::exception& e) {
         std::cerr << "[results] matrix record failed: " << e.what() << '\n';
     }
+    return 0;
+}
+
+// The host label ("jac313-004") recorded for a run id, or "" if unknown.
+std::string run_host_label(std::int64_t run_id) {
+    if (run_id <= 0) return {};
+    try {
+        jac313::Qlite::v001::Sqlite db(JAC313_RESULTS_DB);
+        auto st = db.prepare("SELECT host FROM run WHERE run_id=?");
+        st.bind(run_id);
+        std::string host;
+        if (st.step()) st.get(host);
+        return host;
+    } catch (...) {}
+    return {};
+}
+
+// Short test name for the summary: "jac313_store_006_TS" -> "006_TS".
+std::string short_test_name(const std::string& n) {
+    for (const char* p : {"jac313_store_", "jac313_"}) {
+        if (n.rfind(p, 0) == 0) return n.substr(std::string(p).size());
+    }
+    return n;
 }
 
 int run_matrix_run_command(const GlobalOptions& global,
@@ -1515,9 +1598,34 @@ int run_matrix_run_command(const GlobalOptions& global,
     }
 
     const fs::path params_path = global.source_dir / matrix_opts.params_file;
-    const MatrixParams params = load_matrix_params(params_path);
-    const auto scenarios = build_matrix_scenarios(
+    MatrixParams params = load_matrix_params(params_path);
+    // --size / --persist / --max-persist-rows / --readback / --pg-cleanup (Jac313Runner options)
+    if (!global.size_override.empty()) params.size = global.size_override;
+    if (!global.persist_list.empty()) params.persist_list = split_list(global.persist_list);
+    params.extra_test_args = matrix_test_args(global);
+    auto scenarios = build_matrix_scenarios(
         tests, params, matrix_opts.compiler_label, global.build_dir, run_opts.filter);
+    // --max-runs / --max-records: lower each test's runs and events per run (never raise them).
+    // A zero scaling means "the test's own default" (test_options.hpp: smoke 5 x 20 x 1, full 250 x 4000 x 50).
+    if (global.max_runs > 0 || global.max_records > 0) {
+        const bool full = params.size == "full" || params.size == "FULL";
+        for (auto& sc : scenarios) {
+            if (sc.category != "matrix" || sc.persist == "unit") continue;
+            std::size_t t = sc.threads ? sc.threads : (full ? 250 : 5);
+            std::size_t e = sc.events_per_thread ? sc.events_per_thread : (full ? 4000 : 20);
+            std::size_t r = sc.runs ? sc.runs : (full ? 50 : 1);
+            if (global.max_runs > 0 && r > global.max_runs) { r = global.max_runs; sc.runs = r; }
+            if (global.max_records > 0 && t * e > global.max_records) {
+                if (t > global.max_records) { t = global.max_records; e = 1; }
+                else e = std::max<std::size_t>(1, global.max_records / t);
+                sc.threads = t;
+                sc.events_per_thread = e;
+            }
+        }
+        std::cout << "Limits: max runs " << (global.max_runs ? format_count(global.max_runs) : std::string("-"))
+                  << ", max records/run " << (global.max_records ? format_count(global.max_records) : std::string("-"))
+                  << '\n';
+    }
 
     if (scenarios.empty()) {
         std::cerr << "No matrix scenarios selected (check " << params_path;
@@ -1630,8 +1738,31 @@ int run_matrix_run_command(const GlobalOptions& global,
     std::cout << "\n\n";   // two blank lines after the smoke summary
 
     // Capture this smoke run into results.db (one testRun row per scenario).
-    record_matrix_results(global.source_dir, global.build_dir, results, build_type,
-                          features.modules ? "on" : "off", params.size);
+    const std::int64_t smoke_run = record_matrix_results(global.source_dir, global.build_dir, results, build_type,
+                          features.modules ? "on" : "off", params.size,
+                          static_cast<std::int64_t>(global.max_persist_rows.value_or(0)));
+    if (!global.summary_json.empty()) {
+        const std::string host = run_host_label(smoke_run);
+        for (const auto& r : results) {
+            const bool persisting = r.scenario.category == "matrix" && r.scenario.persist != "none"
+                                    && r.scenario.persist != "flags" && r.scenario.persist != "unit";
+            std::string obj = std::format(
+                R"({{"gate":"smoke","test":"{}","backend":"{}","output_mode":"{}","status":"{}","ms":{},"compiler":"{}","run_id":{},"host":"{}","log":"{}")",
+                json_escape(short_test_name(r.scenario.entry.name)), json_escape(r.scenario.persist),
+                r.scenario.output_mode, summary_status(r.result.status), r.result.duration.count(),
+                json_escape(matrix_opts.compiler_label), smoke_run, json_escape(host),
+                json_escape(r.log_path.string()));
+            if (!r.readback.empty()) {
+                obj += ",\"rows_written\":" + (r.readback.count("expected") ? r.readback.at("expected") : "0");
+                obj += ",\"readback\":" + readback_json(r.readback);
+            }
+            if (persisting && !r.persist_base.empty()) {
+                obj += std::format(R"(,"dataset":{{"backend":"{}","base":"{}"}})",
+                                   json_escape(r.scenario.persist), json_escape(r.persist_base.string()));
+            }
+            append_summary_part(global, obj + "}");
+        }
+    }
 
     return (tally.failed > 0 || tally.errors > 0) ? 1 : 0;
 }
@@ -2040,9 +2171,26 @@ struct PresetOptions {
     bool run_everything{false}; // the full battery on both compilers + matrix + report (C++ orchestrated)
 };
 
-int run_preset_command(const GlobalOptions& global, const ConfigureOptions& configure_opts,
+int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& configure_opts,
                        const PresetOptions& preset)
 {
+    // Max persisted in a run can never exceed Max records in a run (same rule as Jac313Runner).
+    GlobalOptions global = global_in;
+    // pg-remote has no default server: stop before building anything if none was named.
+    {
+        const auto chosen = split_list(global.persist_list);
+        const char* remote = std::getenv("JAC313_PG_REMOTE");
+        if (std::find(chosen.begin(), chosen.end(), "pg-remote") != chosen.end() && !(remote && *remote)) {
+            std::cerr << "pg-remote chosen but no remote PostgreSQL server set: pass --pg-remote "
+                         "\"host=... dbname=... user=...\" (or set $JAC313_PG_REMOTE)\n";
+            return 2;
+        }
+    }
+    if (global.max_records && global.max_persist_rows && *global.max_persist_rows > global.max_records) {
+        std::cout << "note: --max-persist-rows " << *global.max_persist_rows << " limited to --max-records "
+                  << global.max_records << "\n";
+        global.max_persist_rows = global.max_records;
+    }
     const fs::path root = fs::absolute(global.source_dir);
 
     // The script re-invokes THIS binary by its real absolute path, so it works whether or not
@@ -2065,12 +2213,31 @@ int run_preset_command(const GlobalOptions& global, const ConfigureOptions& conf
                      "(run `jac313_test_cli pin --ensure`)\n";
         return 1;
     }
-    const std::string preset_labels[] = {gcc_label, clang_label};
-    std::cout << "preset compilers: gcc=" << gcc_label << " clang=" << clang_label << "\n";
+    // Both compilers by default; an explicit --gcc15 or --clang (Jac313Runner) runs just that one.
+    std::vector<std::string> preset_labels = {gcc_label, clang_label};
+    if (configure_opts.prefer_gcc15 && !configure_opts.prefer_clang) preset_labels = {gcc_label};
+    if (configure_opts.prefer_clang && !configure_opts.prefer_gcc15) preset_labels = {clang_label};
+    std::cout << "preset compilers:";
+    for (const auto& l : preset_labels) std::cout << ' ' << l;
+    std::cout << "\n";
+    const std::string started_utc = jac313::results::utc_now_iso();
+    if (!global.summary_json.empty()) {   // a stale summary must never pass for this run
+        std::error_code rm_ec;
+        fs::remove(global.summary_json, rm_ec);
+        fs::remove(summary_parts_path(global), rm_ec);
+    }
+    const std::string psfx = persist_cli_suffix(global);
 
     std::string func_extra;
     if (configure_opts.build_type == "Release") func_extra += " --release";
     if (configure_opts.modules) func_extra += " --modules";
+    if (configure_opts.strict) func_extra += " --strict";
+    if (configure_opts.hardened) func_extra += " --hardened";
+    // A strict / hardened tree is its own build dir, so the everyday trees never rebuild for it.
+    const std::string flavor = build_flavor_suffix(configure_opts.strict, configure_opts.hardened);
+    if (!flavor.empty() && (preset.bench || preset.verify || preset.verify_lite))
+        std::cout << "note: --strict / --hardened apply to the ctest/smoke builds only; "
+                     "bench and valgrind builds stay as they are\n";
 
     std::vector<std::string> lines;
     const auto emit = [&](std::string s) { lines.push_back(std::move(s)); };
@@ -2080,17 +2247,25 @@ int run_preset_command(const GlobalOptions& global, const ConfigureOptions& conf
     emit("# Overwritten on the next preset invocation; copy it elsewhere to keep a config.");
     emit("set -euo pipefail");
     emit("cd \"" + root.string() + "\"");
+    // PostgreSQL servers chosen for this run (no passwords: libpq reads ~/.pgpass / $PGPASSFILE)
+    const auto shq = [](const std::string& s) {
+        std::string q = "'";
+        for (char c : s) q += (c == '\'') ? std::string("'\\''") : std::string(1, c);
+        return q + "'";
+    };
+    for (const char* var : {"JAC313_PG_REMOTE", "JAC313_PG_LOCAL"})
+        if (const char* val = std::getenv(var); val && *val) emit(std::string("export ") + var + "=" + shq(val));
     emit("CLI=\"" + self.string() + "\"");
     emit("");
 
     if (preset.ctest || preset.smoke) {
         for (const std::string& label : preset_labels) {
-            const std::string dir = "build-" + label;
+            const std::string dir = "build-" + label + flavor;
             emit("# functional gate — " + dir + " (Debug, built once then run)");
             emit("\"$CLI\" configure --build-dir " + dir + " --compiler " + label + func_extra);
             emit("\"$CLI\" build --build-dir " + dir);
-            if (preset.ctest) emit("\"$CLI\" run --build-dir " + dir);         // ctest unit suite
-            if (preset.smoke) emit("\"$CLI\" matrix run --build-dir " + dir + keep_logs_cli_suffix(global));
+            if (preset.ctest) emit("\"$CLI\" run --build-dir " + dir + psfx);         // ctest unit suite
+            if (preset.smoke) emit("\"$CLI\" matrix run --build-dir " + dir + keep_logs_cli_suffix(global) + psfx);
         }
         emit("");
     }
@@ -2116,7 +2291,8 @@ int run_preset_command(const GlobalOptions& global, const ConfigureOptions& conf
             emit("cmake --build " + dir + " --target jac313_store_bench");
             emit("BENCH=\"" + dir + "/Store/tests/matrix/jac313_store_bench\"");
             // bench auto-records like every other gate (no --report needed); --report only renders.
-            emit("\"$BENCH\" --suite --db " + JAC313_RESULTS_DB + bench_keep_logs_args(global, label));
+            emit("\"$BENCH\" --suite --db " + JAC313_RESULTS_DB + bench_keep_logs_args(global, label)
+                 + bench_persist_args(global));
         }
         if (preset.report) emit("\"$CLI\" --report");            // render-only, ONCE after both compilers
         emit("");
@@ -2149,6 +2325,24 @@ int run_preset_command(const GlobalOptions& global, const ConfigureOptions& conf
     if (rc == -1) {
         std::cerr << "Failed to launch bash for " << script.string() << '\n';
         return 1;
+    }
+    if (!global.summary_json.empty()) {
+        std::string compilers;
+        for (const auto& l : preset_labels) compilers += (compilers.empty() ? "" : ",") + l;
+        assemble_summary(global, std::map<std::string, std::string>{
+            {"version", harness_version(global)},
+            {"compiler", compilers},
+            {"pg_remote", [] {   // which remote server this run used (never a password)
+                const char* r = std::getenv("JAC313_PG_REMOTE");
+                const std::string s = (r && *r) ? r : "";
+                return s.find("password") == std::string::npos ? s : std::string("(set; contains a password, not shown)");
+            }()},
+            {"build_type", configure_opts.build_type
+                           + build_flavor_suffix(configure_opts.strict, configure_opts.hardened)},
+            {"started_utc", started_utc},
+            {"finished_utc", jac313::results::utc_now_iso()},
+            {"command", script.string()},
+        });
     }
     return WIFEXITED(rc) ? WEXITSTATUS(rc) : 1;
 }
@@ -2422,6 +2616,18 @@ int main(int argc, char** argv) {
 
     GlobalOptions global;
     global.source_dir = detect_source_dir(fs::current_path());
+    // The default connections file (a SQL_Secrets folder beside the project) fills in the
+    // PostgreSQL servers the environment has not set; --connections / --pg-* flags win over it.
+    {
+        const fs::path cf = default_connections_path(fs::current_path());
+        std::error_code cec;
+        if (fs::exists(cf, cec)) {
+            std::vector<PgConnection> rows;
+            std::string cerr_text;
+            if (load_connections(cf, rows, cerr_text)) apply_connections(rows, false, false, false);
+            else std::cerr << "note: ignoring the connections file: " << cerr_text << '\n';
+        }
+    }
     // Resolve the ONE shared results DB once (absolute, at the monorepo root); read as JAC313_RESULTS_DB
     // everywhere after this — in this process and, independently, in each spawned gate/tool.
     resolve_results_db(global.source_dir);
@@ -2433,6 +2639,60 @@ int main(int argc, char** argv) {
         print_usage();
         return 0;
     }
+    if (command == "connections") {   // show or create the PostgreSQL connections file
+        return run_connections_command(argc, argv, 2);
+    }
+    if (command == "gui-build") {   // build a U++ GUI package under <root>/gui with umk (no shell script)
+        // umk and its uppsrc come as a pair from one U++ install (jac314 gui_build rule):
+        // <GFS>/upp-bin/rhel/umk + <GFS>/upp/uppsrc when present, else $HOME/u++/{umk,uppsrc}.
+        fs::path src = fs::current_path();
+        std::vector<std::string> packages;
+        for (int i = 2; i < argc; ++i) {
+            const std::string a = argv[i];
+            if (a == "--source-dir" && i + 1 < argc) src = argv[++i];
+            else if (a == "--help" || a == "-h") {
+                std::cout << "gui-build [PACKAGE...] [--source-dir DIR]\n"
+                             "  Builds U++ packages in <root>/gui (default: Jac313Runner) into <root>/gui/out/<PACKAGE>.\n"
+                             "  The GUI is version-independent: it sits beside the vNNN folders, not inside one.\n";
+                return 0;
+            } else packages.push_back(a);
+        }
+        if (packages.empty()) packages.push_back("Jac313Runner");
+        // <root>/gui, one level above the version dir (<root>/vNNN)
+        fs::path vdir = fs::absolute(src).lexically_normal();
+        if (vdir.filename().empty()) vdir = vdir.parent_path();   // "…/v002/" -> "…/v002"
+        const fs::path gui = vdir.parent_path() / "gui";
+        const char* home = std::getenv("HOME");
+        std::vector<std::pair<fs::path, fs::path>> pairs;   // (umk, uppsrc) in preference order
+        for (const char* gfs : {"/run/media/jay/GFS", "/media/jay/GFS", "/mnt/GFS"})
+            pairs.emplace_back(fs::path(gfs) / "upp-bin/rhel/umk", fs::path(gfs) / "upp/uppsrc");
+        if (home) pairs.emplace_back(fs::path(home) / "u++/umk", fs::path(home) / "u++/uppsrc");
+        fs::path umk, uppsrc;
+        for (const auto& [u, s] : pairs) {
+            std::error_code ec;
+            if (fs::is_regular_file(u, ec) && fs::is_directory(s, ec)) { umk = u; uppsrc = s; break; }
+        }
+        if (umk.empty()) {
+            std::cerr << "gui-build: no umk + uppsrc pair found (looked in <GFS>/upp-bin/rhel and $HOME/u++)\n";
+            return 1;
+        }
+        int rc = 0;
+        for (const auto& pkg : packages) {
+            const fs::path out = gui / "out" / pkg;
+            std::error_code ec;
+            fs::create_directories(out.parent_path(), ec);
+            std::cout << "gui-build: " << pkg << "  (umk " << umk.string() << ")\n";
+            const auto r = run_process({umk.string(), gui.string() + "," + uppsrc.string(), pkg, "GCC", "-brsH",
+                                        out.string()}, 1800);
+            std::cout << r.stdout_text;
+            std::cerr << r.stderr_text;
+            const bool ok = r.exit_code == 0 && fs::exists(out, ec);
+            std::cout << (ok ? "gui-build: OK  -> " : "gui-build: FAILED  ") << out.string() << "\n";
+            if (!ok) rc = 1;
+        }
+        return rc;
+    }
+
     if (command == "pin") {   // committed per-machine compiler pin (Setup/compilers.pin); find-or-create
         fs::path src = "."; bool ensure = false; std::string set_gcc, set_clang;
         for (int i = 2; i < argc; ++i) {
@@ -2601,6 +2861,46 @@ int main(int argc, char** argv) {
                 matrix_opts.params_file = argv[++i];
             } else if (arg == "--dry-run") {
                 matrix_opts.dry_run = true;
+            } else if (arg == "--persist" && i + 1 < argc) {
+                global.persist_list = argv[++i];
+            } else if (arg == "--max-persist-rows" && i + 1 < argc) {
+                global.max_persist_rows = std::stoull(argv[++i]);
+            } else if (arg == "--max-runs" && i + 1 < argc) {
+                global.max_runs = std::stoull(argv[++i]);
+            } else if (arg == "--max-records" && i + 1 < argc) {
+                global.max_records = std::stoull(argv[++i]);
+            } else if (arg == "--readback" && i + 1 < argc) {
+                global.readback = argv[++i];
+            } else if (arg == "--pg-cleanup" && i + 1 < argc) {
+                global.pg_cleanup = argv[++i];
+            } else if (arg == "--summary-json" && i + 1 < argc) {
+                global.summary_json = fs::absolute(argv[++i]);
+            } else if (arg == "--size" && i + 1 < argc) {
+                global.size_override = argv[++i];
+            } else if (arg == "--connections" && i + 1 < argc) {
+                // The PostgreSQL servers from a jText connections file (keep it outside git).
+                global.connections = argv[++i];
+                std::vector<PgConnection> rows;
+                std::string cerr_text;
+                if (!load_connections(global.connections, rows, cerr_text)) {
+                    std::cerr << "--connections: " << cerr_text << '\n';
+                    std::exit(2);
+                }
+                if (const auto g = enclosing_git_project(global.connections); !g.empty())
+                    std::cerr << "WARNING: " << global.connections.string() << " is inside the git project "
+                              << g.string() << " - move it out, so it is never committed\n";
+                apply_connections(rows, true, !global.pg_remote.empty(), !global.pg_local.empty());
+            } else if ((arg == "--pg-remote" || arg == "--pg-local") && i + 1 < argc) {
+                // The PostgreSQL server for pg-remote / pg-local, as a libpq conninfo. Passwords
+                // never go on a command line (it lands in run_latest_config.sh, summaries and
+                // AI reports): libpq reads them from ~/.pgpass or $PGPASSFILE.
+                const std::string ci = argv[++i];
+                if (ci.find("password") != std::string::npos) {
+                    std::cerr << arg << ": leave the password out; put it in ~/.pgpass or $PGPASSFILE\n";
+                    std::exit(2);   // parse_common returns nothing (like --help's exit)
+                }
+                (arg == "--pg-remote" ? global.pg_remote : global.pg_local) = ci;
+                ::setenv(arg == "--pg-remote" ? "JAC313_PG_REMOTE" : "JAC313_PG_LOCAL", ci.c_str(), 1);
             } else if (arg == "--compiler" && i + 1 < argc) {
                 configure_opts.compiler = argv[++i];
             } else if (arg == "--gcc15") {
@@ -2609,6 +2909,10 @@ int main(int argc, char** argv) {
                 configure_opts.prefer_clang = true;
             } else if (arg == "--modules") {
                 configure_opts.modules = true;
+            } else if (arg == "--strict") {
+                configure_opts.strict = true;
+            } else if (arg == "--hardened") {
+                configure_opts.hardened = true;
             } else if (arg == "--release") {
                 configure_opts.build_type = "Release";
             } else if (arg == "--debug") {
@@ -2776,6 +3080,9 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    if (command == "vendor-check") return jac313::test_cli::vendor::run_vendor_check(argc, argv, 2);
+    if (command == "vendor-sync") return jac313::test_cli::vendor::run_vendor_sync(argc, argv, 2);
+    if (command == "vendor-baseline") return jac313::test_cli::vendor::run_vendor_baseline(argc, argv, 2);
     if (command == "version-check") {
         for (int i = argi; i < argc; ++i) {
             const std::string a = argv[i];

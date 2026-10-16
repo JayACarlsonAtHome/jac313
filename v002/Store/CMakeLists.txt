@@ -23,6 +23,9 @@ option(JAC313_STORE_BUILD_MODULES "Build jac313.store.v002 C++23 module (in-tree
 option(JAC313_STORE_IMPORT_STD "Build the jac313.store.v002 module against `import std;` (g++-15 pilot, native CMake std module)" OFF)
 option(JAC313_STORE_JTEXT_PERSIST "Build in-tree jText split persistence (needs jac313::jText)" OFF)
 option(JAC313_STORE_SQL_PERSIST "Build in-tree SQLite persistence (needs jac313::Qlite)" OFF)
+# PostgreSQL persistence (pg-local / pg-remote backends): ON by default, built only when libpq 17+
+# is found (PGDG installs under /usr/pgsql-17). Optional, so Store builds without PostgreSQL.
+option(JAC313_STORE_PG_PERSIST "Build PostgreSQL persistence when libpq 17+ is found" ON)
 
 add_library(jac313_Store INTERFACE)
 add_library(jac313::Store ALIAS jac313_Store)
@@ -115,6 +118,46 @@ if(JAC313_STORE_SQL_PERSIST)
         target_link_libraries(jac313_store_sql_persist PUBLIC SQLite::SQLite3)
     endif()
     message(STATUS "jac313::Store SQLite persistence ENABLED")
+endif()
+
+if(JAC313_STORE_PG_PERSIST)
+    find_path(JAC313_LIBPQ_INCLUDE_DIR libpq-fe.h
+              HINTS /usr/pgsql-17/include
+              PATH_SUFFIXES postgresql pgsql)
+    find_library(JAC313_LIBPQ_LIBRARY NAMES pq
+                 HINTS /usr/pgsql-17/lib)
+    set(_jac313_libpq_ok FALSE)
+    if(JAC313_LIBPQ_INCLUDE_DIR AND JAC313_LIBPQ_LIBRARY)
+        # The version macro is in pg_config.h, or (RHEL multilib) pg_config_<arch>.h.
+        file(GLOB _jac313_pg_cfgs "${JAC313_LIBPQ_INCLUDE_DIR}/pg_config*.h")
+        set(_jac313_pg_major "")
+        foreach(_cfg IN LISTS _jac313_pg_cfgs)
+            file(STRINGS "${_cfg}" _jac313_pg_ver_line REGEX "^#define PG_MAJORVERSION_NUM [0-9]+")
+            if(_jac313_pg_ver_line)
+                string(REGEX MATCH "[0-9]+$" _jac313_pg_major "${_jac313_pg_ver_line}")
+                break()
+            endif()
+        endforeach()
+        if(_jac313_pg_major AND _jac313_pg_major GREATER_EQUAL 17)
+            set(_jac313_libpq_ok TRUE)
+        endif()
+    endif()
+    if(_jac313_libpq_ok)
+        add_library(jac313_store_pg_persist STATIC
+            include/jac313/Store/v002/headers/persistence/PgClient.cpp
+            include/jac313/Store/v002/headers/persistence/PgEventSink.cpp
+        )
+        add_library(jac313::store_pg_persist ALIAS jac313_store_pg_persist)
+        target_include_directories(jac313_store_pg_persist
+            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+            PRIVATE ${JAC313_LIBPQ_INCLUDE_DIR}
+        )
+        target_compile_features(jac313_store_pg_persist PUBLIC cxx_std_26)
+        target_link_libraries(jac313_store_pg_persist PUBLIC jac313_Store ${JAC313_LIBPQ_LIBRARY})
+        message(STATUS "jac313::Store PostgreSQL persistence ENABLED (libpq ${_jac313_pg_major}: ${JAC313_LIBPQ_LIBRARY})")
+    else()
+        message(STATUS "jac313::Store PostgreSQL persistence DISABLED (libpq 17+ not found; ./bootstrap.sh provisions it)")
+    endif()
 endif()
 
 if(JAC313_STORE_BUILD_MODULES)

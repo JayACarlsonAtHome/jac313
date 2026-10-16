@@ -86,6 +86,9 @@ int run_configure_command(const GlobalOptions& global, const ConfigureOptions& o
     if (opts.helgrind_annotate) {
         args.push_back("-DJAC313_STORE_HELGRIND_ANNOTATE=ON");
     }
+    // Always explicit, so a tree configured once with --strict / --hardened is reset without them.
+    args.push_back(std::string("-DJAC313_STRICT=") + (opts.strict ? "ON" : "OFF"));
+    args.push_back(std::string("-DJAC313_HARDENED=") + (opts.hardened ? "ON" : "OFF"));
 
     std::cout << "=== configure"
               << (opts.modules ? " (modules)" : " (no modules)") << " ===\n";

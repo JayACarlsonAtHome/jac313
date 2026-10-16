@@ -12,6 +12,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -105,11 +106,11 @@ bool template_validation_errors(const std::string& body,
         "!!!T!!!\n"
         "\n"
         "=== Fields ===\n"
-        " 1. #/# a/String/Nullable\n"
+        " 1. #/# id/Number/Not Null\n"
         " 2. #/# b/String/Nullable\n"
         "\n"
         "=== Data ===\n"
-        " 1. #?# x\n"
+        " 1. #?# 1\n"
         " 2. #?# y\n"
         "\n"
         "=== End Data ===\n"
@@ -142,6 +143,43 @@ bool required_missing_errors(jtext::validation_level level) {
     auto pf = jtext::parse_file_structure(doc);
     if (!pf.has_value()) return true;
     return jtext::validate(*pf, level).report.has_errors();
+}
+
+// ─── record id (field 1) helpers ───
+//
+// Build a one-section document from a Fields block and a Data block, parse +
+// validate it at `level`, and return the result (nullopt if structure parsing
+// itself failed).
+std::optional<jtext::validate_result> validate_doc(const std::string& fields,
+                                                   const std::string& data,
+                                                   jtext::validation_level level =
+                                                       jtext::validation_level::strict) {
+    const std::string doc =
+        "=== jText File ===\n"
+        " 1. #?# record_id_test\n"
+        "\n"
+        "=== Section: R ===\n"
+        "\n"
+        "=== Fields ===\n" + fields +
+        "\n"
+        "=== Data ===\n" + data +
+        "\n"
+        "=== End Data ===\n"
+        "=== End Section ===\n"
+        "=== End File ===\n";
+    auto pf = jtext::parse_file_structure(doc);
+    if (!pf.has_value()) return std::nullopt;
+    return jtext::validate(*pf, level);
+}
+
+bool has_issue(const std::optional<jtext::validate_result>& vr, jtext::issue_kind k) {
+    if (!vr) return false;
+    for (const auto& i : vr->report.issues) if (i.kind == k) return true;
+    return false;
+}
+
+bool clean(const std::optional<jtext::validate_result>& vr) {
+    return vr && !vr->report.has_errors();
 }
 
 }  // namespace
@@ -229,6 +267,76 @@ int main() {
     must(!date_validation_errors("2026-06-23", L::minimal),  "valid doc should pass at MINIMAL");
     must(!date_validation_errors("2026-06-23", L::standard), "valid doc should pass at STANDARD");
     must(!date_validation_errors("2026-06-23", L::strict),   "valid doc should pass at STRICT");
+
+    // ─── record id: field 1 is mandatory, any name, always an integer ───
+    using IK = jtext::issue_kind;
+    const std::string two_fields_data = " 1. #?# 7\n 2. #?# x\n";
+
+    // Any name is fine; Number and every auto designation are integer types.
+    for (const char* decl : {" 1. #/# ID/Number\n", " 1. #/# recID/Number/Not Null\n",
+                             " 1. #/# FK/AutoID\n", " 1. #/# event_id/AutoNumber\n",
+                             " 1. #/# id/Identity(1,1)\n", " 1. #/# id/Serial\n",
+                             " 1. #/# id/Number/Identity(100, 5)\n",
+                             " 1. #/# id/Number/Not Null/AutoIncrement\n",
+                             " 1. #/# id/BigSerial\n"}) {
+        auto vr = validate_doc(std::string(decl) + " 2. #/# v/String\n", two_fields_data);
+        if (!clean(vr)) { std::cerr << "FAIL[recid-decl-ok]: " << decl; ++failures; }
+    }
+    // Field 1 must be an integer type and cannot be Nullable.
+    must(has_issue(validate_doc(" 1. #/# name/String\n 2. #/# v/String\n", two_fields_data),
+                   IK::field_record_id_invalid), "String field 1 must be rejected");
+    must(has_issue(validate_doc(" 1. #/# when/Date\n 2. #/# v/String\n",
+                                " 1. #?# 2026-01-01\n 2. #?# x\n"),
+                   IK::field_record_id_invalid), "Date field 1 must be rejected");
+    must(has_issue(validate_doc(" 1. #/# id/Number/Nullable\n 2. #/# v/String\n", two_fields_data),
+                   IK::field_record_id_invalid), "Nullable field 1 must be rejected");
+
+    // Auto designation parsing: seed/step and malformed forms.
+    {
+        auto a = jtext::parse_auto_id_designation("IDENTITY( 100 , 5 )");
+        must(a && a->seed == 100 && a->step == 5, "Identity(100,5) seed/step");
+        auto b = jtext::parse_auto_id_designation("identity(-1,-1)");
+        must(b && b->seed == -1 && b->step == -1, "Identity(-1,-1) seed/step");
+        auto c = jtext::parse_auto_id_designation("autoid");
+        must(c && c->seed == 1 && c->step == 1, "AutoID defaults to (1,1)");
+        must(!jtext::parse_auto_id_designation("Identity(1,0)"), "Identity step 0 rejected");
+        must(!jtext::parse_auto_id_designation("Identity(x)"),   "Identity(x) rejected");
+        must(!jtext::parse_auto_id_designation("Identity(1,1"),  "unclosed Identity rejected");
+        must(!jtext::parse_auto_id_designation("Number"),        "Number is not an auto designation");
+    }
+
+    // A record without its id is an error at EVERY level (the producer must make one).
+    const std::string id_fields = " 1. #/# id/AutoID\n 2. #/# v/String\n";
+    for (auto lvl : {L::minimal, L::standard, L::strict}) {
+        must(has_issue(validate_doc(id_fields, " 2. #?# x\n", lvl), IK::record_missing_record_id),
+             "record without field 1 must be rejected at every level");
+    }
+    // Non-integer id: a per-value check (Standard+), like other value formats.
+    must(!has_issue(validate_doc(id_fields, " 1. #?# 1.5\n 2. #?# x\n", L::minimal),
+                    IK::record_id_not_integer), "non-integer id passes at MINIMAL");
+    must(has_issue(validate_doc(id_fields, " 1. #?# 1.5\n 2. #?# x\n", L::standard),
+                   IK::record_id_not_integer), "non-integer id rejected at STANDARD");
+    must(has_issue(validate_doc(id_fields, " 1. #?# 99999999999999999999\n 2. #?# x\n"),
+                   IK::record_id_not_integer), "id beyond 64 bits rejected");
+
+    // Compact rows: the leading number is the FIRST FIELD POSITION, not an id;
+    // the id is the first value of a "1. #|# ..." row.
+    {
+        auto vr = validate_doc(id_fields, " 1. #|# 42|hello\n\n 1. #|# -3|world\n");
+        must(clean(vr), "compact rows with ids validate");
+        must(vr && vr->file.sections.size() == 1 && vr->file.sections[0].records.size() == 2,
+             "two compact records");
+        if (vr && vr->file.sections[0].records.size() == 2) {
+            const auto& r = vr->file.sections[0].records;
+            must(r[0].record_id == 42 && r[1].record_id == -3, "record_id taken from field 1");
+            must(r[0].values[1] == std::optional<std::string>{"hello"}, "compact values land in fields 1..N");
+        }
+        must(has_issue(validate_doc(id_fields, " 2. #|# a|b\n"), IK::record_field_out_of_range),
+             "compact row past the last field rejected");
+        must(has_issue(validate_doc(" 1. #/# id/AutoID\n 2. #/# v/String\n 3. #/# w/String\n",
+                                    " 2. #|# a|b\n"), IK::record_missing_record_id),
+             "compact row starting at field 2 has no id");
+    }
 
     // Visible proof table (printed so a direct run shows the layering).
     auto yn = [](bool err) { return err ? "ERROR" : "clean"; };

@@ -22,6 +22,8 @@ std::string persist_log_dir_name(const std::string& persist) {
     if (persist == "none")  return "inmem_logs";
     if (persist == "unit")  return "unit_logs";
     if (persist == "flags") return "flags_logs";
+    if (persist == "pg-local")  return "pg_local_logs";
+    if (persist == "pg-remote") return "pg_remote_logs";
     return "binary_logs";
 }
 
@@ -115,14 +117,32 @@ void expand_store_matrix_scenarios(std::vector<MatrixScenario>& out,
         return;
     }
 
-    static const std::vector<std::string> persist_types = {"binary", "jtext", "html", "json", "sql", "none"};
+    static const std::vector<std::string> default_persist_types = {"binary", "jtext", "html", "json", "sql", "none"};
     static const std::vector<std::string> output_modes  = {"on", "off"};
+
+    // --persist a,b,c picks the backends; "none" (the in-memory baseline) always runs.
+    std::vector<std::string> persist_types = default_persist_types;
+    if (!params.persist_list.empty()) {
+        persist_types = params.persist_list;
+        if (std::find(persist_types.begin(), persist_types.end(), "none") == persist_types.end()) {
+            persist_types.push_back("none");
+        }
+    }
 
     for (const auto& persist : persist_types) {
         if (persist == "jtext" && !features.jtext_persist) {
             continue;
         }
         if (persist == "sql" && !features.sql_persist) {
+            continue;
+        }
+        if ((persist == "pg-local" || persist == "pg-remote") && !features.pg_persist) {
+            static bool warned = false;
+            if (!warned) {
+                std::cerr << "NOTE: " << persist << " skipped: PostgreSQL persistence not built "
+                             "(needs libpq 17+; run ./bootstrap.sh)\n";
+                warned = true;
+            }
             continue;
         }
         for (const auto& mode : output_modes) {
@@ -187,6 +207,9 @@ std::vector<std::string> build_scenario_args(const MatrixScenario& scen,
         }
         if (scen.runs > 0) {
             args.push_back(std::string("--runs=") + std::to_string(scen.runs));
+        }
+        if (persist_arg != "none") {
+            for (const auto& a : params.extra_test_args) args.push_back(a);
         }
     } else {
         args.emplace_back("--persist=none");
@@ -280,10 +303,19 @@ BuildFeatures read_build_features(const fs::path& build_dir) {
     }
 
     std::string line;
+    bool pg_option = false, libpq_found = false;
     while (std::getline(cache, line)) {
         cmake_cache_bool(line, "JAC313_STORE_JTEXT_PERSIST", features.jtext_persist);
         cmake_cache_bool(line, "JAC313_STORE_SQL_PERSIST", features.sql_persist);
+        cmake_cache_bool(line, "JAC313_STORE_PG_PERSIST", pg_option);
+        if (line.rfind("JAC313_LIBPQ_LIBRARY:", 0) == 0) {
+            const auto eq = line.find('=');
+            libpq_found = eq != std::string::npos && line.find("NOTFOUND", eq) == std::string::npos
+                          && eq + 1 < line.size();
+        }
         cmake_cache_bool(line, "JAC313_BUILD_MODULES", features.modules);
+        cmake_cache_bool(line, "JAC313_STRICT", features.strict);
+        cmake_cache_bool(line, "JAC313_HARDENED", features.hardened);
         if (line.rfind("CMAKE_BUILD_TYPE:", 0) == 0) {
             if (const auto eq = line.find('='); eq != std::string::npos) {
                 std::string v = line.substr(eq + 1);
@@ -293,7 +325,13 @@ BuildFeatures read_build_features(const fs::path& build_dir) {
             }
         }
     }
+    features.pg_persist = pg_option && libpq_found;
+    features.build_type += build_flavor_suffix(features.strict, features.hardened);
     return features;
+}
+
+std::string build_flavor_suffix(bool strict, bool hardened) {
+    return std::string(strict ? "-strict" : "") + (hardened ? "-hardened" : "");
 }
 
 bool scenario_matches_filter(const MatrixScenario& scen, const std::string& filter) {
@@ -320,7 +358,7 @@ void print_matrix_scenario_line(const MatrixScenario& scen,
     // Right-justify the numeric counters to the width of their maximum, and
     // left-justify the variable text columns to fixed widths, so NOTHING shifts:
     //   name    -> widest scenario name in the run (name_width)
-    //   persist -> width of "binary" (6, the longest sink)
+    //   persist -> width of "pg-remote" (9, the longest sink)
     //   mode    -> width of "off"    (3, the longest mode)
     const auto rjust = [](const std::string& s, std::size_t w) {
         return s.size() < w ? std::string(w - s.size(), ' ') + s : s;
@@ -337,7 +375,7 @@ void print_matrix_scenario_line(const MatrixScenario& scen,
     }
     std::cout << "] " << ljust(scen.entry.name, static_cast<std::size_t>(name_width));
     if (scen.category == "matrix") {
-        std::cout << " | " << ljust(scen.persist, 6) << " | " << ljust(scen.output_mode, 3);
+        std::cout << " | " << ljust(scen.persist, 9) << " | " << ljust(scen.output_mode, 3);
         // workload (threads/events/runs) is constant per run — shown once in the matrix summary, not here.
     } else {
         std::cout << " (" << scen.package << '/' << scen.category << ')';
@@ -440,6 +478,36 @@ bool build_matrix_targets_before_run(const GlobalOptions& global,
     return timed_build_targets(global.build_dir, targets, build_jobs, false, failsafe_sec) >= 0;
 }
 
+// Parse the test's "READBACK key=value key=value ... error="text"" line (the last one wins).
+std::map<std::string, std::string> parse_readback_line(const std::string& out) {
+    std::map<std::string, std::string> kv;
+    const auto at = out.rfind("READBACK ");
+    if (at == std::string::npos || (at > 0 && out[at - 1] != '\n')) return kv;
+    const auto end = out.find('\n', at);
+    const std::string line = out.substr(at + 9, end == std::string::npos ? std::string::npos : end - at - 9);
+    std::size_t i = 0;
+    while (i < line.size()) {
+        while (i < line.size() && line[i] == ' ') ++i;
+        const auto eq = line.find('=', i);
+        if (eq == std::string::npos) break;
+        const std::string key = line.substr(i, eq - i);
+        std::string val;
+        std::size_t j = eq + 1;
+        if (j < line.size() && line[j] == '"') {
+            const auto close = line.find('"', j + 1);
+            val = line.substr(j + 1, (close == std::string::npos ? line.size() : close) - j - 1);
+            j = (close == std::string::npos) ? line.size() : close + 1;
+        } else {
+            const auto sp = line.find(' ', j);
+            val = line.substr(j, (sp == std::string::npos ? line.size() : sp) - j);
+            j = (sp == std::string::npos) ? line.size() : sp;
+        }
+        kv[key] = val;
+        i = j;
+    }
+    return kv;
+}
+
 std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scenarios,
                                         const MatrixParams& params,
                                         const fs::path& results_base,
@@ -470,13 +538,27 @@ std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scena
         MatrixRunResult run;
         run.scenario = scen;
         run.log_path = paths.log_path;
+        run.persist_base = paths.persist_base;
 
         run.result = run_test_with_args(scen.entry.command, args, opts.verbose, opts.failsafe_sec, 0);
         run.result.entry = scen.entry;
+        run.readback = parse_readback_line(run.result.stdout_tail);
+        // A failed read-back makes the scenario fail even if the test's own exit path missed it.
+        if (run.result.status == TestStatus::Passed && run.readback.count("status")
+            && run.readback["status"] != "PASS") {
+            run.result.status = TestStatus::Failed;
+            run.result.message = "read-back failed: " + run.readback["error"];
+        }
 
         switch (run.result.status) {
         case TestStatus::Passed:
-            std::cout << "PASS (" << format_count_padded(run.result.duration.count()) << " ms)\n";
+            std::cout << "PASS (" << format_count_padded(run.result.duration.count()) << " ms)";
+            if (run.readback.count("status")) {
+                std::cout << "  readback " << run.readback["mode"] << ' ' << run.readback["status"]
+                          << ' ' << run.readback["expected"] << " rows";
+                if (run.readback.count("ping_ms")) std::cout << "  ping " << run.readback["ping_ms"] << " ms";
+            }
+            std::cout << '\n';
             break;
         case TestStatus::Skipped:
             std::cout << "SKIP";

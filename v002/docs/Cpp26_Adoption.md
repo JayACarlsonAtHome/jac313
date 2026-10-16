@@ -89,6 +89,45 @@ Trade-off: those strings lose compile-time format checking (they're now validate
 they are fixed internal literals, so the risk is negligible. With the workaround, v002 builds
 **green on both gcc 15 and clang 21** at C++26, and the full matrix runs on both.
 
+## Re-measured 2026-10-16 (this box: gcc-toolset-15 15.2.1, clang 21.1.8)
+
+Same method as above (`-dM -E` of `<version>` at `-std=c++23` and `-std=c++26`). The
+toolchains on RHEL 9.8 have not changed since June, but the list above was incomplete.
+Also present under `-std=c++26` on **both** compilers unless marked:
+
+- Language: `__cpp_pp_embed` (`#embed`, **gcc only**), `__cpp_variadic_friend`,
+  `__cpp_constexpr 202406`, `__cpp_structured_bindings` (202403 clang / 202411 gcc).
+- Library: `ranges_concat`, `ranges_cache_latest`, `ranges_to_input`, `constexpr_new`,
+  `span_initializer_list`, `to_string` (P2587, `std::to_string(double)` = `format("{}")`),
+  `fstream_native_handle`, `reference_wrapper`, `is_virtual_base_of`, `ratio`,
+  `algorithm_default_value_type`, `string_view 202403` (`string + string_view`).
+
+**The clang dynamic-width finding still bites new code:** the PostgreSQL / read-back port
+added `jac313_store_dataset` (`Store/tests/matrix/dataset.cpp`), whose `"{:>{}}"` field
+numbers built on gcc and broke clang at C++26 with the same `__check_dynamic_spec` error.
+Fixed by padding with a small helper instead of a dynamic width (v001 kept identical).
+Rule of thumb for v002: **no `{:..{}}` dynamic width/precision in `std::format`/`print`**;
+use `jac313_rt_print` or pad by hand.
+
+**Strict-flags probe** (not part of the build; one-off, `-Wall -Wextra -Wpedantic -Wshadow
+-Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Woverloaded-virtual -Wnull-dereference
+-Wimplicit-fallthrough -Wformat=2`, gcc with `-fhardened -Whardened -O1`, clang with
+`-D_GLIBCXX_ASSERTIONS -ftrivial-auto-var-init=zero`): both compile with **0 errors and 0
+`-Wpedantic` diagnostics**, so the code is ISO-clean at C++26. About 25 distinct warning
+sites remain, all pre-existing and none correctness bugs: old-style casts (Qlite's
+`Sqlite.body.hpp` sqlite3 constants, two `process`/`runner` casts), unused helpers in
+`store_bench.cpp` / `compiler.cpp` / `section.cpp`, one-line `if (...) x; return y;`
+lambdas (`-Wmisleading-indentation`), one `snprintf` width warning in `host_label`, and
+`-Wnull-dereference` false positives inside libstdc++ `<streambuf>`.
+
+**What GCC 16 adds when gcc-toolset-16 reaches RHEL 9** (vendor pages, 2026-10-16):
+contracts (`-fcontracts`, `__cpp_contracts 202502L`), reflection (`-freflection`,
+`__cpp_impl_reflection`), erroneous behaviour for uninitialized reads (zero-init by
+default at C++26), constexpr exceptions, expansion statements, `std::inplace_vector`,
+`std::simd`, `<debugging>`, `function_ref`, `optional<T&>`. clang 23 has none of
+contracts / reflection. `std::runtime_format` is renamed `std::dynamic_format` (P3953R3)
+and `std::add_sat` etc. `std::saturating_add` etc. (P4052R0) — the jac313 shims cover both.
+
 ## Adopted so far (conservative / safety-focused)
 
 Adoption has been deliberately limited. The main things pulled in from the C++26 world
@@ -135,6 +174,28 @@ cmake -G Ninja -S . -B build-gcc15 -DCMAKE_CXX_COMPILER=g++ -DJAC313_BUILD_STORE
 cmake --build build-gcc15 && ctest --test-dir build-gcc15
 # clang is the second gate (clang 21 supports -std=c++26)
 ```
+
+### Optional strictness (CMake options, all OFF by default)
+
+| Option | Adds |
+|---|---|
+| `JAC313_STRICT` | `-Wall -Wextra -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Woverloaded-virtual -Wimplicit-fallthrough -Wformat=2` |
+| `JAC313_STRICT_WERROR` | `-Werror` on top of `JAC313_STRICT` (fails today: about 25 pre-existing warning sites) |
+| `JAC313_HARDENED` | `-D_GLIBCXX_ASSERTIONS -ftrivial-auto-var-init=zero -fstack-protector-strong -fstack-clash-protection -fcf-protection=full`, plus `-D_FORTIFY_SOURCE=3` outside Debug (gcc's `-fhardened`, spelled so clang takes it) |
+
+```bash
+cmake -G Ninja -S . -B build-strict -DJAC313_BUILD_STORE_TESTS=ON -DJAC313_STRICT=ON -DJAC313_HARDENED=ON
+```
+
+From the runner: `./jac313_test_cli --ctest --smoke --strict --hardened` (also in v001, and as
+two checkboxes in Jac313Runner). These build in `build-<cc>-strict-hardened` and record the
+build type as `Debug-strict-hardened`, so their results, logs and PG tables never mix with
+the everyday `Debug` ones. They apply to the ctest/smoke builds only; bench and valgrind
+builds ignore them.
+
+Checked 2026-10-16: gcc 15 Debug, clang 21 Debug and gcc 15 Release with both options
+build with 0 errors and pass ctest 42/42. Keep `JAC313_HARDENED` out of bench builds
+(it costs speed) and valgrind builds (zero-init hides the uninitialized reads memcheck finds).
 
 ## Candidate future adoptions (not yet decided)
 `= delete("reason")`, pack indexing, placeholder variables (`_`), broader use of native

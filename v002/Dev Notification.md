@@ -38,3 +38,15 @@ Here's what changed so far.
 - `results.db` is tracked but **regenerable** — re-run the gates to repopulate.
 - The **pre-push gate is unchanged and fast** (`version-check` + `verify-lite`).
 - Things may still shift under you for a bit — patience appreciated.
+
+## 2026-10-16 — PostgreSQL sink, read-back, limits, runner GUI (ported from v001)
+- **PostgreSQL persist backends** `pg-local` / `pg-remote` (optional build, libpq 17+);
+  tables in `store_test`, one "last run" per host + configuration. See `docs/store/postgres.md`.
+- **Read-back** of every persisted dataset (`--readback off|count|sample|all`) plus a
+  self-test that damages each backend and must be caught (`jac313_store_readback_selftest`).
+- **Limits** `--max-runs`, `--max-records`, `--max-persist-rows`; `--persist a,b,...`;
+  `--summary-json` for the **Jac313Runner** GUI (`gui/`, built by `jac313_test_cli gui-build`).
+- **SQLite sink fix:** re-running into an existing `.db` kept the old rows; tables are now
+  dropped on open.
+- **testRun** gains read-back and PG-latency columns (not mirrored to the R430 yet).
+- **C++26 re-check** recorded in `docs/Cpp26_Adoption.md` and `tools/conformance/baseline.md`.

@@ -69,7 +69,7 @@ struct Params {
     std::size_t events_per_thread = 20'000;
     std::size_t runs = 20;
     std::size_t batch = 10'000;          // durable double-buffer batch
-    std::string persist = "none";        // none | binary | jtext | html | json | sql
+    std::string persist = "none";        // none | binary | jtext | html | json | sql | pg-local | pg-remote
     std::string base_name = "bench";
     std::uint64_t flags = 0;             // per-event user flag mask
     std::string db_path;                 // --db: append one row per run to this SQLite DB (via Qlite)
@@ -77,6 +77,15 @@ struct Params {
     std::int64_t run_id = 0;             // runID: one per --suite run (0 = allocate one per single record)
     bool keep_logs = false;              // --keep-logs: retain durable artifacts (skip clean_output)
     std::string keep_logs_dir;           // --keep-logs-dir: output root (default: <version>/kept-logs/bench)
+    std::size_t max_persist_rows = 0;    // --max-persist-rows: persist only event ids [0, N); 0 = all
+    std::string readback = "off";        // --readback off|count|sample|all: one extra UNTIMED run reads back
+    std::string pg_cleanup = "keep-last";// --pg-cleanup keep-last|delete (PostgreSQL test tables)
+    // Suite controls forwarded by jac313_test_cli (Jac313Runner):
+    std::string persist_list;            // --persist-list a,b: durable backends (empty = the default five)
+    std::size_t max_runs = 0;            // --max-runs: cap each config's runs
+    std::size_t max_records = 0;         // --max-records: cap events per run (threads x events/thread)
+    std::string summary_parts;           // --summary-parts PATH: append one JSON object per config
+    std::string last_readback;           // filled by the read-back worker run (its READBACK line)
 };
 
 bool keep_logs_enabled(const Params& p) {
@@ -230,8 +239,9 @@ void clean_output(const std::string& base) {
 // runs end to end, so the parent's process-level clock captures construction + work +
 // finalize + teardown exactly as a real program start->exit would. Returns false on
 // any failure (the child turns that into a non-zero exit).
-bool do_workload(const Params& p, bool verify) {
+bool do_workload(const Params& p, bool verify, bool readback = false) {
     LogxStore store(p.threads, p.events_per_thread);
+    store.set_max_persist_rows(p.max_persist_rows);
 
     if (p.persist != "none") {
         ensure_capture_parent_dir(p.base_name);
@@ -277,6 +287,24 @@ bool do_workload(const Params& p, bool verify) {
         store.diagnose_failures();
         return false;
     }
+    // Read-back (the untimed --readback-run worker only): compare the persisted dataset with the
+    // in-memory rows and print the READBACK line (tests/matrix/readback.hpp).
+    if (readback && p.persist != "none" && p.readback != "off") {
+        const auto rep = run_readback(store, p.persist, p.base_name, LogConfig::the_IntMetrics,
+                                      LogConfig::the_DblMetrics, p.readback, p.pg_cleanup);
+        std::string extra;
+#ifdef JAC313_STORE_HAS_PG_PERSIST
+        if (is_pg_backend(p.persist) && g_pg_timings) {
+            auto b = g_pg_timings->batch_ms;
+            std::sort(b.begin(), b.end());
+            extra = std::format(" connect_ms={:.3f} ping_ms={:.3f} batches={} batch_med_ms={:.3f} write_ms={:.3f}",
+                                g_pg_timings->connect_ms, g_pg_timings->ping_median_ms, b.size(),
+                                b.empty() ? 0.0 : b[b.size() / 2], g_pg_timings->write_total_ms);
+        }
+#endif
+        print_readback(rep, extra);
+        if (!rep.ok) return false;
+    }
     return true;
 }
 
@@ -300,6 +328,9 @@ std::vector<std::string> worker_argv(const std::string& exe, const Params& p, bo
         "--base-name",         p.base_name,
         "--batch",             std::to_string(p.batch),
         "--flags-raw",         std::to_string(p.flags),
+        "--max-persist-rows",  std::to_string(p.max_persist_rows),
+        "--readback",          p.readback,
+        "--pg-cleanup",        p.pg_cleanup,
     };
     if (verify) a.push_back("--verify");
     if (keep_logs_enabled(p)) {
@@ -353,8 +384,50 @@ std::optional<std::size_t> run_one(const Params& p, bool verify) {
     return static_cast<std::size_t>(duration_cast<microseconds>(end - start).count());
 }
 
+// The untimed read-back run: a worker that does the same workload, then reads the dataset
+// back and prints its READBACK line (stdout passes through). Returns false on failure.
+bool run_readback_worker(Params& p) {
+    static const std::string exe = self_exe();
+    if (exe.empty()) return false;
+    if (!keep_logs_enabled(p)) clean_output(p.base_name);
+    std::vector<std::string> sargs = worker_argv(exe, p, /*verify=*/ false);
+    sargs.push_back("--readback-run");
+    std::vector<char*> argv;
+    for (const auto& s : sargs) argv.push_back(const_cast<char*>(s.c_str()));
+    argv.push_back(nullptr);
+    std::cout.flush();
+    int fds[2];
+    if (::pipe(fds) != 0) return false;
+    const pid_t pid = ::fork();
+    if (pid < 0) return false;
+    if (pid == 0) {
+        ::dup2(fds[1], STDOUT_FILENO);
+        ::close(fds[0]); ::close(fds[1]);
+        ::execv(exe.c_str(), argv.data());
+        std::perror("execv");
+        _exit(127);
+    }
+    ::close(fds[1]);
+    std::string out;
+    char buf[4096];
+    for (ssize_t n; (n = ::read(fds[0], buf, sizeof buf)) > 0;) out.append(buf, static_cast<std::size_t>(n));
+    ::close(fds[0]);
+    std::cout << out;   // pass the READBACK line through
+    if (const auto at = out.rfind("READBACK "); at != std::string::npos) {
+        p.last_readback = out.substr(at + 9, out.find('\n', at) == std::string::npos ? std::string::npos
+                                                                                   : out.find('\n', at) - at - 9);
+    }
+    int status = 0;
+    while (::waitpid(pid, &status, 0) < 0) { /* retry on EINTR */ }
+    if (!(WIFEXITED(status) && WEXITSTATUS(status) == 0)) {
+        std::cerr << "READBACK FAILED (config '" << p.label << "', persist=" << p.persist << ")\n";
+        return false;
+    }
+    return true;
+}
+
 // One measurement set: RUNS timed runs -> durations. Returns empty on any failure.
-std::vector<std::size_t> measure_set(const Params& p) {
+std::vector<std::size_t> measure_set(Params& p) {
     std::vector<std::size_t> durations;
     durations.reserve(p.runs);
     for (std::size_t r = 0; r < p.runs; ++r) {
@@ -362,6 +435,9 @@ std::vector<std::size_t> measure_set(const Params& p) {
         if (!us) return {};
         durations.push_back(*us);
     }
+    // One extra UNTIMED run that reads the persisted dataset back (never in the durations).
+    p.last_readback.clear();
+    if (p.persist != "none" && p.readback != "off" && !run_readback_worker(p)) return {};
     return durations;
 }
 
@@ -778,16 +854,103 @@ std::int64_t calibrated_use(const std::string&, const std::string&, std::int64_t
 //   smoke (--suite --smoke) — the same 10 capped to <=10k events, run as a CORRECTNESS GATE:
 //                             pass iff ALL configs run clean (incl. structural verify); the
 //                             numbers are meaningless at this scale, so nothing is recorded.
+// One JSON object per suite config for Jac313Runner's summary (--summary-parts).
+void append_bench_part(const Params& p, const char* status, const BenchSummary* sum, std::uint64_t total) {
+    if (p.summary_parts.empty()) return;
+    auto esc = [](const std::string& v) {
+        std::string o;
+        for (char c : v) { if (c == '"' || c == '\\') o += '\\'; o += c; }
+        return o;
+    };
+    std::string obj = std::format(R"({{"gate":"bench","test":"{}","backend":"{}","status":"{}","threads":{},"events_per_thread":{},"runs":{})",
+                                  esc(p.label), esc(p.persist), status, p.threads, p.events_per_thread, p.runs);
+    if (sum) {
+        obj += std::format(R"(,"median_ops":{},"low_ops":{},"high_ops":{},"events":{})",
+                           sum->median, sum->low, sum->high, total);
+        if (sum->median > 0) obj += std::format(R"(,"ms":{})", total * 1000 / sum->median);
+    }
+    if (p.persist != "none") {
+        obj += std::format(R"(,"max_persist_rows":{})", p.max_persist_rows);
+        if (!p.last_readback.empty()) {
+            // "k=v k=v ... error=\"x\"" -> {"k":v,...}
+            std::string rb = "{";
+            std::size_t i = 0;
+            bool first = true;
+            const std::string& l = p.last_readback;
+            while (i < l.size()) {
+                while (i < l.size() && l[i] == ' ') ++i;
+                const auto eq = l.find('=', i);
+                if (eq == std::string::npos) break;
+                const std::string k = l.substr(i, eq - i);
+                std::string v;
+                std::size_t j = eq + 1;
+                if (j < l.size() && l[j] == '"') {
+                    const auto cl = l.find('"', j + 1);
+                    v = l.substr(j + 1, (cl == std::string::npos ? l.size() : cl) - j - 1);
+                    j = cl == std::string::npos ? l.size() : cl + 1;
+                } else {
+                    const auto sp = l.find(' ', j);
+                    v = l.substr(j, (sp == std::string::npos ? l.size() : sp) - j);
+                    j = sp == std::string::npos ? l.size() : sp;
+                }
+                i = j;
+                if (k == "backend") continue;
+                const bool num = !v.empty() && v.find_first_not_of("0123456789.-") == std::string::npos;
+                rb += (first ? "" : ",") + std::string("\"") + k + "\":" + (num ? v : "\"" + esc(v) + "\"");
+                first = false;
+                if (k == "expected") obj += ",\"rows_written\":" + v;
+            }
+            obj += ",\"readback\":" + rb + "}";
+        }
+        obj += std::format(R"(,"dataset":{{"backend":"{}","base":"{}"}})", esc(p.persist), esc(p.base_name));
+    }
+    obj += "}";
+    std::ofstream out(p.summary_parts, std::ios::app);
+    if (out) out << obj << "\n";
+}
+
 int run_suite(Params base, bool dry, bool smoke) {
     base.threads = 50;                                 // curated suite is opinionated about threads
     struct Cfg { std::string persist; int flags; std::string label; std::size_t evt, runs; };
     std::vector<Cfg> cfgs;
     for (int n : {0, 2, 4, 6})
         cfgs.push_back({"none", n, std::to_string(n) + " flags, non-durable", 200000, 10});
-    for (const char* pn : {"jtext", "sql", "binary", "html", "json"})
-        cfgs.push_back({std::string(pn), 0, std::string("durable ") + pn, 20000, 3});          // 1M × 3
-    for (const char* pn : {"jtext", "sql", "binary", "html", "json"})
-        cfgs.push_back({std::string(pn), 0, std::string("durable ") + pn + " @10M", 200000, 3}); // 10M × 3 (scaling)
+    // Durable backends: the default five, or --persist-list (which may add pg-local / pg-remote).
+    std::vector<std::string> durable = {"jtext", "sql", "binary", "html", "json"};
+    if (!base.persist_list.empty()) {
+        durable.clear();
+        std::string cur;
+        for (char c : base.persist_list + ",") {
+            if (c == ',') {
+                if (!cur.empty() && cur != "none") {
+#ifndef JAC313_STORE_HAS_PG_PERSIST
+                    if (cur == "pg-local" || cur == "pg-remote") {
+                        std::cerr << "NOTE: " << cur << " skipped: PostgreSQL persistence not built\n";
+                        cur.clear();
+                        continue;
+                    }
+#endif
+                    durable.push_back(cur);
+                }
+                cur.clear();
+            } else if (c != ' ') cur += c;
+        }
+    }
+    for (const auto& pn : durable)
+        cfgs.push_back({pn, 0, "durable " + pn, 20000, 3});          // 1M × 3
+    for (const auto& pn : durable)
+        cfgs.push_back({pn, 0, "durable " + pn + " @10M", 200000, 3}); // 10M × 3 (scaling)
+
+    // --max-runs / --max-records: lower runs and events per run (never raise them).
+    for (auto& cf : cfgs) {
+        bool capped = false;
+        if (base.max_runs > 0 && cf.runs > base.max_runs) { cf.runs = base.max_runs; capped = true; }
+        if (base.max_records > 0 && base.threads * cf.evt > base.max_records) {
+            cf.evt = std::max<std::size_t>(1, base.max_records / base.threads);
+            capped = true;
+        }
+        if (capped) cf.label += " [capped]";   // e.g. "@10M" no longer means 10M events
+    }
 
     if (smoke) {
         const std::size_t cap = base.threads ? 10000 / base.threads : 10000;  // 200 -> 10k total / config
@@ -865,10 +1028,21 @@ int run_suite(Params base, bool dry, bool smoke) {
         if (cf.persist != "none") std::cout << "  (batch " << bench_group_thousands(p.batch) << ")";
         std::cout << "\n";
         auto durations = measure_set(p);
-        if (durations.empty()) { std::cerr << "FAILED: " << cf.label << "\n"; return 1; }
+        if (durations.empty()) {
+            std::cerr << "FAILED: " << cf.label << "\n";
+            append_bench_part(p, "FAIL", nullptr, 0);
+            return 1;
+        }
         const std::uint64_t total = static_cast<std::uint64_t>(p.threads) * p.events_per_thread;
         emit_bench_stats(durations, total);
-        record_to_db(p, compute_bench_summary(durations, total));
+        const BenchSummary sum = compute_bench_summary(durations, total);
+        Params rec = p;
+        // A capped durable run measures "events in, fewer rows out": record it under its own
+        // persist label so it never mixes with full-size durable results in the report.
+        if (rec.persist != "none" && rec.max_persist_rows > 0)
+            rec.persist += "/cap=" + std::to_string(rec.max_persist_rows);
+        record_to_db(rec, sum);
+        append_bench_part(p, "PASS", &sum, total);
     }
     std::cout << "\n\n";   // two blank lines after the bench suite, for visual separation
     return 0;
@@ -883,6 +1057,7 @@ int main(int argc, char** argv) {
     std::optional<Sweep> sweep;
     bool do_suite = false, dry = false, smoke = false;
     bool single_run = false, verify_flag = false;   // worker mode (internal: re-exec by run_one)
+    bool readback_run = false;                       // worker mode: the untimed read-back run
     bool do_calibrate = false;                       // --calibrate: per-machine batch best-fit -> io_best_fit
     // Two-phase sweep: fine (cal_step) from cal_lo up to cal_knee, then coarse (cal_step2) up to cal_hi.
     // Default: 250,500,750,1000, then 1500..5000:500 — fine where the curve moves, coarse in the flat tail.
@@ -899,6 +1074,14 @@ int main(int argc, char** argv) {
         else if (a == "--batch") p.batch = std::stoull(next());
         else if (a == "--persist") p.persist = next();
         else if (a == "--base-name") p.base_name = next();
+        else if (a == "--max-persist-rows") p.max_persist_rows = std::stoull(next());
+        else if (a == "--readback") p.readback = next();
+        else if (a == "--pg-cleanup") p.pg_cleanup = next();
+        else if (a == "--persist-list") p.persist_list = next();
+        else if (a == "--max-runs") p.max_runs = std::stoull(next());
+        else if (a == "--max-records") p.max_records = std::stoull(next());
+        else if (a == "--summary-parts") p.summary_parts = next();
+        else if (a == "--readback-run") readback_run = true;          // worker: untimed read-back run
         else if (a == "--flags") p.flags = parse_flags(next());
         else if (a == "--flags-raw") p.flags = std::stoull(next());   // exact mask (worker re-exec)
         else if (a == "--flag-count") p.flags = flags_by_count(std::stoull(next()));
@@ -930,7 +1113,7 @@ int main(int argc, char** argv) {
 
     // Worker mode: do exactly one workload and exit. The parent (run_one) times this whole
     // process from fork to exit, so nothing is printed and nothing is recorded here.
-    if (single_run) return do_workload(p, verify_flag) ? 0 : 1;
+    if (single_run) return do_workload(p, verify_flag, readback_run) ? 0 : 1;
 
     if (do_calibrate) {
         // Calibration defaults to the durable 1M config's shape (50 threads, 1M events) unless the user

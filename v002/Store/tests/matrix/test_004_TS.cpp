@@ -134,5 +134,6 @@ int main(int argc, char** argv) {
     //safepay.debug_print_widths();
     std::cout << "Per-thread results:\n";
     safepay.print( 0);
+    if (!finish_persistence<LogConfigxMainx>(safepay, _opts)) return 1;
     return 0;
 }

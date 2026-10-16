@@ -13,6 +13,9 @@ add_executable(jac313_test_cli
     jac313_test_cli/kept_logs.cpp
     jac313_test_cli/test_logs.cpp
     jac313_test_cli/build_pipeline.cpp
+    jac313_test_cli/summary.cpp
+    jac313_test_cli/connections.cpp
+    jac313_test_cli/vendor.cpp
     jac313_test_cli/run_identity.cpp
 )
 target_compile_features(jac313_test_cli PRIVATE cxx_std_23)
@@ -22,6 +25,11 @@ if(TARGET jac313::Setup)
 endif()
 if(TARGET jac313::Qlite)
     target_link_libraries(jac313_test_cli PRIVATE jac313::Qlite)
+endif()
+# jText reads the PostgreSQL connections file (connections.cpp)
+if(TARGET jac313_jText)
+    target_link_libraries(jac313_test_cli PRIVATE jac313::jText)
+    target_compile_definitions(jac313_test_cli PRIVATE JAC313_TEST_CLI_HAS_JTEXT=1)
 endif()
 
 # Unit tests for the tool's own primitives (RunIdentity, ...). Registered with ctest

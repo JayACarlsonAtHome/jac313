@@ -44,6 +44,35 @@ option(JAC313_BUILD_STORE "Build jac313::Store umbrella" ON)
 option(JAC313_BUILD_STORE_TESTS "Build jac313::Store tests" OFF)
 option(JAC313_BUILD_TEST_CLI "Build jac313_test_cli local test runner" ON)
 
+# Opt-in compiler strictness (both OFF: the default build and its baselines are unchanged).
+# Same options as v002 (see v002/docs/Cpp26_Adoption.md); here they apply at C++23.
+option(JAC313_STRICT "Extra warnings: -Wall -Wextra -Wpedantic and friends" OFF)
+option(JAC313_STRICT_WERROR "With JAC313_STRICT: treat those warnings as errors" OFF)
+# Runtime hardening. Changes behaviour, so keep it out of bench and valgrind builds:
+# -ftrivial-auto-var-init=zero hides the uninitialized reads memcheck exists to find.
+option(JAC313_HARDENED "Runtime hardening: libstdc++ assertions, zero-init locals, stack/CF protection" OFF)
+
+if(JAC313_STRICT)
+    # -Wnull-dereference is left out: on gcc 15 it fires only inside libstdc++ <streambuf>.
+    add_compile_options(
+        -Wall -Wextra -Wpedantic
+        -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Woverloaded-virtual
+        -Wimplicit-fallthrough -Wformat=2)
+    if(JAC313_STRICT_WERROR)
+        add_compile_options(-Werror)
+    endif()
+endif()
+
+if(JAC313_HARDENED)
+    # The explicit equivalent of gcc's -fhardened, spelled so clang takes it too.
+    # _FORTIFY_SOURCE needs optimization, so it is added only to non-Debug configs.
+    add_compile_options(
+        -D_GLIBCXX_ASSERTIONS
+        -ftrivial-auto-var-init=zero
+        -fstack-protector-strong -fstack-clash-protection -fcf-protection=full
+        "$<$<NOT:$<CONFIG:Debug>>:-U_FORTIFY_SOURCE;-D_FORTIFY_SOURCE=3>")
+endif()
+
 if(JAC313_BUILD_STORE_TESTS)
     set(JAC313_STORE_BUILD_TESTS ON CACHE BOOL "" FORCE)
     set(JAC313_STORE_BUILD_MATRIX_TESTS ON CACHE BOOL "" FORCE)

@@ -169,5 +169,6 @@ int main(int argc, char** argv) {
               << " ENTRIES VERIFIED — ZERO CORRUPTION\n";
     store.show_duration("Store");
     store.print(0);
+    if (!finish_persistence<LogConfig>(store, _opts)) return 1;
     return 0;
 }

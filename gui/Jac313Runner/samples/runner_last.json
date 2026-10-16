@@ -1,0 +1,175 @@
+{
+  "run_id": 304,
+  "host": "jac313-004",
+  "version": "v001",
+  "compiler": "gcc15",
+  "build_type": "Debug",
+  "started_utc": "2026-10-17T07:00:00Z",
+  "finished_utc": "2026-10-17T07:21:40Z",
+  "command": "jac313_test_cli --ctest --smoke --gcc15 --persist sql,jtext,binary,json,html --max-persist-rows 100000 --readback sample --pg-cleanup keep-last --summary-json test-summary/runner_last.json",
+  "totals": {
+    "pass": 7,
+    "fail": 1
+  },
+  "results": [
+    {
+      "gate": "ctest",
+      "test": "jtext_parser_validator",
+      "status": "PASS",
+      "ms": 41,
+      "log": "/run/media/jay/GFS/git/jac315/v001/kept-logs/ctest_jtext_parser_validator.log"
+    },
+    {
+      "gate": "smoke",
+      "test": "006_TS",
+      "backend": "sql",
+      "output_mode": "off",
+      "status": "PASS",
+      "ms": 812,
+      "rows_written": 100,
+      "readback": {
+        "mode": "sample",
+        "count": "PASS",
+        "checksum": "PASS",
+        "sample": "PASS",
+        "checked": 100
+      },
+      "dataset": {
+        "backend": "sql",
+        "base": "/run/media/jay/GFS/git/jac315/v001/build-gcc15/Store/tests/matrix/persist_off"
+      },
+      "log": "/run/media/jay/GFS/git/jac315/v001/kept-logs/006_TS_sql_off.log"
+    },
+    {
+      "gate": "smoke",
+      "test": "006_TS",
+      "backend": "jtext",
+      "output_mode": "off",
+      "status": "FAIL",
+      "ms": 90,
+      "rows_written": 100,
+      "readback": {
+        "mode": "sample",
+        "count": "PASS",
+        "checksum": "FAIL",
+        "sample": "PASS",
+        "checked": 100
+      },
+      "dataset": {
+        "backend": "jtext",
+        "base": "/run/media/jay/GFS/git/jac315/v001/build-gcc15/Store/tests/matrix/persist_off"
+      },
+      "log": "/run/media/jay/GFS/git/jac315/v001/kept-logs/006_TS_jtext_off.log"
+    },
+    {
+      "gate": "smoke",
+      "test": "007_TS",
+      "backend": "pg-local",
+      "output_mode": "off",
+      "status": "PASS",
+      "ms": 1240,
+      "compiler": "gcc15",
+      "run_id": 304,
+      "host": "jac313-004",
+      "rows_written": 100,
+      "readback": {
+        "mode": "sample",
+        "status": "PASS",
+        "expected": 100,
+        "found": 100,
+        "count": "PASS",
+        "checksum": "PASS",
+        "sample": "PASS",
+        "checked": 100,
+        "read_ms": 3.2,
+        "connect_ms": 2.4,
+        "ping_ms": 0.061,
+        "batches": 1,
+        "batch_med_ms": 6.8,
+        "write_ms": 6.8
+      },
+      "dataset": {
+        "backend": "pg-local",
+        "base": "/run/media/jay/GFS/git/jac315/v001/build-gcc15/Store/tests/matrix/persist_off"
+      },
+      "log": "/run/media/jay/GFS/git/jac315/v001/kept-logs/007_TS_pg-local_off.log"
+    },
+    {
+      "gate": "smoke",
+      "test": "007_TS",
+      "backend": "pg-remote",
+      "output_mode": "off",
+      "status": "PASS",
+      "ms": 4875,
+      "compiler": "gcc15",
+      "run_id": 304,
+      "host": "jac313-004",
+      "rows_written": 100,
+      "readback": {
+        "mode": "sample",
+        "status": "PASS",
+        "expected": 100,
+        "found": 100,
+        "count": "PASS",
+        "checksum": "PASS",
+        "sample": "PASS",
+        "checked": 100,
+        "read_ms": 41.7,
+        "connect_ms": 38.9,
+        "ping_ms": 1.305,
+        "batches": 1,
+        "batch_med_ms": 212.5,
+        "write_ms": 212.5
+      },
+      "dataset": {
+        "backend": "pg-remote",
+        "base": "/run/media/jay/GFS/git/jac315/v001/build-gcc15/Store/tests/matrix/persist_off"
+      },
+      "log": "/run/media/jay/GFS/git/jac315/v001/kept-logs/007_TS_pg-remote_off.log"
+    },
+    {
+      "gate": "smoke",
+      "test": "005_XS",
+      "backend": "binary",
+      "output_mode": "off",
+      "status": "PASS",
+      "ms": 402,
+      "rows_written": 1000,
+      "readback": {
+        "mode": "all",
+        "count": "PASS",
+        "checksum": "PASS",
+        "sample": "PASS",
+        "checked": 1000
+      },
+      "dataset": {
+        "backend": "binary",
+        "base": "/run/media/jay/GFS/git/jac315/v001/build-gcc15/Store/tests/matrix/persist_off"
+      }
+    },
+    {
+      "gate": "smoke",
+      "test": "005_XS",
+      "backend": "json",
+      "output_mode": "on",
+      "status": "PASS",
+      "ms": 377,
+      "rows_written": 1000,
+      "dataset_cmd": [
+        "/run/media/jay/GFS/git/jac315/v001/build-gcc15/Store/tests/matrix/jac313_store_dataset",
+        "--backend",
+        "json",
+        "--base",
+        "/abs/explicit",
+        "--limit",
+        "50"
+      ]
+    },
+    {
+      "gate": "bench",
+      "test": "bench_ints",
+      "status": "PASS",
+      "ms": 15020
+    }
+  ]
+}

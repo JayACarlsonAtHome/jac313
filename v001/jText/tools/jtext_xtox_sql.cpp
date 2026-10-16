@@ -226,18 +226,9 @@ int main(int argc, char** argv)
         for (const auto& rec : sec.records) {
             if (!first) output_sql += "\n";
             first = false;
-            jtext::record temp_rec = rec;
-            // ts_store-style logs carry the event id as record_id; surface it as
-            // field 1 unless the record already leads with that exact integer.
-            // (Parse defensively: a non-numeric leading value must not throw.)
-            const bool leads_with_id =
-                !rec.values.empty() && rec.values[0].has_value() &&
-                is_plain_integer(*rec.values[0]) &&
-                std::stoll(*rec.values[0]) == static_cast<long long>(rec.record_id);
-            if (rec.record_id > 0 && !leads_with_id) {
-                temp_rec.values.insert(temp_rec.values.begin(), std::to_string(rec.record_id));
-            }
-            output_sql += substitute_record(insert_template_body, temp_rec, sec.fields);
+            // The record id is field 1 of every record (SPEC 2.6.4), so the
+            // template's {1} already carries it; no id is synthesized here.
+            output_sql += substitute_record(insert_template_body, rec, sec.fields);
         }
     }
 

@@ -13,6 +13,9 @@ struct MatrixParams {
     std::string os_id;
     std::map<std::string, bool> selected_packages;
     std::map<std::string, bool> selected_tests;
+    // Set by the runner from --persist / --max-persist-rows / --readback / --pg-cleanup:
+    std::vector<std::string> persist_list;     // matrix backends (empty = default set)
+    std::vector<std::string> extra_test_args;  // forwarded to each persisting matrix test
 };
 
 struct MatrixScaling {

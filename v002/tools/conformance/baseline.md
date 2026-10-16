@@ -8,7 +8,7 @@ anything that changed, then we update this file (and note it in `Dev Notificatio
 > cppreference blocks bots (HTTP 403), so we pull from the upstream **vendor** pages it
 > aggregates — those are authoritative anyway.
 
-_Baseline captured: 2026-06-26. GCC/libstdc++ rows marked ~ are from general knowledge and
+_Baseline captured: 2026-06-26; re-checked 2026-10-16 (see below)._ _Original note: GCC/libstdc++ rows marked ~ are from general knowledge and
 should be verified on the first real run (the libstdc++ status page didn't parse cleanly)._
 
 ## Features we track
@@ -19,6 +19,21 @@ should be verified on the first real run (the libstdc++ status page didn't parse
 | C++ modules (language)    | —       | **Clang 15** | gcc — supported (~11+) |
 | `std::print` / `println`  | P2093   | **libc++ 18 — Complete** | libstdc++ ~g++ 14 |
 | `std::expected`           | P0323   | **libc++ 16 — Complete** | libstdc++ ~g++ 12 |
+
+## Re-check 2026-10-16
+Vendor pages re-fetched. The libstdc++ status page no longer has a C++26 section, so the
+library side came from the GCC 16 release notes (https://gcc.gnu.org/gcc-16/changes.html).
+
+- **The four `~` GCC rows are now verified** (libstdc++ status page): `import std` 15.1,
+  `std::print` 14.1, `std::expected` 12.1, modules supported. libc++ rows unchanged.
+- **Releases:** GCC 16.2 (2026-08-07) and 15.3 (2026-06-12); LLVM/clang 23.1. RHEL 9 still
+  ships only gcc-toolset-15 (15.2.1) and clang 21.1.8; no Red Hat errata for gcc-toolset-16
+  yet (AlmaLinux 9.9 beta reportedly carries GCC Toolset 16 — not verified for RHEL).
+- **GCC 16:** `--compile-std-module` builds `std` / `std.compat`; default dialect is gnu++20.
+- **clang + libstdc++ `import std`:** no vendor page tracks it; unchanged.
+- **Both gcc16 "regressions" were WG21 renames**, not bugs: `std::runtime_format` ->
+  `std::dynamic_format` (P3953R3) and `add_sat`/`mul_sat`/... -> `saturating_add`/
+  `saturating_mul`/... (P4052R0). Our shims stay; see `docs/Cpp26_Adoption.md`.
 
 ## The one we're actually waiting on
 **clang + libstdc++ `import std` (recorded in build-times).** v002 CMake now validates

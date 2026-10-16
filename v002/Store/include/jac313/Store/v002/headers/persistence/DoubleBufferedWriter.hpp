@@ -81,16 +81,28 @@ public:
 private:
     void swap_and_signal() {
         // Must be called under buffer_mutex_
-        // Append (do not swap): if drain still holds an unconsumed batch, swapping would
-        // move that batch into active and clear() would drop those events.
-        drain_buffer_.insert(drain_buffer_.end(),
-                             std::make_move_iterator(active_buffer_.begin()),
-                             std::make_move_iterator(active_buffer_.end()));
-        active_buffer_.clear();
+        // Swap only when drain is empty (the usual case: the worker keeps up). That is O(1) under
+        // the lock, and active inherits drain's reserved capacity. If drain still holds an
+        // unconsumed batch, append instead: swapping would move that batch into active and
+        // clear() would drop those events.
+        if (drain_buffer_.empty()) {
+            drain_buffer_.swap(active_buffer_);
+        } else {
+            drain_buffer_.insert(drain_buffer_.end(),
+                                 std::make_move_iterator(active_buffer_.begin()),
+                                 std::make_move_iterator(active_buffer_.end()));
+            active_buffer_.clear();
+        }
         cv_.notify_one();
     }
 
     void worker_loop() {
+        // Worker-owned batch, kept across rounds: it is cleared (not freed) after each drain and
+        // swapped back into drain_buffer_ next round, so the reserved capacity circulates
+        // active -> drain -> batch -> drain instead of being reallocated under the lock.
+        std::vector<PersistedEvent> batch;
+        batch.reserve(batch_size_);
+
         while (true) {
             std::unique_lock<std::mutex> lock(buffer_mutex_);
 
@@ -100,8 +112,7 @@ private:
                        stop_requested_.load(std::memory_order_relaxed);
             });
 
-            // Take ownership of the drain buffer
-            std::vector<PersistedEvent> batch;
+            // Take ownership of the drain buffer (batch is empty here)
             batch.swap(drain_buffer_);
 
             bool do_flush = pending_flush_.exchange(false, std::memory_order_relaxed);
@@ -137,6 +148,7 @@ private:
             if (should_stop) {
                 break;
             }
+            batch.clear();
         }
     }
 

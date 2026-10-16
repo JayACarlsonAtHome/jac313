@@ -6,6 +6,7 @@
 #include "runner.hpp"
 
 #include <filesystem>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -42,7 +43,10 @@ struct MatrixRunResult {
     MatrixScenario scenario;
     TestResult result;
     std::filesystem::path log_path;
+    std::filesystem::path persist_base;   // where the scenario's dataset was written
     std::optional<std::uint64_t> persist_log_bytes;
+    // Parsed from the test's "READBACK key=value ..." line (empty when the test printed none).
+    std::map<std::string, std::string> readback;
 };
 
 void print_matrix_scenario_line(const MatrixScenario& scen,
@@ -63,9 +67,17 @@ std::filesystem::path compute_results_base(const std::filesystem::path& project_
 struct BuildFeatures {
     bool jtext_persist{false};
     bool sql_persist{false};
+    bool pg_persist{false};           // PostgreSQL sink built (JAC313_STORE_PG_PERSIST + libpq found)
     bool modules{false};              // JAC313_BUILD_MODULES from the tree's CMakeCache
-    std::string build_type{"Debug"};  // CMAKE_BUILD_TYPE from the tree's CMakeCache
+    std::string build_type{"Debug"};  // CMAKE_BUILD_TYPE from the tree's CMakeCache, plus
+                                      // "-strict" / "-hardened" when those options are ON, so
+                                      // such runs get their own results rows, logs and datasets
+    bool strict{false};               // JAC313_STRICT
+    bool hardened{false};             // JAC313_HARDENED
 };
+
+// "-strict", "-hardened", "-strict-hardened" or "" (appended to the build type label).
+std::string build_flavor_suffix(bool strict, bool hardened);
 
 BuildFeatures read_build_features(const std::filesystem::path& build_dir);
 bool scenario_matches_filter(const MatrixScenario& scen, const std::string& filter);

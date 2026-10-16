@@ -164,17 +164,7 @@ int main(int argc, char** argv)
 
             // Only attach persistence on the final run (when not --persist=none).
             // This ensures persist data / log files are generated only from the last run.
-            if (!persist_skips_sink(ptype)) {
-            const size_t im = LogConfig::the_IntMetrics;
-            const size_t dm = LogConfig::the_DblMetrics;
-            auto sink = make_persistence_sink(ptype, bname, im, dm, PersistMode::All);
-            if (!sink) return 1;
-                auto writer = std::make_unique<DoubleBufferedWriter>(
-                    std::move(sink),
-                    10'000
-                );
-                store.attach_persistence(std::move(writer));
-            }
+            if (!attach_persistence_from_opts<LogConfig>(store, _opts)) return 1;
         }
 
         auto [status, microseconds] = run_single_test(store);
@@ -202,6 +192,8 @@ int main(int argc, char** argv)
             }
         }
     }
+
+    if (!finish_persistence<LogConfig>(store, _opts)) return 1;
 
     if (failed_runs > 0) {
         std::cout << "\n" << format_locale_int(static_cast<int>(failed_runs))

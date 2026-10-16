@@ -66,5 +66,6 @@ int main(int argc, char** argv) {
     prod.press_any_key();
     prod.print(0);
     std::cout << "\n=== ALL TESTS COMPLETED SUCCESSFULLY ===\n";
+    if (!finish_persistence<LogConfig>(prod, _opts)) return 1;
     return 0;
 }

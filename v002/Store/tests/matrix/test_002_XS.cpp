@@ -110,5 +110,6 @@ int main(int argc, char** argv) {
               << " entries passed verification!                  ║\n"
               << "╚════════════════════════════════════════════════╝\n"
               << ansi::reset();
+    if (!finish_persistence<LogConfig>(store, _opts)) return 1;
     return 0;
 }

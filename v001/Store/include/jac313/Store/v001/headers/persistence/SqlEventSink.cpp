@@ -54,11 +54,19 @@ SqlEventSink::~SqlEventSink() {
 }
 
 void SqlEventSink::ensure_tables_and_prepare() {
+    // Start from empty tables, like the file sinks (which truncate) and PgEventSink (which
+    // recreates). Without this a re-run into the same .db kept the PREVIOUS run's rows and the
+    // INSERT OR IGNORE below silently dropped every new row with a matching id: counts still
+    // matched, content was stale (caught by read-back verification).
+    db_->exec("DROP TABLE IF EXISTS " + table_base_ + "_floats");
+    db_->exec("DROP TABLE IF EXISTS " + table_base_ + "_ints");
+    db_->exec("DROP TABLE IF EXISTS " + table_base_);
+
     // Main table
     {
         std::ostringstream oss;
         oss << "CREATE TABLE IF NOT EXISTS " << table_base_ << " (\n"
-            << "    id BIGINT PRIMARY KEY\n"
+            << "    id INTEGER PRIMARY KEY\n"
             << "  , thread_id BIGINT\n"
             << "  , per_thread_event_id BIGINT\n"
             << "  , flags_raw BIGINT\n"
@@ -72,7 +80,7 @@ void SqlEventSink::ensure_tables_and_prepare() {
     if (int_count_ > 0) {
         std::ostringstream oss;
         oss << "CREATE TABLE IF NOT EXISTS " << table_base_ << "_ints (\n"
-            << "    id BIGINT PRIMARY KEY\n";
+            << "    id INTEGER PRIMARY KEY\n";
         for (size_t k = 0; k < int_count_; ++k) {
             oss << "  , int" << k << " BIGINT\n";
         }
@@ -87,7 +95,7 @@ void SqlEventSink::ensure_tables_and_prepare() {
     if (dbl_count_ > 0) {
         std::ostringstream oss;
         oss << "CREATE TABLE IF NOT EXISTS " << table_base_ << "_floats (\n"
-            << "    id BIGINT PRIMARY KEY\n";
+            << "    id INTEGER PRIMARY KEY\n";
         for (size_t k = 0; k < dbl_count_; ++k) {
             oss << "  , dbl" << k << " REAL\n";
         }

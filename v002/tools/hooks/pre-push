@@ -85,6 +85,11 @@ verify_world() {
     fi
     echo "[pre-push:$vdir] version-check (sub_version bumps) ..."
     "$driver" version-check || return $?
+
+    # Vendored-copy drift (jText, Qlite): warnings only, never blocks the push (Captain
+    # 2026-10-16: "warnings on drift, not breaking"). A failure to run it is a warning too.
+    echo "[pre-push:$vdir] vendor-check (drift warnings only) ..."
+    "$driver" vendor-check || echo "[pre-push:$vdir] WARN vendor-check could not run (ignored)"
     echo "[pre-push:$vdir] build-times (compile-time matrix; gap-filled, no-op when complete) ..."
     "$driver" build-times || return $?
     echo "[pre-push:$vdir] valgrind verify-lite via $driver  (bypass: git push --no-verify)"

@@ -9,6 +9,34 @@
 #ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
 #endif
+// Allocator for the preallocated row table. std::calloc hands back zero pages that the kernel
+// maps lazily (large blocks come straight from mmap), so value-initializing the rows needs no
+// writes: the no-argument construct() is a no-op because an all-zero row IS the value-initialized
+// row. That moves ~N*sizeof(row) bytes of memset and every first-touch page fault off the
+// constructor's single thread and into the writer threads, which touch their rows anyway.
+template<typename T>
+struct zeroed_row_allocator {
+    using value_type = T;
+
+    zeroed_row_allocator() noexcept = default;
+    template<typename U>
+    zeroed_row_allocator(const zeroed_row_allocator<U>&) noexcept {}
+
+    [[nodiscard]] T* allocate(std::size_t n) {
+        void* p = std::calloc(n, sizeof(T));
+        if (!p) throw std::bad_alloc();
+        return static_cast<T*>(p);
+    }
+    void deallocate(T* p, std::size_t) noexcept { std::free(p); }
+
+    template<typename U>
+    void construct(U*) noexcept {}
+    template<typename U, typename... Args>
+    void construct(U* p, Args&&... args) { ::new (static_cast<void*>(p)) U(std::forward<Args>(args)...); }
+
+    friend bool operator==(const zeroed_row_allocator&, const zeroed_row_allocator&) noexcept { return true; }
+};
+
 // ——————————————————————— CONCEPTS ———————————————————————
 template<typename Config>
 class ts_store
@@ -113,6 +141,19 @@ public:
         }
     }
 
+    /// Persist at most `n` rows: only events with global id < n are handed to the persistence
+    /// writer (0 = no limit, the default). The in-memory store still takes every event, so the
+    /// hot path is exercised at full size while a test or proof run writes a bounded dataset.
+    /// Ids are assigned 0, 1, 2, ... so the persisted set is exactly ids [0, n) every run.
+    void set_max_persist_rows(size_t n) noexcept { max_persist_rows_ = n; }
+    [[nodiscard]] size_t max_persist_rows() const noexcept { return max_persist_rows_; }
+
+    /// Number of rows the attached persistence receives for a full run: min(events, limit).
+    [[nodiscard]] size_t expected_persisted_rows() const noexcept {
+        const size_t n = std::min(next_id_.load(std::memory_order_relaxed), expected_size());
+        return (max_persist_rows_ == 0) ? n : std::min(n, max_persist_rows_);
+    }
+
     explicit ts_store(size_t max_threads, size_t events_per_thread)
         : max_threads_(max_threads)
         , events_per_thread_(events_per_thread)
@@ -150,9 +191,14 @@ private:
         std::chrono::steady_clock::time_point::min()
     };
     std::atomic<size_t> next_id_{0};
-    std::vector<row_data> rows_;
+    // row_data's value-initialized state is all-zero bytes and it needs no destructor, which is
+    // what lets zeroed_row_allocator skip construction (see above).
+    static_assert(std::is_trivially_destructible_v<row_data>);
+    static_assert(std::is_aggregate_v<row_data>);
+    std::vector<row_data, zeroed_row_allocator<row_data>> rows_;
 
     std::unique_ptr<DoubleBufferedWriter> persistence_writer_;
+    size_t max_persist_rows_ = 0;   // 0 = no limit (see set_max_persist_rows)
 
 public:
     static constexpr bool debug_mode_v = Config::debug_mode;

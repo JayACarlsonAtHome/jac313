@@ -72,6 +72,46 @@ python3 v002/docs/store/schema/sync_sqlite_to_pg.py
 ```
 
 C++ `SqlEventSink` still writes SQLite files (Qlite; no in-place Qlite edits).
+Since 2026-10 there is also an optional **direct PostgreSQL sink** for the persist
+tests (next section); it does not replace the SQLite sink or the sync above.
 The `jac313` database is the multi-user SoR so GS Family tools can join runs
 without a file lock. `store.event` holds persist rows as jsonb metric arrays,
 scoped by `world` (`v001` / `v002`).
+
+## Direct PostgreSQL sink (persist tests, read-back, latency)
+
+`PgClient` + `PgEventSink` (`Store/include/jac313/Store/v002/headers/persistence/Pg*`)
+write a run's events straight into PostgreSQL with one `COPY` transaction per batch.
+It is an optional build: CMake option `JAC313_STORE_PG_PERSIST`, target
+`jac313_store_pg_persist`, ON only when libpq 17+ is found (bootstrap's `pg17` component).
+
+| | |
+|---|---|
+| Backends | `pg-local` (`--pg-local` / `$JAC313_PG_LOCAL`, default `host=localhost dbname=jac313 user=jac313`) and `pg-remote` (**your own server, no default**: Jac313Runner's Remote PG fields, `--pg-remote "host=... dbname=... user=..."`, or `$JAC313_PG_REMOTE`). Passwords only from `~/.pgpass` / `$PGPASSFILE`; the CLI refuses one on its command line |
+| Tables | `store_test.<host>_<testdir>_<file>` plus `_ints` / `_floats`, recreated on open, so each holds the last run |
+| Never touched | `results.*` and `store.*` |
+| Cleanup | `--pg-cleanup keep-last` (default) or `delete` |
+| Recorded | connect ms, median `SELECT 1` ping ms, total `COPY` ms (`testRun.pg_connect_ms`, `pg_ping_ms`, `pg_write_ms`) |
+
+The remote backend exists to show the network cost to users without a local server:
+on the lab LAN a local ping is about 0.015 ms and the lab server about 1.4 ms.
+
+```bash
+./jac313_test_cli --smoke --persist sql,pg-local,pg-remote --pg-remote "host=<your-server> dbname=jac313 user=jac313" \
+                  --max-persist-rows 1000 --readback sample
+```
+
+**Connections file.** Both servers can live in a jText file kept outside every git project:
+`<projects>/SQL_Secrets/jac313_connections.jtext` by default (`$JAC313_CONNECTIONS` or
+`--connections FILE` choose another). One record per server: `id, backend, host, port, dbname,
+user, connect_timeout, notes`; never a password. `jac313_test_cli connections` shows it and
+its jText check, `connections --init` writes a blank one, and Jac313Runner loads and saves it.
+Precedence: `--pg-remote` / `--pg-local`, then `--connections`, then `$JAC313_PG_*`, then the
+default file. The CLI warns when the file sits inside a git work tree.
+
+The chosen server is exported in `run_latest_config.sh` and recorded (never a password) as
+`"pg_remote"` in the summary JSON, so the GUI's viewer reads an old run from the server it used.
+`jac313_store_dataset --ping pg-remote --conninfo "..."` checks a server (Jac313Runner's Test button).
+
+The new `testRun` columns are not in `sync_sqlite_to_pg.py`'s column list yet, so the
+sync keeps working but does not mirror them.

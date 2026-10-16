@@ -1,0 +1,53 @@
+//File:    standard_dropdown.jtext
+//Date:    2026-10-16
+//Purpose: Jac313Runner viewer sample — Standard Drop-Down List (per-field data lines)
+//
+=== jText File ===
+ 1. #?# standard_dropdown
+ 2. #?# 2026-10-16
+ 3. #?# Standard Drop-Down List sample
+ 4. #?# 0.6
+
+=== Section: Standard_DropDown ===
+
+=== Fields ===
+ 1. #/# row_id/Identity(1,1)/Integer/Not Null    # surrogate key
+ 2. #/# version/Integer                           # list version
+ 3. #/# option_id/Integer                         # the value stored when picked
+ 4. #/# Code/Text                                 # short code
+ 5. #/# Description/Text                          # what the user sees
+ 6. #/# IsVisible/Bool
+ 7. #/# ListOrder/Integer
+=== End Fields ===
+
+=== Data ===
+1. #|# 1|1|0|-|No Value Selected|Yes|1
+
+ 1. #?# 2
+ 2. #?# 1
+ 3. #?# 1
+ 4. #?# RED
+ 5. #?# Red
+ 6. #?# Yes
+ 7. #?# 2
+
+ 1. #?# 3
+ 2. #?# 1
+ 3. #?# 2
+ 4. #?# GRN
+ 5. #?# Green
+ 6. #?# Yes
+ 7. #?# 3
+
+ 1. #?# 4
+ 2. #?# 1
+ 3. #?# 3
+ 4. #?# BLU
+ 5. #?# 
+ 6. #?# No
+ 7. #?# 4
+
+=== End Data ===
+=== End Section ===
+=== End File ===
+-- EOF --

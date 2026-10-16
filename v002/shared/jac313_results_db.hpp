@@ -212,6 +212,27 @@ inline void ensure_schema(Sqlite& db) {
             "  , message TEXT\n"
             "  , duration_ms INTEGER\n"
             ")");
+    // Persistence read-back columns (added 2026-10: --max-persist-rows / --readback / pg-local /
+    // pg-remote). NULL for rows recorded before, and for tests that persist nothing.
+    {
+        static constexpr const char* kCols[][2] = {
+            {"max_persist_rows", "INTEGER"},   // the cap the run used (0 = none)
+            {"rows_persisted",   "INTEGER"},   // rows the dataset should hold (min(events, cap))
+            {"readback_mode",    "TEXT"},      // off | count | sample | all
+            {"readback_status",  "TEXT"},      // PASS | FAIL
+            {"rows_checked",     "INTEGER"},   // rows compared field by field
+            {"read_ms",          "REAL"},      // read-back wall time
+            {"pg_connect_ms",    "REAL"},      // PostgreSQL only: connection time
+            {"pg_ping_ms",       "REAL"},      //   median SELECT 1 round trip (latency)
+            {"pg_write_ms",      "REAL"},      //   total COPY write time
+        };
+        for (const auto& c : kCols) {
+            std::int64_t has_col = 0;
+            { auto st = db.prepare(std::string("SELECT COUNT(*) FROM pragma_table_info('testRun') WHERE name='") + c[0] + "'");
+              if (st.step()) st.get(has_col); }
+            if (has_col == 0) db.exec(std::string("ALTER TABLE testRun ADD COLUMN ") + c[0] + " " + c[1]);
+        }
+    }
     // safeness = per (machine x gate x compiler) pass/fail summary, recomputed from testRun at record
     // time by rebuild_safeness() so the report + run-everything verdict READ it (never recount).
     db.exec("CREATE TABLE IF NOT EXISTS safeness (\n"

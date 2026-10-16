@@ -27,9 +27,6 @@ public:
         if (!impl_) return;
 
         for (const auto& e : batch) {
-            std::vector<int64_t> ints = e.int_metrics;
-            std::vector<double>  dbls = e.dbl_metrics;
-
             impl_->append_event(
                 e.event_id,
                 e.thread_id,
@@ -38,8 +35,8 @@ public:
                 e.category,
                 e.payload,
                 e.timestamp_us,
-                ints,
-                dbls
+                e.int_metrics,
+                e.dbl_metrics
             );
         }
     }

@@ -91,10 +91,9 @@ JTextSplitEventLog::JTextSplitEventLog(
     open_and_prep(i.floats_ofs, i.floats_path, "jText Data File", floats_related);
     i.floats_writer = std::make_unique<JTextWriter>(i.floats_ofs);
 
-    // High-throughput default (10k batching)
-    i.main_writer->enable_high_throughput_batching();
-    i.ints_writer->enable_high_throughput_batching();
-    i.floats_writer->enable_high_throughput_batching();
+    // No JTextWriter auto-batching: append_event writes a blank record separator straight to
+    // the stream after each entry, so entries must reach the stream in order too (a batched
+    // writer queued every entry behind its separator). The ofstream buffer does the batching.
 
     // Write SQL companions and headers immediately (early open requirement)
     write_sql_companions(base_name, int_count, dbl_count);
@@ -134,8 +133,10 @@ void JTextSplitEventLog::append_event(
     // Main record
     {
         JTextEntry e;
-        e.number = event_id;
+        e.number = 1;  // jText line number = field position: a compact row starts at field 1
         e.level_sep = '|';
+        e.fields.reserve(7);
+        e.fields.emplace_back(std::to_string(event_id));
         e.fields.emplace_back(std::to_string(thread_id));
         e.fields.emplace_back(std::to_string(per_thread_event_id));
         e.fields.emplace_back(std::format("0x{:016x}", raw_flags));
@@ -150,7 +151,7 @@ void JTextSplitEventLog::append_event(
     // Ints
     if (i.int_count > 0) {
         JTextEntry e;
-        e.number = event_id;
+        e.number = 1;  // field 1 = event_id (links to main record)
         e.level_sep = '|';
         e.fields.reserve(1 + int_metrics.size());
         e.fields.emplace_back(std::to_string(event_id));
@@ -163,7 +164,7 @@ void JTextSplitEventLog::append_event(
     // Floats
     if (i.dbl_count > 0) {
         JTextEntry e;
-        e.number = event_id;
+        e.number = 1;  // field 1 = event_id (links to main record)
         e.level_sep = '|';
         e.fields.reserve(1 + dbl_metrics.size());
         e.fields.emplace_back(std::to_string(event_id));
@@ -280,7 +281,7 @@ void JTextSplitEventLog::write_all_headers(std::string_view base_name, size_t in
     i.main_writer->set_purpose("ts_store split event log (main)");
     i.main_ofs << "=== jText File ===\n";
     i.main_writer->write_header();
-    i.main_ofs << "=== Section: " << base_name << " ===\n";
+    i.main_ofs << "\n=== Section: " << base_name << " ===\n";
     i.main_ofs << "=== <#include#> Schema: " << kIncRel << "ts_store_main_schema.jschma ===\n";
     // Emit SQL templates so jtext_process can generate full loadable .sql (schema + inserts) from this .jtext
     // Using simple INSERT OR IGNORE for now (small templates, tolerant of re-runs/duplicates).
@@ -291,7 +292,7 @@ void JTextSplitEventLog::write_all_headers(std::string_view base_name, size_t in
     // Use clean table name (last path component of base) so SQL tables are "persist" (not full path from --base-name).
     std::string table_name = fs::path(std::string(base_name)).filename().string();
     if (table_name.empty()) table_name = "persist";
-    i.main_ofs << "=== Template: Create Table ===\n"
+    i.main_ofs << "\n\n=== Template: Create Table ===\n"
                << " 1. <<< !!!CT!!!\n"
                << "CREATE TABLE IF NOT EXISTS " << table_name << " (\n"
                << "    id BIGINT PRIMARY KEY\n"
@@ -302,25 +303,25 @@ void JTextSplitEventLog::write_all_headers(std::string_view base_name, size_t in
                << "  , payload TEXT\n"
                << "  , timestamp_us BIGINT\n"
                << ");\n"
-               << "!!!CT!!!\n\n";
+               << "!!!CT!!!\n\n\n";
     i.main_ofs << "=== Template: SQL Insert ===\n"
                << " 1. <<< !!!INS!!!\n"
                << "INSERT OR IGNORE INTO " << table_name << " (id, thread_id, per_thread_event_id, flags_raw, category, payload, timestamp_us)\n"
                << "VALUES ({1}, {2}, {3}, {4}, {5}, {6}, {7});\n"
-               << "!!!INS!!!\n\n";
+               << "!!!INS!!!\n\n\n";
     i.main_ofs << "=== Fields ===\n";
     i.main_ofs << "=== <#include#> Fields: " << kIncRel << "ts_store_main_fields.jtFlds ===\n";
     i.main_ofs << "=== End Fields ===\n";
-    i.main_ofs << "=== Data ===\n";
+    i.main_ofs << "\n\n=== Data ===\n";
 
     if (int_count > 0 && i.ints_writer) {
         i.ints_writer->set_purpose("ts_store integer metrics");
         i.ints_ofs << "=== jText File ===\n";
         i.ints_writer->write_header();
-        i.ints_ofs << "=== Section: " << base_name << "_ints ===\n";
+        i.ints_ofs << "\n=== Section: " << base_name << "_ints ===\n";
         i.ints_ofs << "=== <#include#> Schema: " << kIncRel << "ts_store_ints_schema.jschma ===\n";
         std::string tname_i = table_name + "_ints";
-        i.ints_ofs << "=== Template: Create Table ===\n"
+        i.ints_ofs << "\n\n=== Template: Create Table ===\n"
                    << " 1. <<< !!!CT!!!\n"
                    << "CREATE TABLE IF NOT EXISTS " << tname_i << " (\n"
                    << "    id BIGINT PRIMARY KEY\n";
@@ -328,7 +329,7 @@ void JTextSplitEventLog::write_all_headers(std::string_view base_name, size_t in
             i.ints_ofs << "  , int" << k << " BIGINT\n";
         }
         i.ints_ofs << ");\n"
-                   << "!!!CT!!!\n\n";
+                   << "!!!CT!!!\n\n\n";
         i.ints_ofs << "=== Template: SQL Insert ===\n"
                    << " 1. <<< !!!INS!!!\n"
                    << "INSERT OR IGNORE INTO " << tname_i << " (id";
@@ -336,21 +337,21 @@ void JTextSplitEventLog::write_all_headers(std::string_view base_name, size_t in
         i.ints_ofs << ")\nVALUES ({1}";
         for (size_t k = 0; k < int_count; ++k) i.ints_ofs << ", {" << (k+2) << "}";
         i.ints_ofs << ");\n"
-                   << "!!!INS!!!\n\n";
+                   << "!!!INS!!!\n\n\n";
         i.ints_ofs << "=== Fields ===\n";
         i.ints_ofs << "=== <#include#> Fields: " << kIncRel << "ts_store_ints_fields.jtFlds ===\n";
         i.ints_ofs << "=== End Fields ===\n";
-        i.ints_ofs << "=== Data ===\n";
+        i.ints_ofs << "\n\n=== Data ===\n";
     }
 
     if (dbl_count > 0 && i.floats_writer) {
         i.floats_writer->set_purpose("ts_store double metrics");
         i.floats_ofs << "=== jText File ===\n";
         i.floats_writer->write_header();
-        i.floats_ofs << "=== Section: " << base_name << "_floats ===\n";
+        i.floats_ofs << "\n=== Section: " << base_name << "_floats ===\n";
         i.floats_ofs << "=== <#include#> Schema: " << kIncRel << "ts_store_floats_schema.jschma ===\n";
         std::string tname_f = table_name + "_floats";
-        i.floats_ofs << "=== Template: Create Table ===\n"
+        i.floats_ofs << "\n\n=== Template: Create Table ===\n"
                    << " 1. <<< !!!CT!!!\n"
                    << "CREATE TABLE IF NOT EXISTS " << tname_f << " (\n"
                    << "    id BIGINT PRIMARY KEY\n";
@@ -358,7 +359,7 @@ void JTextSplitEventLog::write_all_headers(std::string_view base_name, size_t in
             i.floats_ofs << "  , dbl" << k << " DOUBLE PRECISION\n";
         }
         i.floats_ofs << ");\n"
-                   << "!!!CT!!!\n\n";
+                   << "!!!CT!!!\n\n\n";
         i.floats_ofs << "=== Template: SQL Insert ===\n"
                    << " 1. <<< !!!INS!!!\n"
                    << "INSERT OR IGNORE INTO " << tname_f << " (id";
@@ -366,11 +367,11 @@ void JTextSplitEventLog::write_all_headers(std::string_view base_name, size_t in
         i.floats_ofs << ")\nVALUES ({1}";
         for (size_t k = 0; k < dbl_count; ++k) i.floats_ofs << ", {" << (k+2) << "}";
         i.floats_ofs << ");\n"
-                   << "!!!INS!!!\n\n";
+                   << "!!!INS!!!\n\n\n";
         i.floats_ofs << "=== Fields ===\n";
         i.floats_ofs << "=== <#include#> Fields: " << kIncRel << "ts_store_floats_fields.jtFlds ===\n";
         i.floats_ofs << "=== End Fields ===\n";
-        i.floats_ofs << "=== Data ===\n";
+        i.floats_ofs << "\n\n=== Data ===\n";
     }
 }
 

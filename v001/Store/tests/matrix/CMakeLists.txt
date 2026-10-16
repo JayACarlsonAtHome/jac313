@@ -23,6 +23,10 @@ function(jac313_store_link_matrix_target target)
         target_link_libraries(${target} PRIVATE jac313::store_sql_persist)
         target_compile_definitions(${target} PRIVATE JAC313_STORE_HAS_SQL_PERSIST=1)
     endif()
+    if(TARGET jac313_store_pg_persist)
+        target_link_libraries(${target} PRIVATE jac313::store_pg_persist)
+        target_compile_definitions(${target} PRIVATE JAC313_STORE_HAS_PG_PERSIST=1)
+    endif()
 endfunction()
 
 add_executable(jac313_store_flags test_flags.cpp)
@@ -64,3 +68,19 @@ foreach(num IN LISTS _jac313_matrix_nums)
     add_test(NAME jac313_store_${num}_XS
              COMMAND jac313_store_${num}_XS --no-interactive --test-size=smoke --persist=none)
 endforeach()
+# Read-back self-test: persists to every built-in backend, then damages the stored data and
+# requires read-back verification (readback.hpp) to catch it. PostgreSQL backends only run
+# with --pg (they need a reachable server); the ctest covers the file and SQLite backends.
+add_executable(jac313_store_readback_selftest test_readback.cpp)
+target_compile_features(jac313_store_readback_selftest PRIVATE cxx_std_23)
+jac313_store_link_matrix_target(jac313_store_readback_selftest)
+add_test(NAME jac313_store_readback_selftest COMMAND jac313_store_readback_selftest)
+
+# Dataset viewer helper for Jac313Runner: prints any backend's persisted dataset as one jText
+# table on stdout and "VALIDATION errors=E warnings=W" (jText's own validator) on stderr.
+add_executable(jac313_store_dataset dataset.cpp)
+target_compile_features(jac313_store_dataset PRIVATE cxx_std_23)
+jac313_store_link_matrix_target(jac313_store_dataset)
+if(TARGET jac313_jText)
+    target_link_libraries(jac313_store_dataset PRIVATE jac313::jText)
+endif()

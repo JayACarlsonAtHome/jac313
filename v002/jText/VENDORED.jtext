@@ -1,0 +1,109 @@
+//File:    VENDORED.jtext
+//Purpose: Vendored copy of jText/v002 (do not edit the copied files here;
+//         change the canonical repo, then sync). Drift is reported as warnings, never as failures.
+//         Written by `jac313_test_cli vendor-sync` / `vendor-baseline` (format: VENDORED_FORMAT.md).
+//
+=== jText File ===
+ 1. #?# VENDORED
+ 3. #?# Vendored copy of jText/v002
+
+
+=== Section: source ===
+
+
+=== Fields ===
+ 1. #/# id/Identity(1,1)/Not Null
+ 2. #/# key/String/Not Null
+ 3. #/# value/String
+=== End Fields ===
+
+
+=== Data ===
+1. #|# 1|canonical_repo|jText
+
+1. #|# 2|canonical_dir|jText/v002
+
+1. #|# 3|canonical_commit|eba8e3087a6d
+
+1. #|# 4|canonical_dirty|Yes
+
+1. #|# 5|canonical_version|v002.001
+
+1. #|# 6|transform|jac313-prefix
+
+1. #|# 7|ported|2026-10-16
+
+1. #|# 8|baseline|Yes
+
+1. #|# 9|local|CMakeLists.txt,README.md,VENDORED.jtext
+
+1. #|# 10|exclude|build,build-*,tools/tests
+
+1. #|# 11|notes|at baseline vs canonical eba8e3087a6d: 12 file(s) differ after the transform
+
+=== End Data ===
+=== End Section ===
+
+
+=== Section: files ===
+
+
+=== Fields ===
+ 1. #/# id/Identity(1,1)/Not Null
+ 2. #/# path/String/Not Null             # vendored file, relative to the manifest dir
+ 3. #/# canonical_path/String/Not Null   # canonical file, relative to canonical_dir
+ 4. #/# canonical_sha256/String/Not Null # canonical file content when copied
+ 5. #/# vendored_sha256/String/Not Null  # vendored file content as written
+=== End Fields ===
+
+
+=== Data ===
+1. #|# 1|examples/v002_example.cpp|examples/v002_example.cpp|9cd8ccc5a3fe405bac2a46742fdc451ad67b1e0b45eb362ba4e677cdc6754413|74e9dc8afce4a0dd09607b43930a06751437a1c67ef45b327e4cb7160510313c
+
+1. #|# 2|include/jac313/jText/v002.hpp|include/jText/v002.hpp|3b0b42253b9287078698f9fc97e6aea14b740b3d059a15d970dd3f68b69748a9|d62c58ffb906a6cbd35567834a93449116b50c8d37ebe59722d0b19dcc5087a4
+
+1. #|# 3|jText.api.inc|jText.api.inc|6ac8a7b5ea80b6f8ec1a300bb95b4c0189e6a3d8d48e0fc83b9ec5700b8a820d|ca3cbfdf40f1d99e53256936de56d69941e01808b974471dacbe3444a2fce9cc
+
+1. #|# 4|jText.cpp|jText.cpp|cfd9c7004ec3402d4df80d3877830c68cac7e17db8aaa94d232918df0e04165f|0992bc9bffa1a7160877302efe7ee3c74a699511b7da48cbe745acb6ef1d1622
+
+1. #|# 5|jText.h|jText.h|cbe81c12fdeaa87af4266c196a518c251721e14845014e9ddeb7d368329cbcbc|9b38d2739c604ec18ce387ad6953f434c1fa479792495a6f7b23829a9a70be4d
+
+1. #|# 6|jText.impl.inc|jText.impl.inc|622576ad4a31f0c9c1a36a5957771eae3896d086b1024c7933f2021422c43398|2a5a9b90256c130a6f53d1a25b2d8667c9403be53df64dd21ea54164bf6dd00c
+
+1. #|# 7|modules/jac313.jtext.v002.core.cppm|modules/jText.v002.core.cppm|d62659428378347aa6d99ea8a901713b293b85d2ae47d575745f9c68b4beb0a0|4e4fa4588bc2ed800b6159242bea24003452a02204a9086eaa9611abb440ac42
+
+1. #|# 8|modules/jac313.jtext.v002.cppm|modules/jText.v002.cppm|3a3d875db87fdc10f606b419ee253bf741e3889ee03d77ee55e7534d1163dcd3|03b1d642dbb1ca30fa5d76219ec3249e62aa54bcbfbad0a50fcf7356c4f4279c
+
+1. #|# 9|modules/jac313.jtext.v002.importstd.cppm|modules/jText.v002.importstd.cppm|9657a46fbdbbac07a901ee3a3b5f0629ffc83c93f4fb9f7d8f7615f7c7097752|a2a79b6cfd38b815313f546a15d5a9459ecc013717584e1cb57e28fda21a40b9
+
+1. #|# 10|modules/jac313.jtext.v002.importstd.impl.cpp|modules/jText.v002.importstd.impl.cpp|f174a8e49ace0b78148a174975a9930b9e4ebe3a22a36cacc8ae027c50a8e781|b0a6ab175c92ec9787a739caf30a3b0f435d36c61866d3133064ffe97926dd51
+
+1. #|# 11|modules/jac313.jtext.v002.reader.cppm|modules/jText.v002.reader.cppm|c696ac16f308151fcb3e4e1984eb3969ac5a2b677cf435b2be1ff9b6c00f5e70|19706d8422a31ddf42cca5965c10faa00ca7ac602261878ee463575804750a46
+
+1. #|# 12|modules/jac313.jtext.v002.writer.cppm|modules/jText.v002.writer.cppm|a47e50883233900b1d3f201362e4099ac66f3a501518477362b59667cece8351|85e2128e8eb2cf6f2c2b1e2e12ddad5a5d7d9a26b1e04669fd2ee034db1d11a1
+
+1. #|# 13|src/parser/line.cpp|src/parser/line.cpp|7281295409905a5e9e07b9319928363dd55be71097299e7fe41633ab8eb7a69b|7281295409905a5e9e07b9319928363dd55be71097299e7fe41633ab8eb7a69b
+
+1. #|# 14|src/parser/line.hpp|src/parser/line.hpp|7d0f79db0d327c4fdf7de0142a021fe94de9a3f4d67a4e4cabc17b1422c8d694|7d0f79db0d327c4fdf7de0142a021fe94de9a3f4d67a4e4cabc17b1422c8d694
+
+1. #|# 15|src/parser/section.cpp|src/parser/section.cpp|3c0a3c115d9bb4cddfd5bdfede5c2ed9d33f6616e545d2f5e63fd2df9268ce91|641d2f137392f03fa41068d518f082dc2cabcfa842510680ae38f39da5e8d1ed
+
+1. #|# 16|src/parser/section.hpp|src/parser/section.hpp|00cdcccfaa92063f1c76caad96abcdf9f4e37c46738485873b5884f40345e8bb|2d35770dff2bb030d42b8a4fc8e35c085d5ccff3c83e0de5870289c58e2cec59
+
+1. #|# 17|src/validator/validator.cpp|src/validator/validator.cpp|9aed9af23c04ac73b607c6c02129cc35788fc06bf1b3bb1ff8ef17aee0db3fa6|35e8fa031321fddfec52c0a2052c97163abfc7807bfac20ba255f5e5e653db33
+
+1. #|# 18|src/validator/validator.hpp|src/validator/validator.hpp|77e1498b64de52a83875e10952340cde360c2119417428836063bf550844f3a0|ce5707e24de64193242d1648ba8f60be9f0d3fe9b88f9e5a85a30a3eb115f86d
+
+1. #|# 19|tests/module/v002_module_test.cpp|tests/module/v002_module_test.cpp|7c2d3fc4efcd67195ee1e51f8101d0f78ab48163a2ec3bf7b5910edd29df39c4|045c35793aca4068213e04a3573e4a0ae8aed5c6c87f076cf771975273161d53
+
+1. #|# 20|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|edba3c0f66e619d0de7046df12f3e3e5d025f9b37aa2f69e3dda8773aef65b9d|7e8ad57e7dc62424ebe4d68022197ddd6c30d9b94c042b22e5b5bdc31f22c011
+
+1. #|# 21|tests/v002_test.cpp|tests/v002_test.cpp|c9346bea5e604fb92bd817454d0cacf4d45292f3e09cbddca6d7d716163a9787|46edab68c81971467f62d46d1bf8349d53743ac5896fdf494b6270344f93c7a3
+
+1. #|# 22|tools/jtext_from_sql.cpp|tools/jtext_from_sql.cpp|1e2a0c470f22e240b37070e3a4e235358900e6a71c7244748a941c20da3e7a88|1e2a0c470f22e240b37070e3a4e235358900e6a71c7244748a941c20da3e7a88
+
+1. #|# 23|tools/jtext_xtox_sql.cpp|tools/jtext_xtox_sql.cpp|68b90e3567af2218484bae990af871e96da322730f680cbede15678ca88528ef|0c833bb69e9102632dcaf5716382f8f24650dd93f710cba93735c4e337e2a6df
+
+=== End Data ===
+=== End Section ===
+=== End File ===

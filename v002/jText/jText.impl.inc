@@ -833,6 +833,12 @@ JTextWriter::JTextWriter(JTextWriter&& other) noexcept
       sql_dialect_(std::move(other.sql_dialect_)),
       table_name_(std::move(other.table_name_)),
       auto_id_(other.auto_id_),
+      auto_batch_size_(other.auto_batch_size_),
+      pending_batch_(std::move(other.pending_batch_)),
+      line_pad_width_(other.line_pad_width_),
+      record_id_seed_(other.record_id_seed_),
+      record_id_step_(other.record_id_step_),
+      last_record_id_(other.last_record_id_),
       source_path_(std::move(other.source_path_))
 {
     other.out_ = nullptr;
@@ -854,6 +860,12 @@ JTextWriter& JTextWriter::operator=(JTextWriter&& other) noexcept
         sql_dialect_ = std::move(other.sql_dialect_);
         table_name_ = std::move(other.table_name_);
         auto_id_ = other.auto_id_;
+        auto_batch_size_ = other.auto_batch_size_;
+        pending_batch_ = std::move(other.pending_batch_);
+        line_pad_width_ = other.line_pad_width_;
+        record_id_seed_ = other.record_id_seed_;
+        record_id_step_ = other.record_id_step_;
+        last_record_id_ = other.last_record_id_;
         source_path_ = std::move(other.source_path_);
 
         other.out_ = nullptr;
@@ -868,6 +880,49 @@ void JTextWriter::set_case_mode(CaseMode mode) { case_mode_ = mode; }
 void JTextWriter::set_sql_dialect(std::string_view dialect) { sql_dialect_ = dialect; }
 void JTextWriter::set_table_name(std::string_view name) { table_name_ = name; }
 void JTextWriter::set_auto_id(bool enabled) { auto_id_ = enabled; }
+
+void JTextWriter::set_record_id_start(std::int64_t seed, std::int64_t step)
+{
+    record_id_seed_ = seed;
+    record_id_step_ = (step == 0) ? 1 : step;
+    last_record_id_.reset();
+}
+
+std::int64_t JTextWriter::take_record_id()
+{
+    const std::int64_t id = last_record_id_ ? *last_record_id_ + record_id_step_ : record_id_seed_;
+    last_record_id_ = id;
+    return id;
+}
+
+// Track the id an incoming record already carries, so generated ids continue
+// past it (largest so far for a positive step, smallest for a negative one).
+// A non-integer value is left for the validator to report.
+void JTextWriter::note_record_id(std::string_view value)
+{
+    if (!value.empty() && value.front() == '+') value.remove_prefix(1);
+    std::int64_t id = 0;
+    auto [p, ec] = std::from_chars(value.data(), value.data() + value.size(), id);
+    if (value.empty() || ec != std::errc{} || p != value.data() + value.size()) return;
+    if (!last_record_id_ || (record_id_step_ > 0 ? id > *last_record_id_ : id < *last_record_id_)) {
+        last_record_id_ = id;
+    }
+}
+
+const JTextEntry& JTextWriter::resolve_record_id(const JTextEntry& entry, JTextEntry& scratch)
+{
+    // Only a field-1 line carries the record id (the number is a field position).
+    if (entry.is_special_block || entry.number != 1) return entry;
+    const bool missing = entry.fields.empty() || !entry.fields[0] || entry.fields[0]->empty();
+    if (!missing) {
+        note_record_id(*entry.fields[0]);
+        return entry;
+    }
+    scratch = entry;
+    if (scratch.fields.empty()) scratch.fields.emplace_back();
+    scratch.fields[0] = std::to_string(take_record_id());
+    return scratch;
+}
 
 void JTextWriter::set_line_number_pad_width(std::size_t width) { line_pad_width_ = width; }
 
@@ -899,6 +954,7 @@ void JTextWriter::begin_section(std::string_view name)
 
     flush_pending_batch();   // never buffer across section boundaries
     line_pad_width_ = 0;
+    last_record_id_.reset(); // record ids are per section (per table)
     write_section_header(*out_, name);
     out_->put('\n');
 }
@@ -909,13 +965,16 @@ void JTextWriter::append_entry(const JTextEntry& entry)
     ensure_not_finalized();
     if (!out_) return;
 
+    JTextEntry scratch;
+    const JTextEntry& e = resolve_record_id(entry, scratch);
+
     if (auto_batch_size_ > 0) {
-        pending_batch_.push_back(format_entry(entry, line_pad_width_));
+        pending_batch_.push_back(format_entry(e, line_pad_width_));
         if (pending_batch_.size() >= auto_batch_size_) {
             flush_pending_batch();
         }
     } else {
-        write_entry_to_stream(*out_, entry, line_pad_width_);
+        write_entry_to_stream(*out_, e, line_pad_width_);
     }
 }
 
@@ -925,16 +984,18 @@ void JTextWriter::append_entries(std::span<const JTextEntry> entries)
     ensure_not_finalized();
     if (!out_) return;
 
+    JTextEntry scratch;
     if (auto_batch_size_ > 0) {
-        for (const auto& e : entries) {
+        for (const auto& entry : entries) {
+            const JTextEntry& e = resolve_record_id(entry, scratch);
             pending_batch_.push_back(format_entry(e, line_pad_width_));
             if (pending_batch_.size() >= auto_batch_size_) {
                 flush_pending_batch();
             }
         }
     } else {
-        for (const auto& e : entries) {
-            write_entry_to_stream(*out_, e, line_pad_width_);
+        for (const auto& entry : entries) {
+            write_entry_to_stream(*out_, resolve_record_id(entry, scratch), line_pad_width_);
         }
     }
 }
@@ -952,6 +1013,16 @@ void JTextWriter::append_row(std::size_t number,
     ensure_header();
     ensure_not_finalized();
     if (!out_) return;
+
+    // Field-1 row: generate the record id when it is missing, else note it.
+    if (number == 1 && (fields.empty() || fields[0].empty())) {
+        std::vector<std::string> with_id = fields;
+        if (with_id.empty()) with_id.emplace_back();
+        with_id[0] = std::to_string(take_record_id());
+        append_row(number, with_id, comment, level_sep);
+        return;
+    }
+    if (number == 1) note_record_id(fields[0]);
 
     if (auto_batch_size_ > 0) {
         // Fast path: format directly into the pending batch without ever creating a JTextEntry

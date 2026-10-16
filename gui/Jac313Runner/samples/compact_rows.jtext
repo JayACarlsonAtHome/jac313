@@ -1,0 +1,33 @@
+//File:    compact_rows.jtext
+//Purpose: Jac313Runner viewer sample — compact rows, one NULL (Unit Separator)
+//
+=== jText File ===
+# Case: INSENSITIVE
+
+=== Section: persist_keeper_ints ===
+
+=== Template: Create Table ===
+ 1. <<< !!!CT!!!
+CREATE TABLE IF NOT EXISTS persist_keeper_ints (id BIGINT PRIMARY KEY, int0 BIGINT, int1 BIGINT, label TEXT);
+!!!CT!!!
+
+=== Fields ===
+ 1. #/# id/Number/Not Null
+ 2. #/# int0/Number
+ 3. #/# int1/Number
+ 4. #/# label/String/Nullable   # may be NULL
+=== End Fields ===
+
+=== Data ===
+1. #|# 0|0|1|zero
+
+1. #|# 1|10|11|ten
+
+1. #|# 2|20|21|
+
+1. #|# 3|30|31|\x1F
+
+1. #|# 4|40|41|forty
+
+=== End Data ===
+-- EOF --

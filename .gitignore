@@ -38,3 +38,11 @@ build-*/
 *~
 .DS_Store
 Thumbs.db
+
+# Jac313Runner GUI build output (jac313_test_cli gui-build -> <root>/gui/out/)
+gui/out/
+
+# Jac313Runner run summaries and "Copy for AI" reports: they name the PostgreSQL servers used
+/v*/test-summary/runner_last*.json
+/v*/test-summary/runner_last*.json.parts
+/v*/test-summary/*_ai.md

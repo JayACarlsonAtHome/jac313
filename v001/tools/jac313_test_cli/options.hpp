@@ -19,6 +19,19 @@ struct GlobalOptions {
     bool wipe_logs{false};                       // delete test-results/ + kept-logs/ (keep README.md)
     std::string host_claim;           // --claim jac313-###
     std::int64_t host_assign_new{0};  // --assign-new-### or --assign-new N
+
+    // Persistence / read-back controls (forwarded to the matrix tests and store_bench):
+    std::string persist_list;            // --persist a,b,c: matrix backends (empty = default set)
+    std::optional<std::size_t> max_persist_rows;  // --max-persist-rows N (0 = no limit)
+    std::size_t max_runs{0};             // --max-runs N: cap each test's runs (0 = test default)
+    std::size_t max_records{0};          // --max-records N: cap events per run (threads x events/thread)
+    std::string readback;                // --readback off|count|sample|all (empty = test default)
+    std::string pg_cleanup;              // --pg-cleanup keep-last|delete (empty = keep-last)
+    std::filesystem::path summary_json;  // --summary-json PATH: JSON summary for Jac313Runner
+    std::string size_override;           // --size smoke|full (overrides tests/test_params.txt)
+    std::string pg_remote;               // --pg-remote "host=.. dbname=.. user=..": sets $JAC313_PG_REMOTE
+    std::string pg_local;                // --pg-local  "...": sets $JAC313_PG_LOCAL (default localhost)
+    std::filesystem::path connections;   // --connections FILE (jText; see connections.hpp)
 };
 
 inline std::string harness_version(const GlobalOptions& global) {
@@ -37,6 +50,8 @@ struct ConfigureOptions {
     bool import_std{false};  // modules built against `import std;` (-DJAC313_QLITE_IMPORT_STD=ON)
     bool store_tests{true};
     bool helgrind_annotate{false};  // -DJAC313_STORE_HELGRIND_ANNOTATE=ON (cleancheck tree)
+    bool strict{false};    // --strict:   -DJAC313_STRICT=ON (extra warnings; ctest/smoke builds)
+    bool hardened{false};  // --hardened: -DJAC313_HARDENED=ON (runtime hardening; ctest/smoke builds)
     std::string generator{"Ninja"};
     std::string build_type{"Debug"};      // CMAKE_BUILD_TYPE (Debug default; --release)
     std::string resolved_compiler;        // absolute compiler path -> CMAKE_CXX_COMPILER
