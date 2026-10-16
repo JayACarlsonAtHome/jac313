@@ -1,16 +1,25 @@
 #!/usr/bin/env python3
-"""Mirror jac313 SQLite persist + results.db onto lab Postgres (R430).
+"""Mirror jac313 SQLite persist + results.db onto your lab PostgreSQL server.
 
 Hot Store sink stays SQLite (Qlite). This is the LAN SoR so GS Family can join.
 
-Usage (no credentials in git; role jac313's password is in /etc/gfs/pgpass):
+Usage (no server details or credentials in git):
 
-    python3 v002/docs/store/schema/sync_sqlite_to_pg.py
+    python3 v002/docs/store/schema/sync_sqlite_to_pg.py [--show-dsn]
+
+The server is the pg-remote row of the connections file (jText, kept OUTSIDE every git
+project): <projects>/SQL_Secrets/jac313_connections.jtext, i.e. a SQL_Secrets folder beside
+the jac313 checkout. Create or edit it with Jac313Runner (Connections > Save) or
+`jac313_test_cli connections --init`. The password is never in it: libpq reads it from
+$PGPASSFILE (default /etc/gfs/pgpass).
+
+--show-dsn prints the server this would use and exits (connects to nothing).
 
 Env:
-    JAC313_PG_DSN     default: host=192.168.1.26 port=5432 dbname=jac313 user=jac313
-    PGPASSFILE        default: /etc/gfs/pgpass (the one GS Family password file)
-    JAC313_ROOT       default: repo root inferred from this file
+    JAC313_PG_DSN       a libpq conninfo; overrides the connections file
+    JAC313_CONNECTIONS  the connections file to use instead of the default
+    PGPASSFILE          default: /etc/gfs/pgpass (the one GS Family password file)
+    JAC313_ROOT         default: repo root inferred from this file
 """
 
 from __future__ import annotations
@@ -29,12 +38,102 @@ ROOT = Path(os.environ.get("JAC313_ROOT", SCHEMA_DIR.parents[3]))
 
 # One PostgreSQL role per git project (2026-10-07): jac313 connects as role
 # jac313; libpq finds its password in the one password file, never in git.
-DEFAULT_DSN = "host=192.168.1.26 port=5432 dbname=jac313 user=jac313"
+# The server itself comes from the connections file (no default server in source).
 DEFAULT_PASSFILE = "/etc/gfs/pgpass"
+CONNECTIONS_NAME = "jac313_connections.jtext"
+
+
+def connections_path() -> Path:
+    env = os.environ.get("JAC313_CONNECTIONS")
+    if env:
+        return Path(env)
+    return ROOT.parent / "SQL_Secrets" / CONNECTIONS_NAME   # beside the project, outside git
+
+
+def read_jtext_rows(path: Path) -> list[dict[str, str | None]]:
+    """The records of a jText file as {field name: value} (None = NULL).
+
+    Enough jText for a connections file: '=== Fields ===' lines 'N. #/# name/Type/...',
+    compact data rows '1. #X# v1Xv2X...' (X is the row's separator) and per-field rows
+    'N. #?# value' grouped by blank lines. NULL is the Unit Separator (0x1F), '\\x1F', '\\N'
+    or 'NULL'. The C++ tools validate the file with jText's own validator
+    (jac313_test_cli connections).
+    """
+    nulls = {"\x1f", "\\x1F", "\\x1f", "\\N", "NULL"}
+    fields: list[str] = []
+    rows: list[dict[str, str | None]] = []
+    current: dict[int, str | None] = {}
+    state = ""
+
+    def flush() -> None:
+        nonlocal current
+        if current:
+            rows.append({fields[i - 1] if 0 < i <= len(fields) else str(i): v for i, v in current.items()})
+            current = {}
+
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.rstrip("\r")
+        t = line.strip()
+        if t.startswith("==="):
+            flush()
+            state = "fields" if t == "=== Fields ===" else "data" if t == "=== Data ===" else ""
+            continue
+        if not t:
+            flush()
+            continue
+        if t.startswith("//") or state == "":
+            continue
+        num, dot, rest = t.partition(".")
+        if not dot or not num.strip().isdigit():
+            continue
+        rest = rest.strip()
+        if len(rest) < 3 or rest[0] != "#" or rest[2] != "#":
+            continue
+        sep, body = rest[1], rest[3:].strip()
+        if state == "fields":
+            fields.append(body.split("#")[0].split("/")[0].strip().lower())
+            continue
+        start = int(num)
+        values = body.split(sep) if sep not in "?/" else [body]
+        if len(values) > 1:
+            flush()
+        for k, v in enumerate(values):
+            current[start + k] = None if v in nulls else v
+        if len(values) > 1:
+            flush()
+    flush()
+    return rows
+
+
+def conninfo(row: dict[str, str | None]) -> str:
+    def word(v: str) -> str:
+        if not any(c in v for c in " '\\"):
+            return v
+        return "'" + v.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+    parts = [f"host={word(row['host'] or '')}"]
+    for key, name in (("port", "port"), ("dbname", "dbname"), ("user", "user")):
+        if row.get(key):
+            parts.append(f"{name}={word(row[key] or '')}")
+    parts.append(f"connect_timeout={row.get('connect_timeout') or '10'}")
+    return " ".join(parts)
 
 
 def dsn() -> str:
-    return os.environ.get("JAC313_PG_DSN") or DEFAULT_DSN
+    env = os.environ.get("JAC313_PG_DSN")
+    if env:
+        return env
+    path = connections_path()
+    if not path.exists():
+        raise SystemExit(
+            f"no PostgreSQL server set: create {path} (format: v002/docs/store/postgres.md, "
+            "'Connections file'; Jac313Runner and `jac313_test_cli connections --init` write it "
+            "where they exist) or set JAC313_PG_DSN"
+        )
+    for row in read_jtext_rows(path):
+        if row.get("backend") == "pg-remote" and row.get("host"):
+            return conninfo(row)
+    raise SystemExit(f"{path} has no pg-remote row with a host")
 
 
 def psql_env() -> dict[str, str]:
@@ -282,7 +381,10 @@ def _lit(s: str) -> str:
 
 
 def main() -> int:
-    print(f"jac313 sqlite → postgres  root={ROOT}")
+    if "--show-dsn" in sys.argv[1:]:
+        print(dsn())
+        return 0
+    print(f"jac313 sqlite → postgres  root={ROOT}  server={dsn()}")
     schema = SCHEMA_DIR / "jac313_pg_v0_2.sql"
     print(f"  apply {schema.name}")
     psql(["-f", str(schema)])

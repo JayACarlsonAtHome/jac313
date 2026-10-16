@@ -2,7 +2,8 @@
 -- Date:    2026-08-20
 -- Purpose: Full results mirror of jac313_results_db.hpp + store.event landing pad.
 -- Related: v0_1 landing pad (store.persist); SQLite remains the in-process sink.
--- Apply:   psql "host=192.168.1.26 dbname=jac313 user=jac313" -v ON_ERROR_STOP=1 -f jac313_pg_v0_2.sql
+-- Apply:   psql "$(python3 sync_sqlite_to_pg.py --show-dsn)" -v ON_ERROR_STOP=1 -f jac313_pg_v0_2.sql
+--          (the server comes from SQL_Secrets/jac313_connections.jtext, outside git)
 
 BEGIN;
 
