@@ -177,6 +177,11 @@ Always run from **inside** the version directory.
 
 See that version's README for more (or the docs/ inside it).
 
+**Prefer a window?** Jac313Runner is a GUI that drives `jac313_test_cli` for any
+version: choose the gates, press Start, and browse the results with a jText viewer.
+Setup is four steps; see [gui/README.md](gui/README.md#quick-start-jac313runner).
+Run the tests and the GUI as your own user, not with sudo.
+
 ---
 
 ## Repository layout
@@ -186,6 +191,7 @@ jac313/
 ├── README.md         # this file
 ├── LICENSE           # governs all versions
 ├── AI_files/         # cross-version coordination notes (handoffs between collaborators)
+├── gui/              # Jac313Runner (test runner GUI) and JTextGui (jText editor), U++
 ├── v001/             # complete C++23 world  (libraries, Setup, tools, tests, docs, results)
 └── v002/             # complete C++26 world  (currently compiled as C++26 with limited new feature adoption)
 ```

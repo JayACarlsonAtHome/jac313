@@ -1,4 +1,4 @@
-# jac315 GUI packages (version-independent)
+# jac313 GUI packages (version-independent)
 
 Presenter packages, the jac314 way: the engine tools do the work; a GUI builds
 a command line, runs it as a child process, shows the output, and reads the
@@ -8,6 +8,38 @@ The GUI lives at the project root, outside the version folders, because it serve
 version: it finds the `vNNN/` folders under the root, labels each with the C++ standard
 its CMake asks for (`cxx_std_NN`), and runs that version's own `jac313_test_cli`. A new
 `v003/` shows up without changing the GUI.
+
+## Quick start: Jac313Runner
+
+Run every step as **your own user**, not with sudo (`bootstrap.sh` asks for sudo itself
+when it needs it). `<root>` is the folder that holds `v001/`, `v002/` and `gui/`.
+
+1. **Install U++** (https://www.ultimatepp.org) so that `$HOME/u++/umk` and
+   `$HOME/u++/uppsrc` exist. `gui-build` also looks for `<GFS>/upp-bin/rhel/umk` with
+   `<GFS>/upp/uppsrc`.
+2. **Bootstrap a version.** This builds `jac313_test_cli` and links it as
+   `vNNN/jac313_test_cli`:
+   ```
+   cd <root>/v002 && ./bootstrap.sh
+   ```
+3. **Build the GUI.** On RHEL, first enable the compiler the U++ cache was built with, or
+   the link fails with `undefined reference to __cxa_call_terminate`:
+   ```
+   source /opt/rh/gcc-toolset-15/enable      # RHEL only
+   cd <root>/v002 && ./jac313_test_cli gui-build
+   ```
+4. **Start it** from a desktop session (Wayland or X11):
+   ```
+   <root>/gui/out/Jac313Runner
+   ```
+   Pick the version and gates, then press **Start**. Begin small: ctest + smoke, with
+   Max runs 2, Max records 5000 and Max persisted 1000.
+
+**Not as root.** Jac313Runner and `jac313_test_cli` refuse to run as root in a tree a
+regular user owns. A root run there leaves root-owned build trees, logs and `/tmp` files
+that your later runs cannot overwrite. Valgrind also refuses binaries that have no "other"
+execute bit when it runs as root. A tree root owns (a container, CI) runs as usual.
+`--allow-root` overrides, and the runner passes it on to every run it starts.
 
 | Path | Role |
 |------|------|
@@ -33,10 +65,14 @@ umk and its uppsrc come as a pair from one U++ install (the jac314 `gui_build` r
 this box the pair is `$HOME/u++/umk` + `$HOME/u++/uppsrc`; by hand:
 
 ```
+source /opt/rh/gcc-toolset-15/enable      # RHEL: the GCC method uses the g++ on PATH
 $HOME/u++/umk <root>/gui,$HOME/u++/uppsrc Jac313Runner GCC -brsH <root>/gui/out/Jac313Runner
-source /opt/rh/gcc-toolset-15/enable
 $HOME/u++/umk <root>/gui,$HOME/u++/uppsrc JTextGui <root>/gui/JTextGui.bm -brsH <root>/gui/out/JTextGui
 ```
+
+U++ keeps one shared object cache (`$HOME/u++/.cache/upp.out`) for all builds with the same
+method. Build with the same compiler each time. If the compiler changes, rebuild everything
+once with `-a`.
 
 ### Wayland first (2026-10-16)
 
@@ -48,7 +84,7 @@ first). Keep the flag in any new main package. A build with it lands in U++'s
 ## Run
 
 ```
-gui/out/Jac313Runner [--root R] [--summary FILE [--jtext FILE]]
+gui/out/Jac313Runner [--root R] [--summary FILE [--jtext FILE]] [--allow-root]
 ```
 
 * `--root R`: the project root (the dir that holds `v001/`, `v002/`, ...). The default is
@@ -56,8 +92,9 @@ gui/out/Jac313Runner [--root R] [--summary FILE [--jtext FILE]]
 * `--summary FILE`: open straight on the Results screen with this summary JSON.
 * `--jtext FILE`: used with `--summary`, shows this file in the viewer.
 * The saved version is used when it still exists; otherwise the newest version is selected.
+* `--allow-root`: run as root in a tree a regular user owns (refused by default; see Quick start).
 
-Needs a display (`DISPLAY`).
+Needs a desktop session: Wayland (`WAYLAND_DISPLAY`) first, else X11 (`DISPLAY`).
 
 ### Screens
 
