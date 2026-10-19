@@ -25,6 +25,7 @@
 #include <plugin/png/png.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include "Model.h"
 
 using namespace Upp;
@@ -1561,15 +1562,18 @@ GUI_APP_MAIN
 		else if(a[i] == "--allow-root")   // run even as root (jac313_test_cli refuses root too)
 			allowRoot = true;
 	}
-	// Root runs leave root-owned trees and logs, and valgrind will not start binaries root has
-	// no "other" execute bit on; the runs belong to the user. JAC313_ALLOW_ROOT passes the
-	// override on to every jac313_test_cli this window starts.
-	if(geteuid() == 0) {
+	// Root in a tree a regular user owns leaves root-owned trees and logs, and valgrind will not
+	// start binaries root has no "other" execute bit on. A root-owned tree (container, CI) is fine.
+	// The tree owner is the owner of this program's folder (<root>/gui/out). JAC313_ALLOW_ROOT
+	// passes the override on to every jac313_test_cli this window starts.
+	struct stat st;
+	if(geteuid() == 0 && stat(GetFileFolder(GetExeFilePath()), &st) == 0 && st.st_uid != 0) {
 		if(!allowRoot) {
-			Exclamation(DeQtf("Jac313Runner should not run as root. Start it as your own user (no sudo).") +
+			Exclamation(DeQtf("Jac313Runner should not run as root in a tree a regular user owns. "
+			                  "Start it as that user (no sudo).") +
 			            "&&" +
-			            DeQtf("Root runs leave root-owned build trees, logs and /tmp files that your later "
-			                  "runs cannot overwrite, and valgrind will not start binaries root has no "
+			            DeQtf("Root runs leave root-owned build trees, logs and /tmp files that the user's "
+			                  "later runs cannot overwrite, and valgrind will not start binaries root has no "
 			                  "\"other\" execute bit on.") +
 			            "&&" + DeQtf("Start with --allow-root to override."));
 			return;

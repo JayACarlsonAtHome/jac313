@@ -42,6 +42,8 @@
 
 #include <sys/wait.h>
 #include <unistd.h>
+#include <pwd.h>
+#include <sys/stat.h>
 
 namespace fs = std::filesystem;
 using namespace jac313::test_cli;
@@ -74,7 +76,7 @@ void print_usage() {
         "  --source-dir <path>  Source root (default: auto-detect)\n"
         "  -v, --verbose        Verbose output\n"
         "  -h, --help           Show help\n"
-        "  --allow-root         run even as root (refused by default; see the root guard)\n\n"
+        "  --allow-root         run as root in a tree a regular user owns (refused by default)\n\n"
         "Preset gates (no subcommand — compose freely; writes & runs ./run_latest_config.sh):\n"
         "  --ctest              ctest unit suite\n"
         "  --smoke              smoke matrix: persist (binary/jtext/html/json/sql/none) × output on/off\n"
@@ -1993,6 +1995,14 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
             failures.push_back(tool + " " + t.label + " [vg:" + std::to_string(errs) + "]");
         } else if (r.exit_code != 0) {
             verdict = "TEST FAIL (rc=" + std::to_string(r.exit_code) + ")"; status = "fail";
+            // rc 126 + "Permission denied": valgrind refused to start the binary (it checks the
+            // mode bits itself; as root it uses the "other" bits). Say so instead of a bare rc.
+            if (r.exit_code == 126 &&
+                (r.stderr_text + r.stdout_text).find("Permission denied") != std::string::npos)
+                verdict += ::geteuid() == 0
+                    ? " valgrind could not start it: running as root, and the binary has no"
+                      " \"other\" execute bit"
+                    : " valgrind could not start it: Permission denied (check the binary's mode)";
             ++testfail;
             failures.push_back(tool + " " + t.label + " [rc:" + std::to_string(r.exit_code) + "]");
         } else {
@@ -2604,11 +2614,12 @@ int run_everything_command(const GlobalOptions& global) {
     return 1;
 }
 
-// ---- root guard: test runs belong to the user, not root ----
-// A root run leaves root-owned build trees, logs and /tmp files that later runs as the user
-// cannot overwrite, and valgrind refuses to start a binary whose "other" bits lack x (it does
-// not treat root specially), so a root run on a 770 tree fails with "Permission denied".
-// --allow-root (or JAC313_ALLOW_ROOT=1, which child runs inherit) overrides. Strips the flag.
+// ---- root guard: root must not write into a tree a regular user owns ----
+// Root running in a user-owned checkout leaves root-owned build trees, logs and /tmp files the
+// user's later runs cannot overwrite; and valgrind checks a binary's mode bits itself, so as root
+// it gets the "other" bits and refuses a 770 binary ("Permission denied", rc=126). A tree owned
+// by root (a container, CI) is fine and runs as usual. --allow-root (or JAC313_ALLOW_ROOT=1,
+// which child runs inherit) overrides. Strips the flag from argv.
 int refuse_root_unless_allowed(int& argc, char** argv) {
     bool allow = false;
     int out = 1;
@@ -2620,18 +2631,24 @@ int refuse_root_unless_allowed(int& argc, char** argv) {
     argv[argc] = nullptr;
     if (const char* e = std::getenv("JAC313_ALLOW_ROOT"); e && std::string(e) == "1") allow = true;
     if (::geteuid() != 0) return 0;
+    const fs::path tree = detect_source_dir(fs::current_path());
+    struct stat st{};
+    if (::stat(tree.c_str(), &st) != 0 || st.st_uid == 0) return 0;   // root's own tree: fine
     if (!allow) {
-        std::cerr << "jac313_test_cli: refusing to run as root. Run it as your own user (no sudo).\n"
-                     "  Root runs leave root-owned build trees, logs and /tmp files that your later\n"
-                     "  runs cannot overwrite, and valgrind will not start binaries root has no\n"
-                     "  \"other\" execute bit on. Override with --allow-root if you really mean it.\n";
+        const passwd* pw = ::getpwuid(st.st_uid);
+        const std::string owner = pw ? pw->pw_name : "uid " + std::to_string(st.st_uid);
+        std::cerr << "jac313_test_cli: refusing to run as root in " << tree.string() << ",\n"
+                     "  which " << owner << " owns. Run it as " << owner << " (no sudo).\n"
+                     "  A root run here leaves root-owned build trees, logs and /tmp files that\n"
+                     "  " << owner << "'s later runs cannot overwrite, and valgrind will not start\n"
+                     "  binaries that have no \"other\" execute bit. Override with --allow-root.\n";
         return 2;
     }
     ::setenv("JAC313_ALLOW_ROOT", "1", 1);
-    std::cerr << "note: running as root (--allow-root): files written now will be owned by root.\n";
+    std::cerr << "note: running as root in a tree owned by uid " << st.st_uid
+              << " (--allow-root): files written now will be owned by root.\n";
     return 0;
 }
-
 } // namespace
 
 int main(int argc, char** argv) {
