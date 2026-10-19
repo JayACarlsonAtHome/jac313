@@ -1,0 +1,29 @@
+//File:    v001/jText/VENDORED.jtext
+//Date:    2026-10-18
+//Purpose: Vendored jText v001 library for jText_GUI
+//Related: canonical jText e44da5e, library files only
+//
+=== jText File ===
+ 1. ?# VENDORED
+ 3. ?# jText v001 library snapshot used by jText_GUI
+
+=== Section: source ===
+
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# key/String/Not Null
+ 3. /# value/String
+=== End Fields ===
+
+=== Data ===
+1. |# 1|canonical_repo|jText
+1. |# 2|canonical_dir|v001
+1. |# 3|canonical_commit|e44da5e
+1. |# 4|canonical_dirty|No
+1. |# 5|copied|2026-10-18
+1. |# 6|local|CMakeLists.txt,VENDORED.jtext
+1. |# 7|notes|Snapshot of the files jtext_core compiles, taken from canonical jText e44da5e. Tests, examples, modules, tools, and samples stay in canonical jText. Do not edit the copied sources here.
+
+=== End Data ===
+=== End Section ===
+=== End File ===

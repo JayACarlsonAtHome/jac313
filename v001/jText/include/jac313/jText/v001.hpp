@@ -1,7 +1,7 @@
 #pragma once
 
 /**
- * jac313::jText::v001 — the jac313 structured-text library.
+ * jac313::jText::v001 — the jText structured-text library.
  *
  * The implementation now lives in-tree and the public API is declared directly in
  * namespace jac313::jText::v001 (jText.h). This is the public entry point:

@@ -46,22 +46,39 @@ namespace jtext {
 // ──────────────────────────────────────────────────────────────
 //  field_type
 //
-//  SPEC v0.6 Section 2.4.1 vocabulary: String, Number, Date.
-//  Deliberately small.
+//  SPEC Section 2.4.1: a deliberately small set of internal types.
+//  Each is written with any of a family of spellings, because type
+//  names vary by database (Text / NChar / VarChar are all String;
+//  Int / BigInt are Integer; ...). See parse_field_type.
 // ──────────────────────────────────────────────────────────────
 
 enum class field_type : std::uint8_t {
     string_type,
     number_type,
     date_type,
+    integer_type,   // whole numbers only (64-bit)
+    bool_type,      // Yes/No, True/False, Y/N, T/F, 1/0
+    datetime_type,  // YYYY-MM-DD[T| ]HH:MM:SS[.fraction][Z|+HH:MM|-HH:MM]
+    gst_type,       // Galactic Standard Time: <earth_approximate_year>:<earth_approximate_year_ticks>
 };
 
 // Stable, readable names for diagnostics.
 auto to_string(field_type t) -> std::string_view;
 
-// Parse a type token (case-insensitive: "String", "Number", "Date").
+// Parse a type token, case-insensitive, by family (SPEC Section 2.4.1):
+//   String:  String, Text, Char, NChar, VarChar, NVarChar, VarChar2, NText, CLOB
+//   Integer: Integer, Int, BigInt, SmallInt, TinyInt, Int2, Int4, Int8, Long
+//   Number:  Number, Numeric, Decimal, Real, Float, Double, Double Precision
+//   Date:    Date
+//   Bool:    Bool, Boolean, Bit, YesNo
+//   DateTime: DateTime, DateTime2, SmallDateTime, Timestamp, TimestampTZ, DateTimeOffset
+//   GST:     GST
 // Returns nullopt for unrecognized tokens.
 auto parse_field_type(std::string_view s) -> std::optional<field_type>;
+
+// Bool values (case-insensitive): Yes/No, True/False, Y/N, T/F, 1/0.
+// Returns the truth value, or nullopt if `s` is not a Bool value.
+auto parse_bool_value(std::string_view s) -> std::optional<bool>;
 
 // ──────────────────────────────────────────────────────────────
 //  auto_id_spec / parse_auto_id_designation
@@ -86,15 +103,39 @@ auto parse_auto_id_designation(std::string_view s) -> std::optional<auto_id_spec
 // nothing else (no decimal point, no exponent). The record id must be one.
 auto looks_like_integer(std::string_view s) -> bool;
 
+// Galactic Standard Time (SPEC Section 2.4.1), written "<year>:<ticks>":
+//   year  = earth_approximate_year, a signed 64-bit integer
+//   ticks = earth_approximate_year_ticks, 10 ps ticks since the start of that
+//           year, always zero-padded to the full kGstTickDigits (19) digits.
+//           Any 19-digit value is a valid GST. The validator warns (never
+//           errors) at two levels: ticks past one year (leap seconds in use),
+//           and ticks past one year plus kGstLeapSecondsRoom (3) leap seconds.
+// e.g. "2026:0000000000000000001" is 10 picoseconds into earth approximate year 2026.
+inline constexpr std::uint64_t kGstTicksPerEarthYear = 3'155'695'200'000'000'000ULL;
+inline constexpr std::uint64_t kGstTicksPerSecond    = 100'000'000'000ULL;   // 10 ps ticks
+inline constexpr std::uint64_t kGstLeapSecondsRoom   = 3;
+inline constexpr std::uint64_t kGstTickLimit =
+    kGstTicksPerEarthYear + kGstLeapSecondsRoom * kGstTicksPerSecond;   // exclusive
+inline constexpr std::size_t   kGstTickDigits = 19;   // digits in kGstTickLimit - 1
+
+struct gst_value {
+    std::int64_t  year  = 0;
+    std::uint64_t ticks = 0;
+};
+
+auto parse_gst_value(std::string_view s) -> std::optional<gst_value>;
+
 // ──────────────────────────────────────────────────────────────
 //  field
 //
 //  Typed metadata for one field, interpreted from a single
 //  declaration line in the Fields block.
 //
-//  Per SPEC v0.6 Section 2.4 the syntax is:
-//    <name> / <type> [ / <length> [ / <constraints> ] ]
-//  where <constraints> is "Not Null" or "Nullable" (default).
+//  Per SPEC Section 2.4 the syntax is:
+//    <name> / <segment> [ / <segment> ... ]   (up to 4 segments)
+//  where the segments, in any order and each at most once, are a type,
+//  an auto designation, a length, and a constraint ("Not Null" or
+//  "Nullable", the default). A type or an auto designation is required.
 // ──────────────────────────────────────────────────────────────
 
 struct field {
@@ -207,6 +248,8 @@ enum class issue_kind : std::uint8_t {
     record_hierarchical_value,        // value is a hierarchy (>1 segment) in a record line
     record_missing_record_id,         // field 1 (the record id) absent or empty
     record_id_not_integer,            // field 1 value is not an integer
+    record_gst_leap_seconds,          // Warning 1: GST ticks past one year (leap seconds)
+    record_gst_beyond_leap_room,      // Warning 2: GST ticks past one year + 3 leap seconds
 
     // Header
     header_unknown_field,             // header line number > recognized range

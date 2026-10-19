@@ -19,6 +19,7 @@ its CMake asks for (`cxx_std_NN`), and runs that version's own `jac313_test_cli`
 | Package | What it does |
 |---------|--------------|
 | **Jac313Runner** | Runs the jac313 test gates through `jac313_test_cli`, streams the run, and shows the results with a jText viewer for each result row's dataset |
+| **JTextGui** | The jText table editor, vendored from jText_GUI. Open and save jText, pull PostgreSQL or SQLite, and edit the ten data fields. Tab moves through those fields. A blank marker starts as `|#`. The package carries its own `jText/` library snapshot and does not compile the sibling jText checkout or `vNNN/jText`. |
 
 ## Build
 
@@ -33,6 +34,8 @@ this box the pair is `$HOME/u++/umk` + `$HOME/u++/uppsrc`; by hand:
 
 ```
 $HOME/u++/umk <root>/gui,$HOME/u++/uppsrc Jac313Runner GCC -brsH <root>/gui/out/Jac313Runner
+source /opt/rh/gcc-toolset-15/enable
+$HOME/u++/umk <root>/gui,$HOME/u++/uppsrc JTextGui <root>/gui/JTextGui.bm -brsH <root>/gui/out/JTextGui
 ```
 
 ### Wayland first (2026-10-16)

@@ -4,7 +4,7 @@
 // below; these tests lock that behaviour in (regression guard) and cover the
 // newly added rule that a multiline sentinel must be printable ASCII.
 //
-// Links jText::jText, which exposes the in-tree src/ headers.
+// Links jac313::jText::jText, which exposes the in-tree src/ headers.
 
 #include "parser/line.hpp"
 #include "parser/section.hpp"
@@ -194,8 +194,38 @@ int main() {
     expect_err("1 #?# x",    K::missing_period,      "missing-period");
 
     // --- formatter rules ---
-    expect_err("1. #?$ x", K::formatter_bookends_mismatch,        "bookend-mismatch");
+    // The live marker is the right two characters. |# is splice '|' and
+    // comment '#'. #|# and ^|# keep those same two. ## is rejected.
+    expect_ok("1. |# x", "two-char-marker");
+    {
+        auto r = jtext::parse_line("1. [] Stanley's # hammer | still one field  ");
+        if (!r) {
+            std::cerr << "FAIL[raw]: " << r.error().to_string() << "\n";
+            ++failures;
+        } else if (r->hierarchy.size() != 1 ||
+                   r->hierarchy[0] != "Stanley's # hammer | still one field  " ||
+                   !r->comment.empty() || !r->fmt.raw_data()) {
+            std::cerr << "FAIL[raw]: [] keeps the whole line, including the trailing spaces\n";
+            ++failures;
+        }
+    }
+    expect_ok("1. #?$ x", "right-two-of-three");
     expect_err("1. ### x", K::formatter_separator_equals_bookend, "sep-equals-bookend");
+    expect_ok("1. ^|^ x", "right-two-are-pipe-and-caret");
+    expect_ok("1. ^^# x", "right-two-differ");
+    expect_err("1. ^|| x", K::formatter_separator_equals_bookend, "sep-equals-comment");
+    {
+        auto r = jtext::parse_line("1. ^|# ship^s flags # note");
+        if (!r) {
+            std::cerr << "FAIL[right-two]: " << r.error().to_string() << "\n";
+            ++failures;
+        } else if (r->hierarchy.size() != 1 || r->hierarchy[0] != "ship^s flags" ||
+                   r->comment != "note" || r->fmt.separator != '|' ||
+                   r->fmt.bookend != '#') {
+            std::cerr << "FAIL[right-two]: kept |# , data, and the comment\n";
+            ++failures;
+        }
+    }
 
     // --- hierarchy ---
     expect_err("1. #/# A//B", K::hierarchy_empty_segment, "hierarchy-empty-middle");
@@ -337,6 +367,135 @@ int main() {
                                     " 2. #|# a|b\n"), IK::record_missing_record_id),
              "compact row starting at field 2 has no id");
     }
+
+    // ─── type families: names vary by database, each maps to one internal type ───
+    {
+        using FT = jtext::field_type;
+        auto is = [&](const char* n, FT t) {
+            auto r = jtext::parse_field_type(n);
+            if (!r || *r != t) { std::cerr << "FAIL[type-family]: " << n << "\n"; ++failures; }
+        };
+        for (auto n : {"String", "text", "NCHAR", "VarChar", "nvarchar", "VarChar2", "NText", "Clob"})
+            is(n, FT::string_type);
+        for (auto n : {"Integer", "int", "BIGINT", "SmallInt", "TinyInt", "Int8", "Long"})
+            is(n, FT::integer_type);
+        for (auto n : {"Number", "numeric", "Decimal", "Real", "Float", "Double", "Double Precision"})
+            is(n, FT::number_type);
+        for (auto n : {"Bool", "boolean", "BIT", "YesNo"}) is(n, FT::bool_type);
+        is("Date", FT::date_type);
+        for (auto n : {"DateTime", "datetime2", "SmallDateTime", "TIMESTAMP", "TimestampTZ", "DateTimeOffset"})
+            is(n, FT::datetime_type);
+        must(!jtext::parse_field_type("Blob"), "unknown type stays unrecognized");
+
+        for (auto t : {"Yes", "true", "Y", "t", "1"}) must(jtext::parse_bool_value(t) == true, "bool true spellings");
+        for (auto f : {"No", "FALSE", "n", "F", "0"}) must(jtext::parse_bool_value(f) == false, "bool false spellings");
+        must(!jtext::parse_bool_value("maybe"), "non-bool rejected");
+    }
+
+    // ─── Standard Drop-Down List layout (SPEC 2.4.4) validates cleanly ───
+    const std::string ddl_fields =
+        " 1. #/# row_id/Identity(1,1) /Integer / Not Null    # unique row key, never reused\n"
+        " 2. #/# version              /Integer / Not Null\n"
+        " 3. #/# option_id            /Integer / Not Null\n"
+        " 4. #/# Code                 /Text    / Not Null\n"
+        " 5. #/# Description          /Text    / Not Null\n"
+        " 6. #/# IsVisible            /Bool    / Not Null\n"
+        " 7. #/# ListOrder            /Integer / Not Null\n";
+    {
+        auto vr = validate_doc(ddl_fields,
+                               " 1. #|# 1|1|0|-|No Value Selected|Yes|1\n\n"
+                               " 1. #|# 2|1|1|NAT|Natural Body|Yes|2\n");
+        must(clean(vr), "standard drop-down list layout validates");
+        if (vr && !vr->file.sections.empty()) {
+            const auto& fs = vr->file.sections[0].fields;
+            must(fs.size() == 7 && fs[0].auto_id && fs[0].type == jtext::field_type::integer_type,
+                 "row_id is an auto Integer");
+            must(fs[5].type == jtext::field_type::bool_type && fs[3].type == jtext::field_type::string_type,
+                 "Bool and Text types interpreted");
+        }
+        must(has_issue(validate_doc(ddl_fields, " 1. #|# 3|1|2|X|Bad|Maybe|3\n"),
+                       IK::record_value_type_mismatch), "non-Bool IsVisible rejected");
+        must(has_issue(validate_doc(ddl_fields, " 1. #|# 4|1.5|2|X|Bad|No|3\n"),
+                       IK::record_value_type_mismatch), "decimal in Integer field rejected");
+    }
+
+    // ─── DateTime: strict ISO 8601 (T or space; optional fraction and zone) ───
+    {
+        const std::string dt_fields = " 1. #/# id/Integer\n 2. #/# at/DateTime/Nullable\n";
+        auto dt_ok = [&](const std::string& v) {
+            return clean(validate_doc(dt_fields, " 1. #?# 1\n 2. #?# " + v + "\n"));
+        };
+        for (auto v : {"2026-10-16T09:30:00", "2026-10-16 09:30:00", "2026-10-16T09:30:00Z",
+                       "2026-10-16T09:30:00.123", "2026-10-16T09:30:00.123456789-07:00",
+                       "2024-02-29T23:59:59+05:30"}) {
+            if (!dt_ok(v)) { std::cerr << "FAIL[datetime-ok]: " << v << "\n"; ++failures; }
+        }
+        for (auto v : {"2026-10-16", "2026-10-16T24:00:00", "2026-10-16T09:60:00", "2026-02-30T00:00:00",
+                       "2026-10-16T09:30", "2026-10-16T09:30:00.", "2026-10-16T09:30:00.1234567890",
+                       "2026-10-16T09:30:00+0700", "2026-10-16T09:30:00 Z", "2026/10/16 09:30:00"}) {
+            if (dt_ok(v)) { std::cerr << "FAIL[datetime-reject]: " << v << "\n"; ++failures; }
+        }
+    }
+
+    // ─── GST: <earth_approximate_year>:<earth_approximate_year_ticks> ───
+    {
+        auto g = jtext::parse_gst_value("2026:0000000000000000001");   // this year + 1 tick (10 ps)
+        must(g && g->year == 2026 && g->ticks == 1, "GST 2026:0000000000000000001");
+        auto last = jtext::parse_gst_value("-99:3155695199999999999");   // last tick of 100 BCE
+        must(last && last->year == -99 && last->ticks == jtext::kGstTicksPerEarthYear - 1,
+             "GST last tick of a year");
+        auto leap = jtext::parse_gst_value("2026:3155695499999999999");  // last tick of 3 leap seconds
+        must(leap && leap->ticks == jtext::kGstTickLimit - 1, "GST leap-second room accepted");
+        must(jtext::kGstTickLimit == 3'155'695'500'000'000'000ULL, "GST tick limit = year + 3 s");
+        for (auto bad : {"2026", "2026:", ":0000000000000000001", "2026:1" /* not padded */,
+                         "2026:000000000000000001" /* 18 digits */, "2026:00000000000000000001" /* 20 */,
+                         "2026:-000000000000000001", "2026:+000000000000000001",
+                         "2026.5:0000000000000000001",
+                         "2026:0000000000000000001:2", "9223372036854775808:0000000000000000000"}) {
+            if (jtext::parse_gst_value(bad)) { std::cerr << "FAIL[gst-reject]: " << bad << "\n"; ++failures; }
+        }
+        must(jtext::parse_field_type("gst") == jtext::field_type::gst_type, "GST type spelling");
+        const std::string gst_fields = " 1. #/# id/Integer\n 2. #/# at/GST/Not Null\n";
+        must(clean(validate_doc(gst_fields, " 1. #?# 1\n 2. #?# 2026:0000000000000000001\n")),
+             "GST field validates");
+        must(has_issue(validate_doc(gst_fields, " 1. #?# 1\n 2. #?# 2026:1\n"),
+                       IK::record_value_type_mismatch), "unpadded GST ticks rejected");
+        // Ticks past one year are WARNINGS only, never errors (never block), at two levels.
+        auto gst = [&](const char* v) {
+            return validate_doc(gst_fields, std::string(" 1. #?# 1\n 2. #?# ") + v + "\n");
+        };
+        {   // within one year: no warning
+            auto vr = gst("2026:3155695199999999999");
+            must(clean(vr) && !has_issue(vr, IK::record_gst_leap_seconds) &&
+                 !has_issue(vr, IK::record_gst_beyond_leap_room), "GST within a year: no warning");
+        }
+        for (auto v : {"2026:3155695200000000000", "2026:3155695499999999999"}) {   // Warning 1
+            auto vr = gst(v);
+            must(clean(vr), "GST leap seconds are not an error");
+            must(has_issue(vr, IK::record_gst_leap_seconds) &&
+                 !has_issue(vr, IK::record_gst_beyond_leap_room), "Warning 1: beyond 1 year");
+        }
+        for (auto v : {"2026:3155695500000000000", "2026:9999999999999999999"}) {   // Warning 2
+            auto vr = gst(v);
+            must(clean(vr), "GST past the leap room is not an error");
+            must(has_issue(vr, IK::record_gst_beyond_leap_room) &&
+                 !has_issue(vr, IK::record_gst_leap_seconds), "Warning 2: beyond 1 year + 3 s");
+        }
+        must(has_issue(validate_doc(gst_fields, " 1. #?# 1\n 2. #?# 2026-10-16\n"),
+                       IK::record_value_type_mismatch), "non-GST value rejected");
+    }
+
+    // ─── segments in any order, each at most once ───
+    must(clean(validate_doc(" 1. #/# id/Not Null/Integer\n 2. #/# v/40/Text/Nullable\n", two_fields_data)),
+         "segments in any order");
+    must(has_issue(validate_doc(" 1. #/# id/Integer/Integer\n 2. #/# v/Text\n", two_fields_data),
+                   IK::field_invalid_constraint), "duplicate type segment rejected");
+    must(has_issue(validate_doc(" 1. #/# id/Integer\n 2. #/# v/Text/AutoID\n", two_fields_data),
+                   IK::field_invalid_type), "auto designation on a Text field rejected");
+    must(has_issue(validate_doc(" 1. #/# id/Integer\n 2. #/# v/Text/Non Null\n", two_fields_data),
+                   IK::field_invalid_constraint), "misspelled constraint rejected");
+    must(has_issue(validate_doc(" 1. #/# flag/Bool\n 2. #/# v/Text\n", " 1. #?# Yes\n 2. #?# x\n"),
+                   IK::field_record_id_invalid), "Bool field 1 rejected");
 
     // Visible proof table (printed so a direct run shows the layering).
     auto yn = [](bool err) { return err ? "ERROR" : "clean"; };

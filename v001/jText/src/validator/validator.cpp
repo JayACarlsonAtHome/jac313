@@ -36,6 +36,10 @@ auto to_string(field_type t) -> std::string_view
         case field_type::string_type: return "String";
         case field_type::number_type: return "Number";
         case field_type::date_type:   return "Date";
+        case field_type::integer_type: return "Integer";
+        case field_type::bool_type:   return "Bool";
+        case field_type::datetime_type: return "DateTime";
+        case field_type::gst_type:    return "GST";
     }
     return "unknown";
 }
@@ -70,6 +74,8 @@ auto to_string(issue_kind k) -> std::string_view
         case issue_kind::record_hierarchical_value:    return "record_hierarchical_value";
         case issue_kind::record_missing_record_id:     return "record_missing_record_id";
         case issue_kind::record_id_not_integer:        return "record_id_not_integer";
+        case issue_kind::record_gst_leap_seconds:      return "record_gst_leap_seconds";
+        case issue_kind::record_gst_beyond_leap_room:  return "record_gst_beyond_leap_room";
         case issue_kind::header_unknown_field:         return "header_unknown_field";
         case issue_kind::header_invalid_jtext_version: return "header_invalid_jtext_version";
         case issue_kind::template_placeholder_out_of_range: return "template_placeholder_out_of_range";
@@ -170,9 +176,34 @@ auto report_issue(
 
 auto parse_field_type(std::string_view s) -> std::optional<field_type>
 {
-    if (iequals(s, "String")) return field_type::string_type;
-    if (iequals(s, "Number")) return field_type::number_type;
-    if (iequals(s, "Date"))   return field_type::date_type;
+    // Type names vary by database, so each internal type has a family of
+    // spellings (SPEC Section 2.4.1). Matched case-insensitively.
+    struct family { field_type type; std::array<std::string_view, 9> names; };
+    static constexpr std::array<family, 7> families{{
+        {field_type::string_type,  {"String", "Text", "Char", "NChar", "VarChar",
+                                    "NVarChar", "VarChar2", "NText", "CLOB"}},
+        {field_type::integer_type, {"Integer", "Int", "BigInt", "SmallInt", "TinyInt",
+                                    "Int2", "Int4", "Int8", "Long"}},
+        {field_type::number_type,  {"Number", "Numeric", "Decimal", "Real", "Float",
+                                    "Double", "Double Precision"}},
+        {field_type::date_type,    {"Date"}},
+        {field_type::bool_type,    {"Bool", "Boolean", "Bit", "YesNo"}},
+        {field_type::datetime_type, {"DateTime", "DateTime2", "SmallDateTime", "Timestamp",
+                                     "TimestampTZ", "DateTimeOffset"}},
+        {field_type::gst_type,     {"GST"}},
+    }};
+    for (const auto& fam : families) {
+        for (auto name : fam.names) {
+            if (!name.empty() && iequals(s, name)) return fam.type;
+        }
+    }
+    return std::nullopt;
+}
+
+auto parse_bool_value(std::string_view s) -> std::optional<bool>
+{
+    for (auto t : {"Yes", "True", "Y", "T", "1"}) if (iequals(s, t)) return true;
+    for (auto f : {"No", "False", "N", "F", "0"}) if (iequals(s, f)) return false;
     return std::nullopt;
 }
 
@@ -188,6 +219,28 @@ auto looks_like_integer(std::string_view s) -> bool
         if (s[i] < '0' || s[i] > '9') return false;
     }
     return true;
+}
+
+auto parse_gst_value(std::string_view s) -> std::optional<gst_value>
+{
+    const auto colon = s.find(':');
+    if (colon == std::string_view::npos) return std::nullopt;
+    std::string_view ys = s.substr(0, colon);
+    const std::string_view ts = s.substr(colon + 1);
+    // Ticks are always the full width (zero-padded), digits only.
+    if (!looks_like_integer(ys) || ts.size() != kGstTickDigits || !looks_like_integer(ts) ||
+        ts.front() == '+' || ts.front() == '-') {
+        return std::nullopt;
+    }
+    if (ys.front() == '+') ys.remove_prefix(1);
+    gst_value g;
+    auto [yp, yec] = std::from_chars(ys.data(), ys.data() + ys.size(), g.year);
+    auto [tp, tec] = std::from_chars(ts.data(), ts.data() + ts.size(), g.ticks);
+    if (yec != std::errc{} || yp != ys.data() + ys.size() ||
+        tec != std::errc{} || tp != ts.data() + ts.size()) {
+        return std::nullopt;
+    }
+    return g;
 }
 
 auto parse_auto_id_designation(std::string_view s) -> std::optional<auto_id_spec>
@@ -294,14 +347,51 @@ auto looks_like_date(std::string_view s) -> bool
     return day >= 1 && day <= max_day;
 }
 
+// DateTime: STRICT ISO 8601, in the same spirit as Date (one unambiguous form):
+//   YYYY-MM-DD, then 'T' or one space, then HH:MM:SS,
+//   then optional fractional seconds (.d to .ddddddddd),
+//   then an optional zone: 'Z' or +HH:MM / -HH:MM.
+// The date part must be a real calendar date; hours 00-23, minutes and
+// seconds 00-59 (no leap second), zone hours 00-23 and minutes 00-59.
+auto looks_like_datetime(std::string_view s) -> bool
+{
+    if (s.size() < 19 || !looks_like_date(s.substr(0, 10))) return false;
+    if (s[10] != 'T' && s[10] != ' ') return false;
+    auto is_digit = [](char c) { return c >= '0' && c <= '9'; };
+    auto two = [&](std::size_t at, int max) -> bool {
+        if (!is_digit(s[at]) || !is_digit(s[at + 1])) return false;
+        return (s[at] - '0') * 10 + (s[at + 1] - '0') <= max;
+    };
+    if (!two(11, 23) || s[13] != ':' || !two(14, 59) || s[16] != ':' || !two(17, 59)) return false;
+
+    std::size_t i = 19;
+    if (i < s.size() && s[i] == '.') {
+        const std::size_t start = ++i;
+        while (i < s.size() && is_digit(s[i])) ++i;
+        const std::size_t digits = i - start;
+        if (digits < 1 || digits > 9) return false;
+    }
+    if (i == s.size()) return true;                       // no zone
+    if (s[i] == 'Z') return i + 1 == s.size();
+    if ((s[i] == '+' || s[i] == '-') && i + 6 == s.size()) {
+        return two(i + 1, 23) && s[i + 3] == ':' && two(i + 4, 59);
+    }
+    return false;
+}
+
 }  // anonymous namespace
 
 // ──────────────────────────────────────────────────────────────
 //  Field-declaration interpretation
 //
-//  Per SPEC v0.6 Section 2.4: a field declaration line is one
-//  parsed_line whose hierarchy has the segments:
-//     [name, type] | [name, type, length] | [name, type, length, constraints]
+//  Per SPEC Section 2.4: a field declaration line is one parsed_line
+//  whose hierarchy is the name followed by 1 to 4 segments. The
+//  segments may come in any order, each kind at most once:
+//     type        (a String/Integer/Number/Date/Bool spelling)
+//     auto        (AutoID, Identity(seed,step), ... -- implies Integer)
+//     length      (a positive integer)
+//     constraint  ("Not Null" or "Nullable")
+//  A type or an auto designation is required.
 //
 //  Position comes from the line's number (1..N).
 //  Comment is preserved verbatim from the line.
@@ -322,24 +412,25 @@ auto interpret_one_field(
     -> interpret_field_result
 {
     interpret_field_result out;
+    const auto where = std::format("section '{}', field {}", section_name, line.number);
 
     if (line.hierarchy.size() < 2) {
         report_issue(report, issue_severity::error,
                      issue_kind::field_invalid_declaration,
                      0,  // source line not tracked at this layer yet
-                     std::format("section '{}', field {}", section_name, line.number),
+                     where,
                      std::format("expected at least name/type, got {} segment(s)",
                                  line.hierarchy.size()));
         out.reported_issue = true;
         return out;
     }
-    if (line.hierarchy.size() > 4) {
+    if (line.hierarchy.size() > 5) {
         report_issue(report, issue_severity::error,
                      issue_kind::field_invalid_declaration,
                      0,
-                     std::format("section '{}', field {}", section_name, line.number),
-                     std::format("too many segments: {} (max 4: "
-                                 "name/type/length/constraints)",
+                     where,
+                     std::format("too many segments: {} (max 5: name plus a type, "
+                                 "an auto designation, a length and a constraint)",
                                  line.hierarchy.size()));
         out.reported_issue = true;
         return out;
@@ -354,80 +445,84 @@ auto interpret_one_field(
         report_issue(report, issue_severity::error,
                      issue_kind::field_empty_name,
                      0,
-                     std::format("section '{}', field {}", section_name, line.number),
+                     where,
                      "field name is empty");
         out.reported_issue = true;
         // Continue interpreting the rest so we report more issues.
     }
 
-    if (auto t = parse_field_type(line.hierarchy[1]); t.has_value()) {
-        f.type = *t;
-    } else if (auto a = parse_auto_id_designation(line.hierarchy[1]); a.has_value()) {
-        // An auto designation in the type slot (e.g. "id/Identity(1,1)") is an integer.
-        f.type    = field_type::number_type;
-        f.auto_id = *a;
-    } else {
+    std::optional<field_type> declared_type;
+    bool have_length = false;
+    bool have_constraint = false;
+
+    for (std::size_t i = 1; i < line.hierarchy.size(); ++i) {
+        const std::string_view seg = line.hierarchy[i];
+
+        if (auto t = parse_field_type(seg); t.has_value() && !declared_type) {
+            declared_type = *t;
+            continue;
+        }
+        if (auto a = parse_auto_id_designation(seg); a.has_value() && !f.auto_id) {
+            f.auto_id = *a;
+            continue;
+        }
+        if (!have_length && looks_like_integer(seg)) {
+            std::size_t n = 0;
+            auto [p, ec] = std::from_chars(seg.data(), seg.data() + seg.size(), n);
+            if (ec != std::errc{} || p != seg.data() + seg.size() || n == 0) {
+                report_issue(report, issue_severity::error,
+                             issue_kind::field_invalid_length, 0, where,
+                             std::format("length '{}' is not a positive integer", seg));
+                out.reported_issue = true;
+            } else {
+                f.max_length = n;
+            }
+            have_length = true;
+            continue;
+        }
+        if (!have_constraint && iequals(seg, "Not Null")) {
+            f.required = true;
+            have_constraint = true;
+            continue;
+        }
+        if (!have_constraint && iequals(seg, "Nullable")) {
+            f.required = false;
+            out.declared_nullable = true;
+            have_constraint = true;
+            continue;
+        }
+
+        // Unrecognized, or a second segment of a kind already seen.
+        const bool type_slot = !declared_type && !f.auto_id;
         report_issue(report, issue_severity::error,
-                     issue_kind::field_invalid_type,
-                     0,
-                     std::format("section '{}', field {}", section_name, line.number),
-                     std::format("type '{}' is not recognized (expected "
-                                 "String, Number, Date, or an auto designation "
-                                 "such as AutoID or Identity(1,1))",
-                                 line.hierarchy[1]));
+                     type_slot ? issue_kind::field_invalid_type
+                               : issue_kind::field_invalid_constraint,
+                     0, where,
+                     std::format("segment '{}' is not recognized here (expected a type "
+                                 "such as String/Text/Integer/Number/Date/DateTime/GST/Bool, an auto "
+                                 "designation such as AutoID or Identity(1,1), a length, "
+                                 "or 'Not Null' / 'Nullable', each at most once)", seg));
         out.reported_issue = true;
     }
 
-    // Optional length and/or constraint.
-    // The 3rd segment is length if it parses as a positive integer;
-    // otherwise it's a constraint.
-    auto interpret_length = [&](std::string_view seg) -> bool {
-        std::size_t n = 0;
-        auto [p, ec] = std::from_chars(seg.data(), seg.data() + seg.size(), n);
-        if (ec != std::errc{} || p != seg.data() + seg.size() || n == 0) {
-            return false;
-        }
-        f.max_length = n;
-        return true;
-    };
-
-    auto interpret_constraint = [&](std::string_view seg) -> bool {
-        if (iequals(seg, "Not Null")) { f.required = true;  return true; }
-        if (iequals(seg, "Nullable")) { f.required = false; out.declared_nullable = true; return true; }
-        // An auto designation may also sit in the constraint slot
-        // (e.g. "id/Number/AutoID" or "id/Number/Not Null/Identity(1,1)").
-        if (auto a = parse_auto_id_designation(seg); a.has_value()) { f.auto_id = *a; return true; }
-        return false;
-    };
-
-    if (line.hierarchy.size() >= 3) {
-        const auto& seg3 = line.hierarchy[2];
-        if (!interpret_length(seg3)) {
-            // Maybe it's a constraint with no length.
-            if (!interpret_constraint(seg3)) {
-                report_issue(report, issue_severity::error,
-                             issue_kind::field_invalid_length,
-                             0,
-                             std::format("section '{}', field {}", section_name, line.number),
-                             std::format("segment '{}' is neither a positive "
-                                         "integer length nor a recognized "
-                                         "constraint", seg3));
-                out.reported_issue = true;
-            }
-        }
-    }
-    if (line.hierarchy.size() >= 4) {
-        const auto& seg4 = line.hierarchy[3];
-        if (!interpret_constraint(seg4)) {
+    if (declared_type) {
+        f.type = *declared_type;
+        if (f.auto_id && f.type != field_type::integer_type &&
+            f.type != field_type::number_type) {
             report_issue(report, issue_severity::error,
-                         issue_kind::field_invalid_constraint,
-                         0,
-                         std::format("section '{}', field {}", section_name, line.number),
-                         std::format("constraint '{}' is not recognized "
-                                     "(expected 'Not Null', 'Nullable', or an "
-                                     "auto designation)", seg4));
+                         issue_kind::field_invalid_type, 0, where,
+                         std::format("an auto designation needs an integer type, not {}",
+                                     to_string(f.type)));
             out.reported_issue = true;
         }
+    } else if (f.auto_id) {
+        f.type = field_type::integer_type;   // the auto designation implies it
+    } else if (!out.reported_issue) {
+        report_issue(report, issue_severity::error,
+                     issue_kind::field_invalid_type, 0, where,
+                     "no type given (expected a type such as String/Text/Integer/"
+                     "Number/Date/Bool, or an auto designation)");
+        out.reported_issue = true;
     }
 
     out.fld = std::move(f);
@@ -489,14 +584,15 @@ auto interpret_fields(
     // integer and never null. It is required whether or not it says Not Null.
     if (!fields.empty() && fields[0].position == 1) {
         auto& id = fields[0];
-        if (id.type != field_type::number_type) {
+        if (id.type != field_type::integer_type && id.type != field_type::number_type) {
             report_issue(report, issue_severity::error,
                          issue_kind::field_record_id_invalid,
                          0,
                          std::format("section '{}', field 1 ({})", sec.name, id.name),
                          std::format("field 1 is the record id and must be an integer "
-                                     "type (Number or an auto designation such as AutoID "
-                                     "or Identity(1,1)), not {}", to_string(id.type)));
+                                     "type (Integer, Number with whole values, or an auto "
+                                     "designation such as AutoID or Identity(1,1)), not {}",
+                                     to_string(id.type)));
         }
         if (field1_declared_nullable) {
             report_issue(report, issue_severity::error,
@@ -821,6 +917,75 @@ auto validate_record_values(
                                  std::format("section '{}', record {}, field {} ({})",
                                              section_name, ri + 1, fld.position, fld.name),
                                  std::format("value '{}' is not a valid Number", *v));
+                }
+                break;
+            case field_type::integer_type: {
+                std::string_view iv = *v;
+                if (!iv.empty() && iv.front() == '+') iv.remove_prefix(1);
+                std::int64_t n = 0;
+                auto [p, ec] = std::from_chars(iv.data(), iv.data() + iv.size(), n);
+                if (!looks_like_integer(*v) || ec != std::errc{} || p != iv.data() + iv.size()) {
+                    report_issue(report, issue_severity::error,
+                                 issue_kind::record_value_type_mismatch,
+                                 0,
+                                 std::format("section '{}', record {}, field {} ({})",
+                                             section_name, ri + 1, fld.position, fld.name),
+                                 std::format("value '{}' is not a valid Integer "
+                                             "(whole number within 64 bits)", *v));
+                }
+                break;
+            }
+            case field_type::bool_type:
+                if (!parse_bool_value(*v)) {
+                    report_issue(report, issue_severity::error,
+                                 issue_kind::record_value_type_mismatch,
+                                 0,
+                                 std::format("section '{}', record {}, field {} ({})",
+                                             section_name, ri + 1, fld.position, fld.name),
+                                 std::format("value '{}' is not a valid Bool (expected "
+                                             "Yes/No, True/False, Y/N, T/F or 1/0)", *v));
+                }
+                break;
+            case field_type::gst_type:
+                if (auto g = parse_gst_value(*v); g && g->ticks >= kGstTicksPerEarthYear) {
+                    // Valid GST, but past one year: warn at two levels, never block.
+                    const bool beyond_room = g->ticks >= kGstTickLimit;
+                    report_issue(report, issue_severity::warning,
+                                 beyond_room ? issue_kind::record_gst_beyond_leap_room
+                                             : issue_kind::record_gst_leap_seconds,
+                                 0,
+                                 std::format("section '{}', record {}, field {} ({})",
+                                             section_name, ri + 1, fld.position, fld.name),
+                                 beyond_room
+                                     ? std::format("GST '{}' ticks go beyond 1 year and {} leap "
+                                                   "seconds (last expected tick {})", *v,
+                                                   kGstLeapSecondsRoom, kGstTickLimit - 1)
+                                     : std::format("GST '{}' ticks go beyond 1 year: leap seconds "
+                                                   "(a year is {} ticks)", *v,
+                                                   kGstTicksPerEarthYear));
+                } else if (!g) {
+                    report_issue(report, issue_severity::error,
+                                 issue_kind::record_value_type_mismatch,
+                                 0,
+                                 std::format("section '{}', record {}, field {} ({})",
+                                             section_name, ri + 1, fld.position, fld.name),
+                                 std::format("value '{}' is not a valid GST (required format "
+                                             "is <year>:<ticks>, year a signed 64-bit integer, "
+                                             "ticks exactly {} digits, zero-padded)",
+                                             *v, kGstTickDigits));
+                }
+                break;
+            case field_type::datetime_type:
+                if (!looks_like_datetime(*v)) {
+                    report_issue(report, issue_severity::error,
+                                 issue_kind::record_value_type_mismatch,
+                                 0,
+                                 std::format("section '{}', record {}, field {} ({})",
+                                             section_name, ri + 1, fld.position, fld.name),
+                                 std::format("value '{}' is not a valid DateTime (required "
+                                             "format is YYYY-MM-DDTHH:MM:SS, optional "
+                                             ".fraction and Z or +HH:MM zone; a space "
+                                             "may replace the T)", *v));
                 }
                 break;
             case field_type::date_type:

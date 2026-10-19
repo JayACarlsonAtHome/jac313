@@ -100,28 +100,49 @@ auto JTextFile::parse_entry(std::string_view line) -> std::expected<JTextEntry, 
     e.number = num;
     e.delimiter = '#';
 
-    // === Marker format: #X# ... (writer emits "#|# "; legacy uses "#X##") ===
+    // Marker run. The live marker is the right two characters:
+    // splice, then comment. A longer opener drops what is in front.
+    auto marker_char = [](char c) {
+        const auto u = static_cast<unsigned char>(c);
+        if (u < 0x21 || u > 0x7E) return false;
+        if ((u >= '0' && u <= '9') || (u >= 'A' && u <= 'Z') || (u >= 'a' && u <= 'z'))
+            return false;
+        return true;
+    };
     std::size_t opener_end = 0;
-    if (rest.size() >= 4 && rest[0] == '#' && rest[3] == '#') {
-        opener_end = 4;
-    } else if (rest.size() >= 3 && rest[0] == '#' && rest[2] == '#') {
-        opener_end = 3;
+    while (opener_end < rest.size() && marker_char(rest[opener_end]))
+        ++opener_end;
+    char comment_mark = '#';
+    char level_sep = '|';
+    if (opener_end >= 2 && rest[opener_end - 2] != rest[opener_end - 1]) {
+        comment_mark = rest[opener_end - 1];
+        level_sep = rest[opener_end - 2];
+        e.delimiter = comment_mark;
+    } else {
+        opener_end = 0;
     }
     if (opener_end > 0) {
-        char level_sep = rest[1];
-        bool is_flat = (level_sep == '-');
-        e.level_sep = is_flat ? 0 : level_sep;
+        e.level_sep = level_sep;
+        const bool raw = (level_sep == '[' && comment_mark == ']');
 
         std::string_view content = rest.substr(opener_end);
         while (!content.empty() && (content.front() == ' ' || content.front() == '\t')) {
             content.remove_prefix(1);
         }
 
+        if (raw) {
+            e.level_sep = 0;
+            e.fields.emplace_back(std::string{content});
+            e.comment.clear();
+            return e;
+        }
+
         std::string data_part;
         std::string comment_part;
-        if (auto comment_sep = content.rfind(" # "); comment_sep != std::string_view::npos) {
+        const std::string comment_needle = std::string{' '} + comment_mark + ' ';
+        if (auto comment_sep = content.rfind(comment_needle); comment_sep != std::string_view::npos) {
             data_part = trim(content.substr(0, comment_sep));
-            comment_part = trim(content.substr(comment_sep + 3));
+            comment_part = trim(content.substr(comment_sep + comment_needle.size()));
         } else {
             data_part = trim(content);
         }
@@ -130,7 +151,7 @@ auto JTextFile::parse_entry(std::string_view line) -> std::expected<JTextEntry, 
             e.is_null = true;
             e.fields.emplace_back("NULL");
         } else if (!data_part.empty()) {
-            if (!is_flat && level_sep != 0) {
+            if (level_sep != 0) {
                 std::stringstream ss(std::string{data_part});
                 std::string token;
                 while (std::getline(ss, token, level_sep)) {
