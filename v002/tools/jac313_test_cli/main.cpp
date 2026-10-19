@@ -68,6 +68,7 @@ void print_usage() {
         "  vendor-check   drift of the vendored jText / Qlite copies (warnings only)\n"
         "  vendor-sync    forward-port canonical into a vendored copy (dry run; --write)\n"
         "  vendor-baseline  a starting-line VENDORED.jtext for an existing copy\n"
+        "  note        note RUN_ID [\"TEXT\"]: add a note to a run in results.db, or list its notes\n"
         "  connections show / --init the PostgreSQL connections file (jText, outside git)\n"
         "  gui-build   build the U++ GUI (<root>/gui/Jac313Runner) with umk -> <root>/gui/out/\n"
         "  matrix      run | runner | verify | verify-lite\n\n"
@@ -3155,6 +3156,41 @@ int main(int argc, char** argv) {
     if (command == "vendor-check") return jac313::test_cli::vendor::run_vendor_check(argc, argv, 2);
     if (command == "vendor-sync") return jac313::test_cli::vendor::run_vendor_sync(argc, argv, 2);
     if (command == "vendor-baseline") return jac313::test_cli::vendor::run_vendor_baseline(argc, argv, 2);
+    if (command == "note") {   // note RUN_ID "TEXT" adds a note to a run; note RUN_ID lists its notes
+        // A note is a runEvent row with event 'note': it explains a run (say, a failure caused by
+        // the environment, not the code) without changing or deleting any recorded result.
+        if (argc < 3 || std::string(argv[2]) == "--help" || std::string(argv[2]) == "-h") {
+            std::cout << "note RUN_ID [\"TEXT\"]   add TEXT as a note on RUN_ID, or list its notes\n";
+            return argc < 3 ? 2 : 0;
+        }
+        std::int64_t run_id = 0;
+        try { run_id = std::stoll(argv[2]); } catch (...) {}
+        try {
+            jac313::Qlite::v002::Sqlite db(JAC313_RESULTS_DB);
+            std::int64_t found = 0;
+            { auto st = db.prepare("SELECT COUNT(*) FROM run WHERE run_id=?"); st.bind(run_id);
+              if (st.step()) st.get(found); }
+            if (run_id <= 0 || found == 0) {
+                std::cerr << "note: no run " << argv[2] << " in " << JAC313_RESULTS_DB << '\n';
+                return 1;
+            }
+            if (argc >= 4) {
+                jac313::results::log_run_event(db, run_id, "", "note", argv[3]);
+                std::cout << "note added to run " << run_id << '\n';
+            }
+            auto st = db.prepare("SELECT ts_utc, message FROM runEvent WHERE run_id=? AND event='note' ORDER BY id");
+            st.bind(run_id);
+            while (st.step()) {
+                std::string ts, msg;
+                st.get(ts, msg);
+                std::cout << "  run " << run_id << "  " << ts << "  " << msg << '\n';
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "note: " << e.what() << '\n';
+            return 1;
+        }
+        return 0;
+    }
     if (command == "version-check") {
         for (int i = argi; i < argc; ++i) {
             const std::string a = argv[i];
