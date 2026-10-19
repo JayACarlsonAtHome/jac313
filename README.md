@@ -179,7 +179,7 @@ See that version's README for more (or the docs/ inside it).
 
 **Prefer a window?** Jac313Runner is a GUI that drives `jac313_test_cli` for any
 version: choose the gates, press Start, and browse the results with a jText viewer.
-Setup is four steps; see [gui/README.md](gui/README.md#quick-start-jac313runner).
+Set it up with `./bootstrap.sh --gui`; see [gui/README.md](gui/README.md#quick-start-jac313runner).
 Run the tests and the GUI as your own user, not with sudo.
 
 ---

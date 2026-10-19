@@ -14,21 +14,26 @@ its CMake asks for (`cxx_std_NN`), and runs that version's own `jac313_test_cli`
 Run every step as **your own user**, not with sudo (`bootstrap.sh` asks for sudo itself
 when it needs it). `<root>` is the folder that holds `v001/`, `v002/` and `gui/`.
 
-1. **Install U++** (https://www.ultimatepp.org) so that `$HOME/u++/umk` and
-   `$HOME/u++/uppsrc` exist. `gui-build` also looks for `<GFS>/upp-bin/rhel/umk` with
-   `<GFS>/upp/uppsrc`.
-2. **Bootstrap a version.** This builds `jac313_test_cli` and links it as
-   `vNNN/jac313_test_cli`:
+1. **Bootstrap a version with `--gui`.** This builds `jac313_test_cli`, offers the GUI's
+   build libraries (GTK3, libnotify, FreeType, Fontconfig, X11; one `[y/N]` sudo step),
+   installs U++ 2026.1 into `$HOME/u++` without sudo (a pinned download, SHA-256 checked),
+   and builds `gui/out/Jac313Runner` with clang:
    ```
-   cd <root>/v002 && ./bootstrap.sh
+   cd <root>/v002 && ./bootstrap.sh --gui
    ```
-3. **Build the GUI.** On RHEL, first enable the compiler the U++ cache was built with, or
-   the link fails with `undefined reference to __cxa_call_terminate`:
+   An existing `$HOME/u++` with `umk` and `uppsrc` is used as it is. A plain `./bootstrap.sh`
+   never touches U++.
+2. **Rebuild later** with the same compiler that built the U++ cache:
    ```
-   source /opt/rh/gcc-toolset-15/enable      # RHEL only
-   cd <root>/v002 && ./jac313_test_cli gui-build
+   cd <root>/v002 && ./jac313_test_cli gui-build --method CLANG    # after bootstrap --gui
    ```
-4. **Start it** from a desktop session (Wayland or X11):
+   With your own U++ and the `GCC` method on RHEL, run `gui-build` from a gcc-toolset-15
+   shell (`source /opt/rh/gcc-toolset-15/enable`), or the link fails with
+   `undefined reference to __cxa_call_terminate`. U++ 2026.1 itself crashes when built with
+   GCC 15, which is why bootstrap uses clang. If a link fails with other undefined
+   references, the shared U++ cache holds stale objects: add `--clean` (rebuild everything).
+   Bootstrap retries once with `--clean` by itself.
+3. **Start it** from a desktop session (Wayland or X11):
    ```
    <root>/gui/out/Jac313Runner
    ```

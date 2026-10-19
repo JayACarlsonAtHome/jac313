@@ -25,12 +25,28 @@
 #   5. Sense + pin this machine as jac313-### (host_spec + current_host). Auto-pins when
 #      unambiguous; otherwise bootstrap stops with --claim / --assign-new-### directions.
 #
+#   6. With --gui (optional): the U++ GUI build libraries (recipe upp_gui, offered [y/N]),
+#      U++ itself into $HOME/u++ (pinned release, SHA-256 checked, no sudo) and then
+#      Jac313Runner via `jac313_test_cli gui-build`. A plain bootstrap never does this.
+#
 # Idempotent. Re-run after a manual Setup.sh (fallback path) or after host pin.
 # The preferred path (committed jac313_setup) provisions and continues in one run.
 set -eu
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 RECIPES="$ROOT/Setup/recipes.conf"
+
+WANT_GUI=0
+for arg in "$@"; do
+  case "$arg" in
+    --gui) WANT_GUI=1 ;;
+    -h|--help)
+      echo "usage: ./bootstrap.sh [--gui]"
+      echo "  --gui   also install U++ (no sudo, into \$HOME/u++) and build the Jac313Runner GUI"
+      exit 0 ;;
+    *) echo "unknown argument: $arg (try --help)" >&2; exit 2 ;;
+  esac
+done
 
 lc() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
 
@@ -140,8 +156,8 @@ PINNED_CMAKE_VER="4.3.3"
 cmake_version() { cmake --version 2>/dev/null | sed -n '1s/.*version \([0-9][0-9.]*\).*/\1/p'; }
 ver_ge() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]; }  # ver_ge A B → A>=B
 
-download_to() {  # download_to <url> <outfile>
-  if   command -v curl >/dev/null 2>&1; then curl -fsSL --max-time 180 -o "$2" "$1"
+download_to() {  # download_to <url> <outfile> [max_seconds, default 180]
+  if   command -v curl >/dev/null 2>&1; then curl -fsSL --max-time "${3:-180}" -o "$2" "$1"
   elif command -v wget >/dev/null 2>&1; then wget -qO "$2" "$1"
   else echo "neither curl nor wget found" >&2; return 127; fi
 }
@@ -194,6 +210,81 @@ maybe_offer_local_cmake() {  # offer the pinned CMake whenever the import-std ga
     [yY]|[yY][eE][sS]) install_local_cmake || echo "Auto-install did not complete; baseline build continues." ;;
     *) echo "Skipped — continuing with CMake $cv (import std stays unavailable until $PINNED_CMAKE_VER is installed)." ;;
   esac
+}
+
+# --- optional (--gui): U++ and the Jac313Runner GUI --------------------------------
+# U++ is pinned to a stable SourceForge release. No checksum is published upstream, so the
+# SHA-256 below was measured from the download when the pin was set; a mismatch refuses.
+# U++ 2026.1 built with GCC 15 crashes at start (umk and the GUI both), so umk and the GUI
+# are built with clang (a jac313 prerequisite anyway), or the system g++ when clang is absent.
+UPP_RELEASE="2026.1"
+UPP_BUILD="18468"
+UPP_SHA256="701dbb10edf03c77ceff66c89a2ffa23fce2b788cc480b0cae39d0689519b633"
+UPP_DIR="$HOME/u++"
+if command -v clang++ >/dev/null 2>&1; then UPP_METHOD="CLANG"; else UPP_METHOD="GCC"; fi
+
+upp_gui_libs_ok() {  # the pkg-config modules U++ CtrlCore links for a GTK (Wayland-first) build
+  command -v pkg-config >/dev/null 2>&1 \
+    && pkg-config --exists gtk+-3.0 libnotify freetype2 fontconfig x11 xinerama xrender xft xcb xext
+}
+
+install_upp() {  # U++ into $UPP_DIR (no sudo); keeps an existing install with umk + uppsrc
+  if [ -x "$UPP_DIR/umk" ] && [ -d "$UPP_DIR/uppsrc" ]; then
+    echo "U++ found at $UPP_DIR (umk + uppsrc) — using it."; return 0
+  fi
+  if [ -e "$UPP_DIR" ]; then
+    echo "$UPP_DIR exists but has no umk + uppsrc. Not touching it: move it aside and re-run."
+    return 1
+  fi
+  command -v sha256sum >/dev/null 2>&1 || { echo "sha256sum missing — cannot verify the U++ download."; return 1; }
+  tmp=$(mktemp -d) || return 1
+  tb="upp-posix-$UPP_BUILD.tar.xz"
+  echo "Downloading U++ $UPP_RELEASE ($tb, about 41 MB, SHA-256 checked)…"
+  download_to "https://sourceforge.net/projects/upp/files/upp/$UPP_RELEASE/$tb/download" "$tmp/$tb" 900 \
+    || { echo "U++ download failed (network?)."; rm -rf "$tmp"; return 1; }
+  echo "$UPP_SHA256  $tmp/$tb" | sha256sum -c - >/dev/null 2>&1 \
+    || { echo "U++ CHECKSUM MISMATCH — refusing to install."; rm -rf "$tmp"; return 1; }
+  tar -xJf "$tmp/$tb" -C "$tmp" && [ -d "$tmp/upp/uppsrc" ] \
+    || { echo "U++ extract failed."; rm -rf "$tmp"; return 1; }
+  mv "$tmp/upp" "$UPP_DIR" && rm -rf "$tmp"
+  # umk the way U++'s own ./install does it: with the prebuilt static umks32 when it runs,
+  # else with make. Not through $ACT: a GCC-15-built umk crashes (see above).
+  echo "Building umk ($UPP_METHOD)…"
+  ( cd "$UPP_DIR" && ./umks32 ./uppsrc umk "$UPP_METHOD" -brsH ./umk ) >/dev/null 2>&1 \
+    || ( cd "$UPP_DIR" && ./configure >/dev/null && make -f umkMakefile -j"$(nproc 2>/dev/null || echo 2)" ) \
+    || { echo "umk build failed (see $UPP_DIR)."; return 1; }
+  [ -x "$UPP_DIR/umk" ] || { echo "umk was not built."; return 1; }
+  echo "Installed U++ $UPP_RELEASE ($UPP_BUILD) -> $UPP_DIR"
+}
+
+bootstrap_gui() {  # --gui: build libraries ([y/N]), U++ (no sudo), then Jac313Runner
+  echo
+  echo "=== GUI (--gui): U++ $UPP_RELEASE + Jac313Runner ==="
+  if ! upp_gui_libs_ok; then
+    cmd=$(recipe_cmd upp_gui "$family")
+    if [ -z "$cmd" ]; then
+      echo "No upp_gui recipe for '$family' in Setup/recipes.conf. Install the GTK3, libnotify,"
+      echo "FreeType, Fontconfig and X11 development packages by hand, then: ./bootstrap.sh --gui"
+      return 1
+    fi
+    echo "U++ needs these build libraries:"
+    echo "  $cmd"
+    if [ ! -t 0 ]; then echo "(non-interactive — not installing; run that, then ./bootstrap.sh --gui)"; return 1; fi
+    printf "Install them now? [y/N] "
+    read -r ans || ans=""
+    case "$ans" in
+      [yY]|[yY][eE][sS]) sh -c "$cmd" || { echo "Installing the GUI libraries failed."; return 1; } ;;
+      *) echo "Skipped — the GUI is not built."; return 1 ;;
+    esac
+    upp_gui_libs_ok || { echo "The GUI libraries are still missing (pkg-config)."; return 1; }
+  fi
+  install_upp || return 1
+  # U++ keeps one object cache per build method; stale objects from an older U++ break the link,
+  # so a failed build is retried once with --clean (rebuild everything).
+  ( cd "$ROOT" && "$CLI" gui-build --method "$UPP_METHOD" ) \
+    || { echo "Retrying with a clean rebuild (stale U++ cache)…"; ( cd "$ROOT" && "$CLI" gui-build --method "$UPP_METHOD" --clean ); } \
+    || { echo "gui-build failed."; return 1; }
+  echo "Start it as your own user: $(dirname "$ROOT")/gui/out/Jac313Runner"
 }
 
 # --- 2. find a C++23 g++ (>= 14) and the activation prefix needed to invoke it ---
@@ -354,6 +445,11 @@ if [ -n "$GIT_DIR" ] && [ -d "$GIT_DIR" ] && [ -f "$HOOK_SRC" ]; then
     chmod +x "$HOOK_DST"
     echo "Installed pre-push hook -> $HOOK_DST (valgrind verify-lite; bypass: git push --no-verify)"
   fi
+fi
+
+# --- optional GUI (--gui). Non-fatal: the test tools above are ready either way. ---
+if [ "$WANT_GUI" = 1 ]; then
+  bootstrap_gui || echo "(GUI step did not complete — the test tools are ready; fix the above and re-run ./bootstrap.sh --gui)"
 fi
 
 echo

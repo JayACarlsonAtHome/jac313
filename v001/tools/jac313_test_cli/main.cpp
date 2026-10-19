@@ -2696,13 +2696,21 @@ int main(int argc, char** argv) {
         // <GFS>/upp-bin/rhel/umk + <GFS>/upp/uppsrc when present, else $HOME/u++/{umk,uppsrc}.
         fs::path src = fs::current_path();
         std::vector<std::string> packages;
+        std::string method = "GCC";   // a U++ build method (GCC uses the g++ on PATH; CLANG uses clang++)
+        bool clean = false;            // rebuild every package (umk -a): U++ shares one object cache
         for (int i = 2; i < argc; ++i) {
             const std::string a = argv[i];
             if (a == "--source-dir" && i + 1 < argc) src = argv[++i];
+            else if (a == "--method" && i + 1 < argc) method = argv[++i];
+            else if (a == "--clean") clean = true;
             else if (a == "--help" || a == "-h") {
-                std::cout << "gui-build [PACKAGE...] [--source-dir DIR]\n"
+                std::cout << "gui-build [PACKAGE...] [--source-dir DIR] [--method GCC|CLANG] [--clean]\n"
                              "  Builds U++ packages in <root>/gui (default: Jac313Runner) into <root>/gui/out/<PACKAGE>.\n"
-                             "  The GUI is version-independent: it sits beside the vNNN folders, not inside one.\n";
+                             "  The GUI is version-independent: it sits beside the vNNN folders, not inside one.\n"
+                             "  --method picks the U++ build method (default GCC). U++ 2026.1 built with GCC 15\n"
+                             "  crashes; ./bootstrap.sh --gui uses CLANG.\n"
+                             "  --clean rebuilds everything (umk -a). Use it when the link fails with undefined\n"
+                             "  references: U++ shares one object cache per method, and stale objects break links.\n";
                 return 0;
             } else packages.push_back(a);
         }
@@ -2730,8 +2738,8 @@ int main(int argc, char** argv) {
             const fs::path out = gui / "out" / pkg;
             std::error_code ec;
             fs::create_directories(out.parent_path(), ec);
-            std::cout << "gui-build: " << pkg << "  (umk " << umk.string() << ")\n";
-            const auto r = run_process({umk.string(), gui.string() + "," + uppsrc.string(), pkg, "GCC", "-brsH",
+            std::cout << "gui-build: " << pkg << "  (umk " << umk.string() << ", " << method << ")\n";
+            const auto r = run_process({umk.string(), gui.string() + "," + uppsrc.string(), pkg, method, clean ? "-abrsH" : "-brsH",
                                         out.string()}, 1800);
             std::cout << r.stdout_text;
             std::cerr << r.stderr_text;
