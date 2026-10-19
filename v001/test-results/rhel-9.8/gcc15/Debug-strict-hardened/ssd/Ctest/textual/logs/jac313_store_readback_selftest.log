@@ -1,7 +1,7 @@
 # jac313 test log
 test=jac313_store_readback_selftest
 command=/run/media/jay/GFS/git/jac313/v001/build-gcc15-strict-hardened/Store/tests/matrix/jac313_store_readback_selftest
-duration_ms=100
+duration_ms=350
 exit_code=0
 
 --- stdout ---

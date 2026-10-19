@@ -1,7 +1,7 @@
 # jac313 test log
 test=jac313_store_008_XS
 command=/run/media/jay/GFS/git/jac313/v001/build-clang-strict-hardened/Store/tests/matrix/jac313_store_008_XS
-duration_ms=50
+duration_ms=100
 exit_code=0
 
 --- stdout ---
@@ -18,7 +18,7 @@ Flag routing persistence attaches only on the *last* run.
 
 Run 1 / 1
 [VERIFY] ALL 100 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
-PASS — 225 µs → 444,444 ops/sec
+PASS — 226 µs → 442,478 ops/sec
 
 Persist verification:
   jText main rows:  10 (expected 10)
@@ -28,9 +28,9 @@ Persist verification:
 ═══════════════════════════════════════════════════════════════
                FINAL RESULT — 1-RUN STATISTICS            
 ═══════════════════════════════════════════════════════════════
-  Fastest run        : 225 µs  → 444,444 ops/sec
-  Slowest run        : 225 µs  → 444,444 ops/sec
-  Average            : 225 µs  → 444,444 ops/sec
+  Fastest run        : 226 µs  → 442,478 ops/sec
+  Slowest run        : 226 µs  → 442,478 ops/sec
+  Average            : 226 µs  → 442,478 ops/sec
   (100 events per run, flag routing verified on final run)
 ═══════════════════════════════════════════════════════════════
 
