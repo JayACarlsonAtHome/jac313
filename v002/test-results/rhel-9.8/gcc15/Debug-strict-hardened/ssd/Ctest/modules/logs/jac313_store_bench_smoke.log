@@ -1,0 +1,22 @@
+# jac313 test log
+test=jac313_store_bench_smoke
+command=/run/media/jay/GFS/git/jac313/v002/build-gcc15-strict-hardened/Store/tests/matrix/jac313_store_bench
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+store_bench: threads=4 events/thread=200 runs=3 persist=none batch=10000
+
+═══════════════════════════════════════════════════════════════
+             FINAL RESULT — 3-RUN STATISTICS
+═══════════════════════════════════════════════════════════════
+  Median             : 296,187 ops/sec
+  Fastest run        : 297,619 ops/sec
+  Slowest run        : 271,370 ops/sec
+  Average            : 288,392 ops/sec
+  Std deviation      : 12,050 ops/sec
+  (800 events per run, 100% verified, zero corruption)
+═══════════════════════════════════════════════════════════════
+BENCHSTATS runs=3 events=800 high=297619 low=271370 avg=288392 median=296187 stddev=12050
+
+--- stderr ---
