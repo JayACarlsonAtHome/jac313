@@ -6,7 +6,7 @@ persist=flags
 output_mode=off
 command=/run/media/jay/GFS/git/jac313/v001/build-clang/Store/tests/matrix/jac313_store_008_TS
 args=--no-interactive --color=0 --test-size=smoke --persist=none --base-name=/run/media/jay/GFS/git/jac313/v001/test-results/rhel-9.8/gcc15/Debug/ssd/Smoke/textual/flags_logs/JAC313_STORE_TEST_008_TS/persist_off --threads=10 --events-per-thread=100 --runs=1
-duration_ms=50
+duration_ms=100
 exit_code=0
 
 --- stdout ---
@@ -27,7 +27,7 @@ Flag routing persistence attaches only on the *last* run (previous runs measure 
 
 Run 1 / 1
 [VERIFY] ALL 1000 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
-PASS — 762 µs → 1,312,336 ops/sec
+PASS — 727 µs → 1,375,516 ops/sec
 
 Persist verification:
   jText main rows (KeeperRecord):  10 (expected 10)
@@ -37,9 +37,9 @@ Persist verification:
 ═══════════════════════════════════════════════════════════════
                FINAL RESULT — 1-RUN STATISTICS            
 ═══════════════════════════════════════════════════════════════
-  Fastest run        : 762 µs  → 1,312,336 ops/sec
-  Slowest run        : 762 µs  → 1,312,336 ops/sec
-  Average            : 762 µs  → 1,312,336 ops/sec
+  Fastest run        : 727 µs  → 1,375,516 ops/sec
+  Slowest run        : 727 µs  → 1,375,516 ops/sec
+  Average            : 727 µs  → 1,375,516 ops/sec
   (1,000 events per run, flag routing verified on final run)
 ═══════════════════════════════════════════════════════════════
 

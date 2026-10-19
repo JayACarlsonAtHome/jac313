@@ -5,7 +5,7 @@ category=matrix
 persist=html
 output_mode=off
 command=/run/media/jay/GFS/git/jac313/v001/build-clang/Store/tests/matrix/jac313_store_007_XS
-args=--no-interactive --color=0 --test-size=smoke --persist=html --base-name=/run/media/jay/GFS/git/jac313/v001/test-results/rhel-9.8/gcc15/Debug/ssd/Smoke/textual/html_logs/JAC313_STORE_TEST_007_XS/persist_off --threads=10 --events-per-thread=100 --runs=1 --max-persist-rows=1000 --readback=sample
+args=--no-interactive --color=0 --test-size=smoke --persist=html --base-name=/run/media/jay/GFS/git/jac313/v001/test-results/rhel-9.8/gcc15/Debug/ssd/Smoke/textual/html_logs/JAC313_STORE_TEST_007_XS/persist_off --threads=10 --events-per-thread=100 --runs=1 --max-persist-rows=10000 --readback=sample --pg-cleanup=keep-last
 duration_ms=100
 exit_code=0
 
@@ -18,16 +18,16 @@ Persistence will only be attached on the *last* run (previous runs measure clean
 Run 1 / 1
   sample metrics on event 42 (t=0): int=4200 dbl=0.42
 [VERIFY] ALL 1000 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
-PASS — 758 µs → 1,319,261 ops/sec
+PASS — 716 µs → 1,396,648 ops/sec
 
-READBACK backend=html mode=sample status=PASS expected=1000 found=1000 count=PASS checksum=PASS sample=PASS checked=1000 read_ms=48.098
+READBACK backend=html mode=sample status=PASS expected=1000 found=1000 count=PASS checksum=PASS sample=PASS checked=1000 read_ms=48.307
 
 ═══════════════════════════════════════════════════════════════
                FINAL RESULT — 1-RUN STATISTICS            
 ═══════════════════════════════════════════════════════════════
-  Fastest run        : 758 µs  → 1,319,261 ops/sec
-  Slowest run        : 758 µs  → 1,319,261 ops/sec
-  Average            : 758 µs  → 1,319,261 ops/sec
+  Fastest run        : 716 µs  → 1,396,648 ops/sec
+  Slowest run        : 716 µs  → 1,396,648 ops/sec
+  Average            : 716 µs  → 1,396,648 ops/sec
   (1,000 events per run, 100% verified, zero corruption)
 ═══════════════════════════════════════════════════════════════
 

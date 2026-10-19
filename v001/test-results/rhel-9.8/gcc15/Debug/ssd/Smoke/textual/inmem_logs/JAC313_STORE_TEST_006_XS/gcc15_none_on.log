@@ -10,8 +10,8 @@ duration_ms=401
 exit_code=0
 
 --- stdout ---
-DblData | Severity: Warn 
-[36m 936            -   [1;35mInfo....   [1;33mDB..................   [35m     6   [1;32m   99   [34mInfo processing request 😊...............   FLAGS: LogConsole, KeeperRecord, HotCacheHint, HasData, HasIntData, HasDblData | Severity: Info 
+DblData | Severity: Info 
+[36m 936            -   [1;35mWarn....   [1;33mNET.................   [35m     5   [1;32m   36   [34mWarning in processing notification 😕....   FLAGS: LogConsole, KeeperRecord, HotCacheHint, HasData, HasIntData, HasDblData | Severity: Warn 
 [36m 937            -   [1;35mError...   [1;33mNET.................   [35m     5   [1;32m   37   [34mError in processing notification 😣......   FLAGS: LogConsole, KeeperRecord, HotCacheHint, HasData, HasIntData, HasDblData | Severity: Error 
 [36m 938            -   [1;35mCritical   [1;33mNET.................   [35m     5   [1;32m   38   [34mCritical processing request 😣...........   FLAGS: LogConsole, KeeperRecord, HotCacheHint, HasData, HasIntData, HasDblData | Severity: Critical 
 [36m 939            -   [1;35mFatal...   [1;33mNET.................   [35m     5   [1;32m   39   [34mFatal error in processing notification 💀   FLAGS: LogConsole, KeeperRecord, HotCacheHint, HasData, HasIntData, HasDblData | Severity: Fatal 

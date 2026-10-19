@@ -13,15 +13,15 @@ No persistence attached — pure in-memory hot path
 Run 1 / 1
 No persistence attached — pure in-memory hot path
 [VERIFY] ALL 100 ENTRIES STRUCTURALLY PERFECT — UNIQUE PAIRS, FULL COVERAGE
-PASS — 224 µs → 446,429 ops/sec
+PASS — 480 µs → 208,333 ops/sec
 
 
 ═══════════════════════════════════════════════════════════════
                FINAL RESULT — 1-RUN STATISTICS            
 ═══════════════════════════════════════════════════════════════
-  Fastest run        : 224 µs  → 446,429 ops/sec
-  Slowest run        : 224 µs  → 446,429 ops/sec
-  Average            : 224 µs  → 446,429 ops/sec
+  Fastest run        : 480 µs  → 208,333 ops/sec
+  Slowest run        : 480 µs  → 208,333 ops/sec
+  Average            : 480 µs  → 208,333 ops/sec
   (100 events per run, 100% verified, zero corruption)
 ═══════════════════════════════════════════════════════════════
 

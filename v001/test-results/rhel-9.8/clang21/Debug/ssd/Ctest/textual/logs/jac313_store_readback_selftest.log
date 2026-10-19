@@ -10,9 +10,9 @@ exit_code=0
   ok    damaged a stored value
   ok    read-back catches the changed value: row checksum differs
   ok    removed a stored row
-  ok    read-back (count) catches the missing row: expected ids 0..120 once each, found 108 rows
-  ok    read-back (sample) catches the missing row: expected ids 0..120 once each, found 108 rows
-  ok    read-back (all) catches the missing row: expected ids 0..120 once each, found 108 rows
+  ok    read-back (count) catches the missing row: expected ids 0..120 once each, found 107 rows
+  ok    read-back (sample) catches the missing row: expected ids 0..120 once each, found 107 rows
+  ok    read-back (all) catches the missing row: expected ids 0..120 once each, found 107 rows
 [html]
   ok    untouched dataset reads back (120 rows)
   ok    damaged a stored value

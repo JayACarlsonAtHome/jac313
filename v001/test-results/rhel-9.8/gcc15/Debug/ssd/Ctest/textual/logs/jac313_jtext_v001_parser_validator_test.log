@@ -1,7 +1,7 @@
 # jac313 test log
 test=jac313_jtext_v001_parser_validator_test
 command=/run/media/jay/GFS/git/jac313/v001/build-gcc15/jText/tests/jac313_jtext_v001_parser_validator_test
-duration_ms=50
+duration_ms=100
 exit_code=0
 
 --- stdout ---
