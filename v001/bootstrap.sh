@@ -48,6 +48,14 @@ for arg in "$@"; do
   esac
 done
 
+# Run only from inside this version directory: later steps (host pin, setup) derive the
+# version from the working directory, and fail half-way when started from elsewhere.
+if [ "$(pwd -P)" != "$(cd "$ROOT" && pwd -P)" ]; then
+  echo "bootstrap.sh must be run from inside its version directory:" >&2
+  echo "  cd \"$ROOT\" && ./bootstrap.sh $*" >&2
+  exit 2
+fi
+
 lc() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
 
 # --- 1. detect OS family (tokens match Setup/recipes.conf + compilers.conf) ---
