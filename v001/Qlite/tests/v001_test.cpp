@@ -1,4 +1,4 @@
-// Unit tests for the Qlite::v001 SQLite wrapper (C++23).
+// Unit tests for the jac313::Qlite::v001 SQLite wrapper (C++23).
 //
 // Part 1 — the FROZEN surface (what downstream consumers, e.g. jac313's Store SQL
 // sink, depend on): exec/bind/get, prepared-statement reuse, indexed runtime binds,
@@ -19,7 +19,7 @@
 #include <tuple>
 #include <vector>
 
-static_assert(jac313::Qlite::v001::version() == "v001.006", "v001 version");
+static_assert(jac313::Qlite::v001::version() == "v001.007", "v001 version");
 
 using jac313::Qlite::v001::Sqlite;
 using jac313::Qlite::v001::SqliteError;

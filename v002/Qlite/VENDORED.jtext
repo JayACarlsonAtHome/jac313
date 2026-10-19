@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|Qlite/v002/Qlite
 
-1. #|# 3|canonical_commit|8c704bd780ad
+1. #|# 3|canonical_commit|5c91b4e173c6
 
 1. #|# 4|canonical_dirty|No
 
@@ -31,9 +31,9 @@
 
 1. #|# 6|transform|jac313-prefix
 
-1. #|# 7|ported|2026-10-16
+1. #|# 7|ported|2026-10-19
 
-1. #|# 8|baseline|Yes
+1. #|# 8|baseline|No
 
 1. #|# 9|local|CMakeLists.txt,README.md,VENDORED.jtext
 
@@ -58,19 +58,19 @@
 
 
 === Data ===
-1. #|# 1|examples/v002_example.cpp|examples/v002_example.cpp|7be41d0d32fde2c57e6e7536c224f2835e6d7f4802fbda40e98f76ede0fc980a|347bba7c969714a26fd1bf35e53d4ad9de9fdec034b3e84c73b4274c3d978f53
+1. #|# 1|examples/v002_example.cpp|examples/v002_example.cpp|7be41d0d32fde2c57e6e7536c224f2835e6d7f4802fbda40e98f76ede0fc980a|f763caa0708843084b9631a049b22a19f25e1db464ca98450b2687b753fe3043
 
-1. #|# 2|include/jac313/Qlite/v002.hpp|include/Qlite/v002.hpp|71261fba527aa1688e2f759666d8b070eb00d0d5c5737775b646953be6e1f7b1|0870c1800cd5655e6976a228d151128a72546195446edce74e4ac1d284095d79
+1. #|# 2|include/jac313/Qlite/v002.hpp|include/Qlite/v002.hpp|71261fba527aa1688e2f759666d8b070eb00d0d5c5737775b646953be6e1f7b1|5537188694a9e2d5935b8a7288a73f29efce6e56e4dee89d176d1aae69497c89
 
-1. #|# 3|include/jac313/Qlite/v002/Sqlite.body.hpp|include/Qlite/v002/Sqlite.body.hpp|496d811ac04550e98be6350689e209c05b111df5d3e2b60f99043f89f9d3e8a9|098834365f0a56012415f345057ba9a592b5bacdf84538d26b967ff59254dbc6
+1. #|# 3|include/jac313/Qlite/v002/Sqlite.body.hpp|include/Qlite/v002/Sqlite.body.hpp|801b2d6de49611fc62ab2adbb576970a82fd46f257a1ddc94f8fd99d54a23701|f13b2952e3319a73488250f97efce85cb66e86c36b0c719a2c64c63c37931097
 
-1. #|# 4|include/jac313/Qlite/v002/Sqlite.hpp|include/Qlite/v002/Sqlite.hpp|b5f09a3f1daa12fa02d7470b7a7722cc78ab9fb386289188555d7634a3db1524|b1406be1b7a84fe61ec6a0b050ea17e838314689fb6172ebdb78abb37e386f3f
+1. #|# 4|include/jac313/Qlite/v002/Sqlite.hpp|include/Qlite/v002/Sqlite.hpp|b5f09a3f1daa12fa02d7470b7a7722cc78ab9fb386289188555d7634a3db1524|217ba8a0642cdd4e80310c052c8fb342a778b838786c37a83ae1adba8f2ad233
 
-1. #|# 5|modules/jac313.qlite.v002.cppm|modules/Qlite.v002.cppm|be23e5b06e3d05be3479ac2d9e7968b89387d7f72b797531508fc1c6eef92735|949db3961d636ae49c78562425a757b3389cbe10f05dbd55fcd9faae8b6bc237
+1. #|# 5|modules/jac313.qlite.v002.cppm|modules/Qlite.v002.cppm|be23e5b06e3d05be3479ac2d9e7968b89387d7f72b797531508fc1c6eef92735|dbcb2ed27e1d8bf43bef3605c36a2f849879adacd6b62fbbb13a2ee076ac7286
 
-1. #|# 6|tests/module/v002_module_test.cpp|tests/module/v002_module_test.cpp|630bc40e4141d2b2b1c893721d85625b8d3fc523a1828fcb3260b4e6f71a5efe|d1aeeb4a87a25cfbd00f09488b9948a8f5458240e0a4345b14d5fdb1c408e262
+1. #|# 6|tests/module/v002_module_test.cpp|tests/module/v002_module_test.cpp|630bc40e4141d2b2b1c893721d85625b8d3fc523a1828fcb3260b4e6f71a5efe|2ae1961c6424c2993043eea443475ebfce73ce794fa8460ef3e7a64a38e0ea3f
 
-1. #|# 7|tests/v002_test.cpp|tests/v002_test.cpp|65560c6b1dcf172cc8e9179acff7b00059410e73771e18c64f58addda83e7184|0a61f1b9cd88200f6be6c8f2497738af44da43f65ac89de2f4999e9e60218031
+1. #|# 7|tests/v002_test.cpp|tests/v002_test.cpp|623bcd40e4751e711616f1b0c6da7b942d274639bdf001d8f42e1d16fcdf24d3|1a80fd949f04da1c81f5fd1a9c9b84a4dee373fadcaaf3f762b1c3f8408789eb
 
 === End Data ===
 === End Section ===

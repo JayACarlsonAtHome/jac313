@@ -1,15 +1,12 @@
 #pragma once
 
 /**
- * jac313::Qlite::v002 — the jac313 SQLite wrapper.
- *
- * The implementation now lives in-tree (migrated from the legacy jacQlite repo /
- * jac::qlite). This is the public entry point:
+ * jac313::Qlite::v002 — the C++26 SQLite wrapper. Public entry point:
  *
  *   #include <jac313/Qlite/v002.hpp>
  *   jac313::Qlite::v002::Sqlite db("app.db");
  *
- * Public symbols: Sqlite (Statement, Transaction, prepare/prepare_cached, exec, get_one_*),
+ * Public symbols: Sqlite (Statement, Transaction, prepare/prepare_cached, get_one_*),
  * SqliteError, bind_value, column, version.
  */
 

@@ -6,19 +6,21 @@ import jac313.qlite.v001;
 
 // Functional module smoke. This consumer is an ordinary TU (textual std includes)
 // that imports the module and EXERCISES the exported symbols — Sqlite, Statement,
-// bind/column, SqliteError — end to end against an in-memory database.
-//
-// The original test only checked that `import jac313.qlite.v001;` resolved; it
-// never called anything, so a module that exported no usable definitions would
-// still pass. Driving a real round-trip proves both module front-ends actually
-// export working definitions: the textual export-using path (clang/fallback) AND
-// the import-std export-namespace path (g++-15 pilot, JAC313_QLITE_IMPORT_STD).
+// bind/column, SqliteError, plus the new transaction guard — end to end against an
+// in-memory database. Driving a real round-trip proves both module front-ends
+// actually export working definitions (textual export-namespace path for clang AND
+// the import-std path for the g++ pilot).
 int main() {
     using namespace jac313::Qlite::v001;
     try {
         Sqlite db(":memory:");
         db.exec("CREATE TABLE t(id INTEGER, name TEXT);");
-        db.exec("INSERT INTO t VALUES(?, ?);", std::int64_t{42}, std::string("alpha"));
+
+        {
+            auto tx = db.transaction();
+            db.exec("INSERT INTO t VALUES(?, ?);", std::int64_t{42}, std::string("alpha"));
+            tx.commit();
+        }
 
         auto st = db.prepare("SELECT id, name FROM t WHERE id = ?;");
         st.bind(std::int64_t{42});
