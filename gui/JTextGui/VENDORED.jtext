@@ -1,28 +1,64 @@
-//File:    gui/JTextGui/VENDORED.jtext
-//Date:    2026-10-18
-//Purpose: Vendored jText_GUI editor for jac313
-//Related: jText_GUI 507a223, library snapshot e44da5e
+//File:    VENDORED.jtext
+//Purpose: Vendored copy of jText_GUI/gui/JTextGui (do not edit the copied files here;
+//         change the canonical repo, then sync). Drift is reported as warnings, never as failures.
+//         Written by `jac313_test_cli vendor-sync` / `vendor-baseline` (format: VENDORED_FORMAT.md).
 //
 === jText File ===
- 1. ?# VENDORED
- 3. ?# jText_GUI editor, with its jText library snapshot
+ 1. #?# VENDORED
+ 3. #?# Vendored copy of jText_GUI/gui/JTextGui
+
 
 === Section: source ===
 
+
 === Fields ===
- 1. /# id/Integer/Not Null
- 2. /# key/String/Not Null
- 3. /# value/String
+ 1. #/# id/Identity(1,1)/Not Null
+ 2. #/# key/String/Not Null
+ 3. #/# value/String
 === End Fields ===
 
+
 === Data ===
-1. |# 1|canonical_repo|jText_GUI
-1. |# 2|canonical_dir|gui/JTextGui plus v001 core and v001/jText
-1. |# 3|canonical_commit|507a223
-1. |# 4|copied|2026-10-18
-1. |# 5|local|VENDORED.jtext
-1. |# 6|library|jText/
-1. |# 7|notes|This package is the editor jac313 builds, copied from jText_GUI 507a223. The library in jText/ is canonical jText e44da5e. It does not compile the sibling jText checkout, and it does not use jac313/vNNN/jText. That copy stays the Store library. gst_time.cpp is in the tree and is not in the package file list.
+1. #|# 1|canonical_repo|jText_GUI
+
+1. #|# 2|canonical_dir|jText_GUI/gui/JTextGui
+
+1. #|# 3|canonical_commit|182042b87436
+
+1. #|# 4|canonical_dirty|No
+
+1. #|# 5|canonical_version|
+
+1. #|# 6|transform|none
+
+1. #|# 7|ported|2026-10-19
+
+1. #|# 8|baseline|Yes
+
+1. #|# 9|local|JTextGui.upp,VENDORED.jtext,core,include,jText
+
+1. #|# 10|exclude|
+
+1. #|# 11|notes|JTextGui top: main.cpp from jText_GUI; JTextGui.upp is jac313's own (paths rewired to core/ include/ jText/). The gui/JTextGui.bm build method equals jText_GUI gui/GCC.bm.
+
+=== End Data ===
+=== End Section ===
+
+
+=== Section: files ===
+
+
+=== Fields ===
+ 1. #/# id/Identity(1,1)/Not Null
+ 2. #/# path/String/Not Null             # vendored file, relative to the manifest dir
+ 3. #/# canonical_path/String/Not Null   # canonical file, relative to canonical_dir
+ 4. #/# canonical_sha256/String/Not Null # canonical file content when copied
+ 5. #/# vendored_sha256/String/Not Null  # vendored file content as written
+=== End Fields ===
+
+
+=== Data ===
+1. #|# 1|main.cpp|main.cpp|627201c51c8ba83c1867fe472d418968ab454a3550bf4821325e3204f2f3f623|627201c51c8ba83c1867fe472d418968ab454a3550bf4821325e3204f2f3f623
 
 === End Data ===
 === End Section ===

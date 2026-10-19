@@ -1,0 +1,73 @@
+//File:    VENDORED.jtext
+//Purpose: Vendored copy of jText_GUI/v001/src/core (do not edit the copied files here;
+//         change the canonical repo, then sync). Drift is reported as warnings, never as failures.
+//         Written by `jac313_test_cli vendor-sync` / `vendor-baseline` (format: VENDORED_FORMAT.md).
+//
+=== jText File ===
+ 1. #?# VENDORED
+ 3. #?# Vendored copy of jText_GUI/v001/src/core
+
+
+=== Section: source ===
+
+
+=== Fields ===
+ 1. #/# id/Identity(1,1)/Not Null
+ 2. #/# key/String/Not Null
+ 3. #/# value/String
+=== End Fields ===
+
+
+=== Data ===
+1. #|# 1|canonical_repo|jText_GUI
+
+1. #|# 2|canonical_dir|jText_GUI/v001/src/core
+
+1. #|# 3|canonical_commit|182042b87436
+
+1. #|# 4|canonical_dirty|No
+
+1. #|# 5|canonical_version|
+
+1. #|# 6|transform|none
+
+1. #|# 7|ported|2026-10-19
+
+1. #|# 8|baseline|Yes
+
+1. #|# 9|local|VENDORED.jtext
+
+1. #|# 10|exclude|
+
+1. #|# 11|notes|
+
+=== End Data ===
+=== End Section ===
+
+
+=== Section: files ===
+
+
+=== Fields ===
+ 1. #/# id/Identity(1,1)/Not Null
+ 2. #/# path/String/Not Null             # vendored file, relative to the manifest dir
+ 3. #/# canonical_path/String/Not Null   # canonical file, relative to canonical_dir
+ 4. #/# canonical_sha256/String/Not Null # canonical file content when copied
+ 5. #/# vendored_sha256/String/Not Null  # vendored file content as written
+=== End Fields ===
+
+
+=== Data ===
+1. #|# 1|connections_file.cpp|connections_file.cpp|7b89f7815b9b862424f88345f2a84c4f6b2b3ae22448da4b79884258d6df515c|7b89f7815b9b862424f88345f2a84c4f6b2b3ae22448da4b79884258d6df515c
+
+1. #|# 2|jtext_store.cpp|jtext_store.cpp|8bf3d4252097635056cdbd3967a38a8456af4031ff6488b35b2c1357d4fd5b90|8bf3d4252097635056cdbd3967a38a8456af4031ff6488b35b2c1357d4fd5b90
+
+1. #|# 3|maria_postgres_store.cpp|maria_postgres_store.cpp|b77f674099d7e2dc07ff116fde75c2d69e8248a5899a5480912bed1defeefac9|b77f674099d7e2dc07ff116fde75c2d69e8248a5899a5480912bed1defeefac9
+
+1. #|# 4|session_ops.cpp|session_ops.cpp|3fbd72066e34ae7b0c946003cde434c31930c7075115a031e93b5fb94c10a85f|3fbd72066e34ae7b0c946003cde434c31930c7075115a031e93b5fb94c10a85f
+
+1. #|# 5|sqlite_store.cpp|sqlite_store.cpp|b0de472384d171aca76739bc9490ef7f7eaca083c4694d4f3b0024ee4d053d3b|b0de472384d171aca76739bc9490ef7f7eaca083c4694d4f3b0024ee4d053d3b
+
+=== End Data ===
+=== End Section ===
+=== End File ===
