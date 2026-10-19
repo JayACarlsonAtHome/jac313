@@ -88,7 +88,25 @@ Run from inside the `v001/` directory.
 
 This is the minimum to get set up and see results. The tools hide the complexity so you can start working immediately.
 
-For more details on the project, see the other docs in this directory (Benchmarks.md, Results.md, Architecture.md, etc.).
+For more details on the project, see the docs in [docs/](docs/) (listed under Documentation below).
+
+### Everyday notes
+
+- **Run as your own user.** `jac313_test_cli` (and the GUI) refuse to run as root in a tree a
+  regular user owns: a root run leaves root-owned build trees, logs and `/tmp` files your later
+  runs cannot overwrite, and valgrind will not start binaries that have no "other" execute bit
+  when it runs as root. A tree root owns (a container, CI) runs as usual. `--allow-root` overrides.
+- **Why did a gate fail?** Every valgrind task's verdict and the first 400 characters of its
+  output are kept in `results.db` (table `runEvent`), so a failure can be read even when no
+  logs were kept. `--keep-logs` (with the preset gates, e.g. `--ctest --smoke --verify-lite`)
+  also keeps full captures under `kept-logs/`; those are local only (a full run can reach
+  12+ GB), so do not commit them, and clear them with `--wipe-logs`.
+- **Explain a run, never delete it.** `./jac313_test_cli note RUN_ID "TEXT"` adds a note to a
+  run (say, a failure caused by the environment, not the code); `./jac313_test_cli note RUN_ID`
+  lists its notes. Recorded results are never changed.
+- **Rebuild the GUI** with `./jac313_test_cli gui-build [--method GCC|CLANG] [--clean]`. Use the
+  compiler that built the U++ cache (`--method CLANG` after `bootstrap.sh --gui`), and `--clean`
+  when a link fails with undefined references (stale shared U++ cache).
 
 ---
 
@@ -96,8 +114,6 @@ For more details on the project, see the other docs in this directory (Benchmark
 
 | Doc | Contents |
 |-----|----------|
-| [docs/Benchmarks.md](docs/Benchmarks.md) | Throughput benchmarks |
-| [docs/Results.md](docs/Results.md) | Results per platform |
 | [docs/Modules.md](docs/Modules.md) | C++23 modules + the `import std;` story (quirks / blessings / curses) |
 | [docs/Architecture.md](docs/Architecture.md) | Layout, the umbrella model, the test pipeline, customization, design principles |
 | [docs/Verify.md](docs/Verify.md) | valgrind memcheck + helgrind/DRD — method, the tail-reader data race found & fixed, results, and honest limits |
