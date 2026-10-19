@@ -24,6 +24,7 @@
 #include <CtrlLib/CtrlLib.h>
 #include <plugin/png/png.h>
 #include <signal.h>
+#include <unistd.h>
 #include "Model.h"
 
 using namespace Upp;
@@ -1532,7 +1533,7 @@ static void Snap(Runner& w, const String& file)
 GUI_APP_MAIN
 {
 	String summary, jtext, snap;
-	bool autostart = false, copyAiStep = false, testRemote = false;
+	bool autostart = false, copyAiStep = false, testRemote = false, allowRoot = false;
 	String connSaveHost;
 	int autostop = -1, selectRow = 1;
 	const Vector<String>& a = CommandLine();
@@ -1557,6 +1558,23 @@ GUI_APP_MAIN
 			testRemote = true;
 		else if(a[i] == "--conn-save" && i + 1 < a.GetCount())   // with --snap: type HOST, press Save
 			connSaveHost = a[++i];
+		else if(a[i] == "--allow-root")   // run even as root (jac313_test_cli refuses root too)
+			allowRoot = true;
+	}
+	// Root runs leave root-owned trees and logs, and valgrind will not start binaries root has
+	// no "other" execute bit on; the runs belong to the user. JAC313_ALLOW_ROOT passes the
+	// override on to every jac313_test_cli this window starts.
+	if(geteuid() == 0) {
+		if(!allowRoot) {
+			Exclamation(DeQtf("Jac313Runner should not run as root. Start it as your own user (no sudo).") +
+			            "&&" +
+			            DeQtf("Root runs leave root-owned build trees, logs and /tmp files that your later "
+			                  "runs cannot overwrite, and valgrind will not start binaries root has no "
+			                  "\"other\" execute bit on.") +
+			            "&&" + DeQtf("Start with --allow-root to override."));
+			return;
+		}
+		setenv("JAC313_ALLOW_ROOT", "1", 1);
 	}
 	Runner w;
 	if(summary.GetCount()) {

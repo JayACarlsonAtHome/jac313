@@ -41,6 +41,7 @@
 #include <iomanip>
 
 #include <sys/wait.h>
+#include <unistd.h>
 
 namespace fs = std::filesystem;
 using namespace jac313::test_cli;
@@ -72,7 +73,8 @@ void print_usage() {
         "  --build-dir <path>   Build directory (default: build)\n"
         "  --source-dir <path>  Source root (default: auto-detect)\n"
         "  -v, --verbose        Verbose output\n"
-        "  -h, --help           Show help\n\n"
+        "  -h, --help           Show help\n"
+        "  --allow-root         run even as root (refused by default; see the root guard)\n\n"
         "Preset gates (no subcommand — compose freely; writes & runs ./run_latest_config.sh):\n"
         "  --ctest              ctest unit suite\n"
         "  --smoke              smoke matrix: persist (binary/jtext/html/json/sql/none) × output on/off\n"
@@ -2632,9 +2634,38 @@ int run_everything_command(const GlobalOptions& global) {
     return 1;
 }
 
+// ---- root guard: test runs belong to the user, not root ----
+// A root run leaves root-owned build trees, logs and /tmp files that later runs as the user
+// cannot overwrite, and valgrind refuses to start a binary whose "other" bits lack x (it does
+// not treat root specially), so a root run on a 770 tree fails with "Permission denied".
+// --allow-root (or JAC313_ALLOW_ROOT=1, which child runs inherit) overrides. Strips the flag.
+int refuse_root_unless_allowed(int& argc, char** argv) {
+    bool allow = false;
+    int out = 1;
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "--allow-root") { allow = true; continue; }
+        argv[out++] = argv[i];
+    }
+    argc = out;
+    argv[argc] = nullptr;
+    if (const char* e = std::getenv("JAC313_ALLOW_ROOT"); e && std::string(e) == "1") allow = true;
+    if (::geteuid() != 0) return 0;
+    if (!allow) {
+        std::cerr << "jac313_test_cli: refusing to run as root. Run it as your own user (no sudo).\n"
+                     "  Root runs leave root-owned build trees, logs and /tmp files that your later\n"
+                     "  runs cannot overwrite, and valgrind will not start binaries root has no\n"
+                     "  \"other\" execute bit on. Override with --allow-root if you really mean it.\n";
+        return 2;
+    }
+    ::setenv("JAC313_ALLOW_ROOT", "1", 1);
+    std::cerr << "note: running as root (--allow-root): files written now will be owned by root.\n";
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
+    if (const int rc = refuse_root_unless_allowed(argc, argv); rc != 0) return rc;
     if (argc < 2) {
         print_usage();
         return 1;
