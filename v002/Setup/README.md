@@ -60,6 +60,10 @@ senses the host, writes a handoff (`.setup_handoff`), and runs the **committed, 
 header). If that static binary can't run on the host, `bootstrap.sh` falls back to a generated,
 **resilient** `Setup.sh`.
 
+A recipe with neither `for` nor `check` is never picked by the generator; it is used only on
+request. `upp_gui` (the U++ GUI build libraries) is one: only `./bootstrap.sh --gui` uses it,
+after its own pkg-config check, with a `[y/N]` prompt. `static_runtime` is another.
+
 | Path | Purpose |
 |------|---------|
 | `recipes.conf` | Per-`(component, family)` install commands (+ `check` / `required`) |

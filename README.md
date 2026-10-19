@@ -160,13 +160,14 @@ Each version is self-contained. `cd` into `v001/` or `v002/` and use these:
 
 ```bash
 ./bootstrap.sh                      # provisions + continues in one run (sudo may prompt inside)
+./bootstrap.sh --gui                # optional: also U++ and the Jac313Runner GUI (see gui/README.md)
 
 ./jac313_test_cli --ctest           # the smallest of all testing
 ./jac313_test_cli --smoke           # mid level testing
 ./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
 ```
 
-`./bootstrap.sh` prepares the environment (sudo provisioning + non-sudo steps now continue in one run).
+`./bootstrap.sh` prepares the environment (sudo provisioning + non-sudo steps now continue in one run). Add `--gui` to also install U++ and build the Jac313Runner GUI.
 
 `./jac313_test_cli` is the main command for testing.
 

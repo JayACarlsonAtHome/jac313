@@ -69,6 +69,7 @@ Run from inside the `v001/` directory.
 
 ```bash
 ./bootstrap.sh                      # provisions + continues in one run (sudo may prompt inside)
+./bootstrap.sh --gui                # optional: also U++ and the Jac313Runner GUI (see gui/README.md)
 
 ./jac313_test_cli --ctest           # the smallest of all testing
 ./jac313_test_cli --smoke           # mid level testing
@@ -76,6 +77,8 @@ Run from inside the `v001/` directory.
 ```
 
 `./bootstrap.sh` prepares everything (compilers, headers, valgrind, etc.). It runs the (sudo) provisioning and continues in a single invocation when using the committed provisioner. (Fallback path or host pinning may still require a re-run.)
+
+`./bootstrap.sh --gui` does the same, then installs U++ 2026.1 into `$HOME/u++` (no sudo; pinned download, SHA-256 checked; an existing install is kept) and builds `../gui/out/Jac313Runner` with clang. Only the GUI's build libraries need sudo, offered as one `[y/N]` step. Run bootstrap, the tests and the GUI as your own user, from inside this directory.
 
 `./jac313_test_cli` is the one main command:
 
