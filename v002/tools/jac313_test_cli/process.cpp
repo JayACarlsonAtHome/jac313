@@ -18,8 +18,6 @@ namespace jac313::test_cli {
 
 namespace {
 
-constexpr std::size_t kDefaultCaptureLimit = 16 * 1024;
-
 void append_capped(std::string& captured, const char* data, std::size_t n, std::size_t limit) {
     captured.append(data, n);
     if (captured.size() > limit) {
@@ -179,7 +177,7 @@ ProcessResult run_process(const std::vector<std::string>& args, const int failsa
         // in ctest/smoke/verify etc. 0 = no limit. Uses RLIMIT_AS (virtual address space).
         if (memory_mb > 0) {
             struct rlimit rl;
-            rlim_t bytes = (rlim_t)memory_mb * 1024ULL * 1024ULL;
+            rlim_t bytes = static_cast<rlim_t>(memory_mb) * 1024ULL * 1024ULL;
             rl.rlim_cur = bytes;
             rl.rlim_max = bytes;
             setrlimit(RLIMIT_AS, &rl);

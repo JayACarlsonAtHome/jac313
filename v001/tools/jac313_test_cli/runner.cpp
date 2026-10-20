@@ -84,7 +84,7 @@ TestResult execute_command(const fs::path& command,
         // Apply per-test memory limit (from DB) .
         if (memory_mb > 0) {
             struct rlimit rl;
-            rlim_t bytes = (rlim_t)memory_mb * 1024ULL * 1024ULL;
+            rlim_t bytes = static_cast<rlim_t>(memory_mb) * 1024ULL * 1024ULL;
             rl.rlim_cur = bytes;
             rl.rlim_max = bytes;
             setrlimit(RLIMIT_AS, &rl);

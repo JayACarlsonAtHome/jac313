@@ -181,7 +181,7 @@ int run_list_command(const GlobalOptions& global) {
 // Seed the discovered test names into the shared testList catalog in results.db. Best-effort:
 // the catalog is a convenience, never block a run on it. CREATE IF NOT EXISTS + INSERT OR IGNORE,
 // so it merges with store_bench's bench-config entries and a re-run writes nothing (no DB churn).
-void seed_test_catalog(const fs::path& source_dir, const std::vector<TestEntry>& tests) {
+void seed_test_catalog(const fs::path& /*source_dir*/, const std::vector<TestEntry>& tests) {
     const fs::path db_path = JAC313_RESULTS_DB;
     std::error_code ec;
     if (!fs::exists(db_path.parent_path(), ec)) {
@@ -511,7 +511,8 @@ std::int64_t cli_parameter_id(jac313::Qlite::v002::Sqlite& db,
     auto find = [&]() -> std::int64_t {
         std::int64_t id = 0; auto st = db.prepare(where);
         st.bind(compiler_id, build_type, modules, import_std, size, persist, output_mode, threads, events, runs);
-        if (st.step()) st.get(id); return id;
+        if (st.step()) st.get(id);
+        return id;
     };
     std::int64_t id = find();
     if (id == 0) {
@@ -1079,7 +1080,8 @@ void write_index_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
             // version-scoping regression that zeroed the verdict. Branch on ver instead of re-binding.
             if (ver.empty()) st.bind(g, std::string(gate));
             else             st.bind(g, std::string(gate), ver);
-            if (st.step()) st.get(x.pass, x.fail, x.ran); return x; };
+            if (st.step()) st.get(x.pass, x.fail, x.ran);
+            return x; };
         auto pf_cell = [](const GatePF& x) { return x.ran ? (std::to_string(x.pass) + "/" + std::to_string(x.fail)) : std::string("-"); };
         auto vg_cell = [](const GatePF& x) { return x.ran ? std::string(x.fail == 0 ? "✅" : "❌") : std::string("n/a"); };
         std::vector<std::int64_t> groups;
@@ -1220,7 +1222,8 @@ std::int64_t cli_parameter_id_verify(jac313::Qlite::v002::Sqlite& db, std::int64
         auto st = db.prepare(where.c_str());
         if (has_p) st.bind(compiler_id, build_type, modules, import_std, persist, tool);
         else       st.bind(compiler_id, build_type, modules, import_std, tool);
-        if (st.step()) st.get(id); return id;
+        if (st.step()) st.get(id);
+        return id;
     };
     std::int64_t id = find();
     if (id == 0) {
@@ -2624,7 +2627,8 @@ int run_everything_command(const GlobalOptions& global) {
                 // the version-scoping regression that zeroed this verdict. Branch instead of re-binding.
                 if (ver.empty()) st.bind(g, std::string(gate));
                 else             st.bind(g, std::string(gate), ver);
-                if (st.step()) st.get(x.pass, x.fail, x.ran); return x; };
+                if (st.step()) st.get(x.pass, x.fail, x.ran);
+                return x; };
             const PF ct = pf("ctest"), sm = pf("smoke"), bn = pf("bench"),
                      me = pf("memcheck"), he = pf("helgrind"), dr = pf("drd");
             const std::int64_t vgfail = me.fail + he.fail + dr.fail;

@@ -603,7 +603,7 @@ inline HostPinResult claim_group(Sqlite& db, const HostId& h, const std::string&
 }
 
 // Create a new slot at an explicit ###.
-inline HostPinResult assign_new_group(Sqlite& db, const HostId& h, std::int64_t gid) {
+inline HostPinResult assign_new_group(Sqlite& db, const HostId& /*h*/, std::int64_t gid) {
     HostPinResult r;
     if (gid <= 0) {
         r.error = HostPinError::InvalidLabel;

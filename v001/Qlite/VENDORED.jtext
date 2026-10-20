@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|Qlite/v001/Qlite
 
-1. #|# 3|canonical_commit|5c91b4e173c6
+1. #|# 3|canonical_commit|fa4bb5fa87cc
 
 1. #|# 4|canonical_dirty|No
 
@@ -31,7 +31,7 @@
 
 1. #|# 6|transform|jac313-prefix
 
-1. #|# 7|ported|2026-10-19
+1. #|# 7|ported|2026-10-20
 
 1. #|# 8|baseline|No
 
@@ -62,7 +62,7 @@
 
 1. #|# 2|include/jac313/Qlite/v001.hpp|include/Qlite/v001.hpp|508364a7249356abdb2d5b6a0423802ff8a2ed340038a10d0bd3739dbb7c34e8|bff4a5659079ebdf12e293902ee6c19295e3b7d8b89912e7ff241ad94036c28c
 
-1. #|# 3|include/jac313/Qlite/v001/Sqlite.body.hpp|include/Qlite/v001/Sqlite.body.hpp|7f64c2a254a07ff053f0499434eb39f8848fe8dbcac15576a2b2320e4f013040|eb5a95ae3cf474998b34d992d5d698f04adb8e5e24a4a9bdf114dce155417543
+1. #|# 3|include/jac313/Qlite/v001/Sqlite.body.hpp|include/Qlite/v001/Sqlite.body.hpp|e6b5f4bd0d7535b693ecf925e497b61ba17b81c2e3e1844d2c4d98f74c1eac3b|2462e40bb7f8fba7235bc68c7298bc9598c68505d88563c8196bdeb040819b0b
 
 1. #|# 4|include/jac313/Qlite/v001/Sqlite.hpp|include/Qlite/v001/Sqlite.hpp|648bbed1a29f535f8da102128cc46a41ed48a05913b1453e4a8c2e18d79b6c02|437a82204a1e2a64e195cb7d79ad2b6eaea71507164a68ffbda9c4980bffa7c4
 
@@ -70,7 +70,7 @@
 
 1. #|# 6|tests/module/v001_module_test.cpp|tests/module/v001_module_test.cpp|da19e058c56c510229f008d609869bcbc3d2ea0c70becde0f98d6e8b07ed2241|151d98ae6410d59a9236f6b951f503c7c0713a7a939ee12cfd877dd9972994ed
 
-1. #|# 7|tests/v001_test.cpp|tests/v001_test.cpp|dc04077fa22830ce7b04840a9aaa2f4309acd380e6e9056e79da8b979f45da46|51005df22b98d59776a157ae24ba639a670d1f4d697621e9947115c6e449de21
+1. #|# 7|tests/v001_test.cpp|tests/v001_test.cpp|1aa1eb01bd1f0a29156a13e2e69b6d04970f2d9f0d924daab117dd7162ea6742|1160996566ca42d3b855929a16db964dec58df8cc36aea1e3a3e6e36e6b66b19
 
 === End Data ===
 === End Section ===

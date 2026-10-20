@@ -38,7 +38,8 @@ int main(int argc, char** argv) {
     jac313::results::Sqlite db(db_path.string());
     jac313::results::ensure_schema(db);
     auto cnt = [&](const char* t) { std::int64_t n = 0; auto st = db.prepare(std::string("SELECT COUNT(*) FROM ") + t);
-                                    if (st.step()) st.get(n); return n; };
+                                    if (st.step()) st.get(n);
+                                    return n; };
     std::cout << "target: " << db_path << "\n  run=" << cnt("run") << " testRun=" << cnt("testRun")
               << " runEvent=" << cnt("runEvent") << " host_spec=" << cnt("host_spec") << " current_host=" << cnt("current_host")
               << " compiler=" << cnt("compiler") << " parameter=" << cnt("parameter")

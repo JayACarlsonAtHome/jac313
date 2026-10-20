@@ -44,16 +44,6 @@ std::optional<std::string> find_executable(const std::string& name) {
                                    : std::nullopt;
 }
 
-const ResolvedToolchain* find_resolved(const std::vector<ResolvedToolchain>& probes,
-                                       const std::string& label) {
-    for (const auto& probe : probes) {
-        if (probe.spec.label == label) {
-            return &probe;
-        }
-    }
-    return nullptr;
-}
-
 CompilerSelection selection_from(const ResolvedToolchain& rt, std::string reason) {
     CompilerSelection sel;
     sel.label = rt.spec.label;

@@ -451,16 +451,6 @@ void apply_axis(Params& p, const std::string& axis, std::size_t v) {
 // ---- the results DB (receiver): one append-only row per run, written via Qlite ----
 int set_flag_count(std::uint64_t f) { int n = 0; for (int i = 0; i < 7; ++i) if (f & (1ull << i)) ++n; return n; }
 
-std::string compiler_id() {
-#if defined(__clang__)
-    return "clang " + std::to_string(__clang_major__) + "." + std::to_string(__clang_minor__);
-#elif defined(__GNUC__)
-    return "gcc " + std::to_string(__GNUC__) + "." + std::to_string(__GNUC_MINOR__);
-#else
-    return "unknown";
-#endif
-}
-
 // Full compiler identity for the results.db compiler dimension: name + EXACT version (with patch, to
 // tie a result to its precise toolchain) + major (for clean grouping even when version strings differ).
 // CompilerInfo now lives in jac313_results_db.hpp (jac313::results::CompilerInfo).
@@ -492,77 +482,12 @@ std::uint64_t measure_output_bytes(const std::string& base) {
     return total;
 }
 
-struct HostInfo { std::string host, cpu, os; std::int64_t cores = 0, ram_gb = 0; };
-
-// Public-safety override: prefer a gitignored host_label.local (then $JAC313_HOST_LABEL)
-// over the machine's real hostname, so a committed DB carries a stable label (e.g.
-// jac313-002) from the start — no scrub needed, and grouping stays stable across re-runs.
-// store_bench runs from the build dir, so the file is searched from CWD UP the tree (it
-// lives at the v002/ root). Mirrors tools/jac313_test_cli/host_hardware.cpp::hostname().
-std::string host_label_override() {
-    namespace fs = std::filesystem;
-    auto trim = [](std::string s) {
-        const auto ws = [](char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; };
-        while (!s.empty() && ws(s.front())) s.erase(s.begin());
-        while (!s.empty() && ws(s.back()))  s.pop_back();
-        return s;
-    };
-    std::error_code ec;
-    for (fs::path d = fs::current_path(ec); !ec && !d.empty(); d = d.parent_path()) {
-        std::ifstream in(d / "host_label.local");
-        if (in) { std::string s; std::getline(in, s); s = trim(std::move(s)); if (!s.empty()) return s; }
-        if (d == d.parent_path()) break;
-    }
-    if (const char* env = std::getenv("JAC313_HOST_LABEL")) { std::string s = trim(env); if (!s.empty()) return s; }
-    return {};
-}
-
-HostInfo sense_host() {
-    HostInfo h;
-    h.host = host_label_override();
-    if (h.host.empty()) {
-        char hn[256] = {0};
-        if (::gethostname(hn, sizeof(hn) - 1) == 0) h.host = hn;
-    }
-    std::ifstream ci("/proc/cpuinfo"); std::string line;
-    while (std::getline(ci, line)) {
-        if (h.cpu.empty() && line.rfind("model name", 0) == 0) {
-            auto c = line.find(':');
-            if (c != std::string::npos) {
-                h.cpu = line.substr(c + 1);
-                while (!h.cpu.empty() && h.cpu.front() == ' ') h.cpu.erase(h.cpu.begin());
-                while (!h.cpu.empty() && h.cpu.back() == ' ')  h.cpu.pop_back();   // trim BOTH ends to
-            }                                                                       // match the CLI's host sensing (shared group_id)
-        }
-        if (line.rfind("processor", 0) == 0) ++h.cores;
-    }
-    std::ifstream mi("/proc/meminfo");
-    while (std::getline(mi, line)) {
-        if (line.rfind("MemTotal", 0) == 0) {
-            std::int64_t kb = 0; for (char c : line) if (c >= '0' && c <= '9') kb = kb * 10 + (c - '0');
-            h.ram_gb = (kb + 512 * 1024) / (1024 * 1024); break;
-        }
-    }
-    std::ifstream osr("/etc/os-release");
-    while (std::getline(osr, line)) {
-        if (line.rfind("PRETTY_NAME=", 0) == 0) {
-            h.os = line.substr(12);
-            if (!h.os.empty() && h.os.front() == '"') h.os.erase(h.os.begin());
-            if (!h.os.empty() && h.os.back() == '"') h.os.pop_back();
-            break;
-        }
-    }
-    return h;
-}
-
 // ============================================================================
 // results.db — the unified, normalized results database. The schema and the compiler/lookup/run
 // helpers live in jac313_results_db.hpp (jac313::results — shared with the test CLI, single source
-// of truth). The wrappers below just adapt store_bench's HostInfo to that shared API — results.db
+// of truth). The wrappers below adapt store_bench to that shared API — results.db
 // is the only thing store_bench writes (the legacy bench_run table is retired).
 // ============================================================================
-std::string host_label_for(std::int64_t gid) { return jac313::results::host_label(gid); }
-
 std::filesystem::path results_db_path(const std::string& bench_db_path) {
     namespace fs = std::filesystem;
     const fs::path p(bench_db_path);
@@ -581,10 +506,6 @@ void ensure_results_schema(jac313::Qlite::v001::Sqlite& db) {
             " ('0 flags, non-durable'),('2 flags, non-durable'),('4 flags, non-durable'),"
             " ('6 flags, non-durable'),('durable jtext'),('durable sql'),('durable binary'),"
             " ('durable html'),('durable json')");
-}
-
-std::int64_t results_group_id(jac313::Qlite::v001::Sqlite& db, const HostInfo& /*h*/) {
-    return jac313::results::current_host(db, bench_harness_version());
 }
 
 std::int64_t results_next_run_id(jac313::Qlite::v001::Sqlite& db) {
