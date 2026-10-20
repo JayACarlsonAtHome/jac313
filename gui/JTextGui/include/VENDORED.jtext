@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/include
 
-1. #|# 3|canonical_commit|182042b87436
+1. #|# 3|canonical_commit|d3de3f8ba22a
 
 1. #|# 4|canonical_dirty|No
 
@@ -33,7 +33,7 @@
 
 1. #|# 7|ported|2026-10-19
 
-1. #|# 8|baseline|Yes
+1. #|# 8|baseline|No
 
 1. #|# 9|local|VENDORED.jtext
 
@@ -64,13 +64,15 @@
 
 1. #|# 3|jtext_gui/core/connections_file.hpp|jtext_gui/core/connections_file.hpp|39f97974bfac9c18bc70c7b55f699d1a39ad78e6f497c35522be97efe905c41a|39f97974bfac9c18bc70c7b55f699d1a39ad78e6f497c35522be97efe905c41a
 
-1. #|# 4|jtext_gui/core/record.hpp|jtext_gui/core/record.hpp|8020e5a5bcc7d703a63fbca5ff33e2603fd0cbf57fdba8343a14e901cbe5e876|8020e5a5bcc7d703a63fbca5ff33e2603fd0cbf57fdba8343a14e901cbe5e876
+1. #|# 4|jtext_gui/core/record.hpp|jtext_gui/core/record.hpp|aeeef780a2d414b5935c99f077f52e930838ef70d24f8df6d37a5333f9903368|aeeef780a2d414b5935c99f077f52e930838ef70d24f8df6d37a5333f9903368
 
-1. #|# 5|jtext_gui/core/session.hpp|jtext_gui/core/session.hpp|f47a96b4cfec8d56fd39d6caf774d420d8c081bbf2913e6a68e8b9d293dc6f59|f47a96b4cfec8d56fd39d6caf774d420d8c081bbf2913e6a68e8b9d293dc6f59
+1. #|# 5|jtext_gui/core/session.hpp|jtext_gui/core/session.hpp|158c0646a76f6e4e73508116cf73eb93df1955c7d735d61cc4c60981fc043fd4|158c0646a76f6e4e73508116cf73eb93df1955c7d735d61cc4c60981fc043fd4
 
-1. #|# 6|jtext_gui/core/table_store.hpp|jtext_gui/core/table_store.hpp|feefa480258baf36101c7a6eab20b42c00c78641d2dd42471b050789b253f701|feefa480258baf36101c7a6eab20b42c00c78641d2dd42471b050789b253f701
+1. #|# 6|jtext_gui/core/spreadsheet.hpp|jtext_gui/core/spreadsheet.hpp|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87
 
-1. #|# 7|jtext_gui/record.hpp|jtext_gui/record.hpp|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5
+1. #|# 7|jtext_gui/core/table_store.hpp|jtext_gui/core/table_store.hpp|6727613bcd0eb42e8146be9acb84485d17e10b569feca5c33d6c63b8e728c5e8|6727613bcd0eb42e8146be9acb84485d17e10b569feca5c33d6c63b8e728c5e8
+
+1. #|# 8|jtext_gui/record.hpp|jtext_gui/record.hpp|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5
 
 === End Data ===
 === End Section ===

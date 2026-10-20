@@ -1,6 +1,6 @@
 #pragma once
 
-#include <array>
+#include <algorithm>
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
@@ -11,8 +11,11 @@
 
 namespace jtext_gui {
 
-/// Max fields shown in the simple editor panel (v001 fixed width).
-inline constexpr std::size_t kMaxFields = 10;
+/// Most fields (lines) a record can have. A record grows to what its file or table needs.
+inline constexpr std::size_t kMaxFields = 999;
+
+/// Fields a new record starts with (the editor shows at least this many lines).
+inline constexpr std::size_t kDefaultFields = 10;
 
 /// Marker written when a line has none. Splice `|`, comment `#`.
 inline constexpr const char* kDefaultMarker = "|#";
@@ -60,22 +63,62 @@ inline bool marker_is_raw(std::string_view marker) {
 }
 
 /// One logical table row (in-memory). Orthogonal to UI and storage backends.
+/// The four per-field lists always have the same length, size(): kDefaultFields to
+/// start, grown by ensure_size() when a file or table has more (up to kMaxFields).
+/// A field at or past size() is absent (NULL, no line); read it with field_is_null(),
+/// field_text() and field_has_line(), which allow that.
 struct Record {
     /// Live marker: splice, then comment. Default "|#". "[]" is raw data.
     std::string marker = kDefaultMarker;
-    std::array<std::string, kMaxFields> fields{};
+    std::vector<std::string> fields = std::vector<std::string>(kDefaultFields);
     /// True when field i is SQL NULL / a missing jText line. False and an empty
     /// fields[i] is an empty string (the line was present and blank).
-    std::array<bool, kMaxFields> is_null{};
+    std::vector<bool> is_null = std::vector<bool>(kDefaultFields, false);
     /// True when a source line exists for field i (including a blank line or an
     /// explicit NULL). Absent fields are is_null and not has_line.
-    std::array<bool, kMaxFields> has_line{};
+    std::vector<bool> has_line = std::vector<bool>(kDefaultFields, false);
     /// Each field's own marker, e.g. "^#" ("" = the record's marker). A record with
     /// any of these set is saved as per-field lines "N. ^# value", one per field.
-    std::array<std::string, kMaxFields> field_markers{};
+    std::vector<std::string> field_markers = std::vector<std::string>(kDefaultFields);
     /// Original primary-key value at load (empty if new / unknown). Used for UPDATE.
     std::string original_key;
+
+    /// Fields every list covers. (A caller may brace-initialize fields alone, e.g.
+    /// Record{"|#", {"1", "a"}}; the shortest list is what may be indexed.)
+    [[nodiscard]] std::size_t size() const {
+        return std::min({fields.size(), is_null.size(), has_line.size(), field_markers.size()});
+    }
+
+    /// Grow each list to n entries (at most kMaxFields); new ones are absent (NULL, no
+    /// line). Never shrinks a list.
+    void ensure_size(std::size_t n) {
+        n = std::min(n, kMaxFields);
+        if (fields.size() < n) fields.resize(n);
+        if (is_null.size() < n) is_null.resize(n, true);
+        if (has_line.size() < n) has_line.resize(n, false);
+        if (field_markers.size() < n) field_markers.resize(n);
+    }
+
+    /// Every field absent (NULL, no line), as a loader starts a record.
+    void mark_all_absent() { std::fill(is_null.begin(), is_null.end(), true); }
 };
+
+/// Field i is NULL or absent (past the end of the record counts as absent).
+inline bool field_is_null(const Record& r, std::size_t i) {
+    return i >= r.size() || r.is_null[i];
+}
+
+/// Field i's text; empty when it is past the end of the record.
+inline const std::string& field_text(const Record& r, std::size_t i) {
+    static const std::string none;
+    return i < r.size() ? r.fields[i] : none;
+}
+
+/// A source line exists for field i.
+inline bool field_has_line(const Record& r, std::size_t i) {
+    return i < r.size() && r.has_line[i];
+}
+
 
 /// Splice character, or 0 when the marker is raw (do not split the field).
 inline char marker_separator(std::string_view marker) {
@@ -86,12 +129,12 @@ inline char marker_separator(std::string_view marker) {
 
 /// The marker field i is written with: its own, else the record's.
 inline const std::string& field_marker(const Record& r, std::size_t i) {
-    return (i < kMaxFields && !r.field_markers[i].empty()) ? r.field_markers[i] : r.marker;
+    return (i < r.field_markers.size() && !r.field_markers[i].empty()) ? r.field_markers[i] : r.marker;
 }
 
 /// True when some field has a marker of its own (the record must be saved per field).
 inline bool has_field_markers(const Record& r) {
-    for (std::size_t i = 0; i < kMaxFields; ++i)
+    for (std::size_t i = 0; i < r.field_markers.size(); ++i)
         if (!r.field_markers[i].empty() && r.field_markers[i] != r.marker) return true;
     return false;
 }
@@ -107,7 +150,7 @@ inline std::optional<std::int64_t> parse_record_id(std::string_view value) {
 }
 
 inline std::optional<std::int64_t> record_id_of(const Record& r) {
-    if (r.is_null[0] || r.fields[0].empty()) return std::nullopt;
+    if (field_is_null(r, 0) || field_text(r, 0).empty()) return std::nullopt;
     return parse_record_id(r.fields[0]);
 }
 
@@ -132,11 +175,12 @@ inline RecordIdFix ensure_record_ids(std::vector<Record>& rows) {
     std::int64_t next = any ? max_id + 1 : 1;
     for (auto& r : rows) {
         if (record_id_of(r)) continue;
-        const bool missing = r.is_null[0] || !r.has_line[0] || r.fields[0].empty();
+        const bool missing = field_is_null(r, 0) || !field_has_line(r, 0) || field_text(r, 0).empty();
         if (!missing) {
             ++fix.not_integer;
             continue;
         }
+        r.ensure_size(1);
         r.is_null[0] = false;
         r.has_line[0] = true;
         r.fields[0] = std::to_string(next++);
@@ -151,12 +195,12 @@ inline std::string record_preview(const Record& r, std::size_t max_fields = 4) {
     char sep = marker_separator(r.marker);
     if (sep == 0) sep = ' ';
     std::string out;
-    const std::size_t n = std::min(max_fields, kMaxFields);
+    const std::size_t n = std::min(max_fields, r.size());
     for (std::size_t i = 0; i < n; ++i) {
         if (i > 0) out += sep;
         out += r.fields[i];
     }
-    if (kMaxFields > max_fields) out += sep + std::string("...");
+    if (r.size() > max_fields) out += sep + std::string("...");
     return out;
 }
 

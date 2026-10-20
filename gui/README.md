@@ -56,7 +56,7 @@ execute bit when it runs as root. A tree root owns (a container, CI) runs as usu
 | Package | What it does |
 |---------|--------------|
 | **Jac313Runner** | Runs the jac313 test gates through `jac313_test_cli`, streams the run, and shows the results with a jText viewer for each result row's dataset |
-| **JTextGui** | The jText table editor, vendored from jText_GUI. Open and save jText, pull PostgreSQL or SQLite, and edit the ten data fields. Tab moves through those fields. A blank marker starts as `|#`. The package carries its own `jText/` library snapshot and does not compile the sibling jText checkout or `vNNN/jText`. |
+| **JTextGui** | The jText table editor, vendored from jText_GUI. Open and save jText, pull PostgreSQL or SQLite and Mergesert, records of up to 999 lines, a Lines box and field box, an Excel-style Records grid (detachable to a second monitor), and Excel (.xlsx) export and import. A blank marker starts as `|#`. Guide: the jText Editor Manual in jText_GUI (`Manual/pdf/jText-Editor-Manual.pdf`). The package carries its own `jText/` library snapshot and does not compile the sibling jText checkout or `vNNN/jText`; it links SQLite, libpq and zlib. |
 
 ## Build
 

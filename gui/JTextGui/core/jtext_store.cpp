@@ -60,7 +60,7 @@ std::string joined_value(const jText::v001::JTextEntry& e) {
 void blank_record(Record& cur, const std::string& marker) {
     cur = Record{};
     cur.marker = marker.empty() ? std::string(kDefaultMarker) : marker;
-    cur.is_null.fill(true);
+    cur.mark_all_absent();
 }
 
 /// A numbered line is one field, even when its marker splits the text
@@ -70,6 +70,7 @@ void blank_record(Record& cur, const std::string& marker) {
 /// literal NULL and trailing spaces.
 void assign_one_field(Record& cur, const jText::v001::JTextEntry& e, const std::string& marker) {
     const std::size_t i = e.number - 1;
+    cur.ensure_size(i + 1);
     if (marker != cur.marker) cur.field_markers[i] = marker;
     cur.has_line[i] = true;
     if (marker_is_raw(marker)) {
@@ -90,6 +91,7 @@ void assign_one_field(Record& cur, const jText::v001::JTextEntry& e, const std::
 
 void assign_compact(Record& cur, const jText::v001::JTextEntry& e) {
     const std::size_t first = e.number - 1;
+    cur.ensure_size(std::min(first + e.fields.size(), kMaxFields));
     for (std::size_t fi = 0; fi < e.fields.size() && first + fi < kMaxFields; ++fi) {
         const std::size_t dest = first + fi;
         cur.has_line[dest] = true;
@@ -103,7 +105,30 @@ void assign_compact(Record& cur, const jText::v001::JTextEntry& e) {
     }
 }
 
-void collect_field_names(std::string_view path, std::vector<std::string>& names) {
+/// One Fields line after its marker, e.g. "name/String/80/Not Null   # comment":
+/// the name, then a type, an optional length (digits) and Nullable / Not Null.
+ColumnDef parse_field_def(std::string rest) {
+    const auto comment = rest.find('#');
+    if (comment != std::string::npos) rest = rest.substr(0, comment);
+    ColumnDef def;
+    std::size_t start = 0;
+    for (int part = 0; start <= rest.size(); ++part) {
+        const auto slash = rest.find('/', start);
+        const std::string word = trim(rest.substr(start, slash == std::string::npos ? std::string::npos : slash - start));
+        if (part == 0) def.name = word;
+        else if (word == "Not Null") def.not_null = true;
+        else if (word == "Nullable") def.not_null = false;
+        else if (!word.empty() && word.find_first_not_of("0123456789") == std::string::npos)
+            def.length = std::stoi(word.substr(0, 6));
+        else if (!word.empty() && def.jtext_type.empty()) def.jtext_type = word;
+        if (slash == std::string::npos) break;
+        start = slash + 1;
+    }
+    return def;
+}
+
+void collect_field_names(std::string_view path, std::vector<std::string>& names,
+                         std::vector<ColumnDef>* defs = nullptr) {
     std::ifstream in{std::string(path)};
     if (!in) return;
     bool in_fields = false;
@@ -118,11 +143,15 @@ void collect_field_names(std::string_view path, std::vector<std::string>& names)
         const MarkerRun mark = take_marker(rest);
         if (mark.text != "/#") continue;
         rest = trim(rest.substr(mark.consumed));
+        const std::string whole = rest;
         const auto slash = rest.find('/');
         if (slash != std::string::npos) rest = trim(rest.substr(0, slash));
         const auto comment = rest.find('#');
         if (comment != std::string::npos) rest = trim(rest.substr(0, comment));
-        if (!rest.empty() && names.size() < kMaxFields) names.push_back(rest);
+        if (!rest.empty() && names.size() < kMaxFields) {
+            names.push_back(rest);
+            if (defs) defs->push_back(parse_field_def(whole));   // same order as names
+        }
     }
 }
 
@@ -387,12 +416,16 @@ void write_marked_value(std::ostream& out, std::size_t number, std::size_t pad,
 }
 
 void write_data_rows(std::ostream& out, const std::vector<Record>& rows) {
+    // Line numbers are padded to the widest record (at least kDefaultFields wide, so a
+    // table of up to 10 fields keeps " 1." to "10.", as before).
+    std::size_t widest = kDefaultFields;
+    for (const auto& row : rows) widest = std::max(widest, row.size());
     const std::size_t pad = std::max(std::size_t{2},
-                                     jText::v001::jtext_line_pad_width_for_count(kMaxFields));
+                                     jText::v001::jtext_line_pad_width_for_count(widest));
     for (const auto& row : rows) {
         std::size_t last = 0;
         bool hole = false;
-        for (std::size_t f = 0; f < kMaxFields; ++f)
+        for (std::size_t f = 0; f < row.size(); ++f)
             if (!row.is_null[f]) last = f + 1;
         for (std::size_t f = 0; f < last; ++f)
             if (row.is_null[f]) hole = true;
@@ -400,7 +433,7 @@ void write_data_rows(std::ostream& out, const std::vector<Record>& rows) {
         const std::string record_mark = live_marker(row.marker);
         // A raw record has no splice, so each present field is its own line.
         if (has_field_markers(row) || hole || marker_is_raw(record_mark)) {
-            for (std::size_t f = 0; f < kMaxFields; ++f) {
+            for (std::size_t f = 0; f < row.size(); ++f) {
                 if (row.is_null[f]) continue;
                 write_marked_value(out, f + 1, pad, field_marker(row, f), row.fields[f]);
             }
@@ -519,7 +552,7 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path) {
     JTextLoadResult result;
     result.section_name = (sec && !sec->name.empty()) ? sec->name
                          : (!file.table_name.empty() ? file.table_name : "records");
-    collect_field_names(path, result.field_names);
+    collect_field_names(path, result.field_names, &result.field_defs);
 
     if (!sec) {
         return std::unexpected("no records found in jText file (unsupported layout or empty)");
@@ -582,6 +615,7 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path) {
         if (marks && ei < marks->size() && (*marks)[ei].raw) {
             const std::size_t i = static_cast<std::size_t>(e.number - 1);
             if (i < kMaxFields) {
+                cur.ensure_size(i + 1);
                 cur.is_null[i] = false;
                 cur.has_line[i] = true;
                 cur.fields[i] = (*marks)[ei].raw_value;

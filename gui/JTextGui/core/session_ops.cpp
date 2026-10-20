@@ -180,6 +180,7 @@ std::expected<void, std::string> session_open_jtext(TableSession& session,
     session.jtext_path = std::string(path);
     session.table = loaded->section_name;
     session.column_names = std::move(loaded->field_names);
+    session.field_defs = std::move(loaded->field_defs);
     session.rows = std::move(loaded->rows);
     session.changes.clear();
     // Lines that gained |# were not in the file. The file is dirty until saved.

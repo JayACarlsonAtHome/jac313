@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/gui/JTextGui
 
-1. #|# 3|canonical_commit|182042b87436
+1. #|# 3|canonical_commit|d3de3f8ba22a
 
 1. #|# 4|canonical_dirty|No
 
@@ -33,7 +33,7 @@
 
 1. #|# 7|ported|2026-10-19
 
-1. #|# 8|baseline|Yes
+1. #|# 8|baseline|No
 
 1. #|# 9|local|JTextGui.upp,VENDORED.jtext,core,include,jText
 
@@ -58,7 +58,7 @@
 
 
 === Data ===
-1. #|# 1|main.cpp|main.cpp|627201c51c8ba83c1867fe472d418968ab454a3550bf4821325e3204f2f3f623|627201c51c8ba83c1867fe472d418968ab454a3550bf4821325e3204f2f3f623
+1. #|# 1|main.cpp|main.cpp|cd3fa80becce25c4c30bcde87a1f4fab9ac5c0523b0876a1b18a0f2e80946b34|cd3fa80becce25c4c30bcde87a1f4fab9ac5c0523b0876a1b18a0f2e80946b34
 
 === End Data ===
 === End Section ===

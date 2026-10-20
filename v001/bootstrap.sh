@@ -231,9 +231,9 @@ UPP_SHA256="701dbb10edf03c77ceff66c89a2ffa23fce2b788cc480b0cae39d0689519b633"
 UPP_DIR="$HOME/u++"
 if command -v clang++ >/dev/null 2>&1; then UPP_METHOD="CLANG"; else UPP_METHOD="GCC"; fi
 
-upp_gui_libs_ok() {  # the pkg-config modules U++ CtrlCore links for a GTK (Wayland-first) build
+upp_gui_libs_ok() {  # what U++ CtrlCore links for a GTK (Wayland-first) build, plus zlib (JTextGui .xlsx)
   command -v pkg-config >/dev/null 2>&1 \
-    && pkg-config --exists gtk+-3.0 libnotify freetype2 fontconfig x11 xinerama xrender xft xcb xext
+    && pkg-config --exists gtk+-3.0 libnotify freetype2 fontconfig x11 xinerama xrender xft xcb xext zlib
 }
 
 install_upp() {  # U++ into $UPP_DIR (no sudo); keeps an existing install with umk + uppsrc

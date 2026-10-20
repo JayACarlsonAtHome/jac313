@@ -22,6 +22,9 @@ namespace jtext_gui {
 struct JTextLoadResult {
     std::vector<Record> rows;
     std::vector<std::string> field_names;  ///< if declared; may be empty
+    /// The Fields block line by line: name, jtext_type, length, not_null (the editor
+    /// shows them for the line being edited). Same order as field_names.
+    std::vector<ColumnDef> field_defs;
     std::string section_name;
     /// True when a data line had no marker and was given the default "|#".
     /// An explicit marker is kept as its right two characters. "#|#" loads as "|#".

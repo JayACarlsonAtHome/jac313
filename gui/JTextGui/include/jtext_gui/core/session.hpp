@@ -88,6 +88,9 @@ struct TableSession {
     std::string key_column = "id";  ///< first column used as PK for mergesert
     std::vector<std::string> column_names;
     std::vector<ColumnDef> columns;  ///< empty for a jText file; filled on a database pull
+    /// A jText file's Fields block (name, type, length, Not Null), for display only;
+    /// a database session describes its lines with `columns` instead.
+    std::vector<ColumnDef> field_defs;
 
     std::vector<Record> rows;
     ChangeSet changes;
@@ -101,6 +104,7 @@ struct TableSession {
         key_column = "id";
         column_names.clear();
         columns.clear();
+        field_defs.clear();
         rows.clear();
         changes.clear();
     }
@@ -108,10 +112,12 @@ struct TableSession {
     [[nodiscard]] bool is_open() const { return kind != SessionKind::None; }
     [[nodiscard]] bool is_dirty() const { return !changes.empty(); }
 
-    /// Update field and mark row dirty. Returns false if out of range.
+    /// Update field and mark row dirty; the record grows to reach it. Returns false if
+    /// out of range (row, or field >= kMaxFields).
     bool set_field(std::size_t row, std::size_t field, std::string value) {
         if (row >= rows.size() || field >= kMaxFields) return false;
         auto& rec = rows[row];
+        rec.ensure_size(field + 1);
         if (!rec.is_null[field] && rec.has_line[field] && rec.fields[field] == value) return true;
         rec.is_null[field] = false;
         rec.has_line[field] = true;
@@ -124,6 +130,7 @@ struct TableSession {
     bool set_null(std::size_t row, std::size_t field) {
         if (row >= rows.size() || field >= kMaxFields) return false;
         auto& rec = rows[row];
+        if (field >= rec.size()) return true;   // past the end is already absent
         if (rec.is_null[field] && !rec.has_line[field] && rec.fields[field].empty()) return true;
         rec.is_null[field] = true;
         rec.has_line[field] = false;
@@ -151,6 +158,8 @@ struct TableSession {
                                             ? std::string(kDefaultMarker)
                                             : live_marker(rows[row].marker);
         if (!marker.empty() && marker == record_mark) marker.clear();
+        if (field >= rows[row].size() && marker.empty()) return true;   // nothing to record
+        rows[row].ensure_size(field + 1);
         if (rows[row].field_markers[field] == marker) return true;
         rows[row].field_markers[field] = std::move(marker);
         changes.mark_dirty(row);

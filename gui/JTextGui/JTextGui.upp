@@ -12,6 +12,7 @@ file
 	core/sqlite_store.cpp,
 	core/maria_postgres_store.cpp,
 	core/connections_file.cpp,
+	core/spreadsheet.cpp,
 	jText/jText.cpp,
 	jText/src/parser/line.cpp,
 	jText/src/parser/section.cpp,
@@ -22,7 +23,8 @@ options
 
 library
 	sqlite3,
-	pq;
+	pq,
+	z;
 
 link
 	"-L/usr/pgsql-17/lib";

@@ -106,7 +106,8 @@ public:
         while (sqlite3_step(st) == SQLITE_ROW) {
             Record rec;
             rec.marker = kDefaultMarker;
-            rec.is_null.fill(true);
+            rec.ensure_size(static_cast<std::size_t>(ncols));
+            rec.mark_all_absent();
             for (int i = 0; i < static_cast<int>(kMaxFields) && i < ncols; ++i) {
                 const auto col = static_cast<std::size_t>(i);
                 if (sqlite3_column_type(st, i) == SQLITE_NULL) continue;
@@ -174,8 +175,8 @@ public:
                 }
                 int p = 1;
                 for (std::size_t c = 1; c < cols.size() && c < kMaxFields; ++c) {
-                    if (rec.is_null[c]) sqlite3_bind_null(st, p++);
-                    else sqlite3_bind_text(st, p++, rec.fields[c].c_str(), -1, SQLITE_TRANSIENT);
+                    if (field_is_null(rec, c)) sqlite3_bind_null(st, p++);
+                    else sqlite3_bind_text(st, p++, field_text(rec, c).c_str(), -1, SQLITE_TRANSIENT);
                 }
                 sqlite3_bind_text(st, p, rec.original_key.c_str(), -1, SQLITE_TRANSIENT);
 
@@ -212,10 +213,10 @@ public:
                 break;
             }
             for (std::size_t c = 0; c < cols.size() && c < kMaxFields; ++c) {
-                if (rec.is_null[c])
+                if (field_is_null(rec, c))
                     sqlite3_bind_null(st, static_cast<int>(c + 1));
                 else
-                    sqlite3_bind_text(st, static_cast<int>(c + 1), rec.fields[c].c_str(), -1,
+                    sqlite3_bind_text(st, static_cast<int>(c + 1), field_text(rec, c).c_str(), -1,
                                       SQLITE_TRANSIENT);
             }
             if (sqlite3_step(st) != SQLITE_DONE) {

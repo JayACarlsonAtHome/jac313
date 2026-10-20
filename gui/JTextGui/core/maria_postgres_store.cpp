@@ -149,7 +149,8 @@ public:
         for (int r = 0; r < nrows; ++r) {
             Record rec;
             rec.marker = kDefaultMarker;
-            rec.is_null.fill(true);
+            rec.ensure_size(static_cast<std::size_t>(ncols));
+            rec.mark_all_absent();
             for (int c = 0; c < static_cast<int>(kMaxFields) && c < ncols; ++c) {
                 const auto col = static_cast<std::size_t>(c);
                 if (PQgetisnull(res, r, c)) continue;
@@ -201,11 +202,11 @@ public:
                     // literal escape for v1 — improve with PQexecParams later
                     sql += cols[c];
                     sql += " = ";
-                    if (rec.is_null[c]) {
+                    if (field_is_null(rec, c)) {
                         sql += "NULL";
                     } else {
                         sql += "'";
-                        for (char ch : rec.fields[c]) {
+                        for (char ch : field_text(rec, c)) {
                             if (ch == '\'') sql += "''";
                             else sql += ch;
                         }
@@ -240,11 +241,11 @@ public:
             sql += ") VALUES (";
             for (std::size_t c = 0; c < cols.size() && c < kMaxFields; ++c) {
                 if (c) sql += ",";
-                if (rec.is_null[c]) {
+                if (field_is_null(rec, c)) {
                     sql += "NULL";
                 } else {
                     sql += "'";
-                    for (char ch : rec.fields[c]) {
+                    for (char ch : field_text(rec, c)) {
                         if (ch == '\'') sql += "''";
                         else sql += ch;
                     }
@@ -473,7 +474,8 @@ public:
         while ((row = mysql_fetch_row(res)) != nullptr) {
             Record rec;
             rec.marker = kDefaultMarker;
-            rec.is_null.fill(true);
+            rec.ensure_size(static_cast<std::size_t>(ncols));
+            rec.mark_all_absent();
             for (unsigned c = 0; c < kMaxFields && c < ncols; ++c) {
                 if (!row[c]) continue;
                 rec.is_null[c] = false;
