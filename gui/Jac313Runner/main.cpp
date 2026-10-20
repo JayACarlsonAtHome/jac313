@@ -431,7 +431,7 @@ Runner::Runner()
 	browse.SetLabel("...");
 	s1.Add(browse.RightPosZ(8, 30).TopPosZ(y, 22));
 	browse << THISBACK(Browse);
-	root.WhenAction = [=] { FillVersions(); UpdateCommand(); };
+	root.WhenAction = [this] { FillVersions(); UpdateCommand(); };
 	y += 32;
 
 	boxVersion.SetLabel("Version");
@@ -537,7 +537,7 @@ Runner::Runner()
 	connSave.Tip("Write the Remote PG fields into the file (creates the folder and file if needed; "
 	             "other rows, such as pg-local, are kept)");
 	connBrowse << THISBACK(BrowseConn);
-	connLoad << [=] { LoadConn(false); };
+	connLoad << [this] { LoadConn(false); };
 	connSave << THISBACK(SaveConn);
 	Place(s1, lConn, 20, y + 70, 90, 22);
 	s1.Add(connFile.HSizePosZ(110, 236).TopPosZ(y + 70, 22));
@@ -615,8 +615,8 @@ Runner::Runner()
 	s2.Add(runResults.RightPosZ(136, 120).BottomPosZ(8, 26));
 	s2.Add(runBack.RightPosZ(8, 120).BottomPosZ(8, 26));
 	stop << THISBACK(Stop);
-	runBack << [=] { Show(1); };
-	runResults << [=] { ShowResults(); };
+	runBack << [this] { Show(1); };
+	runResults << [this] { ShowResults(); };
 
 	// ================= Screen 3
 	s3.Add(header.HSizePosZ(8, 8).TopPosZ(6, 22));
@@ -686,8 +686,8 @@ Runner::Runner()
 	s3.Add(quit.RightPosZ(8, 120).BottomPosZ(8, 26));
 	openFile << THISBACK(OpenFile);
 	showLog << THISBACK(ShowLog);
-	resBack << [=] { Show(1); };
-	quit << [=] { Close(); };
+	resBack << [this] { Show(1); };
+	quit << [this] { Close(); };
 
 	LoadSettings(opt);
 	root <<= EffectiveRoot(opt, gCmdRoot);

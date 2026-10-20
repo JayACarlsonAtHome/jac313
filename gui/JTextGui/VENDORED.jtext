@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/gui/JTextGui
 
-1. #|# 3|canonical_commit|d3de3f8ba22a
+1. #|# 3|canonical_commit|005497e12fcb
 
 1. #|# 4|canonical_dirty|No
 
@@ -31,7 +31,7 @@
 
 1. #|# 6|transform|none
 
-1. #|# 7|ported|2026-10-19
+1. #|# 7|ported|2026-10-20
 
 1. #|# 8|baseline|No
 
@@ -58,7 +58,7 @@
 
 
 === Data ===
-1. #|# 1|main.cpp|main.cpp|cd3fa80becce25c4c30bcde87a1f4fab9ac5c0523b0876a1b18a0f2e80946b34|cd3fa80becce25c4c30bcde87a1f4fab9ac5c0523b0876a1b18a0f2e80946b34
+1. #|# 1|main.cpp|main.cpp|bd175003c1628156a940fc206c2521a1c87b8622d325402ee5a4ce99be8abcbe|bd175003c1628156a940fc206c2521a1c87b8622d325402ee5a4ce99be8abcbe
 
 === End Data ===
 === End Section ===

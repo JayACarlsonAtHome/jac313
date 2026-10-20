@@ -967,7 +967,7 @@ struct JTextGui : TopWindow {
 				bar.Separator();
 				bar.Add("Exit", [this] { Close(); });
 			});
-			bar.Sub("Help", [this](Bar& bar) {
+			bar.Sub("Help", [](Bar& bar) {
 				bar.Add("About", [] {
 					PromptOK("jText GUI\n"
 					         "Table editor for jText files and SQL tables.\n"
