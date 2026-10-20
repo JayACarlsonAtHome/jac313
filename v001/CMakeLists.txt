@@ -46,6 +46,10 @@ option(JAC313_BUILD_TEST_CLI "Build jac313_test_cli local test runner" ON)
 
 # Opt-in compiler strictness (both OFF: the default build and its baselines are unchanged).
 # Same options as v002 (see v002/docs/Cpp26_Adoption.md); here they apply at C++23.
+# Format checks, always on: a printf-style call whose arguments do not match its format
+# (e.g. a 64-bit value given to %d) is an error, not undefined behaviour at run time.
+add_compile_options(-Wformat=2 -Werror=format)
+
 option(JAC313_STRICT "Extra warnings: -Wall -Wextra -Wpedantic and friends" OFF)
 option(JAC313_STRICT_WERROR "With JAC313_STRICT: treat those warnings as errors" OFF)
 # Runtime hardening. Changes behaviour, so keep it out of bench and valgrind builds:
@@ -57,7 +61,7 @@ if(JAC313_STRICT)
     add_compile_options(
         -Wall -Wextra -Wpedantic
         -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Woverloaded-virtual
-        -Wimplicit-fallthrough -Wformat=2)
+        -Wimplicit-fallthrough)
     if(JAC313_STRICT_WERROR)
         add_compile_options(-Werror)
     endif()

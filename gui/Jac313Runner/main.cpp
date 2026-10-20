@@ -307,6 +307,7 @@ struct Runner : TopWindow {
 	Button    connBrowse, connLoad, connSave;
 	Vector<ConnRow> connRows;   // the file's rows as loaded (other backends are kept on Save)
 	Label     lRoot, lVersion, lComp, lType, lFront, lSize, lDb, lFiles, lMaxRuns, lMaxRec, lMax, lMaxHint, lRb, lPg, lCmd, lInfo;
+	Label     lFormat;   // the format checks every build has (not an option)
 	EditString root;
 	Button    browse;
 	LabelBox  boxVersion, boxGates, boxBuild, boxPersist, boxRows;
@@ -471,11 +472,16 @@ Runner::Runner()
 	}
 	bStrict.SetLabel("strict warnings");
 	bHardened.SetLabel("hardened");
-	bStrict.Tip("--strict: -Wall -Wextra -Wpedantic and friends (ctest/smoke builds)");
+	bStrict.Tip("--strict: -Wall -Wextra -Wpedantic and friends (ctest/smoke builds); "
+	            "the format checks are on without it");
 	bHardened.Tip("--hardened: libstdc++ assertions, zero-init locals, stack/CF protection "
 	              "(ctest/smoke builds; not bench or valgrind)");
 	Place(s1, bStrict, 420, y + 18 + 26, 130, 22);
 	Place(s1, bHardened, 560, y + 18 + 26, 100, 22);
+	lFormat.SetText("Always on: -Wformat=2 -Werror=format");
+	lFormat.Tip("Every build (any compiler, type or option) treats a printf-style call whose "
+	            "arguments do not match its format, such as a 64-bit value given to %d, as an error.");
+	Place(s1, lFormat, 420, y + 18 + 78, 360, 22);
 	y += 130;
 
 	boxPersist.SetLabel("Persist to");

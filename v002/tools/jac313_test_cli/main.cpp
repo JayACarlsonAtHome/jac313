@@ -119,6 +119,7 @@ void print_usage() {
         "  --connections FILE   both servers from a jText connections file kept outside git (default:\n"
         "                       <projects>/SQL_Secrets/jac313_connections.jtext; see `connections`)\n"
         "  --strict             JAC313_STRICT=ON: -Wall -Wextra -Wpedantic and friends (ctest/smoke builds)\n"
+        "                       (format checks, -Wformat=2 -Werror=format, are on in every build)\n"
         "  --hardened           JAC313_HARDENED=ON: libstdc++ assertions, zero-init locals, stack/CF\n"
         "                       protection (ctest/smoke builds; never bench or valgrind)\n"
         "                       Either one builds in build-<cc>-strict / -hardened and records the\n"

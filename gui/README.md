@@ -75,6 +75,11 @@ $HOME/u++/umk <root>/gui,$HOME/u++/uppsrc Jac313Runner GCC -brsH <root>/gui/out/
 $HOME/u++/umk <root>/gui,$HOME/u++/uppsrc JTextGui <root>/gui/JTextGui.bm -brsH <root>/gui/out/JTextGui
 ```
 
+Both packages have `options "-Wformat=2 -Werror=format"` in their `.upp`: a printf-style call
+whose arguments do not match its format (such as a 64-bit value given to `%d`) fails the
+build. Package options apply to our code, not to uppsrc. The jac313 CMake builds have the
+same flags in every build; Jac313Runner's Build box says so ("Always on").
+
 U++ keeps one shared object cache (`$HOME/u++/.cache/upp.out`) for all builds with the same
 method. Build with the same compiler each time. If the compiler changes, rebuild everything
 once with `-a`.

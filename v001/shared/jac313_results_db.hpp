@@ -407,7 +407,8 @@ struct HostId { std::string cpu; std::int64_t cores = 0; std::int64_t ram_gb = 0
                 std::int64_t p_cores = 0; std::int64_t cpu_mhz_min = 0; std::int64_t cpu_mhz_max = 0; };
 
 inline std::string host_label(std::int64_t group_id) {
-    char b[24]; std::snprintf(b, sizeof b, "jac313-%03lld", static_cast<long long>(group_id)); return b;
+    // 32: "jac313-" + up to 20 characters of a long long + NUL (24 could cut a big id short)
+    char b[32]; std::snprintf(b, sizeof b, "jac313-%03lld", static_cast<long long>(group_id)); return b;
 }
 
 inline std::string hash_prefix(const std::string& hash, std::size_t n = 8) {

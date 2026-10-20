@@ -175,11 +175,22 @@ cmake --build build-gcc15 && ctest --test-dir build-gcc15
 # clang is the second gate (clang 21 supports -std=c++26)
 ```
 
+### Format checks (always on, 2026-10-19)
+
+Every build, with any compiler, type or option, has `-Wformat=2 -Werror=format`
+(`add_compile_options` in v001 and v002 `CMakeLists.txt`): a printf-style call whose arguments
+do not match its format, such as a 64-bit value given to `%d`, is a build error instead of
+undefined behaviour at run time. `-Wformat=2` used to come only with `JAC313_STRICT`.
+Turning it on found one real case, now fixed: `host_label()` in `shared/jac313_results_db.hpp`
+wrote `"jac313-%03lld"` into a 24-byte buffer, which a large or negative id could cut short
+(GCC's `-Wformat-truncation`); the buffer is 32 bytes now. The U++ packages (Jac313Runner,
+JTextGui) have the same flags as package `options` in their `.upp` files.
+
 ### Optional strictness (CMake options, all OFF by default)
 
 | Option | Adds |
 |---|---|
-| `JAC313_STRICT` | `-Wall -Wextra -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Woverloaded-virtual -Wimplicit-fallthrough -Wformat=2` |
+| `JAC313_STRICT` | `-Wall -Wextra -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Woverloaded-virtual -Wimplicit-fallthrough` (the format checks are always on, above) |
 | `JAC313_STRICT_WERROR` | `-Werror` on top of `JAC313_STRICT` (fails today: about 25 pre-existing warning sites) |
 | `JAC313_HARDENED` | `-D_GLIBCXX_ASSERTIONS -ftrivial-auto-var-init=zero -fstack-protector-strong -fstack-clash-protection -fcf-protection=full`, plus `-D_FORTIFY_SOURCE=3` outside Debug (gcc's `-fhardened`, spelled so clang takes it) |
 
