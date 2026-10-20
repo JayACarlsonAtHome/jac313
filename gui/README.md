@@ -16,23 +16,24 @@ when it needs it). `<root>` is the folder that holds `v001/`, `v002/` and `gui/`
 
 1. **Bootstrap a version with `--gui`.** This builds `jac313_test_cli`, offers the GUI's
    build libraries (GTK3, libnotify, FreeType, Fontconfig, X11; one `[y/N]` sudo step),
-   installs U++ 2026.1 into `$HOME/u++` without sudo (a pinned download, SHA-256 checked),
-   and builds `gui/out/Jac313Runner` with clang:
+   installs U++ from [upp_basefix](https://github.com/JayACarlsonAtHome/upp_basefix) into
+   `$HOME/upp_basefix` (U++ pinned to a GitHub commit plus patches: 0 warnings, sanitizer and
+   valgrind clean; its own bootstrap lists the system packages and installs them only on a
+   `[y/N]`), and builds `gui/out/Jac313Runner` with GCC:
    ```
    cd <root>/v002 && ./bootstrap.sh --gui
    ```
-   An existing `$HOME/u++` with `umk` and `uppsrc` is used as it is. A plain `./bootstrap.sh`
-   never touches U++.
-2. **Rebuild later** with the same compiler that built the U++ cache:
+   An existing install with `umk` and `uppsrc` in `$UPP_DIR` (default `$HOME/upp_basefix`) is
+   used as it is. A plain `./bootstrap.sh` never touches U++.
+2. **Rebuild later:**
    ```
-   cd <root>/v002 && ./jac313_test_cli gui-build --method CLANG    # after bootstrap --gui
+   cd <root>/v002 && ./jac313_test_cli gui-build              # GCC; --method CLANG for clang
    ```
-   With your own U++ and the `GCC` method on RHEL, run `gui-build` from a gcc-toolset-15
-   shell (`source /opt/rh/gcc-toolset-15/enable`), or the link fails with
-   `undefined reference to __cxa_call_terminate`. U++ 2026.1 itself crashes when built with
-   GCC 15, which is why bootstrap uses clang. If a link fails with other undefined
-   references, the shared U++ cache holds stale objects: add `--clean` (rebuild everything).
-   Bootstrap retries once with `--clean` by itself.
+   An upp_basefix install has `GCC.bm` and `CLANG.bm` next to its `umk`, naming the compilers
+   by path (gcc-toolset-15 on RHEL), so no toolset shell is needed. Its patch 0001 fixes the
+   GCC 15 start-up crash plain U++ 2026.1 had. If a link fails with undefined references, the
+   U++ cache holds stale objects: add `--clean` (rebuild everything). Bootstrap retries once
+   with `--clean` by itself.
 3. **Start it** from a desktop session (Wayland or X11):
    ```
    <root>/gui/out/Jac313Runner
@@ -66,13 +67,14 @@ From either version, with no shell script:
 cd v002 && ./jac313_test_cli gui-build      # builds <root>/gui/Jac313Runner -> <root>/gui/out/Jac313Runner
 ```
 
-umk and its uppsrc come as a pair from one U++ install (the jac314 `gui_build` rule). On
-this box the pair is `$HOME/u++/umk` + `$HOME/u++/uppsrc`; by hand:
+umk and its uppsrc come as a pair from one U++ install (the jac314 `gui_build` rule):
+`$UPP_DIR`, else `$HOME/upp_basefix`, else `<GFS>/upp-bin/rhel` + `<GFS>/upp`, else `$HOME/u++`.
+By hand, with the upp_basefix install:
 
 ```
-source /opt/rh/gcc-toolset-15/enable      # RHEL: the GCC method uses the g++ on PATH
-$HOME/u++/umk <root>/gui,$HOME/u++/uppsrc Jac313Runner GCC -brsH <root>/gui/out/Jac313Runner
-$HOME/u++/umk <root>/gui,$HOME/u++/uppsrc JTextGui <root>/gui/JTextGui.bm -brsH <root>/gui/out/JTextGui
+U=$HOME/upp_basefix
+$U/umk <root>/gui,$U/uppsrc Jac313Runner GCC -brsH <root>/gui/out/Jac313Runner
+$U/umk <root>/gui,$U/uppsrc JTextGui <root>/gui/JTextGui.bm -brsH <root>/gui/out/JTextGui
 ```
 
 Both packages have `options "-Wformat=2 -Werror=format"` in their `.upp`: a printf-style call
@@ -80,8 +82,8 @@ whose arguments do not match its format (such as a 64-bit value given to `%d`) f
 build. Package options apply to our code, not to uppsrc. The jac313 CMake builds have the
 same flags in every build; Jac313Runner's Build box says so ("Always on").
 
-U++ keeps one shared object cache (`$HOME/u++/.cache/upp.out`) for all builds with the same
-method. Build with the same compiler each time. If the compiler changes, rebuild everything
+U++ keeps one object cache per build method (an upp_basefix install keeps it in its own
+`.config`, apart from any other U++). Build with the same compiler each time. If the compiler changes, rebuild everything
 once with `-a`.
 
 ### Wayland first (2026-10-16)

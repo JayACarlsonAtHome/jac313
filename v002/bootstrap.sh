@@ -221,53 +221,51 @@ maybe_offer_local_cmake() {  # offer the pinned CMake whenever the import-std ga
 }
 
 # --- optional (--gui): U++ and the Jac313Runner GUI --------------------------------
-# U++ is pinned to a stable SourceForge release. No checksum is published upstream, so the
-# SHA-256 below was measured from the download when the pin was set; a mismatch refuses.
-# U++ 2026.1 built with GCC 15 crashes at start (umk and the GUI both), so umk and the GUI
-# are built with clang (a jac313 prerequisite anyway), or the system g++ when clang is absent.
-UPP_RELEASE="2026.1"
-UPP_BUILD="18468"
-UPP_SHA256="701dbb10edf03c77ceff66c89a2ffa23fce2b788cc480b0cae39d0689519b633"
-UPP_DIR="$HOME/u++"
-if command -v clang++ >/dev/null 2>&1; then UPP_METHOD="CLANG"; else UPP_METHOD="GCC"; fi
+# U++ comes from upp_basefix (github.com/JayACarlsonAtHome/upp_basefix): U++ pinned to a GitHub
+# commit, plus patches that make it build with 0 warnings and run clean under the sanitizers
+# and valgrind. Its patch 0001 also fixes the GCC 15 start-up crash of plain U++ 2026.1, so the
+# GUI is built with GCC again. An install is $UPP_DIR/{umk,uppsrc,GCC.bm,CLANG.bm}.
+UPP_DIR="${UPP_DIR:-$HOME/upp_basefix}"
+UPP_BASEFIX_REPO="${UPP_BASEFIX_REPO:-https://github.com/JayACarlsonAtHome/upp_basefix.git}"
+UPP_BASEFIX_SRC="${UPP_BASEFIX_SRC:-$HOME/upp_basefix_src}"   # its clone (the script, the patches)
+UPP_METHOD="GCC"
 
 upp_gui_libs_ok() {  # what U++ CtrlCore links for a GTK (Wayland-first) build, plus zlib (JTextGui .xlsx)
   command -v pkg-config >/dev/null 2>&1 \
     && pkg-config --exists gtk+-3.0 libnotify freetype2 fontconfig x11 xinerama xrender xft xcb xext zlib
 }
 
-install_upp() {  # U++ into $UPP_DIR (no sudo); keeps an existing install with umk + uppsrc
+install_upp() {  # U++ into $UPP_DIR via upp_basefix; keeps an existing install with umk + uppsrc
   if [ -x "$UPP_DIR/umk" ] && [ -d "$UPP_DIR/uppsrc" ]; then
-    echo "U++ found at $UPP_DIR (umk + uppsrc) — using it."; return 0
+    echo "U++ found at $UPP_DIR ($(head -1 "$UPP_DIR/VERSION" 2>/dev/null || echo 'umk + uppsrc')) — using it."; return 0
   fi
-  if [ -e "$UPP_DIR" ]; then
+  if [ -e "$UPP_DIR" ] && [ -n "$(ls -A "$UPP_DIR" 2>/dev/null)" ]; then
     echo "$UPP_DIR exists but has no umk + uppsrc. Not touching it: move it aside and re-run."
     return 1
   fi
-  command -v sha256sum >/dev/null 2>&1 || { echo "sha256sum missing — cannot verify the U++ download."; return 1; }
-  tmp=$(mktemp -d) || return 1
-  tb="upp-posix-$UPP_BUILD.tar.xz"
-  echo "Downloading U++ $UPP_RELEASE ($tb, about 41 MB, SHA-256 checked)…"
-  download_to "https://sourceforge.net/projects/upp/files/upp/$UPP_RELEASE/$tb/download" "$tmp/$tb" 900 \
-    || { echo "U++ download failed (network?)."; rm -rf "$tmp"; return 1; }
-  echo "$UPP_SHA256  $tmp/$tb" | sha256sum -c - >/dev/null 2>&1 \
-    || { echo "U++ CHECKSUM MISMATCH — refusing to install."; rm -rf "$tmp"; return 1; }
-  tar -xJf "$tmp/$tb" -C "$tmp" && [ -d "$tmp/upp/uppsrc" ] \
-    || { echo "U++ extract failed."; rm -rf "$tmp"; return 1; }
-  mv "$tmp/upp" "$UPP_DIR" && rm -rf "$tmp"
-  # umk the way U++'s own ./install does it: with the prebuilt static umks32 when it runs,
-  # else with make. Not through $ACT: a GCC-15-built umk crashes (see above).
-  echo "Building umk ($UPP_METHOD)…"
-  ( cd "$UPP_DIR" && ./umks32 ./uppsrc umk "$UPP_METHOD" -brsH ./umk ) >/dev/null 2>&1 \
-    || ( cd "$UPP_DIR" && ./configure >/dev/null && make -f umkMakefile -j"$(nproc 2>/dev/null || echo 2)" ) \
-    || { echo "umk build failed (see $UPP_DIR)."; return 1; }
-  [ -x "$UPP_DIR/umk" ] || { echo "umk was not built."; return 1; }
-  echo "Installed U++ $UPP_RELEASE ($UPP_BUILD) -> $UPP_DIR"
+  if [ ! -x "$UPP_BASEFIX_SRC/upp_basefix.sh" ]; then
+    command -v git >/dev/null 2>&1 || { echo "git missing — cannot fetch upp_basefix."; return 1; }
+    echo "Fetching upp_basefix -> $UPP_BASEFIX_SRC…"
+    git clone -q "$UPP_BASEFIX_REPO" "$UPP_BASEFIX_SRC" || { echo "git clone failed (network?)."; return 1; }
+  fi
+  # its bootstrap: the pinned U++ from GitHub, umk built from it, the patches; it lists the
+  # system packages U++ needs and installs them only when asked (sudo)
+  if ! "$UPP_BASEFIX_SRC/upp_basefix.sh" bootstrap; then
+    if [ ! -t 0 ]; then echo "(non-interactive — not installing; run $UPP_BASEFIX_SRC/upp_basefix.sh bootstrap --install)"; return 1; fi
+    printf "Install those packages now (sudo)? [y/N] "
+    read -r ans || ans=""
+    case "$ans" in
+      [yY]|[yY][eE][sS]) "$UPP_BASEFIX_SRC/upp_basefix.sh" bootstrap --install || { echo "upp_basefix bootstrap failed."; return 1; } ;;
+      *) echo "Skipped — U++ is not installed."; return 1 ;;
+    esac
+  fi
+  "$UPP_BASEFIX_SRC/upp_basefix.sh" install "$UPP_DIR" || { echo "upp_basefix install failed."; return 1; }
+  echo "Installed $(head -1 "$UPP_DIR/VERSION") -> $UPP_DIR"
 }
 
 bootstrap_gui() {  # --gui: build libraries ([y/N]), U++ (no sudo), then Jac313Runner
   echo
-  echo "=== GUI (--gui): U++ $UPP_RELEASE + Jac313Runner ==="
+  echo "=== GUI (--gui): U++ (upp_basefix) + Jac313Runner ==="
   if ! upp_gui_libs_ok; then
     cmd=$(recipe_cmd upp_gui "$family")
     if [ -z "$cmd" ]; then
@@ -289,8 +287,8 @@ bootstrap_gui() {  # --gui: build libraries ([y/N]), U++ (no sudo), then Jac313R
   install_upp || return 1
   # U++ keeps one object cache per build method; stale objects from an older U++ break the link,
   # so a failed build is retried once with --clean (rebuild everything).
-  ( cd "$ROOT" && "$CLI" gui-build --method "$UPP_METHOD" ) \
-    || { echo "Retrying with a clean rebuild (stale U++ cache)…"; ( cd "$ROOT" && "$CLI" gui-build --method "$UPP_METHOD" --clean ); } \
+  ( cd "$ROOT" && UPP_DIR="$UPP_DIR" "$CLI" gui-build --method "$UPP_METHOD" ) \
+    || { echo "Retrying with a clean rebuild (stale U++ cache)…"; ( cd "$ROOT" && UPP_DIR="$UPP_DIR" "$CLI" gui-build --method "$UPP_METHOD" --clean ); } \
     || { echo "gui-build failed."; return 1; }
   echo "Start it as your own user: $(dirname "$ROOT")/gui/out/Jac313Runner"
 }

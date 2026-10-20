@@ -78,7 +78,7 @@ Run from inside the `v001/` directory.
 
 `./bootstrap.sh` prepares everything (compilers, headers, valgrind, etc.). It runs the (sudo) provisioning and continues in a single invocation when using the committed provisioner. (Fallback path or host pinning may still require a re-run.)
 
-`./bootstrap.sh --gui` does the same, then installs U++ 2026.1 into `$HOME/u++` (no sudo; pinned download, SHA-256 checked; an existing install is kept) and builds `../gui/out/Jac313Runner` with clang. Only the GUI's build libraries need sudo, offered as one `[y/N]` step. Run bootstrap, the tests and the GUI as your own user, from inside this directory.
+`./bootstrap.sh --gui` does the same, then installs U++ from [upp_basefix](https://github.com/JayACarlsonAtHome/upp_basefix) into `$HOME/upp_basefix` (U++ pinned to a GitHub commit plus patches; an existing install is kept) and builds `../gui/out/Jac313Runner` with GCC. Only the GUI's build libraries need sudo, offered as one `[y/N]` step. Run bootstrap, the tests and the GUI as your own user, from inside this directory.
 
 `./jac313_test_cli` is the one main command:
 
@@ -104,9 +104,9 @@ For more details on the project, see the docs in [docs/](docs/) (listed under Do
 - **Explain a run, never delete it.** `./jac313_test_cli note RUN_ID "TEXT"` adds a note to a
   run (say, a failure caused by the environment, not the code); `./jac313_test_cli note RUN_ID`
   lists its notes. Recorded results are never changed.
-- **Rebuild the GUI** with `./jac313_test_cli gui-build [--method GCC|CLANG] [--clean]`. Use the
-  compiler that built the U++ cache (`--method CLANG` after `bootstrap.sh --gui`), and `--clean`
-  when a link fails with undefined references (stale shared U++ cache).
+- **Rebuild the GUI** with `./jac313_test_cli gui-build [--method GCC|CLANG] [--clean]` (U++ from
+  `$UPP_DIR`, default `$HOME/upp_basefix`). Use `--clean` when a link fails with undefined
+  references (stale U++ cache).
 
 ---
 

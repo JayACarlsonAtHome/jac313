@@ -2698,7 +2698,8 @@ int main(int argc, char** argv) {
     }
     if (command == "gui-build") {   // build a U++ GUI package under <root>/gui with umk (no shell script)
         // umk and its uppsrc come as a pair from one U++ install (jac314 gui_build rule):
-        // <GFS>/upp-bin/rhel/umk + <GFS>/upp/uppsrc when present, else $HOME/u++/{umk,uppsrc}.
+        // $UPP_DIR, else $HOME/upp_basefix (upp_basefix.sh install: the pinned, patched U++),
+        // else <GFS>/upp-bin/rhel/umk + <GFS>/upp/uppsrc, else $HOME/u++/{umk,uppsrc}.
         fs::path src = fs::current_path();
         std::vector<std::string> packages;
         std::string method = "GCC";   // a U++ build method (GCC uses the g++ on PATH; CLANG uses clang++)
@@ -2712,8 +2713,9 @@ int main(int argc, char** argv) {
                 std::cout << "gui-build [PACKAGE...] [--source-dir DIR] [--method GCC|CLANG] [--clean]\n"
                              "  Builds U++ packages in <root>/gui (default: Jac313Runner) into <root>/gui/out/<PACKAGE>.\n"
                              "  The GUI is version-independent: it sits beside the vNNN folders, not inside one.\n"
-                             "  --method picks the U++ build method (default GCC). U++ 2026.1 built with GCC 15\n"
-                             "  crashes; ./bootstrap.sh --gui uses CLANG.\n"
+                             "  --method picks the U++ build method (default GCC). An upp_basefix install has\n"
+                             "  GCC.bm and CLANG.bm next to its umk. U++ is taken from $UPP_DIR, else\n"
+                             "  $HOME/upp_basefix, else <GFS>/upp-bin/rhel + <GFS>/upp, else $HOME/u++.\n"
                              "  --clean rebuilds everything (umk -a). Use it when the link fails with undefined\n"
                              "  references: U++ shares one object cache per method, and stale objects break links.\n";
                 return 0;
@@ -2726,6 +2728,8 @@ int main(int argc, char** argv) {
         const fs::path gui = vdir.parent_path() / "gui";
         const char* home = std::getenv("HOME");
         std::vector<std::pair<fs::path, fs::path>> pairs;   // (umk, uppsrc) in preference order
+        if (const char* d = std::getenv("UPP_DIR"); d && *d) pairs.emplace_back(fs::path(d) / "umk", fs::path(d) / "uppsrc");
+        if (home) pairs.emplace_back(fs::path(home) / "upp_basefix/umk", fs::path(home) / "upp_basefix/uppsrc");
         for (const char* gfs : {"/run/media/jay/GFS", "/media/jay/GFS", "/mnt/GFS"})
             pairs.emplace_back(fs::path(gfs) / "upp-bin/rhel/umk", fs::path(gfs) / "upp/uppsrc");
         if (home) pairs.emplace_back(fs::path(home) / "u++/umk", fs::path(home) / "u++/uppsrc");
@@ -2735,7 +2739,8 @@ int main(int argc, char** argv) {
             if (fs::is_regular_file(u, ec) && fs::is_directory(s, ec)) { umk = u; uppsrc = s; break; }
         }
         if (umk.empty()) {
-            std::cerr << "gui-build: no umk + uppsrc pair found (looked in <GFS>/upp-bin/rhel and $HOME/u++)\n";
+            std::cerr << "gui-build: no umk + uppsrc pair found (looked in $UPP_DIR, $HOME/upp_basefix, <GFS>/upp-bin/rhel\n"
+                         "  and $HOME/u++); ./bootstrap.sh --gui installs U++ (upp_basefix)\n";
             return 1;
         }
         int rc = 0;
