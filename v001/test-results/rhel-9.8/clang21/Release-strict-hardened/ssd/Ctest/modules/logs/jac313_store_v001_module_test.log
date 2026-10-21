@@ -1,0 +1,9 @@
+# jac313 test log
+test=jac313_store_v001_module_test
+command=/run/media/jay/GFS/git/jac313/v001/build-clang-strict-hardened/Store/tests/module/jac313_store_v001_module_test
+duration_ms=50
+exit_code=0
+
+--- stdout ---
+
+--- stderr ---
