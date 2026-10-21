@@ -127,6 +127,10 @@ std::optional<std::string> find_scan_deps(const std::vector<std::string>& candid
     return std::nullopt;
 }
 
+std::optional<std::string> find_on_path(const std::string& name) {
+    return find_executable(name);
+}
+
 std::vector<ResolvedToolchain> probe_compilers(const fs::path& source_dir) {
     return resolve_registry(source_dir);
 }

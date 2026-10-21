@@ -60,6 +60,9 @@ CompilerSelection resolve_compiler(const CompilerResolveRequest& request);
 // First clang-scan-deps candidate that exists on PATH.
 std::optional<std::string> find_scan_deps(const std::vector<std::string>& candidates);
 
+// The program NAME as found on PATH (or NAME itself when it holds a '/').
+std::optional<std::string> find_on_path(const std::string& name);
+
 bool is_clang_compiler(const std::string& compiler);
 
 } // namespace jac313::test_cli
