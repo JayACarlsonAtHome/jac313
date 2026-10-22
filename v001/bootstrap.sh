@@ -132,7 +132,7 @@ compute_missing() {
   ninja_ok                         || missing="$missing ninja"
   [ -e /usr/include/sqlite3.h ]    || missing="$missing sqlite"
   { [ -e /usr/pgsql-17/include/libpq-fe.h ] \
-      || { v=$(pkg-config --modversion libpq 2>/dev/null); [ -n "$v" ] && [ "${v%%.*}" -ge 17 ]; }; } \
+      || { v=$(pkg-config --modversion libpq 2>/dev/null); v=${v%%[!0-9]*}; [ -n "$v" ] && [ "$v" -ge 17 ]; }; } \
                                    || missing="$missing pg17"
   { command -v valgrind >/dev/null 2>&1 \
       && [ -e /usr/include/valgrind/valgrind.h ] \
