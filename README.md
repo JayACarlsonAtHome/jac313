@@ -156,7 +156,13 @@ You don't have to adopt all of it; the pieces are independent enough to borrow.
 
 ## Quick start (for either version)
 
-Each version is self-contained. `cd` into `v001/` or `v002/` and use these:
+Each version is self-contained:
+
+- **`v001/`** is the C++23 version. **New here? Start in `v001/`**: it has the full details
+  (its README and `docs/`).
+- **`v002/`** is the C++26 version: the same world, built as C++26.
+
+`cd` into `v001/` or `v002/` and use these:
 
 ```bash
 ./bootstrap.sh                      # provisions + continues in one run (sudo may prompt inside)
