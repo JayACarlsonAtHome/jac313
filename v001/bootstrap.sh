@@ -230,8 +230,10 @@ UPP_BASEFIX_REPO="${UPP_BASEFIX_REPO:-https://github.com/JayACarlsonAtHome/upp_b
 UPP_BASEFIX_SRC="${UPP_BASEFIX_SRC:-$HOME/upp_basefix_src}"   # its clone (the script, the patches)
 UPP_METHOD="GCC"
 
-upp_gui_libs_ok() {  # what U++ CtrlCore links for a GTK (Wayland-first) build, plus zlib (JTextGui .xlsx)
-  command -v pkg-config >/dev/null 2>&1 \
+upp_gui_libs_ok() {  # what U++ CtrlCore links for a GTK (Wayland-first) build, plus zlib (JTextGui .xlsx),
+                     # and the patch + rsync that upp_basefix needs to make the patched tree
+  command -v patch >/dev/null 2>&1 && command -v rsync >/dev/null 2>&1 \
+    && command -v pkg-config >/dev/null 2>&1 \
     && pkg-config --exists gtk+-3.0 libnotify freetype2 fontconfig x11 xinerama xrender xft xcb xext zlib
 }
 
