@@ -825,7 +825,7 @@ void Runner::ToOptions()
 	if(RemoteConninfo(opt).GetCount())
 		setenv("JAC313_PG_REMOTE", WithPassFile(RemoteConninfo(opt), PassFileFor(opt, Root(), true)), 1);
 	// pg-local's server for the viewer: the default, with bootstrap's password file when there is one
-	if(PassFileFor(opt, Root(), false).GetCount())
+	if(PassFileFor(opt, Root(), false).GetCount() && !getenv("JAC313_PG_LOCAL"))
 		setenv("JAC313_PG_LOCAL", WithPassFile("host=localhost dbname=jac313 user=jac313 connect_timeout=10",
 		                                       PassFileFor(opt, Root(), false)), 1);
 	// keep the root only when it differs from the one found from the executable,
@@ -880,7 +880,6 @@ void Runner::ShowCompilerVersions()
 	String dir = AppendFileName(Root(), opt.version);
 	if(dir == compVerFor)
 		return;
-	compVerFor = dir;
 	String exe = AppendFileName(dir, "jac313_test_cli");
 	String text;
 	LocalProcess p;
@@ -889,9 +888,15 @@ void Runner::ShowCompilerVersions()
 	if(FileExists(exe) && p.Start(exe, args, NULL, dir)) {
 		String out, chunk;
 		dword t = msecs();
-		while(p.IsRunning() && msecs(t) < 10000)
-			if(p.Read(chunk)) out << chunk; else Sleep(10);
-		while(p.Read(chunk)) out << chunk;
+		while(p.IsRunning() && msecs(t) < 10000) {   // Read is true while it runs, data or not
+			if(p.Read(chunk))
+				out << chunk;
+			Sleep(10);
+		}
+		while(p.Read(chunk) && chunk.GetCount())
+			out << chunk;
+		if(p.IsRunning())
+			p.Kill();
 		for(const String& line : Split(out, '\n')) {   // "gcc gcc16 16.2.1"
 			Vector<String> w = Split(line, ' ');
 			if(w.GetCount() == 3 && (w[0] == "gcc" || w[0] == "clang")) {
@@ -901,6 +906,8 @@ void Runner::ShowCompilerVersions()
 			}
 		}
 	}
+	if(text.GetCount())   // asked again next time when the tool is missing or did not answer
+		compVerFor = dir;
 	lCompVer.SetText(text);
 }
 

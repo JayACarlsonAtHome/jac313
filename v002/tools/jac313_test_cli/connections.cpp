@@ -133,6 +133,7 @@ void apply_password_files(const fs::path& secrets_dir) {
             ci = "host=localhost dbname=jac313 user=jac313 connect_timeout=10";
         }
         if (ci.find("passfile=") != std::string::npos) continue;
+        if (ci.rfind("postgresql://", 0) == 0 || ci.rfind("postgres://", 0) == 0) continue;   // a URI takes no key=value
         ci += " passfile=" + conn_word(pf.string());
         ::setenv(var, ci.c_str(), 1);
     }

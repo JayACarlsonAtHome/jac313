@@ -479,7 +479,7 @@ int run_setup_command(const GlobalOptions& global) {
     for (const auto& step : plan.steps) {
         std::cout << " " << step.component;
     }
-    std::cout << " — ./bootstrap.sh installs them.\n";
+    std::cout << " (install commands: Setup/recipes.conf)\n";
     for (const std::string& comp : plan.unsupported) {
         std::cout << "  note: '" << comp << "' is needed but has no recipe for family '"
                   << host.os_family << "'.\n";

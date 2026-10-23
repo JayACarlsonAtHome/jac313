@@ -249,7 +249,8 @@ String PassFileFor(const RunOptions& o, const String& root, bool remote)
 
 String WithPassFile(const String& conninfo, const String& passfile)
 {
-	if(passfile.IsEmpty() || conninfo.IsEmpty() || conninfo.Find("passfile=") >= 0)
+	if(passfile.IsEmpty() || conninfo.IsEmpty() || conninfo.Find("passfile=") >= 0
+	   || conninfo.StartsWith("postgresql://") || conninfo.StartsWith("postgres://"))   // a URI takes no key=value
 		return conninfo;
 	String q = passfile;
 	if(q.Find(' ') >= 0 || q.Find('\'') >= 0 || q.Find('\\') >= 0) {

@@ -45,7 +45,9 @@ localhost:5432:jac313:jac313:my-new-local-password
 127.0.0.1:5432:jac313:jac313:my-new-local-password
 ```
 
-Deleting the file and re-running `./bootstrap.sh` makes a new random password.
+Bootstrap sets a password only when it creates the role. If the role already exists (another
+install, or the file was lost), it leaves the password alone and asks you to put it in
+`jac313_pg_local.pgpass`; set a new one with the `ALTER ROLE` line above if you do not know it.
 
 ## PG remote: your own server
 

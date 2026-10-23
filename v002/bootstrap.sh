@@ -229,8 +229,8 @@ bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner
   install_upp || return 1
   # U++ keeps one object cache per build method; stale objects from an older U++ break the link,
   # so a failed build is retried once with --clean (rebuild everything).
-  ( cd "$ROOT" && UPP_DIR="$UPP_DIR" "$CLI" gui-build --method "$UPP_METHOD" ) \
-    || { echo "Retrying with a clean rebuild (stale U++ cache)…"; ( cd "$ROOT" && UPP_DIR="$UPP_DIR" "$CLI" gui-build --method "$UPP_METHOD" --clean ); } \
+  ( cd "$ROOT" && UPP_DIR="$UPP_DIR" $ACT "$CLI" gui-build --method "$UPP_METHOD" ) \
+    || { echo "Retrying with a clean rebuild (stale U++ cache)…"; ( cd "$ROOT" && UPP_DIR="$UPP_DIR" $ACT "$CLI" gui-build --method "$UPP_METHOD" --clean ); } \
     || { echo "gui-build failed."; return 1; }
   install_dbeaver || true   # optional; the GUI is ready either way
 }
@@ -293,10 +293,11 @@ install_pg_local() {
       sudo test -f /var/lib/pgsql/18/data/PG_VERSION || sudo /usr/pgsql-18/bin/postgresql-18-setup initdb || return 1
       service=postgresql-18 ;;
     linuxmint)
-      if ! dpkg -s postgresql-18 >/dev/null 2>&1; then
+      if ! dpkg-query -W -f='${Status}' postgresql-18 2>/dev/null | grep -q 'install ok installed'; then
         [ -x /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh ] || sudo apt-get install -y postgresql-common || return 1
-        [ -e /etc/apt/sources.list.d/pgdg.sources ] || [ -e /etc/apt/sources.list.d/pgdg.list ] \
-          || sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y || return 1
+        # Mint's own codename (xia, zara) is unknown to PGDG: give it the Ubuntu one
+        sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
+          "$(. /etc/os-release; echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")" || return 1
         sudo apt-get install -y postgresql-18 || return 1   # creates and starts the cluster 18/main
       fi
       service=postgresql ;;
@@ -304,10 +305,17 @@ install_pg_local() {
   esac
   sudo systemctl enable --now "$service" || return 1
   for _ in $(seq 1 20); do pg_su -c "select 1" >/dev/null 2>&1 && break; sleep 1; done
-  pw=$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)
+  # A password is set only for a role bootstrap creates. An existing jac313 role keeps its
+  # password (other machines may use it): bootstrap needs it in the password file then.
+  pw=""
   if [ "$(pg_su -c "select 1 from pg_roles where rolname = 'jac313'")" = 1 ]; then
-    pg_su -c "alter role jac313 with login password '$pw'" || return 1
+    if [ ! -r "$PG_LOCAL_PASSFILE" ]; then
+      echo "PG local: this server already has a role jac313. Put its password in $PG_LOCAL_PASSFILE"
+      echo "          (see docs/SQL_Secrets_example), then re-run ./bootstrap.sh."
+      return 1
+    fi
   else
+    pw=$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)
     pg_su -c "create role jac313 with login password '$pw'" || return 1
   fi
   [ "$(pg_su -c "select 1 from pg_database where datname = 'jac313'")" = 1 ] \
@@ -318,9 +326,12 @@ install_pg_local() {
     sudo sed -i '1i # jac313 pg_local: the PG local gate (bootstrap.sh)\nhost    jac313    jac313    127.0.0.1/32    scram-sha-256\nhost    jac313    jac313    ::1/128         scram-sha-256' "$hba" || return 1
   fi
   pg_su -c "select pg_reload_conf()" >/dev/null || return 1
-  mkdir -p "$SECRETS_DIR" && chmod 700 "$SECRETS_DIR" || return 1
-  ( umask 077 && printf 'localhost:5432:jac313:jac313:%s\n127.0.0.1:5432:jac313:jac313:%s\n' "$pw" "$pw" > "$PG_LOCAL_PASSFILE" ) || return 1
-  chmod 600 "$PG_LOCAL_PASSFILE" || return 1
+  if [ -n "$pw" ]; then
+    # a folder bootstrap makes is private; an existing one keeps its permissions
+    [ -d "$SECRETS_DIR" ] || { mkdir -p "$SECRETS_DIR" && chmod 700 "$SECRETS_DIR"; } || return 1
+    ( umask 077 && printf 'localhost:5432:jac313:jac313:%s\n127.0.0.1:5432:jac313:jac313:%s\n' "$pw" "$pw" > "$PG_LOCAL_PASSFILE" ) || return 1
+    chmod 600 "$PG_LOCAL_PASSFILE" || return 1
+  fi
   if pg_local_ok; then
     echo "PG local: PostgreSQL $(pg_su -c "show server_version") on localhost; role + database jac313; password in $PG_LOCAL_PASSFILE."
   else
@@ -365,7 +376,7 @@ if [ "$ASSUME_YES" = 1 ] && [ "$need_install" = 1 ]; then
   if sudo -v; then
     ( while kill -0 $$ 2>/dev/null; do sudo -n true 2>/dev/null; sleep 50; done ) &
     SUDO_KEEPALIVE=$!
-    trap 'kill "$SUDO_KEEPALIVE" 2>/dev/null' EXIT
+    trap 'pkill -P "$SUDO_KEEPALIVE" 2>/dev/null; kill "$SUDO_KEEPALIVE" 2>/dev/null' EXIT
   fi
 fi
 
