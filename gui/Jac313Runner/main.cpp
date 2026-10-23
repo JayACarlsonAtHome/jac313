@@ -531,7 +531,7 @@ Runner::Runner()
 	pgPort.Tip("Empty = 5432");
 	pgTest.SetLabel("Test");
 	pgTest.Tip("Connect once and show the connect time, the round trip (ping) and the server version. "
-	           "The password comes from ~/.pgpass or $PGPASSFILE.");
+	           "The password comes from jac313_pg_remote.pgpass beside the connections file.");
 	pgTest << THISBACK(TestRemote);
 	// Connections file: where the server details are kept (jText, outside git)
 	lConn.SetText("Connections:");
@@ -819,7 +819,11 @@ void Runner::ToOptions()
 	opt.connFile = (cf == DefaultConnectionsPath(Root())) ? String() : cf;
 	// children inherit it: the dataset viewer uses it for summaries that predate "pg_remote"
 	if(RemoteConninfo(opt).GetCount())
-		setenv("JAC313_PG_REMOTE", RemoteConninfo(opt), 1);
+		setenv("JAC313_PG_REMOTE", WithPassFile(RemoteConninfo(opt), PassFileFor(opt, Root(), true)), 1);
+	// pg-local's server for the viewer: the default, with bootstrap's password file when there is one
+	if(PassFileFor(opt, Root(), false).GetCount())
+		setenv("JAC313_PG_LOCAL", WithPassFile("host=localhost dbname=jac313 user=jac313 connect_timeout=10",
+		                                       PassFileFor(opt, Root(), false)), 1);
 	// keep the root only when it differs from the one found from the executable,
 	// so a moved tree still finds itself
 	String r = Root();
@@ -1362,7 +1366,7 @@ void Runner::TestRemote()
 	Sync();
 	LocalProcess p;
 	Vector<String> args;
-	args << "--ping" << "pg-remote" << "--conninfo" << c;
+	args << "--ping" << "pg-remote" << "--conninfo" << WithPassFile(c, PassFileFor(opt, Root(), true));
 	String out;
 	if(p.Start(exe, args)) {
 		dword t = msecs();

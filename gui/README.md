@@ -196,8 +196,9 @@ jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc1
 * **Command that will run** (Screen 1): the exact `jac313_test_cli` command line(s) the options make.
   **Copy** puts them on the clipboard, each as `cd <version dir> && ...`, to run by hand in a terminal.
 * **Remote PG** (Screen 1): Host / Port / Database / User of the user's own server (no password
-  field: libpq reads `~/.pgpass` or `$PGPASSFILE`: one line `host:5432:dbname:user:password`,
-  mode 600). PG local needs nothing here: bootstrap sets up its server and pgpass line. With PG remote
+  field: the password is one line `host:5432:dbname:user:password` in `jac313_pg_remote.pgpass`
+  beside the connections file, mode 600; see docs/SQL_Secrets_example). PG local needs nothing here:
+  bootstrap sets up its server and `jac313_pg_local.pgpass`. With PG remote
   ticked they become `--pg-remote "host=... dbname=... user=... connect_timeout=10"`; Start refuses
   PG remote without a Host. **Test** runs `jac313_store_dataset --ping pg-remote --conninfo ...` from
   the version's build and shows connect ms, ping ms and the server version, or the error.

@@ -3,7 +3,8 @@
 // connections.hpp — the PostgreSQL servers for pg-local / pg-remote, kept in a jText file
 // OUTSIDE every git project (default <projects dir>/SQL_Secrets/jac313_connections.jtext,
 // i.e. a SQL_Secrets folder beside the jac313 checkout; $JAC313_CONNECTIONS overrides).
-// The file never holds a password: libpq reads those from ~/.pgpass or $PGPASSFILE.
+// The file never holds a password: libpq reads those from the password files beside it
+// (apply_password_files), else ~/.pgpass or $PGPASSFILE.
 //
 // One section, one record per server:
 //   1 id/Identity(1,1)  2 backend (pg-local | pg-remote)  3 host  4 port  5 dbname
@@ -41,6 +42,12 @@ bool load_connections(const std::filesystem::path& file, std::vector<PgConnectio
 // already in the environment wins; `skip_remote` / `skip_local` keep what a --pg-* flag set.
 void apply_connections(const std::vector<PgConnection>& rows, bool overwrite,
                        bool skip_remote, bool skip_local);
+
+// The password files beside the connections file: <dir>/jac313_pg_local.pgpass and
+// <dir>/jac313_pg_remote.pgpass (libpq pgpass lines host:port:dbname:user:password, mode 600;
+// bootstrap writes the local one). When one exists, its backend's conninfo gets
+// passfile=<file>; pg-local also gets its default server when none is set.
+void apply_password_files(const std::filesystem::path& secrets_dir);
 
 // The git work tree that contains `p` ("" when none): the connections file must not be in one.
 std::filesystem::path enclosing_git_project(const std::filesystem::path& p);

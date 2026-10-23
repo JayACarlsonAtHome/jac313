@@ -259,8 +259,11 @@ install_dbeaver() {  # DBeaver for browsing results.db and the database tables (
 # installs the server (Fedora: postgresql-server; RHEL: PGDG postgresql18-server; Mint: PGDG
 # postgresql-18), starts it at boot, creates the role + database jac313 with a random password,
 # allows that login over localhost (scram-sha-256 lines at the top of pg_hba.conf, marked
-# "jac313 pg_local") and stores the password in your pgpass ($PGPASSFILE or ~/.pgpass, mode 600),
-# never in git. A working login is left alone.
+# "jac313 pg_local") and stores the password in the SQL_Secrets folder beside the project
+# (<projects>/SQL_Secrets/jac313_pg_local.pgpass, mode 600; the folder of $JAC313_CONNECTIONS when
+# set), never in git. jac313_test_cli and Jac313Runner read it from there. A working login is left alone.
+SECRETS_DIR="$(dirname "${JAC313_CONNECTIONS:-$(dirname "$(dirname "$ROOT")")/SQL_Secrets/jac313_connections.jtext}")"
+PG_LOCAL_PASSFILE="$SECRETS_DIR/jac313_pg_local.pgpass"
 pg_psql() {
   local p
   for p in "$(command -v psql 2>/dev/null)" /usr/pgsql-18/bin/psql /usr/lib/postgresql/18/bin/psql; do
@@ -271,11 +274,12 @@ pg_psql() {
 pg_local_ok() {
   local p
   p=$(pg_psql) || return 1
-  PGCONNECT_TIMEOUT=5 "$p" -w -h localhost -U jac313 -d jac313 -Atc "select 1" >/dev/null 2>&1
+  [ -r "$PG_LOCAL_PASSFILE" ] || return 1
+  PGPASSFILE="$PG_LOCAL_PASSFILE" PGCONNECT_TIMEOUT=5 "$p" -w -h localhost -U jac313 -d jac313 -Atc "select 1" >/dev/null 2>&1
 }
 pg_su() { ( cd / && sudo -u postgres "$(pg_psql)" -v ON_ERROR_STOP=1 -Atq "$@" ); }
 install_pg_local() {
-  local service pw hba pgpass
+  local service pw hba
   case "$family" in
     fedora)
       rpm -q postgresql-server >/dev/null 2>&1 || sudo dnf install -y postgresql-server || return 1
@@ -313,15 +317,13 @@ install_pg_local() {
     sudo sed -i '1i # jac313 pg_local: the PG local gate (bootstrap.sh)\nhost    jac313    jac313    127.0.0.1/32    scram-sha-256\nhost    jac313    jac313    ::1/128         scram-sha-256' "$hba" || return 1
   fi
   pg_su -c "select pg_reload_conf()" >/dev/null || return 1
-  pgpass="${PGPASSFILE:-$HOME/.pgpass}"
-  touch "$pgpass" && chmod 600 "$pgpass" || return 1
-  { grep -vE '^(localhost|127\.0\.0\.1|::1):(5432|\*):jac313:jac313:' "$pgpass"
-    printf 'localhost:5432:jac313:jac313:%s\n127.0.0.1:5432:jac313:jac313:%s\n' "$pw" "$pw"; } > "$pgpass.new" \
-    && cat "$pgpass.new" > "$pgpass"; rm -f "$pgpass.new"
+  mkdir -p "$SECRETS_DIR" && chmod 700 "$SECRETS_DIR" || return 1
+  ( umask 077 && printf 'localhost:5432:jac313:jac313:%s\n127.0.0.1:5432:jac313:jac313:%s\n' "$pw" "$pw" > "$PG_LOCAL_PASSFILE" ) || return 1
+  chmod 600 "$PG_LOCAL_PASSFILE" || return 1
   if pg_local_ok; then
-    echo "PG local: PostgreSQL $(pg_su -c "show server_version") on localhost; role + database jac313; password in $pgpass."
+    echo "PG local: PostgreSQL $(pg_su -c "show server_version") on localhost; role + database jac313; password in $PG_LOCAL_PASSFILE."
   else
-    echo "PG local: set up, but jac313 still cannot log in on localhost — check $hba and $pgpass."
+    echo "PG local: set up, but jac313 still cannot log in on localhost — check $hba and $PG_LOCAL_PASSFILE."
     return 1
   fi
 }

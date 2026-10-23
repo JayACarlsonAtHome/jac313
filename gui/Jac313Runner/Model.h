@@ -70,6 +70,11 @@ String          EnclosingGitProject(const String& path);        // "" when not i
 
 // libpq conninfo for the Remote PG fields ("" when no host is set).
 String          RemoteConninfo(const RunOptions& o);
+// The password file for pg-remote / pg-local beside the connections file
+// (<dir>/jac313_pg_remote.pgpass / jac313_pg_local.pgpass; "" when it does not exist), and a
+// conninfo with passfile=<it> added (unchanged when the file is "" or passfile= is already set).
+String          PassFileFor(const RunOptions& o, const String& root, bool remote);
+String          WithPassFile(const String& conninfo, const String& passfile);
 // jac313_store_dataset under <root>/<version>: the first of the usual build dirs that has it.
 String          FindDatasetTool(const String& root, const String& version);
 

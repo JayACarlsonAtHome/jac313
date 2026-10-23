@@ -53,7 +53,8 @@ server; write every value: an empty one is jText's NULL, the Unit Separator byte
 === End File ===
 ```
 
-Never put a password in it: libpq reads it from `$PGPASSFILE` / `~/.pgpass`. Keep the folder
+Never put a password in it: the passwords go in `jac313_pg_local.pgpass` / `jac313_pg_remote.pgpass`
+beside it (see [docs/SQL_Secrets_example](../../../docs/SQL_Secrets_example/README.md)). Keep the folder
 private (`chmod 700`).
 
 ```bash
@@ -97,14 +98,15 @@ It is an optional build: CMake option `JAC313_STORE_PG_PERSIST`, target
 machine (Fedora `postgresql-server`, RHEL PGDG `postgresql18-server`, Mint PGDG `postgresql-18`),
 starts it at boot, creates the role and database `jac313` with a random password, adds two
 `scram-sha-256` lines for `jac313` on 127.0.0.1 / ::1 at the top of `pg_hba.conf` (marked
-`jac313 pg_local`) and writes the password to `~/.pgpass` / `$PGPASSFILE` (mode 600). A working
+`jac313 pg_local`) and writes the password to `SQL_Secrets/jac313_pg_local.pgpass` (mode 600). A working
 login is left alone, so re-running bootstrap changes nothing.
 
 **PG remote, set up by you.** On your server: a login role and a database it owns, and a
 `pg_hba.conf` line that lets the client machine in with a password. On the client: one line
-`host:5432:dbname:user:password` in `~/.pgpass` (mode 600), then the Runner's Remote PG fields
-and **Test**. "no password supplied" means the pgpass line is missing or does not match the
-host / database / user exactly.
+`host:5432:dbname:user:password` in `SQL_Secrets/jac313_pg_remote.pgpass` (mode 600), then the
+Runner's Remote PG fields and **Test**. "no password supplied" means that file is missing, not mode
+600, or its line does not match the host / database / user exactly. jac313_test_cli and the Runner
+add `passfile=<that file>` to the server's connection when the file exists.
 
 The remote backend exists to show the network cost to users without a local server:
 on the lab LAN a local ping is about 0.015 ms and the lab server about 1.4 ms.

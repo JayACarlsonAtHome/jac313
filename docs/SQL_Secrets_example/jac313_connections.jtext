@@ -1,0 +1,34 @@
+//File:    jac313_connections.jtext
+//Purpose: PostgreSQL servers for jac313 test runs (pg-local / pg-remote).
+//         EXAMPLE ONLY (docs/SQL_Secrets_example). The real file lives in a SQL_Secrets folder
+//         beside the project, e.g. ~/git/SQL_Secrets/, never inside a git project.
+//         No passwords here: they are in jac313_pg_local.pgpass / jac313_pg_remote.pgpass.
+//
+=== jText File ===
+ 1. #?# jac313_connections
+ 3. #?# PostgreSQL connections for jac313 / Jac313Runner
+
+
+=== Section: connections ===
+
+
+=== Fields ===
+ 1. #/# id/Identity(1,1)/Not Null     # record id
+ 2. #/# backend/String/Not Null       # pg-local | pg-remote
+ 3. #/# host/String/Not Null          # host name or IP address
+ 4. #/# port/Number                   # 5432 is PostgreSQL's usual port
+ 5. #/# dbname/String
+ 6. #/# user/String
+ 7. #/# connect_timeout/Number        # seconds
+ 8. #/# notes/String
+=== End Fields ===
+
+
+=== Data ===
+1. #|# 1|pg-local|localhost|5432|jac313|jac313|10|this machine (bootstrap sets it up)
+
+1. #|# 2|pg-remote|db.example.org|5432|jac313|jac313|10|your own server
+
+=== End Data ===
+=== End Section ===
+=== End File ===

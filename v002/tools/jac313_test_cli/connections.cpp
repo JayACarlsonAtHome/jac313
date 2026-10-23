@@ -120,12 +120,30 @@ void apply_connections(const std::vector<PgConnection>& rows, bool overwrite,
     }
 }
 
+void apply_password_files(const fs::path& secrets_dir) {
+    for (const bool remote : {false, true}) {
+        const fs::path pf = secrets_dir / (remote ? "jac313_pg_remote.pgpass" : "jac313_pg_local.pgpass");
+        std::error_code ec;
+        if (!fs::is_regular_file(pf, ec)) continue;
+        const char* var = remote ? "JAC313_PG_REMOTE" : "JAC313_PG_LOCAL";
+        const char* cur = std::getenv(var);
+        std::string ci = (cur && *cur) ? cur : "";
+        if (ci.empty()) {
+            if (remote) continue;   // pg-remote has no default server
+            ci = "host=localhost dbname=jac313 user=jac313 connect_timeout=10";
+        }
+        if (ci.find("passfile=") != std::string::npos) continue;
+        ci += " passfile=" + conn_word(pf.string());
+        ::setenv(var, ci.c_str(), 1);
+    }
+}
+
 std::string connections_template() {
     return
         "//File:    jac313_connections.jtext\n"
         "//Purpose: PostgreSQL servers for jac313 test runs (pg-local / pg-remote).\n"
-        "//         Keep this file OUTSIDE every git project. No passwords here: libpq reads them\n"
-        "//         from ~/.pgpass or $PGPASSFILE. Jac313Runner writes it; safe to edit by hand.\n"
+        "//         Keep this file OUTSIDE every git project. No passwords here: they go in\n"
+        "//         jac313_pg_local.pgpass / jac313_pg_remote.pgpass beside it. Jac313Runner writes it; safe to edit by hand.\n"
         "//         Fill in pg-remote's host (and dbname / user if they differ), or delete that row.\n"
         "//\n"
         "=== jText File ===\n"

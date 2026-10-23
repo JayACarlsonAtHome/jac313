@@ -240,6 +240,30 @@ String EffectiveConnFile(const RunOptions& o, const String& root)
 	return f.GetCount() ? f : DefaultConnectionsPath(root);
 }
 
+String PassFileFor(const RunOptions& o, const String& root, bool remote)
+{
+	String f = AppendFileName(GetFileFolder(EffectiveConnFile(o, root)),
+	                          remote ? "jac313_pg_remote.pgpass" : "jac313_pg_local.pgpass");
+	return FileExists(f) ? f : String();
+}
+
+String WithPassFile(const String& conninfo, const String& passfile)
+{
+	if(passfile.IsEmpty() || conninfo.IsEmpty() || conninfo.Find("passfile=") >= 0)
+		return conninfo;
+	String q = passfile;
+	if(q.Find(' ') >= 0 || q.Find('\'') >= 0 || q.Find('\\') >= 0) {
+		q = "'";
+		for(char c : passfile) {
+			if(c == '\'' || c == '\\')
+				q << '\\';
+			q << c;
+		}
+		q << "'";
+	}
+	return conninfo + " passfile=" + q;
+}
+
 String EnclosingGitProject(const String& path)
 {
 	String d = GetFileFolder(NormalizePath(path));
@@ -320,7 +344,7 @@ String ConnectionsText(const Vector<ConnRow>& rows)
 	  << "//Date:    " << Format("%04d-%02d-%02d", GetSysDate().year, GetSysDate().month, GetSysDate().day) << "\n"
 	  << "//Purpose: PostgreSQL servers for jac313 test runs (pg-local / pg-remote).\n"
 	  << "//         Keep this file OUTSIDE every git project. No passwords here: libpq reads them\n"
-	  << "//         from ~/.pgpass or $PGPASSFILE. Jac313Runner writes it; safe to edit by hand.\n"
+	  << "//         jac313_pg_local.pgpass / jac313_pg_remote.pgpass beside it. Jac313Runner writes it; safe to edit by hand.\n"
 	  << "//\n"
 	  << "=== jText File ===\n"
 	  << " 1. #?# jac313_connections\n"

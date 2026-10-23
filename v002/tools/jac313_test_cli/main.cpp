@@ -114,7 +114,7 @@ void print_usage() {
         "  --modules            Enable JAC313_BUILD_MODULES=ON\n"
         "  --release            CMAKE_BUILD_TYPE=Release (default: Debug)\n"
         "  --pg-remote \"host=H [port=P] dbname=D user=U\"   the remote PostgreSQL server for pg-remote\n"
-        "                       (no default; or $JAC313_PG_REMOTE). Password: ~/.pgpass or $PGPASSFILE\n"
+        "                       (no default; or $JAC313_PG_REMOTE). Password: ../SQL_Secrets/jac313_pg_remote.pgpass\n"
         "  --pg-local \"...\"     the local server for pg-local (default host=localhost dbname=jac313 user=jac313)\n"
         "  --connections FILE   both servers from a jText connections file kept outside git (default:\n"
         "                       <projects>/SQL_Secrets/jac313_connections.jtext; see `connections`)\n"
@@ -2970,7 +2970,7 @@ int main(int argc, char** argv) {
                 // AI reports): libpq reads them from ~/.pgpass or $PGPASSFILE.
                 const std::string ci = argv[++i];
                 if (ci.find("password") != std::string::npos) {
-                    std::cerr << arg << ": leave the password out; put it in ~/.pgpass or $PGPASSFILE\n";
+                    std::cerr << arg << ": leave the password out; put it in ../SQL_Secrets/jac313_pg_remote.pgpass (or _local)\n";
                     std::exit(2);   // parse_common returns nothing (like --help's exit)
                 }
                 (arg == "--pg-remote" ? global.pg_remote : global.pg_local) = ci;
@@ -3003,6 +3003,9 @@ int main(int argc, char** argv) {
                 std::exit(2);
             }
         }
+        // the password files beside the connections file (after the flags: they may name the servers)
+        apply_password_files((global.connections.empty() ? default_connections_path(fs::current_path())
+                                                         : fs::absolute(global.connections)).parent_path());
     };
 
     if (command == "matrix") {
