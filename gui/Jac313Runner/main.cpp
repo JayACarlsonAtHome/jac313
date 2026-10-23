@@ -366,6 +366,7 @@ struct Runner : TopWindow {
 	void   Show(int screen);
 	void   ToOptions();
 	void   FromOptions();
+	void   TestResult(const String& text, bool ok);
 	void   UpdateCommand();
 	void   Browse();
 	void   SaveDefault();
@@ -1329,8 +1330,8 @@ void Runner::TestRemote()
 	}
 	String exe = FindDatasetTool(Root(), opt.version);
 	if(exe.IsEmpty()) {
-		pgTestRes.SetInk(Color(170, 0, 0));
-		pgTestRes.SetText("Build " + opt.version + " once first (its jac313_store_dataset does the test).");
+		TestResult("Press Start once first: its build makes jac313_store_dataset, which does this test.",
+		           false);
 		return;
 	}
 	pgTestRes.SetInk(SColorText());
@@ -1371,14 +1372,24 @@ void Runner::TestRemote()
 			return e < 0 ? out.Mid(a) : out.Mid(a, e - a);
 		};
 		int sv = out.Find("server=");
-		pgTestRes.SetInk(Color(0, 120, 0));
-		pgTestRes.SetText("OK: connect " + field("connect_ms=") + " ms, ping " + field("ping_ms=")
-		                  + " ms, PostgreSQL " + (sv >= 0 ? field("server=") : String("?")));   // "17.10" (no distro text)
+		TestResult("OK: connect " + field("connect_ms=") + " ms, ping " + field("ping_ms=")
+		           + " ms, PostgreSQL " + (sv >= 0 ? field("server=") : String("?")), true);   // "17.10" (no distro text)
 	}
-	else {
-		pgTestRes.SetInk(Color(170, 0, 0));
-		pgTestRes.SetText(out.StartsWith("PING failed: ") ? out.Mid(13) : out);
-	}
+	else
+		TestResult(out.StartsWith("PING failed: ") ? out.Mid(13) : out, false);
+}
+
+// The Test result: a short word beside the button, the whole message on the full-width line
+// below it (a PostgreSQL error is longer than the space beside the button), and as a tooltip.
+void Runner::TestResult(const String& text, bool ok)
+{
+	String t = TrimBoth(text);
+	t.Replace("\n", " ");
+	pgTestRes.SetInk(ok ? Color(0, 120, 0) : Color(170, 0, 0));
+	pgTestRes.SetText(ok ? "OK (details below)" : "failed (see below)");
+	pgTestRes.Tip(t);
+	ConnStatus(t, !ok);
+	connStatus.Tip(t);
 }
 
 void Runner::ConnStatus(const String& text, bool bad)

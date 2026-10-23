@@ -203,15 +203,24 @@ String RemoteConninfo(const RunOptions& o)
 
 String FindDatasetTool(const String& root, const String& version)
 {
+	// any build dir (build-gcc15, build-gcc16, build-clang, -strict, -hardened, bench, ...):
+	// the compiler preset names its folder, so the list is not fixed; the newest build wins
 	String vdir = AppendFileName(root, version);
-	for(const char *b : { "build-gcc15", "build-clang", "build-bench-gcc15", "build-bench-clang",
-	                      "build-gcc15-strict", "build-gcc15-hardened", "build-gcc15-strict-hardened",
-	                      "build-clang-strict", "build-clang-hardened", "build-clang-strict-hardened" }) {
-		String exe = AppendFileName(vdir, String(b) + "/Store/tests/matrix/jac313_store_dataset");
-		if(FileExists(exe))
-			return exe;
+	String best;
+	Time   bestTime = Null;
+	for(FindFile ff(AppendFileName(vdir, "build-*")); ff; ff.Next()) {
+		if(!ff.IsFolder())
+			continue;
+		String exe = AppendFileName(ff.GetPath(), "Store/tests/matrix/jac313_store_dataset");
+		if(!FileExists(exe))
+			continue;
+		Time t = FileGetTime(exe);
+		if(best.IsEmpty() || t > bestTime) {
+			best = exe;
+			bestTime = t;
+		}
 	}
-	return Null;
+	return best.IsEmpty() ? String(Null) : best;
 }
 
 String DefaultConnectionsPath(const String& root)
