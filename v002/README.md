@@ -66,15 +66,15 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 Run from inside the `v002/` directory.
 
 ```bash
-./bootstrap.sh                      # one question, one sudo password; a few minutes later the Runner opens
-./bootstrap.sh --no-gui             # no window (a server without a screen): tests only
+./bsir.sh                           # one question, one sudo password; a few minutes later the Runner opens
+./bsir.sh --no-gui                  # no window (a server without a screen): tests only
 
 ./jac313_test_cli --ctest           # the smallest of all testing
 ./jac313_test_cli --smoke           # mid level testing
 ./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
 ```
 
-`./bootstrap.sh` prepares everything (compilers, headers, valgrind, etc.) in one run: it asks once "Install everything?", asks for the sudo password once, installs what is missing, builds the tests, sets up a PostgreSQL 18 server on this machine for the PG local gate, installs U++ and builds the Jac313Runner window, adds DBeaver (a database browser, its own pinned package), and opens the Runner. `--yes` skips the question; `--no-gui` leaves out the window.
+`./bsir.sh` (BSIR: **B**ootstrap, **S**etup, **I**nstall & **R**un; it was called `bootstrap.sh` until 2026-10-23) prepares everything (compilers, headers, valgrind, etc.) in one run: it asks once "Install everything?", asks for the sudo password once, installs what is missing, builds the tests, sets up a PostgreSQL 18 server on this machine for the PG local gate, installs U++ and builds the Jac313Runner window, adds DBeaver (a database browser, its own pinned package), and opens the Runner. `--yes` skips the question; `--no-gui` leaves out the window.
 
 **PostgreSQL.** The passwords live in a `SQL_Secrets` folder beside the project (`~/git/SQL_Secrets` for `~/git/jac313`), never in git. PG local works after bootstrap: it creates the role and database `jac313` on localhost and writes their random password to `SQL_Secrets/jac313_pg_local.pgpass`. PG remote is your own server: create a login role and database there (e.g. both named `jac313`), write one line `host:5432:jac313:jac313:password` to `SQL_Secrets/jac313_pg_remote.pgpass` (mode 600), type the host into the Runner's Remote PG fields and press **Test**. [docs/SQL_Secrets_example](../docs/SQL_Secrets_example/README.md) is a sample folder (fake passwords) with the steps for both.
 

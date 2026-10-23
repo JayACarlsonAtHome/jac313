@@ -56,7 +56,7 @@ kept-logs/**
 # Local recipe override
 /recipes.local.conf
 
-# Left behind by older bootstraps (they wrote these; bootstrap.sh no longer does)
+# Left behind by older bootstraps (they wrote these; bsir.sh no longer does)
 /Setup.sh
 /Setup/.setup_handoff
 

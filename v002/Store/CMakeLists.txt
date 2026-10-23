@@ -145,7 +145,7 @@ if(JAC313_STORE_PG_PERSIST)
         target_link_libraries(jac313_store_pg_persist PUBLIC jac313_Store ${JAC313_LIBPQ_LIBRARY})
         message(STATUS "jac313::Store PostgreSQL persistence ENABLED (libpq ${_jac313_pg_major}: ${JAC313_LIBPQ_LIBRARY})")
     else()
-        message(STATUS "jac313::Store PostgreSQL persistence DISABLED (libpq 17+ not found; ./bootstrap.sh provisions it)")
+        message(STATUS "jac313::Store PostgreSQL persistence DISABLED (libpq 17+ not found; ./bsir.sh provisions it)")
     endif()
 endif()
 

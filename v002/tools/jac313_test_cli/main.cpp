@@ -64,7 +64,7 @@ void print_usage() {
         "  build-times compile-time matrix (smoke+bench x front-end x compiler), gap-filled per host\n"
         "  pin         find-or-create this machine's committed compiler pin (Setup/compilers.pin)\n"
         "  compilers   Sense toolchains from the registry (writes FileCheckList.txt)\n"
-        "  setup       Sense readiness; name anything ./bootstrap.sh still has to install\n"
+        "  setup       Sense readiness; name anything ./bsir.sh still has to install\n"
         "  version-check  check each package owes a version() bump (git, no build)\n"
         "  vendor-check   drift of the vendored jText / Qlite copies (warnings only)\n"
         "  vendor-sync    forward-port canonical into a vendored copy (dry run; --write)\n"
@@ -1381,7 +1381,7 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
     const std::string gcc_cc = resolve_pinned_cc(source_dir, true);
     const std::string clang_cc = resolve_pinned_cc(source_dir, false);
     if (gcc_cc.empty() && clang_cc.empty()) {
-        std::cerr << "build-times: no pinned compiler resolved — run ./bootstrap.sh first.\n";
+        std::cerr << "build-times: no pinned compiler resolved — run ./bsir.sh first.\n";
         return 1;
     }
     std::vector<BuildTimesCfg> cfgs;
@@ -2775,7 +2775,7 @@ int main(int argc, char** argv) {
         }
         if (umk.empty()) {
             std::cerr << "gui-build: no umk + uppsrc pair found (looked in $UPP_DIR, $HOME/upp_basefix, <GFS>/upp-bin/rhel\n"
-                         "  and $HOME/u++); ./bootstrap.sh installs U++ (upp_basefix)\n";
+                         "  and $HOME/u++); ./bsir.sh installs U++ (upp_basefix)\n";
             return 1;
         }
         int rc = 0;

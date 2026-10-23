@@ -11,20 +11,21 @@ its CMake asks for (`cxx_std_NN`), and runs that version's own `jac313_test_cli`
 
 ## Quick start: Jac313Runner
 
-Run every step as **your own user**, not with sudo (`bootstrap.sh` asks for sudo itself
+Run every step as **your own user**, not with sudo (`bsir.sh` asks for sudo itself
 when it needs it). `<root>` is the folder that holds `v001/`, `v002/` and `gui/`.
 
-1. **Bootstrap a version with `--gui`.** This builds `jac313_test_cli`, offers the GUI's
-   build libraries (GTK3, libnotify, FreeType, Fontconfig, X11; one `[y/N]` sudo step),
-   installs U++ from [upp_basefix](https://github.com/JayACarlsonAtHome/upp_basefix) into
-   `$HOME/upp_basefix` (U++ pinned to a GitHub commit plus patches: 0 warnings, sanitizer and
-   valgrind clean; its own bootstrap lists the system packages and installs them only on a
-   `[y/N]`), and builds `gui/out/Jac313Runner` with GCC:
+1. **Run BSIR in a version** (`bsir.sh`: Bootstrap, Setup, Install & Run; it was
+   `bootstrap.sh` until 2026-10-23). After its one "Install everything?" and one sudo password
+   it builds `jac313_test_cli`, installs the GUI's build libraries (GTK3, libnotify, FreeType,
+   Fontconfig, X11), installs U++ from
+   [upp_basefix](https://github.com/JayACarlsonAtHome/upp_basefix) into `$HOME/upp_basefix`
+   (U++ pinned to a GitHub commit plus patches: 0 warnings, sanitizer and valgrind clean),
+   builds `gui/out/Jac313Runner` and opens it:
    ```
-   cd <root>/v002 && ./bootstrap.sh
+   cd <root>/v002 && ./bsir.sh
    ```
    An existing install with `umk` and `uppsrc` in `$UPP_DIR` (default `$HOME/upp_basefix`) is
-   used as it is. A plain `./bootstrap.sh` never touches U++.
+   used as it is. `./bsir.sh --no-gui` leaves out U++, the Runner and DBeaver.
 2. **Rebuild later:**
    ```
    cd <root>/v002 && ./jac313_test_cli gui-build              # GCC; --method CLANG for clang

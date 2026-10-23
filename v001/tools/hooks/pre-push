@@ -8,7 +8,7 @@
 # for those. A change to shared/root files (anything outside a v00N/) verifies
 # every v00N. With no resolvable range (e.g. run by hand) it verifies all worlds.
 #
-# Installed into .git/hooks/pre-push by bootstrap.sh (git hooks are local and not
+# Installed into .git/hooks/pre-push by bsir.sh (git hooks are local and not
 # version-controlled, so they must be installed per clone). Keep this file IDENTICAL
 # across every v00N/tools/hooks/ until the versions intentionally diverge.
 #
@@ -80,7 +80,7 @@ verify_world() {
         done
     fi
     if [[ -z "$driver" ]]; then
-        echo "[pre-push:$vdir] no jac313_test_cli driver — run ./bootstrap.sh in $vdir first." >&2
+        echo "[pre-push:$vdir] no jac313_test_cli driver — run ./bsir.sh in $vdir first." >&2
         return 1
     fi
     echo "[pre-push:$vdir] version-check (sub_version bumps) ..."

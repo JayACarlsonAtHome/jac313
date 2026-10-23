@@ -23,7 +23,7 @@ reports linked from `test-summary/README.md` (per version) and the HowToReadResu
 
 ### Toolchains (historical note)
 
-Sensed automatically by `./bootstrap.sh`. The same source builds under g++-15, older gcc, and
+Sensed automatically by `./bsir.sh`. The same source builds under g++-15, older gcc, and
 clang peers. Throughput reference was typically g++-15 per platform; clang also ran full
 batteries. Current data is per-machine in the reports.
 **g++-15 vs clang (Linux Mint)** table below.
@@ -107,7 +107,7 @@ Recorded at run time from each package's `version()`, not hand-typed:
 
 ### Toolchains
 
-Sensed automatically by `./bootstrap.sh` (activation-aware — gcc-toolset via `scl`):
+Sensed automatically by `./bsir.sh` (activation-aware — gcc-toolset via `scl`):
 **g++-15** (15.2.1, standard, via `gcc-toolset-15`) · **g++-14** (14.2.1, conservative
 fallback, via `gcc-toolset-14`) · **clang++** (21.1.8, first-class peer). The throughput rows
 below are the **g++-15** reference, matching the Mint convention (one reference compiler per
@@ -218,7 +218,7 @@ Recorded at run time from each package's `version()`, not hand-typed:
 
 ### Toolchains
 
-Sensed automatically by `./bootstrap.sh` (activation-aware — gcc-toolset via `gcc-toolset-15-env`
+Sensed automatically by `./bsir.sh` (activation-aware — gcc-toolset via `gcc-toolset-15-env`
 on RHEL 10): **g++-15** (15.2.1, standard, via `gcc-toolset-15`) · **g++-14** (14.3.1,
 conservative fallback) · **clang++** (21.1.0, first-class peer). CMake is the pinned **4.3.3**, so
 the optional `import std;` pilot configures and builds here. The throughput rows below are the
@@ -284,7 +284,7 @@ Both compilers' runs live in the [hub](../test-summary/) under distinct RunIdent
 - These are **functional + throughput** numbers, not a tuned benchmark. Tuning for your
   hardware/workload is a deployment choice (see
   [Architecture → Customization](Architecture.md#customization-and-performance)).
-- Everything regenerates from scratch: `./bootstrap.sh` → `jac313_test_cli matrix run`
+- Everything regenerates from scratch: `./bsir.sh` → `jac313_test_cli matrix run`
   (add `--release --build-dir build-<label>-release` for the Release row).
 
 Part of the [jac313](../README.md) monorepo.

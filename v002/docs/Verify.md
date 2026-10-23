@@ -169,7 +169,7 @@ blind spot — see below), so only real errors reach the DB. Output is verdict-f
 clean/error line, a `verify PASS`/`FAIL` summary, and a **non-zero exit on any error**. If valgrind
 isn't installed it stops with install instructions (it's a hard prerequisite).
 
-**Enforcement.** `bootstrap.sh` installs `tools/hooks/pre-push` into `.git/hooks/pre-push`
+**Enforcement.** `bsir.sh` installs `tools/hooks/pre-push` into `.git/hooks/pre-push`
 (git hooks are local and not version-controlled, so they're installed per clone). It runs
 `version-check` then **`matrix verify-lite`** before every push and blocks a dirty one. Bypass a
 single push with `git push --no-verify`.

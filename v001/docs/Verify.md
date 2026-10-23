@@ -168,7 +168,7 @@ touched, no results DB, no committed artifact. Output is verdict-first: a per-ch
 clean/error line, a `CLEANCHECK PASS`/`FAIL` summary, and a **non-zero exit on any error**.
 If valgrind isn't installed it stops with install instructions (it's a hard prerequisite).
 
-**Enforcement.** `bootstrap.sh` installs `tools/hooks/pre-push` into `.git/hooks/pre-push`
+**Enforcement.** `bsir.sh` installs `tools/hooks/pre-push` into `.git/hooks/pre-push`
 (git hooks are local and not version-controlled, so they're installed per clone). It runs
 `cleancheck` before every push and blocks a dirty one. Bypass a single push with
 `git push --no-verify`.

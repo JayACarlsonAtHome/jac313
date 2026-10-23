@@ -52,7 +52,7 @@ tracked default.
 
 Per-platform install commands live in [`recipes.conf`](recipes.conf) (data, like
 `compilers.conf`): one line per `<component>.<family>`, plus optional `check` (idempotency test)
-and `required` (readiness-gate) fields. `bootstrap.sh` finds what is missing and installs it
+and `required` (readiness-gate) fields. `bsir.sh` finds what is missing and installs it
 itself, item by item, from these recipes, after the one "Install everything?" answer and one sudo
 password. One failing item never stops the others; anything still missing is named at the end.
 `jac313_test_cli setup` reports readiness and names anything not installed yet.

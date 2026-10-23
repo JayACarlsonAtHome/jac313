@@ -562,7 +562,7 @@ void record_to_results_db(const Params& p, const BenchSummary& s) {
         // host, so it can't disagree on disk/cores and split the machine into a separate group.
         const std::int64_t group_id = jac313::results::current_host(db, bench_harness_version());
         if (group_id == 0) {
-            std::cerr << "[results] no current_host pinned (run a CLI gate or ./bootstrap.sh first) — "
+            std::cerr << "[results] no current_host pinned (run a CLI gate or ./bsir.sh first) — "
                          "not recording bench rows.\n";
             return;
         }
@@ -634,7 +634,7 @@ inline std::vector<std::size_t> build_batch_schedule(std::size_t lo, std::size_t
 // report the near-peak band low_size/high_size (every batch within tol% of the peak) for reference;
 // best_size/best_ops (the raw peak) and useThis land in io_best_fit for THIS machine. The recorded
 // suite then runs each durable config at useThis.
-// Needs --db and a pinned current_host (./bootstrap.sh or a CLI gate).
+// Needs --db and a pinned current_host (./bsir.sh or a CLI gate).
 struct CalResult { std::string type; std::size_t low, high, best, use; std::uint64_t best_ops; };
 
 int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::size_t tol_pct,
@@ -649,7 +649,7 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
         gid = jac313::results::current_host(db, bench_harness_version());
     } catch (const std::exception& e) { std::cerr << "[calibrate] DB error: " << e.what() << "\n"; return 1; }
     if (gid == 0) {
-        std::cerr << "[calibrate] no current_host pinned (run ./bootstrap.sh or a CLI gate first)\n";
+        std::cerr << "[calibrate] no current_host pinned (run ./bsir.sh or a CLI gate first)\n";
         return 1;
     }
 

@@ -28,7 +28,7 @@ both at mode 600 (`chmod 600 ~/git/SQL_Secrets/*.pgpass`) and the folder at 700.
 
 ## PG local: the server on this machine
 
-`./bootstrap.sh` does all of it. It installs PostgreSQL 18, creates the role and database `jac313`
+`./bsir.sh` does all of it. It installs PostgreSQL 18, creates the role and database `jac313`
 with a random password, lets `jac313` log in over localhost, and writes
 `~/git/SQL_Secrets/jac313_pg_local.pgpass`. You never type that password.
 

@@ -137,12 +137,12 @@ flexible structure that others could emulate:
 
 - **A compiled runner instead of CI YAML.** All the intelligence — compiler sensing,
   build orchestration, the matrix, the results DB, valgrind gates — lives in one C++ tool,
-  not in scattered shell or pipeline config. Shell is reduced to a thin `bootstrap.sh`
+  not in scattered shell or pipeline config. Shell is reduced to a thin `bsir.sh`
   that exists only because you can't run a compiled tool before you have a compiler.
 - **A data-driven, activation-aware compiler registry** (`Setup/compilers.conf`) — handles
   gcc-toolset activation (scl / env-launcher / source-script) so new platforms are config,
   not code. Per-platform install commands are data too (`Setup/recipes.conf`).
-- **One command: `./bootstrap.sh`.** It senses the host, installs what is missing from
+- **One command: `./bsir.sh`** (BSIR: Bootstrap, Setup, Install & Run). It senses the host, installs what is missing from
   `Setup/recipes.conf` (one question, one sudo password, continue-on-failure), builds the test
   tool and the Jac313Runner window, and opens the Runner.
 - **Self-contained major versions** with everything anchored to each version root, so the
@@ -164,15 +164,17 @@ Each version is self-contained:
 `cd` into `v001/` or `v002/` and use these:
 
 ```bash
-./bootstrap.sh                      # one question, one sudo password; a few minutes later the Runner opens
-./bootstrap.sh --no-gui             # no window (a server without a screen): tests only
+./bsir.sh                           # one question, one sudo password; a few minutes later the Runner opens
+./bsir.sh --no-gui                  # no window (a server without a screen): tests only
 
 ./jac313_test_cli --ctest           # the smallest of all testing
 ./jac313_test_cli --smoke           # mid level testing
 ./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
 ```
 
-`./bootstrap.sh` prepares the environment (sudo provisioning + non-sudo steps now continue in one run). Add `--gui` to also install U++ and build the Jac313Runner GUI.
+`./bsir.sh` is **BSIR: Bootstrap, Setup, Install & Run**. One run installs what is missing, builds the
+tests, sets up PG local, builds the Jac313Runner window and opens it. It was called `bootstrap.sh`
+until 2026-10-23; only the name changed, and in a clone made before that, just run `./bsir.sh`.
 
 `./jac313_test_cli` is the main command for testing.
 
@@ -185,7 +187,7 @@ See that version's README for more (or the docs/ inside it).
 
 **Prefer a window?** Jac313Runner is a GUI that drives `jac313_test_cli` for any
 version: choose the gates, press Start, and browse the results with a jText viewer.
-`./bootstrap.sh` builds it and opens it at the end; see [gui/README.md](gui/README.md#quick-start-jac313runner).
+`./bsir.sh` builds it and opens it at the end; see [gui/README.md](gui/README.md#quick-start-jac313runner).
 Run the tests and the GUI as your own user, not with sudo.
 
 ---

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# jac313 bootstrap — the thin, bare-metal entry point.
+# jac313 BSIR — Bootstrap, Setup, Install & Run: the thin, bare-metal entry point.
+# (Named bootstrap.sh until 2026-10-23.)
 #
 # Shell is unavoidable here: you cannot run a compiled tool before you have a
 # compiler. So this stays as small as possible and pushes all the real intelligence
@@ -38,7 +39,7 @@ for arg in "$@"; do
     --no-gui) WANT_GUI=0 ;;
     -y|--yes) ASSUME_YES=1 ;;
     -h|--help)
-      echo "usage: ./bootstrap.sh [--yes] [--no-gui]"
+      echo "usage: ./bsir.sh [--yes] [--no-gui]"
       echo "Installs what is missing, builds the tests and the Jac313Runner window (U++ into"
       echo "\$HOME/upp_basefix), adds DBeaver (a database browser), then opens the Runner."
       echo "  --yes      install everything that is missing without asking"
@@ -53,8 +54,8 @@ done
 # Run only from inside this version directory: later steps (host pin, setup) derive the
 # version from the working directory, and fail half-way when started from elsewhere.
 if [ "$(pwd -P)" != "$(cd "$ROOT" && pwd -P)" ]; then
-  echo "bootstrap.sh must be run from inside its version directory:" >&2
-  echo "  cd \"$ROOT\" && ./bootstrap.sh $*" >&2
+  echo "bsir.sh must be run from inside its version directory:" >&2
+  echo "  cd \"$ROOT\" && ./bsir.sh $*" >&2
   exit 2
 fi
 
@@ -207,14 +208,14 @@ bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner
     cmd=$(recipe_cmd upp_gui "$family")
     if [ -z "$cmd" ]; then
       echo "No upp_gui recipe for '$family' in Setup/recipes.conf. Install the GTK3, libnotify,"
-      echo "FreeType, Fontconfig and X11 development packages by hand, then: ./bootstrap.sh"
+      echo "FreeType, Fontconfig and X11 development packages by hand, then: ./bsir.sh"
       return 1
     fi
     echo "Installing the libraries U++ builds with (GTK3, X11, fonts)…"
     if [ "$ASSUME_YES" = 1 ]; then
       ans=y
     else
-      if [ ! -t 0 ]; then echo "(non-interactive — not installing; run ./bootstrap.sh in a terminal)"; return 1; fi
+      if [ ! -t 0 ]; then echo "(non-interactive — not installing; run ./bsir.sh in a terminal)"; return 1; fi
       printf "Install them now? [Y/n] "
       read -r ans || ans=""
       case "$ans" in [nN]*) ;; *) ans=y ;; esac
@@ -311,7 +312,7 @@ install_pg_local() {
   if [ "$(pg_su -c "select 1 from pg_roles where rolname = 'jac313'")" = 1 ]; then
     if [ ! -r "$PG_LOCAL_PASSFILE" ]; then
       echo "PG local: this server already has a role jac313. Put its password in $PG_LOCAL_PASSFILE"
-      echo "          (see docs/SQL_Secrets_example), then re-run ./bootstrap.sh."
+      echo "          (see docs/SQL_Secrets_example), then re-run ./bsir.sh."
       return 1
     fi
   else
@@ -323,7 +324,7 @@ install_pg_local() {
   hba=$(pg_su -c "show hba_file") || return 1
   if ! sudo grep -q "jac313 pg_local" "$hba"; then
     # pg_hba.conf is read top-down and the first match wins, so these go first.
-    sudo sed -i '1i # jac313 pg_local: the PG local gate (bootstrap.sh)\nhost    jac313    jac313    127.0.0.1/32    scram-sha-256\nhost    jac313    jac313    ::1/128         scram-sha-256' "$hba" || return 1
+    sudo sed -i '1i # jac313 pg_local: the PG local gate (bsir.sh)\nhost    jac313    jac313    127.0.0.1/32    scram-sha-256\nhost    jac313    jac313    ::1/128         scram-sha-256' "$hba" || return 1
   fi
   pg_su -c "select pg_reload_conf()" >/dev/null || return 1
   if [ -n "$pw" ]; then
@@ -389,7 +390,7 @@ fi
 
 if [ -n "$missing" ]; then
   if [ "$ASSUME_YES" != 1 ] && [ ! -t 0 ]; then
-    echo "Missing:$missing — run ./bootstrap.sh in a terminal (or ./bootstrap.sh --yes)."
+    echo "Missing:$missing — run ./bsir.sh in a terminal (or ./bsir.sh --yes)."
     exit 1
   fi
   for comp in $missing; do
@@ -412,7 +413,7 @@ if [ -n "$missing" ]; then
   compute_missing
   if [ -n "$missing" ]; then
     echo
-    echo "Still missing:$missing — fix the errors above, then re-run ./bootstrap.sh"
+    echo "Still missing:$missing — fix the errors above, then re-run ./bsir.sh"
     exit 1
   fi
   echo
@@ -483,8 +484,8 @@ if ! pg_local_ok; then
     fi
   fi
   case "$ans" in
-    [nN]*) echo "PG local: skipped (re-run ./bootstrap.sh to set it up)." ;;
-    *) install_pg_local || echo "(PG local did not complete — the other gates are ready; fix the above and re-run ./bootstrap.sh)" ;;
+    [nN]*) echo "PG local: skipped (re-run ./bsir.sh to set it up)." ;;
+    *) install_pg_local || echo "(PG local did not complete — the other gates are ready; fix the above and re-run ./bsir.sh)" ;;
   esac
 else
   echo "PG local: ready (jac313 logs in on localhost)."
@@ -492,7 +493,7 @@ fi
 
 # --- the GUI (unless --no-gui). Non-fatal: the test tools above are ready either way. ---
 if [ "$WANT_GUI" = 1 ]; then
-  bootstrap_gui || echo "(GUI step did not complete — the test tools are ready; fix the above and re-run ./bootstrap.sh)"
+  bootstrap_gui || echo "(GUI step did not complete — the test tools are ready; fix the above and re-run ./bsir.sh)"
 fi
 
 echo
@@ -511,7 +512,7 @@ if ! $ACT "$CLI" host; then
   echo "  2. Choose ONE:"
   echo "       $ACT $CLI host --claim jac313-###       # reuse an existing slot (same OS+hardware)"
   echo "       $ACT $CLI host --assign-new-###         # new slot (e.g. --assign-new-002)"
-  echo "  3. Re-run: ./bootstrap.sh"
+  echo "  3. Re-run: ./bsir.sh"
   echo
   echo "Read-only precheck: $ACT $CLI --group-id"
   echo "Details: the version README (Machine identity)"

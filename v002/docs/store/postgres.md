@@ -94,7 +94,7 @@ It is an optional build: CMake option `JAC313_STORE_PG_PERSIST`, target
 | Cleanup | `--pg-cleanup keep-last` (default) or `delete` |
 | Recorded | connect ms, median `SELECT 1` ping ms, total `COPY` ms (`testRun.pg_connect_ms`, `pg_ping_ms`, `pg_write_ms`) |
 
-**PG local, set up by bootstrap.** `./bootstrap.sh` installs a PostgreSQL 18 server on the
+**PG local, set up by bootstrap.** `./bsir.sh` installs a PostgreSQL 18 server on the
 machine (Fedora `postgresql-server`, RHEL PGDG `postgresql18-server`, Mint PGDG `postgresql-18`),
 starts it at boot, creates the role and database `jac313` with a random password, adds two
 `scram-sha-256` lines for `jac313` on 127.0.0.1 / ::1 at the top of `pg_hba.conf` (marked
