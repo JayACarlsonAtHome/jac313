@@ -222,6 +222,22 @@ bootstrap_gui() {  # --gui: build libraries ([y/N]), U++ (no sudo), then Jac313R
     || { echo "Retrying with a clean rebuild (stale U++ cache)…"; ( cd "$ROOT" && UPP_DIR="$UPP_DIR" "$CLI" gui-build --method "$UPP_METHOD" --clean ); } \
     || { echo "gui-build failed."; return 1; }
   echo "Start it as your own user: $(dirname "$ROOT")/gui/out/Jac313Runner"
+  install_dbeaver || true   # optional; the GUI is ready either way
+}
+
+install_dbeaver() {  # --gui: DBeaver for browsing results.db and the database tables ([Y/n])
+  flatpak info io.dbeaver.DBeaverCommunity >/dev/null 2>&1 && { echo "DBeaver: installed."; return 0; }
+  cmd=$(recipe_cmd dbeaver "$family")
+  [ -n "$cmd" ] || { echo "No dbeaver recipe for '$family' in Setup/recipes.conf."; return 1; }
+  [ -t 0 ] || { echo "(non-interactive — DBeaver not installed; run: $cmd)"; return 0; }
+  echo
+  printf "Install DBeaver (database browser for results.db and PostgreSQL; per-user Flatpak)? [Y/n] "
+  read -r ans || ans=""
+  case "$ans" in
+    [nN]*) echo "Skipped DBeaver."; return 0 ;;
+  esac
+  sh -c "$cmd" || { echo "DBeaver install failed (network?). Later: $cmd"; return 1; }
+  echo "DBeaver installed: open it from the app menu, or: flatpak run io.dbeaver.DBeaverCommunity"
 }
 
 # --- 2. find a C++23 g++ (>= 14) and the activation prefix needed to invoke it ---
