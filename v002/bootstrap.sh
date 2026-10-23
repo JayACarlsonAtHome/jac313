@@ -251,8 +251,11 @@ install_upp() {  # U++ into $UPP_DIR via upp_basefix; keeps an existing install 
     git clone -q "$UPP_BASEFIX_REPO" "$UPP_BASEFIX_SRC" || { echo "git clone failed (network?)."; return 1; }
   fi
   # its bootstrap: the pinned U++ from GitHub, umk built from it, the patches; it lists the
-  # system packages U++ needs and installs them only when asked (sudo)
-  if ! "$UPP_BASEFIX_SRC/upp_basefix.sh" bootstrap; then
+  # system packages U++ needs and installs them only when asked (sudo). A yes to the GUI
+  # libraries above already covers these, so the user is asked once.
+  if [ "${UPP_PKGS_AGREED:-0}" = 1 ]; then
+    "$UPP_BASEFIX_SRC/upp_basefix.sh" bootstrap --install || { echo "upp_basefix bootstrap failed."; return 1; }
+  elif ! "$UPP_BASEFIX_SRC/upp_basefix.sh" bootstrap; then
     if [ ! -t 0 ]; then echo "(non-interactive — not installing; run $UPP_BASEFIX_SRC/upp_basefix.sh bootstrap --install)"; return 1; fi
     printf "Install those packages now (sudo)? [y/N] "
     read -r ans || ans=""
@@ -275,13 +278,14 @@ bootstrap_gui() {  # --gui: build libraries ([y/N]), U++ (no sudo), then Jac313R
       echo "FreeType, Fontconfig and X11 development packages by hand, then: ./bootstrap.sh --gui"
       return 1
     fi
-    echo "U++ needs these build libraries:"
+    echo "U++ needs these build libraries (and a few more that upp_basefix finds once U++ is fetched):"
     echo "  $cmd"
     if [ ! -t 0 ]; then echo "(non-interactive — not installing; run that, then ./bootstrap.sh --gui)"; return 1; fi
     printf "Install them now? [y/N] "
     read -r ans || ans=""
     case "$ans" in
-      [yY]|[yY][eE][sS]) sh -c "$cmd" || { echo "Installing the GUI libraries failed."; return 1; } ;;
+      [yY]|[yY][eE][sS]) sh -c "$cmd" || { echo "Installing the GUI libraries failed."; return 1; }
+                         UPP_PKGS_AGREED=1 ;;
       *) echo "Skipped — the GUI is not built."; return 1 ;;
     esac
     upp_gui_libs_ok || { echo "The GUI libraries are still missing (pkg-config)."; return 1; }

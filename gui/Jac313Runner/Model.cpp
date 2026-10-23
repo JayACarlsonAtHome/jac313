@@ -678,14 +678,18 @@ String BuildDirFor(const String& compiler, const String& buildType)
 {
 	bool clang   = ToLower(compiler).StartsWith("clang");
 	bool release = ToLower(buildType) == "release";
+	// the run's own GCC label ("gcc16" on Fedora 44) names its trees; "gcc15" when it has none
+	String gcc = "gcc15";
+	if(ToLower(compiler).StartsWith("gcc") && compiler.GetCount() > 3 && IsDigit(compiler[3]))
+		gcc = ToLower(compiler);
 	if(release)
-		return clang ? "build-bench-clang" : "build-bench-gcc15";
-	// "Debug-strict-hardened" -> build-gcc15-strict-hardened (the CLI's --strict / --hardened trees)
+		return clang ? "build-bench-clang" : "build-bench-" + gcc;
+	// "Debug-strict-hardened" -> build-gcc16-strict-hardened (the CLI's --strict / --hardened trees)
 	String flavor;
 	int dash = buildType.Find('-');
 	if(dash >= 0)
 		flavor = buildType.Mid(dash);
-	return String(clang ? "build-clang" : "build-gcc15") + flavor;
+	return (clang ? String("build-clang") : "build-" + gcc) + flavor;
 }
 
 bool DatasetCommand(const ResultRow& r, const String& root, String& exe, Vector<String>& args)

@@ -462,7 +462,11 @@ Runner::Runner()
 	lType.SetText("Type:");
 	lFront.SetText("Front-end:");
 	lSize.SetText("Size:");
-	comp.Add("gcc15", "gcc15").Add("clang", "clang").Add("both", "both");
+	// "gcc15" stays the saved value and the CLI's --gcc15; the CLI runs this machine's GCC
+	// (Setup/compilers.pin: gcc16 on Fedora 44, gcc15 on RHEL and Mint), so the label says gcc
+	comp.Add("gcc15", "gcc").Add("clang", "clang").Add("both", "both");
+	comp.Tip("gcc = this machine's GCC from Setup/compilers.pin (gcc16 on Fedora 44, gcc15 on RHEL "
+	         "and Linux Mint). The results show the exact version.");
 	type.Add("Debug", "Debug").Add("Release", "Release");
 	front.Add("textual", "textual").Add("modules", "modules");
 	size.Add("smoke", "smoke").Add("full", "full");
