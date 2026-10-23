@@ -14,8 +14,8 @@
 #      needed to build AND run the gates, so a fresh box is provisioned in ONE pass.
 #   3. If any baseline is missing -> hand off to the committed Setup/jac313_setup
 #      provisioner (reads Setup/.setup_handoff) which runs the sudo steps and continues
-#      in the *same* bootstrap invocation; falls back to a generated Setup.sh (which
-#      still needs a manual re-run of bootstrap after).
+#      in the *same* bootstrap invocation; falls back to a generated Setup.sh, which it
+#      also runs in the same invocation (after the one "Install everything?" yes).
 #   4. Otherwise -> build jac313_test_cli once and hand off ('setup' for readiness;
 #      '--run-everything' for the full battery).
 #   5. Sense + pin this machine as jac313-### (host_spec + current_host). Auto-pins when
@@ -339,9 +339,9 @@ if [ -n "$missing" ]; then
       echo; echo "Provisioning did not fully complete (see above). Fix, then re-run: ./bootstrap.sh"
       exit 1
     fi
-  fi
-
+  else
   # --- fallback: no usable committed binary -> generate a reviewable Setup.sh ---------
+  # (only here: after a successful jac313_setup run the build continues below)
   echo "(committed Setup/jac313_setup not present/runnable here — falling back to Setup.sh)"
   {
     echo "#!/usr/bin/env bash"
@@ -378,10 +378,35 @@ if [ -n "$missing" ]; then
   } > "$ROOT/Setup.sh"
   chmod +x "$ROOT/Setup.sh"
   echo
-  echo "Wrote Setup.sh. Review it, then run it by hand:"
-  echo "  bash Setup.sh"
-  echo "When it finishes, re-run: ./bootstrap.sh"
-  exit 1
+  echo "Wrote Setup.sh (the install commands; kept as a record)."
+  # Same rule as everywhere: "install" means do it, in this run. Ask only when the one
+  # "Install everything?" answer was no; without a terminal (and no --yes), stop as before.
+  run_setup=0
+  if [ "$ASSUME_YES" = 1 ]; then
+    run_setup=1
+  elif [ -t 0 ]; then
+    printf "Run Setup.sh now? [Y/n] "
+    read -r ans || ans=n
+    case "$ans" in [nN]*) ;; *) run_setup=1 ;; esac
+  fi
+  if [ "$run_setup" = 0 ]; then
+    echo "Review it, then run it by hand:  bash Setup.sh"
+    echo "When it finishes, re-run: ./bootstrap.sh"
+    exit 1
+  fi
+  if ! bash "$ROOT/Setup.sh"; then
+    echo "Setup.sh did not fully complete (see above). Fix, then re-run: ./bootstrap.sh"
+    exit 1
+  fi
+  detect_cxx
+  compute_missing
+  if [ -n "$missing" ]; then
+    echo "Baseline still missing after Setup.sh:$missing"
+    echo "Fix the issues and re-run: ./bootstrap.sh"
+    exit 1
+  fi
+  # fall through to build/handoff in this invocation
+  fi
 fi
 
 echo "Bootstrap compiler: ${ACT:+[$ACT] }$CXX"
