@@ -21,7 +21,7 @@
 #   5. Sense + pin this machine as jac313-### (host_spec + current_host). Auto-pins when
 #      unambiguous; otherwise bootstrap stops with --claim / --assign-new-### directions.
 #
-#   6. With --gui (optional): the U++ GUI build libraries (recipe upp_gui; covered by the one
+#   6. The GUI (skipped with --no-gui): the U++ GUI build libraries (recipe upp_gui; covered by the one
 #      "Install everything?" answer, else offered [y/N]),
 #      U++ itself into $HOME/u++ (pinned release, SHA-256 checked, no sudo) and then
 #      Jac313Runner via `jac313_test_cli gui-build`. A plain bootstrap never does this.
@@ -33,17 +33,19 @@ set -eu
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 RECIPES="$ROOT/Setup/recipes.conf"
 
-WANT_GUI=0
+WANT_GUI=1   # the Runner window is part of a normal bootstrap; --no-gui skips it
 ASSUME_YES=0
 for arg in "$@"; do
   case "$arg" in
     --gui) WANT_GUI=1 ;;
+    --no-gui) WANT_GUI=0 ;;
     -y|--yes) ASSUME_YES=1 ;;
     -h|--help)
-      echo "usage: ./bootstrap.sh [--gui] [--yes]"
-      echo "  --gui   also the GUI: the U++ libraries (sudo), U++ (no sudo, into \$HOME/upp_basefix),"
-      echo "          the Jac313Runner window and DBeaver (a database browser, per-user Flatpak)"
-      echo "  --yes   install everything that is missing without asking"
+      echo "usage: ./bootstrap.sh [--yes] [--no-gui]"
+      echo "Installs what is missing, builds the tests and the Jac313Runner window (U++ into"
+      echo "\$HOME/upp_basefix), adds DBeaver (a database browser), then opens the Runner."
+      echo "  --yes      install everything that is missing without asking"
+      echo "  --no-gui   no window: skip U++, the Runner and DBeaver (e.g. a server without a screen)"
       echo "Without --yes it asks once \"Install everything?\" and then asks for the sudo password"
       echo "once; that one answer and password cover the whole run."
       exit 0 ;;
@@ -152,7 +154,7 @@ try_cxx() {  # $1 = activation prefix (may be empty), $2 = compiler name
   CXX="$p"; ACT="$1"; return 0
 }
 
-# --- optional (--gui): U++ and the Jac313Runner GUI --------------------------------
+# --- the GUI (skipped with --no-gui): U++ and the Jac313Runner window ----------------
 # U++ comes from upp_basefix (github.com/JayACarlsonAtHome/upp_basefix): U++ pinned to a GitHub
 # commit, plus patches that make it build with 0 warnings and run clean under the sanitizers
 # and valgrind. Its patch 0001 also fixes the GCC 15 start-up crash of plain U++ 2026.1, so the
@@ -200,14 +202,14 @@ install_upp() {  # U++ into $UPP_DIR via upp_basefix; keeps an existing install 
   echo "Installed $(head -1 "$UPP_DIR/VERSION") -> $UPP_DIR"
 }
 
-bootstrap_gui() {  # --gui: build libraries ([y/N]), U++ (no sudo), then Jac313Runner
+bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner
   echo
-  echo "=== GUI (--gui): U++ (upp_basefix) + Jac313Runner ==="
+  echo "=== GUI: U++ (upp_basefix) + Jac313Runner ==="
   if ! upp_gui_libs_ok; then
     cmd=$(recipe_cmd upp_gui "$family")
     if [ -z "$cmd" ]; then
       echo "No upp_gui recipe for '$family' in Setup/recipes.conf. Install the GTK3, libnotify,"
-      echo "FreeType, Fontconfig and X11 development packages by hand, then: ./bootstrap.sh --gui"
+      echo "FreeType, Fontconfig and X11 development packages by hand, then: ./bootstrap.sh"
       return 1
     fi
     echo "U++ needs these build libraries (and a few more that upp_basefix finds once U++ is fetched):"
@@ -215,7 +217,7 @@ bootstrap_gui() {  # --gui: build libraries ([y/N]), U++ (no sudo), then Jac313R
     if [ "$ASSUME_YES" = 1 ]; then
       ans=y
     else
-      if [ ! -t 0 ]; then echo "(non-interactive — not installing; run that, then ./bootstrap.sh --gui)"; return 1; fi
+      if [ ! -t 0 ]; then echo "(non-interactive — not installing; run that, then ./bootstrap.sh)"; return 1; fi
       printf "Install them now? [y/N] "
       read -r ans || ans=""
     fi
@@ -232,11 +234,10 @@ bootstrap_gui() {  # --gui: build libraries ([y/N]), U++ (no sudo), then Jac313R
   ( cd "$ROOT" && UPP_DIR="$UPP_DIR" "$CLI" gui-build --method "$UPP_METHOD" ) \
     || { echo "Retrying with a clean rebuild (stale U++ cache)…"; ( cd "$ROOT" && UPP_DIR="$UPP_DIR" "$CLI" gui-build --method "$UPP_METHOD" --clean ); } \
     || { echo "gui-build failed."; return 1; }
-  echo "Start it as your own user: $(dirname "$ROOT")/gui/out/Jac313Runner"
   install_dbeaver || true   # optional; the GUI is ready either way
 }
 
-install_dbeaver() {  # --gui: DBeaver for browsing results.db and the database tables ([Y/n])
+install_dbeaver() {  # DBeaver for browsing results.db and the database tables ([Y/n])
   flatpak info io.dbeaver.DBeaverCommunity >/dev/null 2>&1 && { echo "DBeaver: installed."; return 0; }
   cmd=$(recipe_cmd dbeaver "$family")
   [ -n "$cmd" ] || { echo "No dbeaver recipe for '$family' in Setup/recipes.conf."; return 1; }
@@ -251,7 +252,7 @@ install_dbeaver() {  # --gui: DBeaver for browsing results.db and the database t
     [nN]*) echo "Skipped DBeaver."; return 0 ;;
   esac
   sh -c "$cmd" || { echo "DBeaver install failed (network?). Later: $cmd"; return 1; }
-  echo "DBeaver installed: open it from the app menu, or: flatpak run io.dbeaver.DBeaverCommunity"
+  echo "DBeaver installed (in the app menu)."
 }
 
 # --- 2. find a C++23 g++ (>= 14) and the activation prefix needed to invoke it ---
@@ -321,7 +322,6 @@ if [ -n "$missing" ]; then
   if [ -x "$SETUP_EXE" ] && "$SETUP_EXE" --version >/dev/null 2>&1; then
     echo
     echo "Provisioning via the committed Setup/jac313_setup (handoff: Setup/.setup_handoff)."
-    echo "Preview without changes:  ./Setup/jac313_setup --source-dir \"$ROOT\" --dry-run \"$HANDOFF\""
     setup_yes=""; [ "$ASSUME_YES" = 1 ] && setup_yes="--yes"
     if "$SETUP_EXE" --source-dir "$ROOT" $setup_yes "$HANDOFF"; then
       echo; echo "Provisioning finished."
@@ -462,9 +462,9 @@ if [ -n "$GIT_DIR" ] && [ -d "$GIT_DIR" ] && [ -f "$HOOK_SRC" ]; then
   fi
 fi
 
-# --- optional GUI (--gui). Non-fatal: the test tools above are ready either way. ---
+# --- the GUI (unless --no-gui). Non-fatal: the test tools above are ready either way. ---
 if [ "$WANT_GUI" = 1 ]; then
-  bootstrap_gui || echo "(GUI step did not complete — the test tools are ready; fix the above and re-run ./bootstrap.sh --gui)"
+  bootstrap_gui || echo "(GUI step did not complete — the test tools are ready; fix the above and re-run ./bootstrap.sh)"
 fi
 
 echo
@@ -491,42 +491,22 @@ if ! $ACT "$CLI" host; then
 fi
 
 echo
-echo "Bootstrap complete. Run the FULL battery (every gate on both compilers + build-times + report):"
-echo "  $ACT $CLI --run-everything"
-echo
-echo "Or compose individual gates: --ctest, --smoke, --bench --report, --verify-lite, --verify."
-echo "Full matrix details: the version README"
+echo "Bootstrap complete."
 
-# --- the next step for a new user: the Jac313Runner window (built by --gui) ---
+# --- the Jac313Runner window: opened at once when there is a screen ---
 RUNNER="$(dirname "$ROOT")/gui/out/Jac313Runner"
-if [ -x "$RUNNER" ]; then
-  echo
-  echo "=== Next: Jac313Runner, the window that runs the tests ==="
-  echo "Choose the gates (start with ctest + smoke), press Start, and read the results in it."
-  echo "Start it any time with:"
-  echo "  $RUNNER --version $(basename "$ROOT")"
-  if { [ -t 0 ] || [ "$ASSUME_YES" = 1 ]; } && [ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]; then
-    if [ "$ASSUME_YES" = 1 ]; then
-      ans=y
-    else
-      printf "Start Jac313Runner now? [Y/n] "
-      read -r ans || ans=n
-    fi
-    case "$ans" in
-      [nN]*) ;;
-      *) # Terminals like Ptyxis stop every process of a tab when it closes (systemd scope), so
-         # setsid alone is not enough: systemd-run --user makes the window its own user service
-         if command -v systemd-run > /dev/null 2>&1 &&
-            systemd-run --user --collect --quiet --unit "jac313-runner-$$" \
-              --working-directory "$ROOT" "$RUNNER" --version "$(basename "$ROOT")" 2> /dev/null; then
-           :
-         else
-           ( cd "$ROOT" && setsid "$RUNNER" --version "$(basename "$ROOT")" > /dev/null 2>&1 < /dev/null & )
-         fi
-         echo "Started. It keeps running when this terminal is closed." ;;
-    esac
+if [ -x "$RUNNER" ] && [ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]; then
+  # Terminals like Ptyxis stop every process of a tab when it closes (systemd scope), so
+  # setsid alone is not enough: systemd-run --user makes the window its own user service
+  if command -v systemd-run > /dev/null 2>&1 &&
+     systemd-run --user --collect --quiet --unit "jac313-runner-$$" \
+       --working-directory "$ROOT" "$RUNNER" --version "$(basename "$ROOT")" 2> /dev/null; then
+    :
+  else
+    ( cd "$ROOT" && setsid "$RUNNER" --version "$(basename "$ROOT")" > /dev/null 2>&1 < /dev/null & )
   fi
-elif [ "$WANT_GUI" != 1 ]; then
-  echo
-  echo "Prefer a window? ./bootstrap.sh --gui also builds Jac313Runner."
+  echo "Opened Jac313Runner: choose the gates (start with ctest + smoke) and press Start."
+  echo "It keeps running when this terminal is closed."
+elif [ -x "$RUNNER" ]; then
+  echo "Jac313Runner is built; no screen here to open it on."
 fi

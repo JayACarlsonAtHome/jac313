@@ -21,7 +21,7 @@ when it needs it). `<root>` is the folder that holds `v001/`, `v002/` and `gui/`
    valgrind clean; its own bootstrap lists the system packages and installs them only on a
    `[y/N]`), and builds `gui/out/Jac313Runner` with GCC:
    ```
-   cd <root>/v002 && ./bootstrap.sh --gui
+   cd <root>/v002 && ./bootstrap.sh
    ```
    An existing install with `umk` and `uppsrc` in `$UPP_DIR` (default `$HOME/upp_basefix`) is
    used as it is. A plain `./bootstrap.sh` never touches U++.

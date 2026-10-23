@@ -165,8 +165,8 @@ Each version is self-contained:
 `cd` into `v001/` or `v002/` and use these:
 
 ```bash
-./bootstrap.sh                      # provisions + continues in one run (sudo may prompt inside)
-./bootstrap.sh --gui                # optional: also U++ and the Jac313Runner GUI (see gui/README.md)
+./bootstrap.sh                      # one question, one sudo password; a few minutes later the Runner opens
+./bootstrap.sh --no-gui             # no window (a server without a screen): tests only
 
 ./jac313_test_cli --ctest           # the smallest of all testing
 ./jac313_test_cli --smoke           # mid level testing
@@ -186,7 +186,7 @@ See that version's README for more (or the docs/ inside it).
 
 **Prefer a window?** Jac313Runner is a GUI that drives `jac313_test_cli` for any
 version: choose the gates, press Start, and browse the results with a jText viewer.
-Set it up with `./bootstrap.sh --gui`; see [gui/README.md](gui/README.md#quick-start-jac313runner).
+`./bootstrap.sh` builds it and opens it at the end; see [gui/README.md](gui/README.md#quick-start-jac313runner).
 Run the tests and the GUI as your own user, not with sudo.
 
 ---

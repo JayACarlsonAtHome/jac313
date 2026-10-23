@@ -2753,7 +2753,7 @@ int main(int argc, char** argv) {
         }
         if (umk.empty()) {
             std::cerr << "gui-build: no umk + uppsrc pair found (looked in $UPP_DIR, $HOME/upp_basefix, <GFS>/upp-bin/rhel\n"
-                         "  and $HOME/u++); ./bootstrap.sh --gui installs U++ (upp_basefix)\n";
+                         "  and $HOME/u++); ./bootstrap.sh installs U++ (upp_basefix)\n";
             return 1;
         }
         int rc = 0;

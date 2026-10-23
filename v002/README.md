@@ -66,17 +66,17 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 Run from inside the `v002/` directory.
 
 ```bash
-./bootstrap.sh                      # provisions + continues in one run (sudo may prompt inside)
-./bootstrap.sh --gui                # optional: also U++ and the Jac313Runner GUI (see gui/README.md)
+./bootstrap.sh                      # one question, one sudo password; a few minutes later the Runner opens
+./bootstrap.sh --no-gui             # no window (a server without a screen): tests only
 
 ./jac313_test_cli --ctest           # the smallest of all testing
 ./jac313_test_cli --smoke           # mid level testing
 ./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
 ```
 
-`./bootstrap.sh` prepares everything (compilers, headers, valgrind, etc.). It runs the (sudo) provisioning and continues in a single invocation when using the committed provisioner. (Fallback path or host pinning may still require a re-run.)
+`./bootstrap.sh` prepares everything (compilers, headers, valgrind, etc.) in one run: it asks once "Install everything?", asks for the sudo password once, installs what is missing, builds the tests, installs U++ and builds the Jac313Runner window, adds DBeaver, and opens the Runner. `--yes` skips the question; `--no-gui` leaves out the window.
 
-`./bootstrap.sh --gui` does the same, then installs U++ from [upp_basefix](https://github.com/JayACarlsonAtHome/upp_basefix) into `$HOME/upp_basefix` (U++ pinned to a GitHub commit plus patches; an existing install is kept) and builds `../gui/out/Jac313Runner` with GCC. Only the GUI's build libraries need sudo, offered as one `[y/N]` step. Run bootstrap, the tests and the GUI as your own user, from inside this directory.
+The window part installs U++ from [upp_basefix](https://github.com/JayACarlsonAtHome/upp_basefix) into `$HOME/upp_basefix` (U++ pinned to a GitHub commit plus patches; an existing install is kept) and builds `../gui/out/Jac313Runner` with GCC. Run bootstrap, the tests and the GUI as your own user, from inside this directory.
 
 `./jac313_test_cli` is the one main command:
 
