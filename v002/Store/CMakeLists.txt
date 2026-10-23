@@ -12,7 +12,8 @@ option(JAC313_STORE_BUILD_MODULES "Build jac313.store.v002 C++23 module (in-tree
 option(JAC313_STORE_JTEXT_PERSIST "Build in-tree jText split persistence (needs jac313::jText)" OFF)
 option(JAC313_STORE_SQL_PERSIST "Build in-tree SQLite persistence (needs jac313::Qlite)" OFF)
 # PostgreSQL persistence (pg-local / pg-remote backends): ON by default, built only when libpq 17+
-# is found (PGDG installs under /usr/pgsql-17). Optional, so Store builds without PostgreSQL.
+# is found (PGDG installs under /usr/pgsql-18, then 17; 18 is preferred). Optional, so Store builds
+# without PostgreSQL.
 option(JAC313_STORE_PG_PERSIST "Build PostgreSQL persistence when libpq 17+ is found" ON)
 
 add_library(jac313_Store INTERFACE)
@@ -110,10 +111,10 @@ endif()
 
 if(JAC313_STORE_PG_PERSIST)
     find_path(JAC313_LIBPQ_INCLUDE_DIR libpq-fe.h
-              HINTS /usr/pgsql-17/include
+              HINTS /usr/pgsql-18/include /usr/pgsql-17/include
               PATH_SUFFIXES postgresql pgsql)
     find_library(JAC313_LIBPQ_LIBRARY NAMES pq
-                 HINTS /usr/pgsql-17/lib)
+                 HINTS /usr/pgsql-18/lib /usr/pgsql-17/lib)
     set(_jac313_libpq_ok FALSE)
     if(JAC313_LIBPQ_INCLUDE_DIR AND JAC313_LIBPQ_LIBRARY)
         # The version macro is in pg_config.h, or (RHEL multilib) pg_config_<arch>.h.

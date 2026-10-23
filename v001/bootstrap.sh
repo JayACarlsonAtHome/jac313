@@ -9,7 +9,7 @@
 #
 #   1. Detect the OS family (minimal mirror of Setup::sense_host).
 #   2. Find a C++23 g++ (+ activation prefix), clang, Ninja >= 1.11, CMake, the sqlite3
-#      dev header, the libpq 17+ dev header (PG sink + PG gates), and valgrind with the
+#      dev header, the libpq 18+ dev header (PG sink + PG gates), and valgrind with the
 #      memcheck/helgrind/DRD dev headers — the full set
 #      needed to build AND run the gates, so a fresh box is provisioned in ONE pass.
 #   3. If any baseline is missing -> hand off to the committed Setup/jac313_setup
@@ -127,9 +127,9 @@ compute_missing() {
   command -v cmake >/dev/null 2>&1 || missing="$missing cmake"
   ninja_ok                         || missing="$missing ninja"
   [ -e /usr/include/sqlite3.h ]    || missing="$missing sqlite"
-  { [ -e /usr/pgsql-17/include/libpq-fe.h ] \
-      || { v=$(pkg-config --modversion libpq 2>/dev/null); v=${v%%[!0-9]*}; [ -n "$v" ] && [ "$v" -ge 17 ]; }; } \
-                                   || missing="$missing pg17"
+  { [ -e /usr/pgsql-18/include/libpq-fe.h ] \
+      || { v=$(pkg-config --modversion libpq 2>/dev/null); v=${v%%[!0-9]*}; [ -n "$v" ] && [ "$v" -ge 18 ]; }; } \
+                                   || missing="$missing pg18"
   { command -v valgrind >/dev/null 2>&1 \
       && [ -e /usr/include/valgrind/valgrind.h ] \
       && [ -e /usr/include/valgrind/helgrind.h ] \

@@ -19,7 +19,7 @@ file
 	jText/src/validator/validator.cpp;
 
 options
-	"-Iinclude -IjText -IjText/src -I/usr/pgsql-17/include -DJTEXT_HAS_POSTGRESQL";
+	"-Iinclude -IjText -IjText/src -I/usr/pgsql-18/include -I/usr/pgsql-17/include -DJTEXT_HAS_POSTGRESQL";
 
 library
 	sqlite3,
@@ -27,7 +27,7 @@ library
 	z;
 
 link
-	"-L/usr/pgsql-17/lib";
+	"-L/usr/pgsql-18/lib -L/usr/pgsql-17/lib";
 
 mainconfig
 	"" = "GUI WAYLAND";
