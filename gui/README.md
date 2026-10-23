@@ -193,6 +193,8 @@ jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc1
   back, keeping the file's other rows (pg-local), creating the folder (0700) and file (0600).
   The status line shows jText's own check (`jac313_test_cli connections --file P`) and turns red
   when the file is inside a git work tree. Runs pass `--connections <file>` when it exists.
+* **Command that will run** (Screen 1): the exact `jac313_test_cli` command line(s) the options make.
+  **Copy** puts them on the clipboard, each as `cd <version dir> && ...`, to run by hand in a terminal.
 * **Remote PG** (Screen 1): Host / Port / Database / User of the user's own server (no password
   field: libpq reads `~/.pgpass` or `$PGPASSFILE`: one line `host:5432:dbname:user:password`,
   mode 600). PG local needs nothing here: bootstrap sets up its server and pgpass line. With PG remote

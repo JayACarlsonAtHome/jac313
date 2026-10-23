@@ -319,7 +319,7 @@ struct Runner : TopWindow {
 	EditIntNotNullSpin maxRuns;
 	LeaveIntSpin maxRecords, maxRows;   // leaving either one limits Max persisted to Max records
 	DocEdit   cmd;
-	Button    lastResults, saveDef, start;
+	Button    copyCmd, lastResults, saveDef, start;
 
 	// ---- Screen 2
 	Label     runTitle, counts, elapsed;
@@ -368,6 +368,7 @@ struct Runner : TopWindow {
 	void   FromOptions();
 	void   TestResult(const String& text, bool ok);
 	void   UpdateCommand();
+	void   CopyCommand();
 	void   Browse();
 	void   SaveDefault();
 	void   Start();
@@ -584,7 +585,11 @@ Runner::Runner()
 	y += 80;
 
 	lCmd.SetText("Command that will run:");
-	Place(s1, lCmd, 8, y, 300, 20);
+	Place(s1, lCmd, 8, y, 170, 20);
+	copyCmd.SetLabel("Copy");
+	copyCmd.Tip("Copy the command line(s), each with a cd into its folder, to run them yourself in a terminal");
+	Place(s1, copyCmd, 180, y - 1, 70, 22);
+	copyCmd << THISBACK(CopyCommand);
 	s1.Add(cmd.HSizePosZ(8, 8).VSizePosZ(y + 22, 66));
 	cmd.SetReadOnly();
 	cmd.SetFont(Monospace(Zy(11)));
@@ -846,6 +851,19 @@ void Runner::UpdateCommand()
 		info = "Choose at least one gate.";
 	lInfo.SetInk(info.GetCount() ? Color(170, 0, 0) : SColorText());
 	lInfo.SetText(info);
+}
+
+void Runner::CopyCommand()
+{
+	ToOptions();
+	String text;
+	for(const RunPlan& p : BuildPlans(opt, Root()))
+		text << "cd " << QuoteArg(p.cwd) << " && " << p.Display() << "\n";
+	if(text.IsEmpty())
+		return;
+	WriteClipboardText(text);
+	lInfo.SetInk(SColorText());
+	lInfo.SetText("Copied the command line: paste it into a terminal to run it yourself.");
 }
 
 void Runner::Browse()
