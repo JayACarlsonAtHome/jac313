@@ -505,7 +505,15 @@ if [ -x "$RUNNER" ]; then
     read -r ans || ans=n
     case "$ans" in
       [nN]*) ;;
-      *) ( cd "$ROOT" && setsid "$RUNNER" --version "$(basename "$ROOT")" > /dev/null 2>&1 < /dev/null & )
+      *) # Terminals like Ptyxis stop every process of a tab when it closes (systemd scope), so
+         # setsid alone is not enough: systemd-run --user makes the window its own user service
+         if command -v systemd-run > /dev/null 2>&1 &&
+            systemd-run --user --collect --quiet --unit "jac313-runner-$$" \
+              --working-directory "$ROOT" "$RUNNER" --version "$(basename "$ROOT")" 2> /dev/null; then
+           :
+         else
+           ( cd "$ROOT" && setsid "$RUNNER" --version "$(basename "$ROOT")" > /dev/null 2>&1 < /dev/null & )
+         fi
          echo "Started. It keeps running when this terminal is closed." ;;
     esac
   fi
