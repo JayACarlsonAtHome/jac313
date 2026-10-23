@@ -491,3 +491,25 @@ echo "It writes the exact commands to ./run_latest_config.sh and runs them — r
 echo "script any time. Gates compose: add --bench --report, --verify-lite, or --verify."
 echo
 echo "Full battery (gcc15 + clang; smoke + full Debug/Release; modules) — see the version README."
+
+# --- the next step for a new user: the Jac313Runner window (built by --gui) ---
+RUNNER="$(dirname "$ROOT")/gui/out/Jac313Runner"
+if [ -x "$RUNNER" ]; then
+  echo
+  echo "=== Next: Jac313Runner, the window that runs the tests ==="
+  echo "Choose the gates (start with ctest + smoke), press Start, and read the results in it."
+  echo "Start it any time with:"
+  echo "  $RUNNER"
+  if [ -t 0 ] && [ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]; then
+    printf "Start Jac313Runner now? [Y/n] "
+    read -r ans || ans=n
+    case "$ans" in
+      [nN]*) ;;
+      *) ( cd "$ROOT" && setsid "$RUNNER" > /dev/null 2>&1 < /dev/null & )
+         echo "Started. It keeps running when this terminal is closed." ;;
+    esac
+  fi
+elif [ "$WANT_GUI" != 1 ]; then
+  echo
+  echo "Prefer a window? ./bootstrap.sh --gui also builds Jac313Runner."
+fi
