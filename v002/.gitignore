@@ -63,12 +63,11 @@ bench-json-output/*.json
 # Machine-local host label (anonymizes results: hostname() reads this instead of uname)
 /host_label.local
 
-# Generated, per-machine provisioning script + local recipe override
-/Setup.sh
+# Local recipe override
 /recipes.local.conf
 
-# Per-run handoff written by bootstrap.sh, read by the committed Setup/jac313_setup.
-# (The jac313_setup binary itself IS tracked — no extension, no rule matches it.)
+# Left behind by older bootstraps (they wrote these; bootstrap.sh no longer does)
+/Setup.sh
 /Setup/.setup_handoff
 
 # Convenience symlinks to the bootstrap-built tools (targets live in gitignored build-bootstrap/)

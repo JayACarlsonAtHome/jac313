@@ -50,28 +50,17 @@ tracked default.
 
 ## Provisioning
 
-Beyond sensing, `Setup` is also the project's **installer**. Per-platform install commands live in
-[`recipes.conf`](recipes.conf) (data, like `compilers.conf`): one line per `<component>.<family>`,
-plus optional `check` (idempotency test) and `required` (readiness-gate) fields. `bootstrap.sh`
-senses the host, writes a handoff (`.setup_handoff`), and runs the **committed, prebuilt
-`jac313_setup`** binary, which reads the handoff, resolves each component's command from
-`recipes.conf`, and executes them with real per-step error handling — plan preview, `[y/N]` confirm,
-`--dry-run`, and a continue-on-failure summary (`plan_for_components` / `execute_plan` in the public
-header). If that static binary can't run on the host, `bootstrap.sh` falls back to a generated,
-**resilient** `Setup.sh`.
+Per-platform install commands live in [`recipes.conf`](recipes.conf) (data, like
+`compilers.conf`): one line per `<component>.<family>`, plus optional `check` (idempotency test)
+and `required` (readiness-gate) fields. `bootstrap.sh` finds what is missing and installs it
+itself, item by item, from these recipes, after the one "Install everything?" answer and one sudo
+password. One failing item never stops the others; anything still missing is named at the end.
+`jac313_test_cli setup` reports readiness and names anything not installed yet.
 
-A recipe with neither `for` nor `check` is never picked by the generator; it is used only on
-request. `upp_gui` (the U++ GUI build libraries) is one: only the bootstrap's GUI step uses it (skipped with `--no-gui`),
-after its own pkg-config check, with a `[y/N]` prompt. `static_runtime` is another.
+A recipe with neither `for` nor `check` is used only on request. `upp_gui` (the U++ GUI build
+libraries) is one: only the bootstrap's GUI step uses it (skipped with `--no-gui`), after its own
+pkg-config check.
 
 | Path | Purpose |
 |------|---------|
 | `recipes.conf` | Per-`(component, family)` install commands (+ `check` / `required`) |
-| `setup_main.cpp` | `main()` for the provisioner (handoff parser + executor) |
-| `jac313_setup` | **Committed, fully-static** provisioner binary — ships with the clone, runs before any compiler exists |
-| `build_setup_exe.sh` | Rebuild + re-stamp `jac313_setup` (static, C++23) when the library changes |
-
-`jac313_setup` is committed **static** so one binary runs across the fleet's distros/glibc
-versions; rebuilding it needs `glibc-static`/`libstdc++-static` on the build host (the
-`static_runtime` recipe provisions them on demand — on RHEL via the CodeReady Builder repo). Clone
-hosts need none of this.

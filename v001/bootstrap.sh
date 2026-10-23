@@ -12,22 +12,19 @@
 #      dev header, the libpq 18+ dev header (PG sink + PG gates), and valgrind with the
 #      memcheck/helgrind/DRD dev headers — the full set
 #      needed to build AND run the gates, so a fresh box is provisioned in ONE pass.
-#   3. If any baseline is missing -> hand off to the committed Setup/jac313_setup
-#      provisioner (reads Setup/.setup_handoff) which runs the sudo steps and continues
-#      in the *same* bootstrap invocation; falls back to a generated Setup.sh, which it
-#      also runs in the same invocation (after the one "Install everything?" yes).
-#   4. Otherwise -> build jac313_test_cli once and hand off ('setup' for readiness;
+#   3. If any of it is missing -> install it here, item by item, from Setup/recipes.conf
+#      (after the one "Install everything?" yes and one sudo password), then go on.
+#   4. Build jac313_test_cli once and let it check this machine ('setup' for readiness;
 #      '--run-everything' for the full battery).
 #   5. Sense + pin this machine as jac313-### (host_spec + current_host). Auto-pins when
 #      unambiguous; otherwise bootstrap stops with --claim / --assign-new-### directions.
 #
-#   6. The GUI (skipped with --no-gui): the U++ GUI build libraries (recipe upp_gui; covered by the one
-#      "Install everything?" answer, else offered [y/N]),
-#      U++ itself into $HOME/u++ (pinned release, SHA-256 checked, no sudo) and then
-#      Jac313Runner via `jac313_test_cli gui-build`. A plain bootstrap never does this.
+#   6. A PostgreSQL 18 server for the PG local gate (role + database jac313).
+#   7. The GUI (skipped with --no-gui): the U++ GUI build libraries (recipe upp_gui), U++ from
+#      upp_basefix into $HOME/upp_basefix, Jac313Runner via `jac313_test_cli gui-build`, and
+#      DBeaver; then the Runner opens.
 #
-# Idempotent. Re-run after a manual Setup.sh (fallback path) or after host pin.
-# The preferred path (committed jac313_setup) provisions and continues in one run.
+# Idempotent: re-run it any time; what is already there is left alone.
 set -eu
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -369,120 +366,42 @@ if [ "$ASSUME_YES" = 1 ] && [ "$need_install" = 1 ]; then
   fi
 fi
 
-# --- 3. baseline check; provision (exe or Setup.sh) if anything is missing ---
+# --- 3. install what is missing (recipes in Setup/recipes.conf), then continue ---
 # The valgrind check requires the memcheck header AND the helgrind + DRD headers: the
 # annotated verify tree (-DJAC313_STORE_HELGRIND_ANNOTATE=ON) #includes <valgrind/helgrind.h>
 # and the DRD annotations, which ship in valgrind-devel (Debian bundles them in `valgrind`).
 # So baseline can't pass with a partial valgrind that would break the verify/verify-lite gate.
+# One failing item never stops the others; what is still missing is named at the end.
 
 if [ -n "$missing" ]; then
-  echo "Baseline missing:$missing"
-
-  # Write the handoff the committed provisioner reads. bootstrap senses; jac313_setup
-  # executes. Regenerated every run; gitignored.
-  HANDOFF="$ROOT/Setup/.setup_handoff"
-  {
-    echo "# jac313 setup handoff — written by bootstrap.sh, read by Setup/jac313_setup."
-    echo "# Regenerated every run; safe to delete."
-    echo "family=$family"
-    [ -n "$ACT" ] && echo "activation=$ACT"
-    for comp in $missing; do echo "component=$comp"; done
-  } > "$HANDOFF"
-
-  # Prefer the prebuilt, committed provisioner: it does real per-step error handling
-  # (captured exit codes, [y/N] confirm, --dry-run, continue-on-failure summary) that a
-  # generated shell script cannot. It is built static, so it runs even before any
-  # compiler/ninja exists. Probe it with --version so a wrong-arch / unrunnable binary
-  # falls back cleanly to the generated Setup.sh below.
-  SETUP_EXE="$ROOT/Setup/jac313_setup"
-  if [ -x "$SETUP_EXE" ] && "$SETUP_EXE" --version >/dev/null 2>&1; then
+  if [ "$ASSUME_YES" != 1 ] && [ ! -t 0 ]; then
+    echo "Missing:$missing — run ./bootstrap.sh in a terminal (or ./bootstrap.sh --yes)."
+    exit 1
+  fi
+  for comp in $missing; do
+    desc=$(recipe_cmd "$comp" desc || true)
+    cmd=$(recipe_cmd "$comp" "$family" || true)
     echo
-    echo "Provisioning via the committed Setup/jac313_setup (handoff: Setup/.setup_handoff)."
-    setup_yes=""; [ "$ASSUME_YES" = 1 ] && setup_yes="--yes"
-    if "$SETUP_EXE" --source-dir "$ROOT" $setup_yes "$HANDOFF"; then
-      echo; echo "Provisioning finished."
-      # Re-detect now that the (sudo) packages are present; continue in this same run
-      # so the build + cli handoff happen without a manual re-run.
-      detect_cxx
-      compute_missing
-      if [ -n "$missing" ]; then
-        echo "Baseline still missing after provisioning:$missing"
-        echo "Fix the issues and re-run: ./bootstrap.sh"
-        exit 1
-      fi
-      # fall through to build/handoff in this invocation
-    else
-      echo; echo "Provisioning did not fully complete (see above). Fix, then re-run: ./bootstrap.sh"
-      exit 1
+    echo "=== ${desc:-$comp} ==="
+    if [ -z "$cmd" ]; then
+      echo "  [FAIL] no recipe for '$family' — install it with your package manager."
+      continue
     fi
-  else
-  # --- fallback: no usable committed binary -> generate a reviewable Setup.sh ---------
-  # (only here: after a successful jac313_setup run the build continues below)
-  echo "(committed Setup/jac313_setup not present/runnable here — falling back to Setup.sh)"
-  {
-    echo "#!/usr/bin/env bash"
-    echo "# Auto-generated by jac313 bootstrap on $(date -u +%Y-%m-%dT%H:%M:%SZ) — REVIEW first."
-    echo "# Installs the baseline needed to build jac313_test_cli on family: $family"
-    echo "# These commands modify your system and usually need sudo. Read them."
-    echo "# Each step runs independently; failures are reported at the end, not aborted on,"
-    echo "# so one bad recipe can no longer hide the installs after it."
-    echo "set -uo pipefail"
-    echo
-    echo "__jac_fail=0"
-    echo
-    for comp in $missing; do
-      cmd=$(recipe_cmd "$comp" "$family" || true)
-      if [ -n "$cmd" ]; then
-        echo "echo; echo \"=== $comp ===\""
-        echo "if $cmd"
-        echo "then echo \"  [ok]   $comp\""
-        echo "else echo \"  [FAIL] $comp\"; __jac_fail=1"
-        echo "fi"
-        echo
-      else
-        echo "echo \"  [FAIL] $comp — no recipe for family '$family'; install it manually.\"; __jac_fail=1"
-        echo
-      fi
-    done
-    echo "echo"
-    echo "if [ \"\$__jac_fail\" -eq 0 ]; then"
-    echo "  echo 'Baseline installed. Re-run: ./bootstrap.sh'"
-    echo "else"
-    echo "  echo 'One or more steps FAILED above — fix those, then re-run this script.'"
-    echo "fi"
-    echo "exit \"\$__jac_fail\""
-  } > "$ROOT/Setup.sh"
-  chmod +x "$ROOT/Setup.sh"
-  echo
-  echo "Wrote Setup.sh (the install commands; kept as a record)."
-  # Same rule as everywhere: "install" means do it, in this run. Ask only when the one
-  # "Install everything?" answer was no; without a terminal (and no --yes), stop as before.
-  run_setup=0
-  if [ "$ASSUME_YES" = 1 ]; then
-    run_setup=1
-  elif [ -t 0 ]; then
-    printf "Run Setup.sh now? [Y/n] "
-    read -r ans || ans=n
-    case "$ans" in [nN]*) ;; *) run_setup=1 ;; esac
-  fi
-  if [ "$run_setup" = 0 ]; then
-    echo "Review it, then run it by hand:  bash Setup.sh"
-    echo "When it finishes, re-run: ./bootstrap.sh"
-    exit 1
-  fi
-  if ! bash "$ROOT/Setup.sh"; then
-    echo "Setup.sh did not fully complete (see above). Fix, then re-run: ./bootstrap.sh"
-    exit 1
-  fi
+    if [ "$ASSUME_YES" != 1 ]; then
+      printf "Install it? [Y/n] "
+      read -r ans || ans=n
+      case "$ans" in [nN]*) echo "  skipped"; continue ;; esac
+    fi
+    if sh -c "$cmd"; then echo "  [ok]"; else echo "  [FAIL] (see above)"; fi
+  done
   detect_cxx
   compute_missing
   if [ -n "$missing" ]; then
-    echo "Baseline still missing after Setup.sh:$missing"
-    echo "Fix the issues and re-run: ./bootstrap.sh"
+    echo
+    echo "Still missing:$missing — fix the errors above, then re-run ./bootstrap.sh"
     exit 1
   fi
-  # fall through to build/handoff in this invocation
-  fi
+  echo
 fi
 
 echo "Bootstrap compiler: ${ACT:+[$ACT] }$CXX"
@@ -563,7 +482,7 @@ if [ "$WANT_GUI" = 1 ]; then
 fi
 
 echo
-echo "=== handing off to jac313_test_cli ==="
+echo "=== checking this machine ==="
 $ACT "$CLI" setup
 
 # Sense + pin THIS machine (host_spec + current_host) and show the hardware grid, so every later

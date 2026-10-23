@@ -26,7 +26,6 @@ export using jac313::Setup::v001::load_recipes;
 export using jac313::Setup::v001::ProvisionStep;
 export using jac313::Setup::v001::ProvisionPlan;
 export using jac313::Setup::v001::plan_provision;
-export using jac313::Setup::v001::write_setup_script;
 export using jac313::Setup::v001::scrub_exported_shell_functions;
 export using jac313::Setup::v001::snapshot_env;
 export using jac313::Setup::v001::apply_env_delta;

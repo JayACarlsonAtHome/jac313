@@ -63,7 +63,7 @@ void print_usage() {
         "  build-times compile-time matrix (smoke+bench x front-end x compiler), gap-filled per host\n"
         "  pin         find-or-create this machine's committed compiler pin (Setup/compilers.pin)\n"
         "  compilers   Sense toolchains from the registry (writes FileCheckList.txt)\n"
-        "  setup       Sense readiness; generate Setup.sh for missing prerequisites\n"
+        "  setup       Sense readiness; name anything ./bootstrap.sh still has to install\n"
         "  version-check  check each package owes a version() bump (git, no build)\n"
         "  vendor-check   drift of the vendored jText / Qlite copies (warnings only)\n"
         "  vendor-sync    forward-port canonical into a vendored copy (dry run; --write)\n"
@@ -474,11 +474,11 @@ int run_setup_command(const GlobalOptions& global) {
         return 0;
     }
 
-    if (setup::write_setup_script(global.source_dir, plan)) {
-        std::cout << "\nWrote Setup.sh (" << plan.steps.size() << " step(s)). "
-                  << "It modifies your system and may need sudo — review it, then run:\n";
-        std::cout << "  bash Setup.sh\n";
+    std::cout << "Not installed yet:";
+    for (const auto& step : plan.steps) {
+        std::cout << " " << step.component;
     }
+    std::cout << " — ./bootstrap.sh installs them.\n";
     for (const std::string& comp : plan.unsupported) {
         std::cout << "  note: '" << comp << "' is needed but has no recipe for family '"
                   << host.os_family << "'.\n";
