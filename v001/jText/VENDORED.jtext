@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText/v001
 
-1. #|# 3|canonical_commit|c6194c67e365
+1. #|# 3|canonical_commit|c1615b044254
 
 1. #|# 4|canonical_dirty|No
 
@@ -62,15 +62,15 @@
 
 1. #|# 2|include/jac313/jText/v001.hpp|include/jText/v001.hpp|50fa0c094772ea9628f53c827a5cef50ad76b5f4623bae28e8a19305ef40f210|06af37f1fcbf98aaa653f9e6500d7edd4d1ae8cf226ca88844a5fe2aca621814
 
-1. #|# 3|jText.api.inc|jText.api.inc|a1e23c46f3000670154a21dcf819341d9cfed8cc77c4fef92dd7c98346262677|1bb8f40e75a532e648defb5c6d7ee8fba3666e2ccc1b55acca74247bfccf77f4
+1. #|# 3|jText.api.inc|jText.api.inc|6763b99c97edff95297eca308e6bcd4710a77aa73c93f25df2f6e6060c523307|5b8126faac735376a7c30a38a39366d5eac3f097f636f1892756dce6e891d43d
 
 1. #|# 4|jText.cpp|jText.cpp|634b66c0d662e6c365457b4675f29f0f66127ec6b5d1bd72d08fb849e6f740f4|6811f42199486f00f95d692a72a1193afa2e5e43ac8703f1a6bf4d2b7cb2a594
 
 1. #|# 5|jText.h|jText.h|0248bda23611e1f4d6337382d185edcd5c059b3d5367f40a6b748ffcf265037d|080cd79a6adfa05bdd5c6698718d17acd4a78c252cc5b965f354dc18f89d4f13
 
-1. #|# 6|jText.impl.inc|jText.impl.inc|266e1e48886132a5c7ec92340ea395dcfea87ef7389ed92586cfdf12bd565d7c|3c49957b5ba55a78062f081c13248172a37562498a896c78bc8ea403e80e3e0d
+1. #|# 6|jText.impl.inc|jText.impl.inc|8a94a22192b7d19dd8b34cbb51efaf878585306d7fe4a015ca9835c271fcee63|52f591f7786780f88d6172f54111fa28a732b8197ad3e38394f5d2bf88a07722
 
-1. #|# 7|modules/jac313.jtext.v001.core.cppm|modules/jText.v001.core.cppm|a9c340e8ef778f9e7eba9e26228ea1e69bcc250562cd9b386133eecfa33d458b|5b86fb2da8950b8c7fc481e0ce2ecc28ceba460e976bd0fe669b8cad4ce3b640
+1. #|# 7|modules/jac313.jtext.v001.core.cppm|modules/jText.v001.core.cppm|4cfa2d3e87a93f0b6ec1ea156adfc9b920cb40868f778e095666bbb00bba5b13|f27b851b2a7373802666f591bbbe927d6b9b13c2fe8e3db0140c7448216dd71f
 
 1. #|# 8|modules/jac313.jtext.v001.cppm|modules/jText.v001.cppm|fb38bd043b45f76f30dfc6efe4f6ab7a306541c47ad229c161fc8c515bf402aa|48f8a167640603a20174399b7678a60bf1127de845bc7eb611b94f0fb1499309
 
@@ -94,7 +94,7 @@
 
 1. #|# 18|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|6293bc72fe400e21da85725ea20f15e674c4f1336f38df83a19679e328a5d938|cb71770200e786fac232bbd7c6776fc26d1fbeea81cecdc6e97daa86dc23081c
 
-1. #|# 19|tests/v001_test.cpp|tests/v001_test.cpp|6a788ceaeca3aacb18b4f10d2ba9122a6897a59490acf3964453b8b232de1ea6|c3bb47d05a167dc1ebaedf21ef6e75f391bea946b49b61a55848fb4fcf11fe5a
+1. #|# 19|tests/v001_test.cpp|tests/v001_test.cpp|ca5b7e28f13e9938553fc8096956935a7ae6e0920abc8f147da9e53df8ee02b2|81bdc7bcf4ed1b3e77b0ef7587e794d7dd65582c91459e5b4fafb55894da0f2e
 
 1. #|# 20|tools/jtext_from_sql.cpp|tools/jtext_from_sql.cpp|1e2a0c470f22e240b37070e3a4e235358900e6a71c7244748a941c20da3e7a88|1e2a0c470f22e240b37070e3a4e235358900e6a71c7244748a941c20da3e7a88
 

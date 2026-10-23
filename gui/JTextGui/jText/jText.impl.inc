@@ -1,10 +1,8 @@
 // jText::v001 — PUBLIC API DEFINITIONS (single source of truth).
 //
 // Include-fragment (no guard, includes nothing). Included INSIDE the
-// jText::v001 namespace by two front-ends that first make std visible and
-// provide the file-scope `fs` alias + std::literals:
-//   * jText.cpp                  — textual std #includes (compiled into jtext_core).
-//   * jText.v001.impl.cpp — `import std;` (gcc import-std module, opt-in).
+// jText::v001 namespace by jText.cpp (compiled into jtext_core), which first makes std
+// visible with textual std #includes and provides the file-scope `fs` alias + std::literals.
 // std names are spelled std:: (incl. std::size_t). Declarations live in jText.api.inc.
 
 // ===================================================================
@@ -185,9 +183,8 @@ auto JTextFile::parse_entry(std::string_view line) -> std::expected<JTextEntry, 
         }
     }
 
-    // case_mode stays on the file for callers. Values are kept as written:
-    // folding them here would rewrite the text a later save stores.
-    (void)case_mode;
+    // Values are kept exactly as written, like a database: case_mode is a comparison
+    // setting (see text_equal), never a reason to rewrite the text a later save stores.
 
     return e;
 }
@@ -605,6 +602,17 @@ void write_file_comment_header(std::ostream& os,
     os << "//\n";
     // End-of-text-header marker for consumers (e.g. binary log readers doing
     // safe prefix scan). Binary readers must *not* rely on getline after this.
+}
+
+bool text_equal(std::string_view a, std::string_view b, CaseMode mode) noexcept {
+    if (mode == CaseMode::Sensitive) return a == b;
+    if (a.size() != b.size()) return false;
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        const auto x = static_cast<unsigned char>(a[i]);
+        const auto y = static_cast<unsigned char>(b[i]);
+        if (std::toupper(x) != std::toupper(y)) return false;
+    }
+    return true;
 }
 
 std::size_t jtext_line_pad_width_for_count(std::size_t item_count) {

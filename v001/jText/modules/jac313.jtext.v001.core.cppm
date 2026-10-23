@@ -10,6 +10,7 @@ export module jac313.jtext.v001.core;
 export namespace jac313::jText::v001 {
     using jac313::jText::v001::version;
     using jac313::jText::v001::CaseMode;
+    using jac313::jText::v001::text_equal;
     using jac313::jText::v001::JTextEntry;
     using jac313::jText::v001::JTextSection;
 }
