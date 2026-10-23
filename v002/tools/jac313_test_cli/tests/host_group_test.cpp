@@ -29,11 +29,11 @@ int failures = 0;
     } while (0)
 
 HostId fedora_i7(const std::string& hash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") {
-    return {"Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz", 8, 31, "fedora-44", "ssd", hash, 4, 2900, 3900};
+    return {"Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz", 8, 31, "fedora-44", "xssd", hash, 4, 2900, 3900};
 }
 
 HostId mint_i7(const std::string& hash = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb") {
-    return {"Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz", 8, 31, "linuxmint-22.3", "ssd", hash, 4, 2900, 3900};
+    return {"Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz", 8, 31, "linuxmint-22.3", "xssd", hash, 4, 2900, 3900};
 }
 
 HostId fedora_vm2() {

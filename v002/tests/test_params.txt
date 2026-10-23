@@ -1,6 +1,7 @@
 # jac313 test parameters (local matrix runner)
 #
-# DISK_TYPE: ssd | x7k | 10k  (results layout label)
+# DISK_TYPE: auto | xssd rssd xx7k xr7k x10k r10k x15k r15k  (results layout label; x = one disk,
+#            r = RAID; a machine sets its own in ~/.config/jac313/disk_type or JAC313_DISK_TYPE)
 # SIZE:      smoke | full       (smoke = default; full uses per-test scaling via test_params_full.txt)
 # OS_ID:     optional (e.g. OS_001) for test-results/OS_001/... layout
 #

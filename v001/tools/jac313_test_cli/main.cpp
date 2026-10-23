@@ -252,7 +252,7 @@ void write_package_versions(jac313::Qlite::v001::Sqlite& db, std::int64_t gid,
 
 std::optional<std::int64_t> pin_current_host(jac313::Qlite::v001::Sqlite& db, const GlobalOptions& global,
                                                std::ostream& err = std::cerr) {
-    const auto hw = collect_host_hardware_record(detect_disk_type("."));
+    const auto hw = collect_host_hardware_record(machine_disk_tier("."));
     const auto gid = try_resolve_and_pin(db, hw, host_pin_flags_from(global), harness_version(global), err);
     if (gid) write_package_versions(db, *gid, global.source_dir, harness_version(global));   // refresh code versions (per group+world)
     return gid;
@@ -261,7 +261,7 @@ std::optional<std::int64_t> pin_current_host(jac313::Qlite::v001::Sqlite& db, co
 // "jac313-### · compiler · disk" — the host/compiler/disk line shown above each summary's pass/fail.
 // compiler comes from the build dir (build-gcc15 -> gcc15); jac313-### is resolved against host_spec.
 inline std::string summary_context_line(const GlobalOptions& global) {
-    const auto hw = collect_host_hardware_record(detect_disk_type("."));
+    const auto hw = collect_host_hardware_record(machine_disk_tier("."));
     std::string cc = global.build_dir.filename().string();
     if (cc.rfind("build-", 0) == 0) cc = cc.substr(6);
     std::string label = "jac313-???";
@@ -1397,7 +1397,7 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
     if (!fs::exists(db_path.parent_path(), ec)) { std::cerr << "build-times: no test-summary/.\n"; return 1; }
     jac313::Qlite::v001::Sqlite db(db_path.string());
     jac313::results::ensure_schema(db);
-    const HostHardwareRecord hw = collect_host_hardware_record(detect_disk_type("."));
+    const HostHardwareRecord hw = collect_host_hardware_record(machine_disk_tier("."));
     const jac313::results::HostId h = make_host_id(hw);
     const bool new_setup = jac313::results::find_exact_group(db, h) == 0
         && jac313::results::propose_group_id(db, h, is_generic_nodename(nodename_for_hash())).gid
@@ -2376,7 +2376,7 @@ int run_group_id_command(const GlobalOptions& global) {
     try {
         jac313::Qlite::v001::Sqlite db(db_path.string());
         jac313::results::ensure_schema(db);
-        const auto hw = collect_host_hardware_record(detect_disk_type("."));
+        const auto hw = collect_host_hardware_record(machine_disk_tier("."));
         const jac313::results::HostId h = make_host_id(hw);
         std::cout << "=== group-id precheck (read-only — test-summary/results.db) ===\n\n"
                      "Existing machine groups (from host_spec):\n";
@@ -2457,7 +2457,7 @@ std::string highest_toolchain_label(const std::vector<ResolvedToolchain>& probes
 // Forward-declared up by the build-times gate; defined here, after the pin helpers it needs.
 std::string resolve_pinned_cc(const fs::path& src, bool want_gcc) {
     CompilerResolveRequest request; request.source_dir = src;
-    const HostHardwareRecord hw = collect_host_hardware_record(detect_disk_type("."));
+    const HostHardwareRecord hw = collect_host_hardware_record(machine_disk_tier("."));
     const auto rows = read_compiler_pins(src);
     const CompilerPinRow* row = find_pin_for_host(rows, hw);
     std::string label = row ? (want_gcc ? row->gcc_label : row->clang_label)
@@ -2481,7 +2481,7 @@ void write_compiler_pins(const fs::path& source_dir, const std::vector<CompilerP
 
 // {gcc_label, clang_label} for this machine: the committed pin if present, else highest-available.
 std::pair<std::string, std::string> pinned_or_highest_labels(const fs::path& source_dir) {
-    const HostHardwareRecord hw = collect_host_hardware_record(detect_disk_type("."));
+    const HostHardwareRecord hw = collect_host_hardware_record(machine_disk_tier("."));
     const auto rows = read_compiler_pins(source_dir);
     if (const CompilerPinRow* row = find_pin_for_host(rows, hw))
         return {row->gcc_label, row->clang_label};
@@ -2515,7 +2515,7 @@ int run_everything_command(const GlobalOptions& global) {
         try {
             jac313::results::Sqlite db(SHARED_DB);
             jac313::results::ensure_schema(db);
-            const auto hw = collect_host_hardware_record(detect_disk_type("."));
+            const auto hw = collect_host_hardware_record(machine_disk_tier("."));
             const auto g_opt = pin_current_host(db, global);
             if (!g_opt) return 1;
             const std::int64_t g = *g_opt;
@@ -2772,7 +2772,7 @@ int main(int argc, char** argv) {
             else if (a == "--clang" && i + 1 < argc) set_clang = argv[++i];
             else if (a == "--source-dir" && i + 1 < argc) src = argv[++i];
         }
-        const HostHardwareRecord hw = collect_host_hardware_record(detect_disk_type("."));
+        const HostHardwareRecord hw = collect_host_hardware_record(machine_disk_tier("."));
         auto rows = read_compiler_pins(src);
         const CompilerPinRow* existing = find_pin_for_host(rows, hw);
         if (!ensure && set_gcc.empty() && set_clang.empty()) {   // default: show this machine's pin
@@ -2846,7 +2846,7 @@ int main(int argc, char** argv) {
         if (!fs::exists(db_path.parent_path(), ec)) { std::cerr << "host: no test-summary/.\n"; return 1; }
         jac313::Qlite::v001::Sqlite db(db_path.string());
         jac313::results::ensure_schema(db);
-        const auto hw = collect_host_hardware_record(detect_disk_type("."));
+        const auto hw = collect_host_hardware_record(machine_disk_tier("."));
         const auto gid_opt = pin_current_host(db, host_global);
         if (!gid_opt) return 1;
         const jac313::results::HostId h = make_host_id(hw);

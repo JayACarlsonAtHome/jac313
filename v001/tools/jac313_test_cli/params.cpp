@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <iostream>
 #include <string_view>
 
 namespace jac313::test_cli {
@@ -28,14 +29,25 @@ bool is_truthy(const std::string& value) {
     return v == "x" || v == "1" || v == "true" || v == "yes";
 }
 
-// Resolve DISK_TYPE=auto (or empty) by detecting the disk backing the repo/cwd; an explicit
-// value (ssd/x7k/10k/15k) is kept as an override. Falls back to "ssd" if undeterminable.
+// The disk tier (4 characters, see normalize_disk_type): this machine's own setting first, then
+// DISK_TYPE from the params file, else detected from the disk backing the repo/cwd ("xssd" if
+// undeterminable). Old names (ssd/x7k/10k/15k) are mapped; an unknown name is reported and
+// detection used instead.
 void resolve_disk_type(MatrixParams& params) {
-    const std::string current = lower(trim(params.disk_type));
-    if (current.empty() || current == "auto") {
-        const std::string detected = detect_disk_type(".");
-        params.disk_type = detected.empty() ? "ssd" : detected;
+    for (const std::string& wanted : {machine_disk_type(), params.disk_type}) {
+        const std::string w = lower(trim(wanted));
+        if (w.empty() || w == "auto") {
+            continue;
+        }
+        if (const std::string tier = normalize_disk_type(w); !tier.empty()) {
+            params.disk_type = tier;
+            return;
+        }
+        std::cerr << "disk type '" << wanted << "' is not one of xssd rssd xx7k xr7k x10k r10k x15k r15k;"
+                     " detecting it instead\n";
     }
+    const std::string detected = detect_disk_type(".");
+    params.disk_type = detected.empty() ? "xssd" : detected;
 }
 
 } // namespace

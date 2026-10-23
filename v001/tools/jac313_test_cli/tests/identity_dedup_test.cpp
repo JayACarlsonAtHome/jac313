@@ -61,14 +61,14 @@ int main() {
             "build_type TEXT, disk_type TEXT, size_label TEXT, modules TEXT)");
 
     // Two runs identical except os -> the original collision case.
-    insert(db, 1, {"rhel-9.8",  "gcc15", "Debug", "ssd", "Smoke", "textual"});
-    insert(db, 2, {"rhel-10.2", "gcc15", "Debug", "ssd", "Smoke", "textual"});
+    insert(db, 1, {"rhel-9.8",  "gcc15", "Debug", "xssd", "Smoke", "textual"});
+    insert(db, 2, {"rhel-10.2", "gcc15", "Debug", "xssd", "Smoke", "textual"});
 
     dedup_for(db, 1);                 // finalize the rhel-9.8 run
     CHECK(count_rows(db) == 2);       // rhel-10.2 must NOT be clobbered (the bug)
 
     // A second rhel-9.8 run with the SAME identity must replace the first.
-    insert(db, 3, {"rhel-9.8", "gcc15", "Debug", "ssd", "Smoke", "textual"});
+    insert(db, 3, {"rhel-9.8", "gcc15", "Debug", "xssd", "Smoke", "textual"});
     dedup_for(db, 3);
     CHECK(count_rows(db) == 2);       // row 1 gone, rows 2 (10.2) and 3 (9.8) remain
 

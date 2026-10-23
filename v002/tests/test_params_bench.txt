@@ -14,5 +14,5 @@
 005=x
 007=x
 
-DISK_TYPE=ssd
+DISK_TYPE=xssd
 SIZE=bench

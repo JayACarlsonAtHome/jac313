@@ -34,9 +34,21 @@ std::string collect_os_specs(const std::string& os_id = {});
 
 std::string collect_host_hardware_line(const std::string& disk_type_label);
 
-// Auto-detect the disk tier (ssd / x7k / 10k / 15k) from the physical device backing `dir`
+// Auto-detect the disk tier (xssd / xx7k / x10k / x15k, r... on RAID) from the physical device backing `dir`
 // (the repo / test-output disk, NOT the system root). Empty string if undeterminable.
 std::string detect_disk_type(const std::string& dir = ".");
+
+// The disk tier names, 4 characters: x = single disk, r = RAID, padded with x on the left:
+// xssd rssd (SSD / NVMe), xx7k xr7k (7200 rpm), x10k r10k, x15k r15k. Returns the tier for
+// NAME (old names map: ssd->xssd, x7k->xx7k, 10k->x10k, 15k->x15k), or "" when NAME is none.
+std::string normalize_disk_type(const std::string& name);
+
+// This machine's own tier setting, kept outside git: JAC313_DISK_TYPE, else the first word of
+// ~/.config/jac313/disk_type; "" when neither is set. For what detection cannot see (a VM on RAID).
+std::string machine_disk_type();
+
+// The tier every record of this machine uses: its own setting when valid, else detected.
+std::string machine_disk_tier(const std::string& dir = ".");
 
 std::string format_group_environment_line(const std::string& hardware_specs,
                                           const std::string& os_specs);

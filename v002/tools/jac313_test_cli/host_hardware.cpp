@@ -322,19 +322,50 @@ std::vector<PhysDisk> backing_disks(const std::string& dir) {
     return disks;
 }
 
-// Map a rotational disk to an RPM tier. smartctl is authoritative when permitted (often needs
-// root); otherwise fall back to known-model heuristics, defaulting to x7k for unknown HDDs.
-std::string rpm_tier(const PhysDisk& disk) {
+// Map a rotational disk to its speed: 7k, 10k or 15k. smartctl is authoritative when permitted
+// (often needs root); otherwise fall back to known-model heuristics, defaulting to 7k.
+std::string rpm_speed(const PhysDisk& disk) {
     const std::string info = run_capture("smartctl -i /dev/" + disk.name + " 2>/dev/null");
     if (const auto p = info.find("Rotation Rate"); p != std::string::npos) {
         const std::string seg = info.substr(p, 48);
         if (seg.find("15000") != std::string::npos) return "15k";
         if (seg.find("10000") != std::string::npos) return "10k";
-        if (seg.find("7200") != std::string::npos) return "x7k";
+        if (seg.find("7200") != std::string::npos) return "7k";
     }
-    if (disk.model.find("HUC") != std::string::npos) return "10k";                                   // HGST 10K SAS
-    if (disk.model.rfind("ST", 0) == 0 && disk.model.find("NM") != std::string::npos) return "x7k";  // Seagate 7200
-    return "x7k";
+    if (disk.model.find("HUC") != std::string::npos) return "10k";                                  // HGST 10K SAS
+    if (disk.model.rfind("ST", 0) == 0 && disk.model.find("NM") != std::string::npos) return "7k";  // Seagate 7200
+    return "7k";
+}
+
+// A RAID controller's logical disk (Dell PERC, LSI/Broadcom MegaRAID, HP Smart Array).
+bool raid_controller_model(std::string model) {
+    for (char& c : model) {
+        c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    }
+    for (const char* tag : {"PERC", "MEGARAID", "RAID", "LOGICAL VOLUME", "SMART ARRAY"}) {
+        if (model.find(tag) != std::string::npos) return true;
+    }
+    return false;
+}
+
+// Linux software RAID (md) anywhere between `dir` and its disks.
+bool backing_md_raid(const std::string& dir) {
+    const std::string src = trim(run_capture("df --output=source '" + dir + "' 2>/dev/null | tail -1"));
+    if (src.empty() || src == "Filesystem") {
+        return false;
+    }
+    std::istringstream rows(run_capture("lsblk -s -nro TYPE '" + src + "' 2>/dev/null"));
+    std::string type;
+    while (rows >> type) {
+        if (type.rfind("raid", 0) == 0) return true;
+    }
+    return false;
+}
+
+// speed ssd|7k|10k|15k + raid -> the 4-character tier
+std::string disk_tier(const std::string& speed, bool raid) {
+    if (speed == "7k") return raid ? "xr7k" : "xx7k";
+    return (raid ? "r" : "x") + speed;
 }
 
 std::optional<std::string> storage_description(const std::string& disk_type_label) {
@@ -387,12 +418,57 @@ std::string detect_disk_type(const std::string& dir) {
     if (disks.empty()) {
         return "";
     }
+    bool raid = backing_md_raid(dir.empty() ? std::string(".") : dir);
+    for (const auto& d : disks) {
+        raid = raid || raid_controller_model(d.model);
+    }
+    // A VM cannot see the RAID under its virtual disk: JAC313_DISK_TYPE or
+    // ~/.config/jac313/disk_type says so (see resolve_disk_type).
     for (const auto& d : disks) {
         if (!d.rotational) {
-            return "ssd";  // any non-rotating member -> treat as SSD
+            return disk_tier("ssd", raid);  // any non-rotating member -> treat as SSD
         }
     }
-    return rpm_tier(disks.front());
+    return disk_tier(rpm_speed(disks.front()), raid);
+}
+
+// This machine's own disk tier, set outside git: JAC313_DISK_TYPE, else the first word of
+// ~/.config/jac313/disk_type. For what detection cannot see, e.g. a VM on a RAID (xr7k).
+std::string machine_disk_type() {
+    if (const char* env = std::getenv("JAC313_DISK_TYPE"); env != nullptr && *env != '\0') {
+        return env;
+    }
+    const char* home = std::getenv("HOME");
+    if (home == nullptr || *home == '\0') {
+        return {};
+    }
+    std::ifstream file(std::string(home) + "/.config/jac313/disk_type");
+    std::string word;
+    file >> word;
+    return word;
+}
+
+std::string machine_disk_tier(const std::string& dir) {
+    if (const std::string tier = normalize_disk_type(machine_disk_type()); !tier.empty()) {
+        return tier;
+    }
+    return detect_disk_type(dir);
+}
+
+std::string normalize_disk_type(const std::string& name) {
+    std::string n;
+    for (const char c : name) {
+        if (!std::isspace(static_cast<unsigned char>(c))) {
+            n += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+    }
+    if (n == "ssd") return "xssd";
+    if (n == "x7k") return "xx7k";
+    if (n == "10k" || n == "15k") return "x" + n;
+    for (const char* t : {"xssd", "rssd", "xx7k", "xr7k", "x10k", "r10k", "x15k", "r15k"}) {
+        if (n == t) return n;
+    }
+    return "";
 }
 
 HostHardwareRecord collect_host_hardware_record(const std::string& disk_type_label,

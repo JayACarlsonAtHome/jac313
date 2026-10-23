@@ -53,7 +53,7 @@ fs::path ctest_logs_dir(const fs::path& source_dir,
     const std::string modules = bf.modules ? "modules" : "textual";
     const std::string build_type = bf.build_type.empty() ? "Debug" : bf.build_type;
     const RunIdentity id{sensed_os_key(), compiler_label, build_type,
-                         detect_disk_type("."), "Ctest", modules};
+                         machine_disk_tier("."), "Ctest", modules};
     return identity_path(source_dir, id) / "logs";
 }
 

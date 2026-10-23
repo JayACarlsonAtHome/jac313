@@ -57,21 +57,21 @@ void test_sql_clauses() {
 }
 
 void test_values_order_matches_columns() {
-    RunIdentity id{"rhel-10.2", "gcc15", "Release", "ssd", "Smoke", "textual"};
+    RunIdentity id{"rhel-10.2", "gcc15", "Release", "xssd", "Smoke", "textual"};
     const auto vals = identity_values(id);
     CHECK(vals.size() == run_identity_columns().size());
     CHECK_EQ(vals[0], std::string("rhel-10.2"));   // os
     CHECK_EQ(vals[1], std::string("gcc15"));        // compiler
     CHECK_EQ(vals[2], std::string("Release"));      // build_type
-    CHECK_EQ(vals[3], std::string("ssd"));          // disk_type
+    CHECK_EQ(vals[3], std::string("xssd"));         // disk_type
     CHECK_EQ(vals[4], std::string("Smoke"));        // size_label
     CHECK_EQ(vals[5], std::string("textual"));      // modules
 }
 
 void test_path() {
-    RunIdentity id{"rhel-10.2", "gcc15", "Release", "ssd", "Smoke", "textual"};
+    RunIdentity id{"rhel-10.2", "gcc15", "Release", "xssd", "Smoke", "textual"};
     CHECK_EQ(identity_path("/proj", id).generic_string(),
-             std::string("/proj/test-results/rhel-10.2/gcc15/Release/ssd/Smoke/textual"));
+             std::string("/proj/test-results/rhel-10.2/gcc15/Release/xssd/Smoke/textual"));
 }
 
 void test_os_key_parsing() {
