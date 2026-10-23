@@ -10,7 +10,7 @@ namespace Upp {
 // ---- Options (Screen 1), saved to Jac313Runner.json beside the program ----
 struct RunOptions {
 	String root;                    // project root (jac315 dir); "" = found from the executable
-	String version;                 // "v001", "v002", ... ("" or not found = the newest version)
+	String version;                 // "v001", "v002", ... ("" or not found = the newest bootstrapped version)
 	bool   ctest      = true;
 	bool   smoke      = true;
 	bool   bench      = false;

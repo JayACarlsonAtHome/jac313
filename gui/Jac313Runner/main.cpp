@@ -31,6 +31,7 @@
 using namespace Upp;
 
 static String gCmdRoot;   // --root
+static String gCmdVersion;   // --version vNNN: the version to show first (bootstrap passes its own)
 
 // ======================================================================= headless
 
@@ -690,6 +691,8 @@ Runner::Runner()
 	quit << [this] { Close(); };
 
 	LoadSettings(opt);
+	if(gCmdVersion.GetCount())
+		opt.version = gCmdVersion;
 	root <<= EffectiveRoot(opt, gCmdRoot);
 	FillVersions();
 	FromOptions();
@@ -1547,6 +1550,8 @@ GUI_APP_MAIN
 	for(int i = 0; i < a.GetCount(); i++) {
 		if(a[i] == "--root" && i + 1 < a.GetCount())
 			gCmdRoot = a[++i];
+		else if(a[i] == "--version" && i + 1 < a.GetCount())
+			gCmdVersion = a[++i];
 		else if(a[i] == "--summary" && i + 1 < a.GetCount())
 			summary = a[++i];
 		else if(a[i] == "--jtext" && i + 1 < a.GetCount())

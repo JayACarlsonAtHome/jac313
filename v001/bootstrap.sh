@@ -489,13 +489,13 @@ if [ -x "$RUNNER" ]; then
   echo "=== Next: Jac313Runner, the window that runs the tests ==="
   echo "Choose the gates (start with ctest + smoke), press Start, and read the results in it."
   echo "Start it any time with:"
-  echo "  $RUNNER"
+  echo "  $RUNNER --version $(basename "$ROOT")"
   if [ -t 0 ] && [ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]; then
     printf "Start Jac313Runner now? [Y/n] "
     read -r ans || ans=n
     case "$ans" in
       [nN]*) ;;
-      *) ( cd "$ROOT" && setsid "$RUNNER" > /dev/null 2>&1 < /dev/null & )
+      *) ( cd "$ROOT" && setsid "$RUNNER" --version "$(basename "$ROOT")" > /dev/null 2>&1 < /dev/null & )
          echo "Started. It keeps running when this terminal is closed." ;;
     esac
   fi

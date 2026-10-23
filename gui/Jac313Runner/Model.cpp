@@ -166,6 +166,11 @@ String ResolveVersion(const String& wanted, const String& root)
 	for(const VersionInfo& v : vs)
 		if(v.name == wanted)
 			return wanted;
+	// nothing chosen yet: the newest version whose bootstrap has run (it has ./jac313_test_cli),
+	// so a new user who bootstrapped v001 does not land on a v002 that cannot start
+	for(int i = vs.GetCount() - 1; i >= 0; i--)
+		if(FileExists(AppendFileName(AppendFileName(root, vs[i].name), "jac313_test_cli")))
+			return vs[i].name;
 	return vs.GetCount() ? vs.Top().name : wanted;
 }
 
