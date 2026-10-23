@@ -18,7 +18,7 @@ Each major version is a complete, independent universe:
 - **v001** — the solid, battle-tested C++23 baseline
 - **v002** — the evolving C++26 frontier (compiled as C++26; limited feature adoption so far, with plans to add more within ~12 months)
 
-This is modern C++ as it should be experienced: clean namespaced APIs, C++23 modules with `import std;`, rigorous validation, and the kind of depth that only comes from building something real end-to-end.
+This is modern C++ as it should be experienced: clean namespaced APIs, C++23 modules, rigorous validation, and the kind of depth that only comes from building something real end-to-end.
 
 The whole is bigger than the parts — and it shows.
 
@@ -93,8 +93,8 @@ language standard independently.
 
 | Version | Standard | State |
 |---------|----------|-------|
-| [**v001/**](v001/README.md) | **C++23** | The proven baseline — builds and tests green on g++-15 and Clang across multiple Linux distros; the full persist × scale matrix is recorded. Modules + `import std` work (opt-in, gcc-only). |
-| [**v002/**](v002/README.md) | **C++26** | The evolving frontier — compiled as C++26. Currently using a small number of C++26 library facilities (via shims/workarounds) and a contracts shim (runtime checks today). Most new C++26 language features not yet adopted in main code. We plan to re-evaluate and add more within the next 12 months. Modules + `import std` work (opt-in). |
+| [**v001/**](v001/README.md) | **C++23** | The proven baseline — builds and tests green on g++-15 and Clang across multiple Linux distros; the full persist × scale matrix is recorded. Modules build with the distro CMake. |
+| [**v002/**](v002/README.md) | **C++26** | The evolving frontier — compiled as C++26. Currently using a small number of C++26 library facilities (via shims/workarounds) and a contracts shim (runtime checks today). Most new C++26 language features not yet adopted in main code. We plan to re-evaluate and add more within the next 12 months. Modules build with the distro CMake. |
 
 The one coordination cost of full duplication: a shared-infra fix made *before* the two
 versions diverge must be applied to each `v00N/`. After they diverge, they are free to
@@ -115,7 +115,7 @@ Because this is a **non-trivial but real** codebase, it ends up being a genuinel
 **worked example for toolchain implementers** — a window onto how **CMake, GCC, and
 Clang** behave on real program setups, not on a hello-world:
 
-- **C++23 modules + `import std`** built module-native — exactly the kind of thing CMake's
+- **C++23 modules** across three differently-shaped libraries — exactly the kind of thing CMake's
   module scanning, GCC's module BMIs, and Clang's module support need real targets to
   harden against.
 - **Two standards in one realistic codebase** — a stable C++23 world *and* an evolving

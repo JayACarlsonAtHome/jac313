@@ -6,7 +6,6 @@
 // Uses length-prefixed records for maximum speed and safety.
 // This is the "production" writer. jText remains the debug/human-readable path.
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <string>
 #include <string_view>
 #include <vector>
@@ -23,13 +22,10 @@
 #include <unistd.h>
 #include <cerrno>
 #include <stdexcept>
-#endif
 
 #include "PersistCommon.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 namespace detail {
     // Helper (binary has no jText dep) to emit the required // header at file start.
@@ -248,6 +244,4 @@ private:
     BinaryEventLogStats stats_;
 };
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v002
-#endif

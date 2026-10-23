@@ -6,19 +6,15 @@
 // This file is only compiled when TS_STORE_ENABLE_JTEXT_PERSIST=ON via CMake.
 // There are no preprocessor conditionals inside this translation unit.
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <string>
 #include <string_view>
 #include <vector>
 #include <cstdint>
 #include <memory>
-#endif
 
 #include "PersistCommon.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 struct JTextSplitEventLogStats {
     size_t main_rows = 0;
@@ -65,6 +61,4 @@ private:
     void write_all_headers(std::string_view base_name, size_t int_count, size_t dbl_count);
 };
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v002
-#endif

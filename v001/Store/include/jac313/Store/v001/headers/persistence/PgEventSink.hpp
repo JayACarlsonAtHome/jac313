@@ -14,15 +14,11 @@
 #include "PersistCommon.hpp"
 #include "PgClient.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <memory>
 #include <string>
 #include <string_view>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
-#endif
 
 class PgEventSink : public IEventSink {
 public:
@@ -52,6 +48,4 @@ private:
     std::string main_buf_, ints_buf_, dbls_buf_;   // reused COPY buffers
 };
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v001
-#endif

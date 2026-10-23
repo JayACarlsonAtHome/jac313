@@ -3,10 +3,8 @@
 //
 #pragma once
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <array>
 #include <string_view>
-#endif
 
 inline static constexpr std::array<std::string_view, 5> categories = {
     "NET",

@@ -6,13 +6,9 @@
 #include "EventSink.hpp"
 #include "JTextSplitEventLog.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <memory>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
-#endif
 
 class JTextEventSink : public IEventSink {
 public:
@@ -59,6 +55,4 @@ private:
     std::unique_ptr<JTextSplitEventLog> impl_;
 };
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v001
-#endif

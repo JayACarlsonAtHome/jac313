@@ -40,7 +40,7 @@ not a Store-core feature.
 4. **Fast open at scale** — must not require a full pre-scan of 10M rows just to size containers
    or paint the first frame.
 5. **C++23** for all viewer code (deliberately **not** C++26 — isolated from Store's latest line).
-6. **Same 6-way build matrix** as the rest of jac313: gcc/clang × headers / modules / import-std.
+6. **Same 4-way build matrix** as the rest of jac313: gcc/clang × headers / modules.
 
 ## Non-goals (v1)
 
@@ -240,12 +240,12 @@ Estimate: **multi-week** effort, not a weekend. Store bench/reporting work does 
 
 - **C++23 only** for the viewer package — keeps wx + UI code stable while Store continues on
   C++26 where needed.
-- **Six compile modes** (same policy as Qlite/jText/Store):
+- **Four compile modes** (same policy as Qlite/jText/Store):
 
-  | Compiler | Headers | Modules | import-std |
-  |----------|---------|---------|------------|
-  | gcc16    | ✓       | ✓       | ✓          |
-  | clang    | ✓       | ✓       | ✓          |
+  | Compiler | Headers | Modules |
+  |----------|---------|---------|
+  | gcc16    | ✓       | ✓       |
+  | clang    | ✓       | ✓       |
 
 - Viewer links **Store readers** (binary, JSON) and **Qlite** for SQL; jText/HTML parsers may
   live in viewer only to avoid pulling wx into Store.

@@ -10,7 +10,6 @@
 
 #include "EventSink.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <atomic>
 #include <condition_variable>
 #include <memory>
@@ -19,11 +18,8 @@
 #include <thread>
 #include <vector>
 #include <unistd.h>   // ::write(2, ...) — worker's fail-safe error line (mirrors BinaryEventLog)
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
-#endif
 
 class DoubleBufferedWriter {
 public:
@@ -187,6 +183,4 @@ private:
     std::atomic<bool> sink_failed_{false};   // set once if a sink call throws; disables further sink I/O
 };
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v001
-#endif

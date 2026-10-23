@@ -7,14 +7,10 @@
 
 #include "EventSink.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <memory>
 #include <vector>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 class FlagRoutingEventSink : public IEventSink {
 public:
@@ -69,6 +65,4 @@ private:
     std::unique_ptr<IEventSink> sql_sink_;
 };
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v002
-#endif

@@ -4,12 +4,10 @@
 
 #pragma once
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <format>
 #include <iostream>
 #include <cstdint>
 #include <string>
-#endif
 
 inline void show_duration(const std::string& name) const {
     if constexpr (Config::use_timestamps) {

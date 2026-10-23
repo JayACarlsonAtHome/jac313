@@ -7,14 +7,10 @@
 
 #include "persistence/DoubleBufferedWriter.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <numeric>  // jac313::mul_sat / jac313::add_sat (C++26): overflow-safe capacity math
-#include <fstream>  // for MemAvailable probe (comes from import std; when JAC313_STORE_IMPORT_STD)
-#endif               // under import std, std headers come from the module; textual include would break.
+#include <fstream>  // for MemAvailable probe
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 // Allocator for the preallocated row table. std::calloc hands back zero pages that the kernel
 // maps lazily (large blocks come straight from mmap), so value-initializing the rows needs no
 // writes: the no-argument construct() is a no-op because an all-zero row IS the value-initialized
@@ -163,7 +159,7 @@ public:
         // under-reports by gigabytes and this precheck bails on an allocation the kernel could satisfy —
         // that false bail is what zeroed the recorded bench gate (→ "NOT SAFE"). Fall back to sysinfo
         // when /proc/meminfo can't be read (non-Linux, restricted /proc, etc.).
-        // Uses std::ifstream (from import std; when JAC313_STORE_IMPORT_STD, or the guarded #include otherwise).
+        // Uses std::ifstream.
         auto available_bytes = []() -> size_t {
             std::ifstream meminfo("/proc/meminfo");
             std::string key;
@@ -226,7 +222,5 @@ public:
 #include "impl_details/diagnostic.hpp"
 
 };
-#ifndef JAC313_STORE_IMPORT_STD
 }; // namespace jac313::Store::v002
-#endif
 

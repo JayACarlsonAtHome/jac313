@@ -1,23 +1,19 @@
 #include "JTextSplitEventLog.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <stdexcept>
 #include <chrono>
-#endif
 
 #include "jText.h"
 
-// POSIX, for the durable fsync in finalize() — kept textual (never `import std`), like the store's
+// POSIX, for the durable fsync in finalize() — like the store's
 // other POSIX use (mmap/msync in BinaryEventLog).
 #include <fcntl.h>
 #include <unistd.h>
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 // jText's public API now lives under jac313::jText::v002 (in-tree migration).
 using namespace jac313::jText::v002;
@@ -375,6 +371,4 @@ void JTextSplitEventLog::write_all_headers(std::string_view base_name, size_t in
     }
 }
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v002
-#endif

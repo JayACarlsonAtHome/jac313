@@ -5,16 +5,12 @@
 
 #pragma once
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
 #include <string>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 struct TestOptions {
     bool interactive = false;
@@ -134,6 +130,4 @@ inline TestOptions parse_test_options(int argc, char** argv) {
     return opts;
 }
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace
-#endif

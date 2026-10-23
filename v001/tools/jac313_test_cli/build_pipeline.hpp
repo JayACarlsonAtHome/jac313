@@ -12,10 +12,6 @@ void wipe_build_tree(const std::filesystem::path& build_dir);
 
 std::filesystem::path nomodules_build_dir(const std::filesystem::path& modules_build_dir);
 
-// Dedicated build dir for the `import std;` variant. A separate tree is REQUIRED: a
-// -DJAC313_QLITE_IMPORT_STD=ON reconfigure of the textual-modules tree would reuse its
-// CMake cache for a different configuration (the Debug/Release cross-cache trap).
-std::filesystem::path importstd_build_dir(const std::filesystem::path& modules_build_dir);
 
 int run_configure_command(const GlobalOptions& global, const ConfigureOptions& opts);
 

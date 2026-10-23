@@ -6,13 +6,9 @@
 #include "EventSink.hpp"
 #include "HtmlSplitEventLog.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <memory>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
-#endif
 
 class HtmlEventSink : public IEventSink {
 public:
@@ -59,6 +55,4 @@ private:
     std::unique_ptr<HtmlSplitEventLog> impl_;
 };
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v001
-#endif

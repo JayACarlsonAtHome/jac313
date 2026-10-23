@@ -47,7 +47,6 @@ struct ConfigureOptions {
     bool prefer_gcc15{false};
     bool prefer_clang{false};
     bool modules{false};
-    bool import_std{false};  // modules built against `import std;` (-DJAC313_QLITE_IMPORT_STD=ON)
     bool store_tests{true};
     bool helgrind_annotate{false};  // -DJAC313_STORE_HELGRIND_ANNOTATE=ON (cleancheck tree)
     bool strict{false};    // --strict:   -DJAC313_STRICT=ON (extra warnings; ctest/smoke builds)

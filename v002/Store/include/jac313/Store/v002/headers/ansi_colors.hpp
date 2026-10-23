@@ -1,13 +1,11 @@
 //ts_store/ts_store_headers/impl_details/ansi_colors.hpp
 #pragma once
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <cstdlib>
 #include <iostream>
 #include <string>
 #include <string_view>
 #include <unistd.h>
-#endif
 
 inline std::ostream& operator<<(std::ostream& os, std::string_view sv) {
     return os.write(sv.data(), static_cast<std::streamsize>(sv.size()));

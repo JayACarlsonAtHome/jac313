@@ -1,14 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
 
-# Native `import std;` (JAC313_QLITE_IMPORT_STD) needs CMake's experimental std-module
-# feature ARMED before project() enables CXX. The -D value is already in the cache here,
-# before option() formally runs below. UUID is pinned to the CMake version we standardize
-# on (4.3.3); bump it if you move to a different CMake (see root README). Only the
-# umbrella root sets this for in-tree builds; this covers a standalone Qlite configure.
-if(JAC313_QLITE_IMPORT_STD AND NOT CMAKE_EXPERIMENTAL_CXX_IMPORT_STD)
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
-endif()
-
 project(jac313_Qlite VERSION 0.1.0 LANGUAGES CXX)
 
 # jac313::Qlite — in-tree SQLite wrapper (jac313::Qlite::v002).
@@ -18,12 +9,6 @@ project(jac313_Qlite VERSION 0.1.0 LANGUAGES CXX)
 option(JAC313_QLITE_BUILD_EXAMPLES "Build example programs" ON)
 option(JAC313_QLITE_BUILD_TESTS "Build and register tests" ON)
 option(JAC313_QLITE_BUILD_MODULES "Build jac313.qlite.v002 C++23 module" OFF)
-# import-std pilot (g++-15 only). When ON, the module is built module-native against
-# `import std;` instead of textually including the public header. Uses CMake's native
-# std-module support (CMAKE_EXPERIMENTAL_CXX_IMPORT_STD gate + CXX_MODULE_STD), which
-# requires CMake >= 3.30 — install one user-locally on older distros (see the root
-# README, "Newer CMake on Linux Mint"). Clang keeps the textual front-end (leave OFF).
-option(JAC313_QLITE_IMPORT_STD "Build the jac313.qlite.v002 module against `import std;` (g++-15 pilot, native CMake std module)" OFF)
 
 find_package(SQLite3 REQUIRED)
 # FindSQLite3 renamed its imported target SQLite::SQLite3 -> SQLite3::SQLite3 in newer
@@ -61,31 +46,7 @@ if(JAC313_QLITE_BUILD_MODULES)
     )
     target_link_libraries(jac313_qlite_module PUBLIC jac313_Qlite)
 
-    if(JAC313_QLITE_IMPORT_STD)
-        # Module-native `import std;` via CMake's NATIVE std-module support. CMake
-        # builds + links the std module itself (no hand-rolled bits/std.cc target);
-        # we only flip CXX_MODULE_STD on this target. The experimental feature is
-        # armed by CMAKE_EXPERIMENTAL_CXX_IMPORT_STD, which must be set BEFORE the
-        # project() call enables CXX — see the root CMakeLists.txt (umbrella build)
-        # and the standalone guard at the top of this file.
-        if(CMAKE_VERSION VERSION_LESS 3.30)
-            message(FATAL_ERROR
-                "JAC313_QLITE_IMPORT_STD needs CMake >= 3.30 for native `import std;` "
-                "(have ${CMAKE_VERSION}). Install a newer CMake without root — see the "
-                "root README section \"Newer CMake on Linux Mint\".")
-        endif()
-        if(NOT (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
-            message(FATAL_ERROR
-                "JAC313_QLITE_IMPORT_STD is validated on GNU (g++-15) and Clang (clang-21); "
-                "compiler is ${CMAKE_CXX_COMPILER_ID} — leave it OFF.")
-        endif()
-        set_target_properties(jac313_qlite_module PROPERTIES CXX_MODULE_STD ON)
-        target_compile_features(jac313_qlite_module PUBLIC cxx_std_26)
-        target_compile_definitions(jac313_qlite_module PRIVATE JAC313_QLITE_IMPORT_STD)
-        message(STATUS "jac313::Qlite module: import std ENABLED (native CXX_MODULE_STD)")
-    else()
-        target_compile_features(jac313_qlite_module PUBLIC cxx_std_20)
-    endif()
+    target_compile_features(jac313_qlite_module PUBLIC cxx_std_20)
 endif()
 
 include(GNUInstallDirs)

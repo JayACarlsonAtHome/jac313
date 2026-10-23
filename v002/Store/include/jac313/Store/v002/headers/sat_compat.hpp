@@ -6,10 +6,8 @@
 //          the standard names). These shims match std::*_sat semantics and build
 //          on gcc15, gcc16 and clang via the compiler overflow builtins.
 #pragma once
-#ifndef JAC313_STORE_IMPORT_STD
 #include <limits>
 #include <type_traits>
-#endif
 
 namespace jac313 {
 

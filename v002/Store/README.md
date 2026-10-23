@@ -31,7 +31,7 @@ jac313::Store::v002::ts_store<Config> store(threads, events_per_thread);
 store.save_event(0, 0, Config::ValueT("hello"), 0, Config::CategoryT("demo"));
 ```
 
-`jac313::Store::v002::version()` returns the package's `"major.minor"` version (`"v002.013"`
+`jac313::Store::v002::version()` returns the package's `"major.minor"` version (`"v002.014"`
 now): major is the `v002` API line, minor bumps on each small code change (a real break moves
 it to `"v003.001"`). The `version-check` pre-push gate enforces the bump
 (see the version's top-level README.md).
@@ -80,22 +80,11 @@ Run the full matrix locally via [`jac313_test_cli`](../tools/jac313_test_cli/) (
 
 For **throughput benchmarking** — the curated `store_bench --suite` (median + low–high band, durable flush inside the clock, results recorded to a SQLite DB via `--db` and rendered by `--report`), kept separate from the correctness matrix — see [docs/Benchmarks.md](../docs/Benchmarks.md). Quick: `./jac313_store_bench --suite --dry-run` from the build dir.
 
-## Modules / `import std` (C++23)
+## Modules (C++23)
 
-`-DJAC313_BUILD_MODULES=ON` builds the textual-wrapper `jac313.store.v002` module
-(Ninja). `-DJAC313_STORE_IMPORT_STD=ON` (g++-15, **CMake 4.3.3** — see below) builds it
-**module-native** against `import std;` instead: one interface unit pastes the store headers
-and `.cpp`, made std-free by guarding their `#include <…>` and `namespace` behind
-`JAC313_STORE_IMPORT_STD`, into an `export namespace`; the POSIX headers store uses
-(`mmap`/`sysinfo`/…), the C-compat headers, and Qlite + jText stay textual in the global
-module fragment. Same public API; the compiled sink libs and textual headers are unchanged
-for clang and non-module consumers. See the root README *`import std`* sections.
-
-> **CMake version is exact, not a floor.** The native std-module gate is an experimental,
-> **version-specific UUID** pinned to **4.3.3** in `CMakeLists.txt`. `≥ 3.30` is necessary but
-> not sufficient — CMake 3.31.8 (≥ 3.30) still fails to configure; only the pinned 4.3.3
-> activates it. Empirically confirmed on RHEL 9.8 (break-even vs textual modules); see
-> [docs/Results.md → CMake 3.31.8 vs 4.3.3](../docs/Results.md#cmake-3318-vs-433).
+`-DJAC313_BUILD_MODULES=ON` builds the textual-wrapper `jac313.store.v002` module (Ninja,
+CMake >= 3.28). Same public API; the compiled sink libs and textual headers are unchanged for
+non-module consumers.
 
 ## Performance tuning (optional)
 

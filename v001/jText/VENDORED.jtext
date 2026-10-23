@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText/v001
 
-1. #|# 3|canonical_commit|8cab8f8b042c
+1. #|# 3|canonical_commit|c6194c67e365
 
 1. #|# 4|canonical_dirty|No
 
@@ -31,7 +31,7 @@
 
 1. #|# 6|transform|jac313-prefix
 
-1. #|# 7|ported|2026-10-19
+1. #|# 7|ported|2026-10-22
 
 1. #|# 8|baseline|No
 
@@ -62,47 +62,43 @@
 
 1. #|# 2|include/jac313/jText/v001.hpp|include/jText/v001.hpp|50fa0c094772ea9628f53c827a5cef50ad76b5f4623bae28e8a19305ef40f210|06af37f1fcbf98aaa653f9e6500d7edd4d1ae8cf226ca88844a5fe2aca621814
 
-1. #|# 3|jText.api.inc|jText.api.inc|8cb53c1f2990f8bb64184d094630f21a984e8eaa66a49eddb69c1a038d1a673a|6fc3770f733ae805102cb556de2a062d53a7d73ebfd78d8068fb2d4101decd1a
+1. #|# 3|jText.api.inc|jText.api.inc|a1e23c46f3000670154a21dcf819341d9cfed8cc77c4fef92dd7c98346262677|1bb8f40e75a532e648defb5c6d7ee8fba3666e2ccc1b55acca74247bfccf77f4
 
 1. #|# 4|jText.cpp|jText.cpp|634b66c0d662e6c365457b4675f29f0f66127ec6b5d1bd72d08fb849e6f740f4|6811f42199486f00f95d692a72a1193afa2e5e43ac8703f1a6bf4d2b7cb2a594
 
-1. #|# 5|jText.h|jText.h|5644266b70f5a22ce148c574777e14c2158217c5c5232a4a95409f293079755d|c02eb3af5e8d89ebe81e8c3cca683e9bb9d6b300bdbc16a05463c5225c2ba511
+1. #|# 5|jText.h|jText.h|0248bda23611e1f4d6337382d185edcd5c059b3d5367f40a6b748ffcf265037d|080cd79a6adfa05bdd5c6698718d17acd4a78c252cc5b965f354dc18f89d4f13
 
-1. #|# 6|jText.impl.inc|jText.impl.inc|b5a9b5db06f896a04c9dc8b8f1b27c2935d8f594784daf151c9bfd5e65112ec8|0b2829ca8dc28d3ff73efd92bcd0c2b1d81fc6762c3cca66b1dfd20c0d55cbeb
+1. #|# 6|jText.impl.inc|jText.impl.inc|266e1e48886132a5c7ec92340ea395dcfea87ef7389ed92586cfdf12bd565d7c|3c49957b5ba55a78062f081c13248172a37562498a896c78bc8ea403e80e3e0d
 
 1. #|# 7|modules/jac313.jtext.v001.core.cppm|modules/jText.v001.core.cppm|a9c340e8ef778f9e7eba9e26228ea1e69bcc250562cd9b386133eecfa33d458b|5b86fb2da8950b8c7fc481e0ce2ecc28ceba460e976bd0fe669b8cad4ce3b640
 
 1. #|# 8|modules/jac313.jtext.v001.cppm|modules/jText.v001.cppm|fb38bd043b45f76f30dfc6efe4f6ab7a306541c47ad229c161fc8c515bf402aa|48f8a167640603a20174399b7678a60bf1127de845bc7eb611b94f0fb1499309
 
-1. #|# 9|modules/jac313.jtext.v001.importstd.cppm|modules/jText.v001.importstd.cppm|57a3b636fc729264492db4f8e2c3185183f847824bcff75bd1fe4e82138d70e1|f3a0b6ba9872e1803fa6295d23643baebf1603258b17c7cfda687c3936bafc7c
+1. #|# 9|modules/jac313.jtext.v001.reader.cppm|modules/jText.v001.reader.cppm|81bdf88e9869f0f6cfadf8ba48ca8dbb6b16dd784cccd269eb9fe85f5b020928|9f352e3bbc242f9ea93b406d66660732ad76b1dbff4bad9a3501cd84ac8e5d28
 
-1. #|# 10|modules/jac313.jtext.v001.importstd.impl.cpp|modules/jText.v001.importstd.impl.cpp|553518b459db06bd51e242aa1bf96070d03972aa101d7f772b9bb2018b15b2fb|54182afaa691a0c7b073832edb5555cdbb9e449284bad201291de054dda0d655
+1. #|# 10|modules/jac313.jtext.v001.writer.cppm|modules/jText.v001.writer.cppm|1f149b94f6fbef19b630321ee982cbf5ca58a9e197f8e311cd0968635cc380e8|1a3a599bed56ed82570df4d66459c2ef76594b22976ff35050fd8ff1e6efd4cc
 
-1. #|# 11|modules/jac313.jtext.v001.reader.cppm|modules/jText.v001.reader.cppm|81bdf88e9869f0f6cfadf8ba48ca8dbb6b16dd784cccd269eb9fe85f5b020928|9f352e3bbc242f9ea93b406d66660732ad76b1dbff4bad9a3501cd84ac8e5d28
+1. #|# 11|src/parser/line.cpp|src/parser/line.cpp|92970e8c5f3bd5413da1bc55d8a446fd6bb11da19e5fcc7bfc12c82d179f3907|92970e8c5f3bd5413da1bc55d8a446fd6bb11da19e5fcc7bfc12c82d179f3907
 
-1. #|# 12|modules/jac313.jtext.v001.writer.cppm|modules/jText.v001.writer.cppm|1f149b94f6fbef19b630321ee982cbf5ca58a9e197f8e311cd0968635cc380e8|1a3a599bed56ed82570df4d66459c2ef76594b22976ff35050fd8ff1e6efd4cc
+1. #|# 12|src/parser/line.hpp|src/parser/line.hpp|fea2f3366f6ca122d21d87fdde372e8d300e388e52588c62942edb342a716a18|fea2f3366f6ca122d21d87fdde372e8d300e388e52588c62942edb342a716a18
 
-1. #|# 13|src/parser/line.cpp|src/parser/line.cpp|92970e8c5f3bd5413da1bc55d8a446fd6bb11da19e5fcc7bfc12c82d179f3907|92970e8c5f3bd5413da1bc55d8a446fd6bb11da19e5fcc7bfc12c82d179f3907
+1. #|# 13|src/parser/section.cpp|src/parser/section.cpp|3c0a3c115d9bb4cddfd5bdfede5c2ed9d33f6616e545d2f5e63fd2df9268ce91|3c0a3c115d9bb4cddfd5bdfede5c2ed9d33f6616e545d2f5e63fd2df9268ce91
 
-1. #|# 14|src/parser/line.hpp|src/parser/line.hpp|fea2f3366f6ca122d21d87fdde372e8d300e388e52588c62942edb342a716a18|fea2f3366f6ca122d21d87fdde372e8d300e388e52588c62942edb342a716a18
+1. #|# 14|src/parser/section.hpp|src/parser/section.hpp|00cdcccfaa92063f1c76caad96abcdf9f4e37c46738485873b5884f40345e8bb|00cdcccfaa92063f1c76caad96abcdf9f4e37c46738485873b5884f40345e8bb
 
-1. #|# 15|src/parser/section.cpp|src/parser/section.cpp|3c0a3c115d9bb4cddfd5bdfede5c2ed9d33f6616e545d2f5e63fd2df9268ce91|3c0a3c115d9bb4cddfd5bdfede5c2ed9d33f6616e545d2f5e63fd2df9268ce91
+1. #|# 15|src/validator/validator.cpp|src/validator/validator.cpp|4a0de7f6cef7b6b5be64787c412dcfe069f3abec8fbbfe8f1c71cc31165d95ea|4a0de7f6cef7b6b5be64787c412dcfe069f3abec8fbbfe8f1c71cc31165d95ea
 
-1. #|# 16|src/parser/section.hpp|src/parser/section.hpp|00cdcccfaa92063f1c76caad96abcdf9f4e37c46738485873b5884f40345e8bb|00cdcccfaa92063f1c76caad96abcdf9f4e37c46738485873b5884f40345e8bb
+1. #|# 16|src/validator/validator.hpp|src/validator/validator.hpp|e70bf732b984442a9bbee2b8b2332bef96e659c4a1208520c5bb8bbb4bbe0981|e70bf732b984442a9bbee2b8b2332bef96e659c4a1208520c5bb8bbb4bbe0981
 
-1. #|# 17|src/validator/validator.cpp|src/validator/validator.cpp|4a0de7f6cef7b6b5be64787c412dcfe069f3abec8fbbfe8f1c71cc31165d95ea|4a0de7f6cef7b6b5be64787c412dcfe069f3abec8fbbfe8f1c71cc31165d95ea
+1. #|# 17|tests/module/v001_module_test.cpp|tests/module/v001_module_test.cpp|11c7e5d9b6252404c6a369183bf2a89cbebaf01e89ce7edabedcc34a10d22b30|2fdef3b8d27962566e12d8266967301eb1c934ec622c29ab829c10c9989fc7fc
 
-1. #|# 18|src/validator/validator.hpp|src/validator/validator.hpp|e70bf732b984442a9bbee2b8b2332bef96e659c4a1208520c5bb8bbb4bbe0981|e70bf732b984442a9bbee2b8b2332bef96e659c4a1208520c5bb8bbb4bbe0981
+1. #|# 18|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|6293bc72fe400e21da85725ea20f15e674c4f1336f38df83a19679e328a5d938|cb71770200e786fac232bbd7c6776fc26d1fbeea81cecdc6e97daa86dc23081c
 
-1. #|# 19|tests/module/v001_module_test.cpp|tests/module/v001_module_test.cpp|11c7e5d9b6252404c6a369183bf2a89cbebaf01e89ce7edabedcc34a10d22b30|2fdef3b8d27962566e12d8266967301eb1c934ec622c29ab829c10c9989fc7fc
+1. #|# 19|tests/v001_test.cpp|tests/v001_test.cpp|6a788ceaeca3aacb18b4f10d2ba9122a6897a59490acf3964453b8b232de1ea6|c3bb47d05a167dc1ebaedf21ef6e75f391bea946b49b61a55848fb4fcf11fe5a
 
-1. #|# 20|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|6293bc72fe400e21da85725ea20f15e674c4f1336f38df83a19679e328a5d938|cb71770200e786fac232bbd7c6776fc26d1fbeea81cecdc6e97daa86dc23081c
+1. #|# 20|tools/jtext_from_sql.cpp|tools/jtext_from_sql.cpp|1e2a0c470f22e240b37070e3a4e235358900e6a71c7244748a941c20da3e7a88|1e2a0c470f22e240b37070e3a4e235358900e6a71c7244748a941c20da3e7a88
 
-1. #|# 21|tests/v001_test.cpp|tests/v001_test.cpp|7a499bfa51dd75be8b37d4e6a3b279db444d452954a3909ae26786b84b3a3cef|0025fce1824034580a15ed7693bee1938a396b36a48a368367d0583192c7821d
-
-1. #|# 22|tools/jtext_from_sql.cpp|tools/jtext_from_sql.cpp|1e2a0c470f22e240b37070e3a4e235358900e6a71c7244748a941c20da3e7a88|1e2a0c470f22e240b37070e3a4e235358900e6a71c7244748a941c20da3e7a88
-
-1. #|# 23|tools/jtext_xtox_sql.cpp|tools/jtext_xtox_sql.cpp|70dfe2e400ea192ab65c981dcceb8be8157b9ef87a80a24dc0f559b4e8391b8e|70dfe2e400ea192ab65c981dcceb8be8157b9ef87a80a24dc0f559b4e8391b8e
+1. #|# 21|tools/jtext_xtox_sql.cpp|tools/jtext_xtox_sql.cpp|70dfe2e400ea192ab65c981dcceb8be8157b9ef87a80a24dc0f559b4e8391b8e|70dfe2e400ea192ab65c981dcceb8be8157b9ef87a80a24dc0f559b4e8391b8e
 
 === End Data ===
 === End Section ===

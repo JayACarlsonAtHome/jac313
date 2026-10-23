@@ -2,25 +2,17 @@
 
 #pragma once
 
-// import-std module build: std comes from `import std;` and the global C names from the
-// module unit's GMF, so skip the textual includes; and the content is pasted into the
-// module's own `export namespace`, so skip this header's namespace wrapper too. The normal
-// textual build (macro undefined) is unchanged. See Claude_Forward STORE import-std plan.
-#ifndef JAC313_STORE_IMPORT_STD
 #include <cstdint>
 #include <cstring>
 #include <string>
 #include <string_view>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
-#endif
 
     // Package version, "major.minor": major = the v001 API line, minor = the revision. Bump on
     // each small code change (edit the minor); v001 stays until a real (breaking) change, then
     // this becomes "v002.001". Enforced by `jac313_test_cli version-check` (pre-push).
-    [[nodiscard]] constexpr std::string_view version() noexcept { return "v001.008"; }
+    [[nodiscard]] constexpr std::string_view version() noexcept { return "v001.009"; }
 
     /// Fixed-size storage for category/payload.
     /// Replaces std::string for the hot-path row storage.
@@ -148,6 +140,4 @@ namespace jac313::Store::v001 {
         }
     };
 
-#ifndef JAC313_STORE_IMPORT_STD
 }  // namespace jac313::Store::v001
-#endif

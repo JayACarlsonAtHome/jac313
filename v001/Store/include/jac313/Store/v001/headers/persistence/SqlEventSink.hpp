@@ -11,17 +11,13 @@
 #include "Sqlite.hpp"
 #include "PersistCommon.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <memory>
 #include <fstream>
 #include <string>
 #include <string_view>
 #include <filesystem>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
-#endif
 
 class SqlEventSink : public IEventSink {
 public:
@@ -70,6 +66,4 @@ private:
     size_t main_rows_inserted_ = 0;
 };
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v001
-#endif

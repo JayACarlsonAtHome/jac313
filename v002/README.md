@@ -55,11 +55,9 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
   matrix** (116 smoke scenarios → full stress runs), recording every metric to a tracked
   results DB keyed by a `(os, compiler, build_type, disk, size)` **RunIdentity**. No GitHub
   Actions, no shell scripts. See [docs/Architecture.md](docs/Architecture.md). Testing details are in this README's Quick start section.
-- **C++23 modules and `import std;`, with all its quirks, blessings, and curses.** All three
-  umbrella modules build module-native against `import std;` (opt-in; gcc and clang on libstdc++). It measured
-  **break-even** here — and the real value is as a worked, reproducible example for **CMake,
-  GCC, and Clang** to harden their toolchains against. The full story, the numbers, and the
-  friction: [docs/Modules.md](docs/Modules.md).
+- **C++23 modules**, additive over the headers, for all three libraries; they build with the
+  distro CMake (>= 3.28). An `import std;` build was tried, measured break-even, and removed
+  (it needed exactly CMake 4.3.3). Details and pitfalls: [docs/Modules.md](docs/Modules.md).
 
 ---
 
@@ -114,7 +112,7 @@ For more details on the project, see the docs in [docs/](docs/) (listed under Do
 
 | Doc | Contents |
 |-----|----------|
-| [docs/Modules.md](docs/Modules.md) | C++23 modules + the `import std;` story (quirks / blessings / curses) |
+| [docs/Modules.md](docs/Modules.md) | C++23 modules: build, pitfalls, and why `import std;` was removed |
 | [docs/Architecture.md](docs/Architecture.md) | Layout, the umbrella model, the test pipeline, customization, design principles |
 | [docs/Verify.md](docs/Verify.md) | valgrind memcheck + helgrind/DRD — method, the tail-reader data race found & fixed, results, and honest limits |
 | [docs/Maturity.md](docs/Maturity.md) | Honest self-assessment on a 12-level scale — where jac313 sits (7.5), and why that's a deliberate ceiling |
@@ -128,8 +126,7 @@ valgrind-clean), and records its per-platform results in `results.db` (rendered 
 [test-summary/](test-summary/)). The ISO **C++26** baseline is now in (`cxx_std_26`). We currently use a small number of C++26-era
 library facilities (via shims or workarounds) and a contracts shim that provides runtime checks
 today. Most new C++26 language features are not yet used in the main code. We expect to
-re-evaluate and adopt more C++26 features within the next 12 months. `import std;` carries over
-from v001 (opt-in; gcc + clang; needs the pinned CMake 4.3.3). v002 is staged and
+re-evaluate and adopt more C++26 features within the next 12 months. v002 is staged and
 isolation-verified, continuing to diverge. The legacy repos (`jacQlite`, `jText`, `ts_store`)
 remain only as historical origin.
 

@@ -32,7 +32,7 @@ The honest split is **craft vs. structure**, and they're at different rungs.
 - a custom C++ test orchestrator (`jac313_test_cli`) — not shell scripts;
 - **RunIdentity**: one definition driving DB keys, the results path, and rendered pages, so they can't drift;
 - a multi-compiler × build-type × persist-backend matrix, smoke and full tiers;
-- a measured `import std` module experiment (recorded, not hand-waved);
+- a measured `import std` module experiment (recorded, not hand-waved; removed as break-even);
 - a **valgrind memcheck + helgrind/DRD pre-push gate** ([cleancheck](Verify.md)) that already found and fixed a real data race;
 - and the recent doc consolidation + simplified results reporting (deleting the detailed HowToReadResults.md because "the results are simple now") showing high confidence and craft in self-documentation.
 

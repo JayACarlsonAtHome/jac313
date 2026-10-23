@@ -3,7 +3,6 @@
 
 #pragma once
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -11,11 +10,8 @@
 #include <cstdlib>
 #include <type_traits>
 #include <string_view>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
-#endif
 
 template<typename ValueT, typename TypeT, typename CategoryT,
          size_t BufferSize, size_t TypeSize, size_t CategorySize, bool UseTimestamps>
@@ -59,6 +55,4 @@ struct memory_guard {
     }
 };
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace
-#endif

@@ -4,7 +4,6 @@
 // Abstract interface for pluggable persistence backends (jText, Binary, SQL, etc.)
 // Designed to work with DoubleBufferedWriter for asynchronous background draining.
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -12,11 +11,8 @@
 #include <vector>
 #include <span>
 #include <memory>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
-#endif
 
 /// A single event record ready for persistence.
 /// This is the canonical form passed to all sinks.
@@ -54,6 +50,4 @@ public:
     virtual std::string_view name() const { return "IEventSink"; }
 };
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v001
-#endif

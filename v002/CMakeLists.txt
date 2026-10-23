@@ -1,15 +1,5 @@
 cmake_minimum_required(VERSION 3.26)
 
-# Native `import std;` for the Qlite pilot (-DJAC313_QLITE_IMPORT_STD=ON) requires
-# CMake's experimental std-module feature, which MUST be armed before project()
-# enables CXX. Only armed when the build opts in (the -D value is already in the
-# cache at this point). The gate UUID is specific to the CMake version we standardize
-# on (4.3.3, installed user-locally — see README "Newer CMake on Linux Mint"); it must
-# be updated for a different CMake version.
-if(JAC313_QLITE_IMPORT_STD OR JAC313_JTEXT_IMPORT_STD OR JAC313_STORE_IMPORT_STD)
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
-endif()
-
 project(jac313 VERSION 0.1.0 LANGUAGES CXX
         DESCRIPTION "jac313 umbrella libraries (Qlite, jText, store)")
 

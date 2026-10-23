@@ -1,9 +1,7 @@
 #include "BinaryEventLogReader.hpp"
 #include "JTextSplitEventLog.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 void BinaryEventLogReader::convert_to_jtext(std::string_view output_base_name,
                                             size_t int_count,
@@ -31,6 +29,4 @@ void BinaryEventLogReader::convert_to_jtext(std::string_view output_base_name,
     jtext_log.finalize();
 }
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v002
-#endif

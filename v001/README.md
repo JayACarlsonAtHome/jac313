@@ -55,11 +55,9 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
   matrix** (116 smoke scenarios → full stress runs), recording every metric to a tracked
   results DB keyed by a `(os, compiler, build_type, disk, size)` **RunIdentity**. No GitHub
   Actions, no shell scripts. See [docs/Architecture.md](docs/Architecture.md). Testing details are in this README's Quick start section.
-- **C++23 modules and `import std;`, with all its quirks, blessings, and curses.** All three
-  umbrella modules build module-native against `import std;` (opt-in, gcc-only). It measured
-  **break-even** here — and the real value is as a worked, reproducible example for **CMake,
-  GCC, and Clang** to harden their toolchains against. The full story, the numbers, and the
-  friction: [docs/Modules.md](docs/Modules.md).
+- **C++23 modules**, additive over the headers, for all three libraries; they build with the
+  distro CMake (>= 3.28). An `import std;` build was tried, measured break-even, and removed
+  (it needed exactly CMake 4.3.3). Details and pitfalls: [docs/Modules.md](docs/Modules.md).
 
 ---
 
@@ -114,7 +112,7 @@ For more details on the project, see the docs in [docs/](docs/) (listed under Do
 
 | Doc | Contents |
 |-----|----------|
-| [docs/Modules.md](docs/Modules.md) | C++23 modules + the `import std;` story (quirks / blessings / curses) |
+| [docs/Modules.md](docs/Modules.md) | C++23 modules: build, pitfalls, and why `import std;` was removed |
 | [docs/Architecture.md](docs/Architecture.md) | Layout, the umbrella model, the test pipeline, customization, design principles |
 | [docs/Verify.md](docs/Verify.md) | valgrind memcheck + helgrind/DRD — method, the tail-reader data race found & fixed, results, and honest limits |
 | [docs/Maturity.md](docs/Maturity.md) | Honest self-assessment on a 12-level scale — where jac313 sits (7.5), and why that's a deliberate ceiling |
@@ -127,8 +125,7 @@ GCC and Clang on **Linux Mint**, **RHEL 9.8**, and **RHEL 10.2** — on **both R
 g++-15 and clang each ran the full Debug + Release matrix green** (116/116; Release peaks ~24.3M
 (gcc) / ~20.9M (clang) on 9.8 and ~23.9M (gcc) / ~24.3M (clang) on 10.2; see
 [docs/Results.md](docs/Results.md), throughput rows are the g++-15 reference per platform);
-`import std;` done for all three modules (opt-in, gcc-only; needs the pinned CMake 4.3.3). The
-legacy repos (`jacQlite`, `jText`, `ts_store`) remain only as historical origin.
+The legacy repos (`jacQlite`, `jText`, `ts_store`) remain only as historical origin.
 
 ---
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <algorithm>
 #include <array>
 #include <bitset>
@@ -10,16 +9,13 @@
 #include <string_view>
 #include <type_traits>
 #include <vector>
-#endif
 
 // NOTE: this header was missed by the in-tree namespace migration — StoreFlags and the
 // free flag helpers below were left in the GLOBAL namespace (polluting it, and silently
 // "fixed" only in the module build where the .cppm wraps everything in export namespace).
 // Now wrapped in jac313::Store::v001 like every other store header, so the textual and
 // module builds agree: jac313::Store::v001::StoreFlags.
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
-#endif
 
 class StoreFlags {
 public:
@@ -236,6 +232,4 @@ private:
     return raw;
 }
 
-#ifndef JAC313_STORE_IMPORT_STD
 }  // namespace jac313::Store::v001
-#endif

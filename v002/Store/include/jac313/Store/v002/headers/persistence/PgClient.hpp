@@ -12,20 +12,16 @@
 //              --pg-remote "host=... dbname=... user=..."), which sets this variable.
 // Test tables live in schema store_test (never results.* or store.*).
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <chrono>
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
-#endif
 
 typedef struct pg_conn PGconn;   // from <libpq-fe.h>; kept out of this header
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 inline constexpr std::string_view kPgTestSchema = "store_test";
 
@@ -88,6 +84,4 @@ void pg_copy_append_text(std::string& out, std::string_view v);
 /// Append a double in COPY text format, exact (shortest round-trip), NaN/Infinity spelled for PG.
 void pg_copy_append_double(std::string& out, double v);
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v002
-#endif

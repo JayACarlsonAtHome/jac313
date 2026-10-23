@@ -26,15 +26,6 @@ fs::path nomodules_build_dir(const fs::path& modules_build_dir) {
     return modules_build_dir.parent_path() / (name + suffix);
 }
 
-fs::path importstd_build_dir(const fs::path& modules_build_dir) {
-    const std::string suffix = "-importstd";
-    const std::string name = modules_build_dir.filename().string();
-    if (name.ends_with(suffix)) {
-        return modules_build_dir;
-    }
-    return modules_build_dir.parent_path() / (name + suffix);
-}
-
 const std::vector<std::string>& module_library_targets() {
     static const std::vector<std::string> targets = {
         "jac313_qlite_module",
@@ -70,13 +61,6 @@ int run_configure_command(const GlobalOptions& global, const ConfigureOptions& o
     }
     if (opts.modules) {
         args.push_back("-DJAC313_BUILD_MODULES=ON");
-        if (opts.import_std) {
-            // Flip every module-native (import-std) library so the benchmark measures
-            // the full converted surface, not just one. Add new ones here as they convert.
-            args.push_back("-DJAC313_QLITE_IMPORT_STD=ON");
-            args.push_back("-DJAC313_JTEXT_IMPORT_STD=ON");
-            args.push_back("-DJAC313_STORE_IMPORT_STD=ON");
-        }
         if (opts.compiler_kind == "clang") {
             const auto scan_deps = find_scan_deps(opts.scan_deps_candidates);
             if (!scan_deps) {

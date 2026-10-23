@@ -6,13 +6,9 @@
 #include "EventSink.hpp"
 #include "BinaryEventLog.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <memory>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
-#endif
 
 class BinaryEventSink : public IEventSink {
 public:
@@ -59,6 +55,4 @@ private:
     std::unique_ptr<BinaryEventLog> impl_;
 };
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v001
-#endif

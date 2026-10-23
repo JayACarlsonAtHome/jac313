@@ -1,18 +1,14 @@
 #include "JsonSplitEventLog.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <stdexcept>
-#endif
 
 #include <fcntl.h>
 #include <unistd.h>
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
-#endif
 
 namespace {
 
@@ -208,6 +204,4 @@ const std::string& JsonSplitEventLog::main_file() const { return impl_->main_pat
 const std::string& JsonSplitEventLog::ints_file() const { return impl_->ints_path; }
 const std::string& JsonSplitEventLog::floats_file() const { return impl_->floats_path; }
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v001
-#endif

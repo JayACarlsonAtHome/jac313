@@ -3,17 +3,13 @@
 // BinaryEventLogReader.hpp
 // Reader for the fast binary format produced by BinaryEventLog.
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <cstdint>
 #include <fstream>
 #include <string>
 #include <string_view>
 #include <vector>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 struct BinaryRecord {
     uint64_t event_id = 0;
@@ -52,6 +48,4 @@ private:
     std::streampos data_start_ = 0;
 };
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v002
-#endif

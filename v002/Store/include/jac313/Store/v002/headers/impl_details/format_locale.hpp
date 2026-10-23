@@ -7,17 +7,13 @@
 
 #pragma once
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <cstdint>
 #include <cstdlib>
 #include <locale>
 #include <sstream>
 #include <string>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 namespace detail {
 
@@ -122,6 +118,4 @@ inline std::string format_locale_int(long long value) {
     return format_locale_int(static_cast<std::int64_t>(value));
 }
 
-#ifndef JAC313_STORE_IMPORT_STD
 }  // namespace jac313::Store::v002
-#endif

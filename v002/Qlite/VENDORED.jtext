@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|Qlite/v002/Qlite
 
-1. #|# 3|canonical_commit|fa4bb5fa87cc
+1. #|# 3|canonical_commit|029a500954d2
 
 1. #|# 4|canonical_dirty|No
 
@@ -31,7 +31,7 @@
 
 1. #|# 6|transform|jac313-prefix
 
-1. #|# 7|ported|2026-10-20
+1. #|# 7|ported|2026-10-22
 
 1. #|# 8|baseline|No
 
@@ -62,15 +62,15 @@
 
 1. #|# 2|include/jac313/Qlite/v002.hpp|include/Qlite/v002.hpp|71261fba527aa1688e2f759666d8b070eb00d0d5c5737775b646953be6e1f7b1|5537188694a9e2d5935b8a7288a73f29efce6e56e4dee89d176d1aae69497c89
 
-1. #|# 3|include/jac313/Qlite/v002/Sqlite.body.hpp|include/Qlite/v002/Sqlite.body.hpp|6d43a10a6ad78f9ac87ea8166e6e31619dd6e9029c6dc1063f03186330af7f39|d08d405b62183e7e6c441a866640f09573d0474b2ab361c83afcf90aefce572e
+1. #|# 3|include/jac313/Qlite/v002/Sqlite.body.hpp|include/Qlite/v002/Sqlite.body.hpp|835831c4be218c3d434d6a8b55ed28cefbbf771e52ae67bd1509576bdb7f5da5|1ee582dea3e028d8771344fb7aaa00b75703b253022d9d7c2a96218de27da6df
 
 1. #|# 4|include/jac313/Qlite/v002/Sqlite.hpp|include/Qlite/v002/Sqlite.hpp|b5f09a3f1daa12fa02d7470b7a7722cc78ab9fb386289188555d7634a3db1524|217ba8a0642cdd4e80310c052c8fb342a778b838786c37a83ae1adba8f2ad233
 
-1. #|# 5|modules/jac313.qlite.v002.cppm|modules/Qlite.v002.cppm|be23e5b06e3d05be3479ac2d9e7968b89387d7f72b797531508fc1c6eef92735|dbcb2ed27e1d8bf43bef3605c36a2f849879adacd6b62fbbb13a2ee076ac7286
+1. #|# 5|modules/jac313.qlite.v002.cppm|modules/Qlite.v002.cppm|5b87889223697f4c799db38a4ebd32ffe4f680bea7c306f6096b6a5eb24d023b|37d970be94d940bc0d254e4dce9b4e5229c055d56580a4fb2eac2be058187691
 
-1. #|# 6|tests/module/v002_module_test.cpp|tests/module/v002_module_test.cpp|630bc40e4141d2b2b1c893721d85625b8d3fc523a1828fcb3260b4e6f71a5efe|2ae1961c6424c2993043eea443475ebfce73ce794fa8460ef3e7a64a38e0ea3f
+1. #|# 6|tests/module/v002_module_test.cpp|tests/module/v002_module_test.cpp|e53e72267d2373de65176783053a1b8af7a09e1776cf349b276dd0f8669172dd|43610d50e90279206be2cdbdff5d65c2bb1573af2f6730f2fa0db4906e7fac47
 
-1. #|# 7|tests/v002_test.cpp|tests/v002_test.cpp|ca6198e0be1f6a91320e9ed84ad8df58526d8a717aaf0e1ffa4e93ddaa5bed16|03700a5fb623c4c264f877978f36e20337b0658de5f7f75ad1507d0d7c8935b6
+1. #|# 7|tests/v002_test.cpp|tests/v002_test.cpp|bf62a1426fa15f72695528f2d876c8f91bb375e5305b392fae13fe3dc55503e7|77ce97d9d82df61d2f64c8d0cd7041ceb82474063ad1bf43df7600a33822059c
 
 === End Data ===
 === End Section ===

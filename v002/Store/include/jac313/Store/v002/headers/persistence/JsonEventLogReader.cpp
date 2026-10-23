@@ -1,16 +1,12 @@
 #include "JsonEventLogReader.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <charconv>
 #include <cstdlib>
 #include <format>
 #include <optional>
 #include <stdexcept>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 namespace {
 
@@ -234,6 +230,4 @@ bool JsonEventLogReader::parse_floats_line(std::string_view line, JsonRecord& ou
     return !out.dbl_metrics.empty();
 }
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v002
-#endif

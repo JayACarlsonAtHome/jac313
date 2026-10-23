@@ -1,15 +1,11 @@
 #pragma once
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <chrono>
 #include <format>
 #include <ostream>
 #include <string_view>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 enum class PersistMode { All, KeeperOnly, DatabaseOnly };
 
@@ -32,6 +28,4 @@ inline void write_file_comment_header(std::ostream& os,
     os << "//\n";
 }
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace
-#endif

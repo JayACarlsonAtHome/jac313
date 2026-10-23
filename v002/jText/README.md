@@ -44,7 +44,7 @@ ctest --test-dir build
 | Path | Purpose |
 |------|---------|
 | `jText.h` / `jText.cpp` | Public API (declarations / definitions) in `jac313::jText::v002` |
-| `jText.api.inc` / `jText.impl.inc` | Include-free decl/def fragments — single source shared by the textual header and the `import std` module |
+| `jText.api.inc` / `jText.impl.inc` | Include-free decl/def fragments — single source for `jText.h` / `jText.cpp` |
 | `src/parser/`, `src/validator/` | Internal parser + validator (namespace `jtext`), compiled into `jtext_core` |
 | `include/jac313/jText/v002.hpp` | Public entry point (`#include <jText.h>`) |
 | `examples/v002_example.cpp` | Minimal streaming writer demo |
@@ -61,21 +61,9 @@ ctest --test-dir build
 | `JAC313_JTEXT_BUILD_EXAMPLES` | ON | Build example programs |
 | `JAC313_JTEXT_BUILD_TESTS` | ON | Build and register tests |
 | `JAC313_JTEXT_BUILD_MODULES` | OFF | Build the `jac313.jtext.v002` C++23 module (Ninja) |
-| `JAC313_JTEXT_IMPORT_STD` | OFF | Build the module **module-native** against `import std;` (g++-15, **CMake 4.3.3** — the version-pinned gate UUID, not merely ≥ 3.30) |
 
-## Modules / `import std` (C++23)
+## Modules (C++23)
 
 `-DJAC313_JTEXT_BUILD_MODULES=ON` builds the textual-wrapper `jac313.jtext.v002` module
-(core / reader / writer partitions; Ninja). `-DJAC313_JTEXT_IMPORT_STD=ON` (g++-15,
-**CMake 4.3.3** — see below) instead builds it **module-native** against `import std;` — an
-interface unit + implementation unit over the shared `jText.api.inc` / `jText.impl.inc`
-fragments, needing no `jtext_core` link (the public API is self-contained; the
-parser/validator stay textual). Clang keeps the textual partitions (leave OFF). The compiled
-`jtext_core` and textual `jText.h` are unchanged for non-module consumers. See the root README
-*`import std`* sections.
-
-> **CMake version is exact, not a floor.** The native std-module gate is an experimental,
-> **version-specific UUID** pinned to **4.3.3** in `CMakeLists.txt`. `≥ 3.30` is necessary but
-> not sufficient — CMake 3.31.8 (≥ 3.30) still fails to configure; only the pinned 4.3.3
-> activates it. Empirically confirmed on RHEL 9.8 (break-even vs textual modules); see
-> [docs/Results.md → CMake 3.31.8 vs 4.3.3](../docs/Results.md#cmake-3318-vs-433).
+(core / reader / writer partitions; Ninja, CMake >= 3.28). The compiled `jtext_core` and
+textual `jText.h` are unchanged for non-module consumers.

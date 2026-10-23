@@ -7,23 +7,18 @@
 // value — six rows of the "same" event for six numbers — emit ONE summary row that carries
 // min/max/average/count. You only pay for the computation when you ask for the view.
 //
-// Header-only (templates + inline). Guarded for the import-std module build like every other
-// store header (see Claude_Forward / docs/Modules.md).
+// Header-only (templates + inline).
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <cstddef>
 #include <cstdint>
 #include <span>
 #include <string>
 #include <format>
-#endif
 
 // store cross-include (kept in the module build): PersistedEvent for the convenience overload
 #include "persistence/EventSink.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 /// Summary of a run of numeric values: how many, the smallest, the largest, the mean.
 /// `average` is always a double, even for integer metrics.
@@ -81,6 +76,4 @@ struct EventMetricSummary {
                        std::span<const double>(e.dbl_metrics));
 }
 
-#ifndef JAC313_STORE_IMPORT_STD
 }  // namespace jac313::Store::v002
-#endif

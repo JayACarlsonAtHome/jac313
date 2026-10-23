@@ -6,13 +6,9 @@
 #include "EventSink.hpp"
 #include "JsonSplitEventLog.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <memory>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 class JsonEventSink : public IEventSink {
 public:
@@ -59,6 +55,4 @@ private:
     std::unique_ptr<JsonSplitEventLog> impl_;
 };
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v002
-#endif

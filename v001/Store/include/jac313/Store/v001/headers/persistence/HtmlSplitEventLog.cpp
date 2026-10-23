@@ -1,18 +1,14 @@
 #include "HtmlSplitEventLog.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <stdexcept>
-#endif
 
 #include <fcntl.h>
 #include <unistd.h>
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
-#endif
 
 namespace {
 
@@ -250,6 +246,4 @@ const std::string& HtmlSplitEventLog::main_file() const { return impl_->main_pat
 const std::string& HtmlSplitEventLog::ints_file() const { return impl_->ints_path; }
 const std::string& HtmlSplitEventLog::floats_file() const { return impl_->floats_path; }
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v001
-#endif

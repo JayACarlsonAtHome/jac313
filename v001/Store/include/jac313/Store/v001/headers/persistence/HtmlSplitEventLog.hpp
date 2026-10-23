@@ -4,19 +4,15 @@
 // Browser-viewable 3-file split persistence (main + _Ints + _Floats).
 // Writer only — no reader.
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
-#endif
 
 #include "PersistCommon.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
-#endif
 
 struct HtmlSplitEventLogStats {
     size_t main_rows = 0;
@@ -60,6 +56,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v001
-#endif

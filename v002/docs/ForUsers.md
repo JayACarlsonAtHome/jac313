@@ -58,8 +58,8 @@ auto db = jac313::Qlite::v002::Sqlite("app.db");
 ```
 
 Each package ships **standalone examples** you can copy from — see `Store/examples/`,
-`jText/examples/`, `Qlite/examples/`. Header front-end works everywhere; the module + `import std`
-front-ends are validated on **GNU (g++-15) and Clang (clang-21)** (see [Modules.md](Modules.md)).
+`jText/examples/`, `Qlite/examples/`. Header front-end works everywhere; the module
+front-end is validated on **GNU (g++-15) and Clang (clang-21)** (see [Modules.md](Modules.md)).
 
 ## What a *user* might want next (consumer-facing ideas)
 

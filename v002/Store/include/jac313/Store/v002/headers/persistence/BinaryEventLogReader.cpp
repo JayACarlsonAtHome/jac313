@@ -1,17 +1,13 @@
 #include "BinaryEventLogReader.hpp"
 #include "../sat_compat.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <cstring>
 #include <stdexcept>
 #include <span>
 #include <numeric>  // jac313::add_sat / jac313::mul_sat (C++26): overflow-safe offset math
 #include <string_view>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 BinaryEventLogReader::BinaryEventLogReader(std::string_view filepath)
     : filepath_(filepath)
@@ -171,6 +167,4 @@ bool BinaryEventLogReader::read_next_record(BinaryRecord& out) {
     return true;
 }
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v002
-#endif

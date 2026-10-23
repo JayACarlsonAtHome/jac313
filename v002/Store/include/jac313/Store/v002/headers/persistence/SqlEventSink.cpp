@@ -1,15 +1,11 @@
 #include "SqlEventSink.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <filesystem>
 #include <sstream>
 #include <iomanip>
-#endif
 
 namespace fs = std::filesystem;
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 static constexpr uint64_t KEEPER_MASK    = 1ULL << 1;
 static constexpr uint64_t DATABASE_MASK = 1ULL << 2;
@@ -288,6 +284,4 @@ std::string SqlEventSink::escape_for_sql(const std::string& s) const {
     return out;
 }
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v002
-#endif

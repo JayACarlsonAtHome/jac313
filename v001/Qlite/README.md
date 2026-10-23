@@ -59,38 +59,8 @@ cmake --build build-mod
 import jac313.qlite.v001;   // exposes jac313::Qlite::v001::{Sqlite, …}
 ```
 
-Module builds require the Ninja generator. The module exports the same public API,
+Module builds require the Ninja generator and CMake >= 3.28. The module exports the same public API,
 qualified under `jac313::Qlite::v001`, as the textual header.
-
-### `import std;` (pilot, g++-15)
-
-`-DJAC313_QLITE_IMPORT_STD=ON` builds the module **module-native** against
-`import std;` instead of textually including the standard library:
-
-```bash
-cmake -G Ninja -S . -B build-importstd \
-  -DJAC313_QLITE_BUILD_MODULES=ON -DJAC313_QLITE_IMPORT_STD=ON \
-  -DCMAKE_CXX_COMPILER=g++-15
-cmake --build build-importstd
-```
-
-Notes:
-- Uses CMake's **native** std-module support (`CXX_MODULE_STD`), which is
-  **experimental and gated behind a CMake-version-specific UUID**. `≥ 3.30` is
-  necessary but **not sufficient**: the UUID pinned in `CMakeLists.txt` is **4.3.3's**,
-  so you need *that exact* CMake — a different version (even a newer one) carries a
-  different UUID and the configure fails with *"Experimental `import std` support not
-  enabled … `__CMAKE::CXX23` … not provided by the toolchain"*. Confirmed empirically:
-  CMake **3.31.8 (≥ 3.30) fails**; **4.3.3 builds and times at break-even** (see
-  [docs/Results.md → CMake 3.31.8 vs 4.3.3](../docs/Results.md#cmake-3318-vs-433)).
-  Install 4.3.3 user-locally (no root) per the root README.
-- The experimental feature is armed by `CMAKE_EXPERIMENTAL_CXX_IMPORT_STD` (set
-  before `project()` in both the root and standalone CMakeLists); update the pinned
-  UUID if you standardize on a different CMake version.
-- **g++-15 only** (guarded in CMake). Clang here has no libc++ std module and uses
-  libstdc++, so leave this OFF for clang (it keeps the textual front-end).
-- Public API and behaviour are identical to the default build; this only changes
-  how the standard library is consumed internally.
 
 ## CMake target
 

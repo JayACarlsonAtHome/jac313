@@ -3,17 +3,13 @@
 // JsonEventLogReader.hpp
 // Reader for the NDJSON split format produced by JsonSplitEventLog.
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <cstdint>
 #include <fstream>
 #include <string>
 #include <string_view>
 #include <vector>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v002 {
-#endif
 
 struct JsonRecord {
     uint64_t event_id = 0;
@@ -51,6 +47,4 @@ private:
     enum class FileKind { Main, Ints, Floats } kind_ = FileKind::Main;
 };
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v002
-#endif

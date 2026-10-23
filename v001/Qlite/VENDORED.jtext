@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|Qlite/v001/Qlite
 
-1. #|# 3|canonical_commit|fa4bb5fa87cc
+1. #|# 3|canonical_commit|029a500954d2
 
 1. #|# 4|canonical_dirty|No
 
@@ -31,7 +31,7 @@
 
 1. #|# 6|transform|jac313-prefix
 
-1. #|# 7|ported|2026-10-20
+1. #|# 7|ported|2026-10-22
 
 1. #|# 8|baseline|No
 
@@ -62,15 +62,15 @@
 
 1. #|# 2|include/jac313/Qlite/v001.hpp|include/Qlite/v001.hpp|508364a7249356abdb2d5b6a0423802ff8a2ed340038a10d0bd3739dbb7c34e8|bff4a5659079ebdf12e293902ee6c19295e3b7d8b89912e7ff241ad94036c28c
 
-1. #|# 3|include/jac313/Qlite/v001/Sqlite.body.hpp|include/Qlite/v001/Sqlite.body.hpp|e6b5f4bd0d7535b693ecf925e497b61ba17b81c2e3e1844d2c4d98f74c1eac3b|2462e40bb7f8fba7235bc68c7298bc9598c68505d88563c8196bdeb040819b0b
+1. #|# 3|include/jac313/Qlite/v001/Sqlite.body.hpp|include/Qlite/v001/Sqlite.body.hpp|fb0e7e211380baa3464ce7e902d3277a2836457f72d5b231313b01b7c62e21ae|43f67fe19d75560075fbfa40b17b50ef5d5409e4272d6f252c4f7c2f10c45583
 
 1. #|# 4|include/jac313/Qlite/v001/Sqlite.hpp|include/Qlite/v001/Sqlite.hpp|648bbed1a29f535f8da102128cc46a41ed48a05913b1453e4a8c2e18d79b6c02|437a82204a1e2a64e195cb7d79ad2b6eaea71507164a68ffbda9c4980bffa7c4
 
-1. #|# 5|modules/jac313.qlite.v001.cppm|modules/Qlite.v001.cppm|0651a22071cd12729133c83fc0d86dbc11b50f0df979a17dfe32075daf0dbb74|8e7692797e830529ffed46f81e20c7a8e9c37cbcb494fc0468ad59ee70e08797
+1. #|# 5|modules/jac313.qlite.v001.cppm|modules/Qlite.v001.cppm|01d617ca70a9c19749d4355356893944f0ccf4b8fbe3c7e55140dc65639be3b9|dc174464a1b1b78696e358cc56dc55705b22b09a971fa568b1356d55a1a78f85
 
-1. #|# 6|tests/module/v001_module_test.cpp|tests/module/v001_module_test.cpp|da19e058c56c510229f008d609869bcbc3d2ea0c70becde0f98d6e8b07ed2241|151d98ae6410d59a9236f6b951f503c7c0713a7a939ee12cfd877dd9972994ed
+1. #|# 6|tests/module/v001_module_test.cpp|tests/module/v001_module_test.cpp|88e28b9e617595eb8e8ed449538084ded014c3bc5e7ede320c1c68023d0b3136|407f730227385752aa03966be0130cb87bd4ab1689fdf1fb968b9163b3217597
 
-1. #|# 7|tests/v001_test.cpp|tests/v001_test.cpp|1aa1eb01bd1f0a29156a13e2e69b6d04970f2d9f0d924daab117dd7162ea6742|1160996566ca42d3b855929a16db964dec58df8cc36aea1e3a3e6e36e6b66b19
+1. #|# 7|tests/v001_test.cpp|tests/v001_test.cpp|5148ad08a35d1f8b892548e2d38681862f22a1b375a0ae1d17504c43018e9a11|91df7f670ee1ad4db4307556deae09d4c6046344114afdd9b3e3a070a6b88756
 
 === End Data ===
 === End Section ===

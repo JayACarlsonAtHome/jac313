@@ -1,15 +1,11 @@
 #pragma once
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <iostream>
 #include <limits>
 #include <cctype>
 #include <unistd.h>
-#endif
 #include <cstdlib>   // std::getenv
-#ifndef JAC313_STORE_IMPORT_STD
 #include <string>
-#endif
 
 bool is_interactive() const {
     if (const char* env = std::getenv("TS_STORE_INTERACTIVE")) {

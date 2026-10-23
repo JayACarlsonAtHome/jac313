@@ -1,14 +1,10 @@
 #include "BinaryEventLogReader.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 #include <cstring>
 #include <stdexcept>
 #include <string_view>
-#endif
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
-#endif
 
 BinaryEventLogReader::BinaryEventLogReader(std::string_view filepath)
     : filepath_(filepath)
@@ -153,6 +149,4 @@ bool BinaryEventLogReader::read_next_record(BinaryRecord& out) {
     return true;
 }
 
-#ifndef JAC313_STORE_IMPORT_STD
 } // namespace jac313::Store::v001
-#endif

@@ -6,9 +6,7 @@
 
 #include "persistence/DoubleBufferedWriter.hpp"
 
-#ifndef JAC313_STORE_IMPORT_STD
 namespace jac313::Store::v001 {
-#endif
 // Allocator for the preallocated row table. std::calloc hands back zero pages that the kernel
 // maps lazily (large blocks come straight from mmap), so value-initializing the rows needs no
 // writes: the no-argument construct() is a no-op because an all-zero row IS the value-initialized
@@ -214,7 +212,5 @@ public:
 #include "impl_details/diagnostic.hpp"
 
 };
-#ifndef JAC313_STORE_IMPORT_STD
 }; // namespace jac313::Store::v001
-#endif
 
