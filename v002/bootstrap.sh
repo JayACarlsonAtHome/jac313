@@ -21,7 +21,8 @@
 #   5. Sense + pin this machine as jac313-### (host_spec + current_host). Auto-pins when
 #      unambiguous; otherwise bootstrap stops with --claim / --assign-new-### directions.
 #
-#   6. With --gui (optional): the U++ GUI build libraries (recipe upp_gui, offered [y/N]),
+#   6. With --gui (optional): the U++ GUI build libraries (recipe upp_gui; covered by the one
+#      "Install everything?" answer, else offered [y/N]),
 #      U++ itself into $HOME/u++ (pinned release, SHA-256 checked, no sudo) and then
 #      Jac313Runner via `jac313_test_cli gui-build`. A plain bootstrap never does this.
 #
@@ -33,12 +34,18 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 RECIPES="$ROOT/Setup/recipes.conf"
 
 WANT_GUI=0
+ASSUME_YES=0
 for arg in "$@"; do
   case "$arg" in
     --gui) WANT_GUI=1 ;;
+    -y|--yes) ASSUME_YES=1 ;;
     -h|--help)
-      echo "usage: ./bootstrap.sh [--gui]"
-      echo "  --gui   also install U++ (no sudo, into \$HOME/u++) and build the Jac313Runner GUI"
+      echo "usage: ./bootstrap.sh [--gui] [--yes]"
+      echo "  --gui   also the GUI: the U++ libraries (sudo), U++ (no sudo, into \$HOME/upp_basefix),"
+      echo "          the Jac313Runner window and DBeaver (a database browser, per-user Flatpak)"
+      echo "  --yes   install everything that is missing without asking"
+      echo "Without --yes it asks once \"Install everything?\" and then asks for the sudo password"
+      echo "once; that one answer and password cover the whole run."
       exit 0 ;;
     *) echo "unknown argument: $arg (try --help)" >&2; exit 2 ;;
   esac
@@ -178,7 +185,7 @@ install_upp() {  # U++ into $UPP_DIR via upp_basefix; keeps an existing install 
   # its bootstrap: the pinned U++ from GitHub, umk built from it, the patches; it lists the
   # system packages U++ needs and installs them only when asked (sudo). A yes to the GUI
   # libraries above already covers these, so the user is asked once.
-  if [ "${UPP_PKGS_AGREED:-0}" = 1 ]; then
+  if [ "${UPP_PKGS_AGREED:-0}" = 1 ] || [ "$ASSUME_YES" = 1 ]; then
     "$UPP_BASEFIX_SRC/upp_basefix.sh" bootstrap --install || { echo "upp_basefix bootstrap failed."; return 1; }
   elif ! "$UPP_BASEFIX_SRC/upp_basefix.sh" bootstrap; then
     if [ ! -t 0 ]; then echo "(non-interactive — not installing; run $UPP_BASEFIX_SRC/upp_basefix.sh bootstrap --install)"; return 1; fi
@@ -205,9 +212,13 @@ bootstrap_gui() {  # --gui: build libraries ([y/N]), U++ (no sudo), then Jac313R
     fi
     echo "U++ needs these build libraries (and a few more that upp_basefix finds once U++ is fetched):"
     echo "  $cmd"
-    if [ ! -t 0 ]; then echo "(non-interactive — not installing; run that, then ./bootstrap.sh --gui)"; return 1; fi
-    printf "Install them now? [y/N] "
-    read -r ans || ans=""
+    if [ "$ASSUME_YES" = 1 ]; then
+      ans=y
+    else
+      if [ ! -t 0 ]; then echo "(non-interactive — not installing; run that, then ./bootstrap.sh --gui)"; return 1; fi
+      printf "Install them now? [y/N] "
+      read -r ans || ans=""
+    fi
     case "$ans" in
       [yY]|[yY][eE][sS]) sh -c "$cmd" || { echo "Installing the GUI libraries failed."; return 1; }
                          UPP_PKGS_AGREED=1 ;;
@@ -229,10 +240,13 @@ install_dbeaver() {  # --gui: DBeaver for browsing results.db and the database t
   flatpak info io.dbeaver.DBeaverCommunity >/dev/null 2>&1 && { echo "DBeaver: installed."; return 0; }
   cmd=$(recipe_cmd dbeaver "$family")
   [ -n "$cmd" ] || { echo "No dbeaver recipe for '$family' in Setup/recipes.conf."; return 1; }
-  [ -t 0 ] || { echo "(non-interactive — DBeaver not installed; run: $cmd)"; return 0; }
-  echo
-  printf "Install DBeaver (database browser for results.db and PostgreSQL; per-user Flatpak)? [Y/n] "
-  read -r ans || ans=""
+  ans=y
+  if [ "$ASSUME_YES" != 1 ]; then
+    [ -t 0 ] || { echo "(non-interactive — DBeaver not installed; run: $cmd)"; return 0; }
+    echo
+    printf "Install DBeaver (database browser for results.db and PostgreSQL; per-user Flatpak)? [Y/n] "
+    read -r ans || ans=""
+  fi
   case "$ans" in
     [nN]*) echo "Skipped DBeaver."; return 0 ;;
   esac
@@ -244,6 +258,39 @@ install_dbeaver() {  # --gui: DBeaver for browsing results.db and the database t
 # (use the helpers defined above so we can re-detect cleanly after sudo provisioning)
 detect_cxx
 compute_missing
+
+# --- one question, one password: "install" means yes to every step of this run ---
+need_install=0
+[ -n "$missing" ] && need_install=1
+if [ "$WANT_GUI" = 1 ]; then
+  upp_gui_libs_ok || need_install=1
+  { [ -x "$UPP_DIR/umk" ] && [ -d "$UPP_DIR/uppsrc" ]; } || need_install=1
+  flatpak info io.dbeaver.DBeaverCommunity >/dev/null 2>&1 || need_install=1
+fi
+if [ "$need_install" = 1 ] && [ "$ASSUME_YES" = 0 ] && [ -t 0 ]; then
+  echo
+  echo "This bootstrap installs what is missing:"
+  [ -n "$missing" ] && echo "  - build tools and libraries:$missing (dnf / apt, with sudo)"
+  if [ "$WANT_GUI" = 1 ]; then
+    echo "  - the U++ GUI libraries (sudo), U++ itself (no sudo) and the Jac313Runner window"
+    echo "  - DBeaver, a database browser (per-user Flatpak)"
+  fi
+  printf "Install everything? [Y/n] "
+  read -r ans || ans=n
+  case "$ans" in
+    [nN]*) echo "OK — each step will ask on its own." ;;
+    *) ASSUME_YES=1 ;;
+  esac
+fi
+if [ "$ASSUME_YES" = 1 ] && [ "$need_install" = 1 ]; then
+  # The sudo password once, now; then keep it fresh (sudo forgets after ~5 minutes, and the
+  # downloads and builds take longer), until this script ends.
+  if sudo -v; then
+    ( while kill -0 $$ 2>/dev/null; do sudo -n true 2>/dev/null; sleep 50; done ) &
+    SUDO_KEEPALIVE=$!
+    trap 'kill "$SUDO_KEEPALIVE" 2>/dev/null' EXIT
+  fi
+fi
 
 # --- 3. baseline check; provision (exe or Setup.sh) if anything is missing ---
 # The valgrind check requires the memcheck header AND the helgrind + DRD headers: the
@@ -275,7 +322,8 @@ if [ -n "$missing" ]; then
     echo
     echo "Provisioning via the committed Setup/jac313_setup (handoff: Setup/.setup_handoff)."
     echo "Preview without changes:  ./Setup/jac313_setup --source-dir \"$ROOT\" --dry-run \"$HANDOFF\""
-    if "$SETUP_EXE" --source-dir "$ROOT" "$HANDOFF"; then
+    setup_yes=""; [ "$ASSUME_YES" = 1 ] && setup_yes="--yes"
+    if "$SETUP_EXE" --source-dir "$ROOT" $setup_yes "$HANDOFF"; then
       echo; echo "Provisioning finished."
       # Re-detect now that the (sudo) packages are present; continue in this same run
       # so the build + cli handoff happen without a manual re-run.
@@ -442,9 +490,13 @@ if [ -x "$RUNNER" ]; then
   echo "Choose the gates (start with ctest + smoke), press Start, and read the results in it."
   echo "Start it any time with:"
   echo "  $RUNNER --version $(basename "$ROOT")"
-  if [ -t 0 ] && [ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]; then
-    printf "Start Jac313Runner now? [Y/n] "
-    read -r ans || ans=n
+  if { [ -t 0 ] || [ "$ASSUME_YES" = 1 ]; } && [ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]; then
+    if [ "$ASSUME_YES" = 1 ]; then
+      ans=y
+    else
+      printf "Start Jac313Runner now? [Y/n] "
+      read -r ans || ans=n
+    fi
     case "$ans" in
       [nN]*) ;;
       *) # Terminals like Ptyxis stop every process of a tab when it closes (systemd scope), so
