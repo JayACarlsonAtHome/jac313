@@ -60,6 +60,10 @@ TestResult execute_command(const fs::path& command,
         return result;
     }
 
+    // what this process printed so far goes out first, not after the child's output
+    std::cout.flush();
+    std::cerr.flush();
+    std::fflush(nullptr);
     const auto start = std::chrono::steady_clock::now();
     const pid_t pid = ::fork();
     if (pid < 0) {

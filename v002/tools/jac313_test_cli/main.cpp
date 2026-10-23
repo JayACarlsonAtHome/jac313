@@ -2688,6 +2688,9 @@ int refuse_root_unless_allowed(int& argc, char** argv) {
 } // namespace
 
 int main(int argc, char** argv) {
+    // flush every line at once: through a pipe (Jac313Runner, tee) std::cout is block-buffered,
+    // so its lines arrived late and out of order with the build tools' output
+    std::cout << std::unitbuf;
     if (const int rc = refuse_root_unless_allowed(argc, argv); rc != 0) return rc;
     if (argc < 2) {
         print_usage();

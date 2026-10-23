@@ -3,8 +3,10 @@
 #include <array>
 #include <chrono>
 #include <cerrno>
+#include <cstdio>
 #include <cstring>
 #include <fcntl.h>
+#include <iostream>
 #include <limits>
 #include <optional>
 #include <sys/resource.h>
@@ -155,6 +157,10 @@ ProcessResult run_process(const std::vector<std::string>& args, const int failsa
         return result;
     }
 
+    // what this process printed so far goes out first, not after the child's output
+    std::cout.flush();
+    std::cerr.flush();
+    std::fflush(nullptr);
     const pid_t pid = ::fork();
     if (pid < 0) {
         result.stderr_text = "fork() failed";
