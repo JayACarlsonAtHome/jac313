@@ -194,7 +194,8 @@ jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc1
   The status line shows jText's own check (`jac313_test_cli connections --file P`) and turns red
   when the file is inside a git work tree. Runs pass `--connections <file>` when it exists.
 * **Remote PG** (Screen 1): Host / Port / Database / User of the user's own server (no password
-  field: libpq reads `~/.pgpass` or `$PGPASSFILE`). With PG remote
+  field: libpq reads `~/.pgpass` or `$PGPASSFILE`: one line `host:5432:dbname:user:password`,
+  mode 600). PG local needs nothing here: bootstrap sets up its server and pgpass line. With PG remote
   ticked they become `--pg-remote "host=... dbname=... user=... connect_timeout=10"`; Start refuses
   PG remote without a Host. **Test** runs `jac313_store_dataset --ping pg-remote --conninfo ...` from
   the version's build and shows connect ms, ping ms and the server version, or the error.

@@ -237,15 +237,17 @@ bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner
   install_dbeaver || true   # optional; the GUI is ready either way
 }
 
+dbeaver_ok() { sh -c "$(recipe_cmd dbeaver check)"; }
+
 install_dbeaver() {  # DBeaver for browsing results.db and the database tables ([Y/n])
-  flatpak info io.dbeaver.DBeaverCommunity >/dev/null 2>&1 && { echo "DBeaver: installed."; return 0; }
+  dbeaver_ok && { echo "DBeaver: installed."; return 0; }
   cmd=$(recipe_cmd dbeaver "$family")
   [ -n "$cmd" ] || { echo "No dbeaver recipe for '$family' in Setup/recipes.conf."; return 1; }
   ans=y
   if [ "$ASSUME_YES" != 1 ]; then
     [ -t 0 ] || { echo "(non-interactive — DBeaver not installed; run: $cmd)"; return 0; }
     echo
-    printf "Install DBeaver (database browser for results.db and PostgreSQL; per-user Flatpak)? [Y/n] "
+    printf "Install DBeaver (database browser for results.db and PostgreSQL; ~130 MB download)? [Y/n] "
     read -r ans || ans=""
   fi
   case "$ans" in
@@ -253,6 +255,78 @@ install_dbeaver() {  # DBeaver for browsing results.db and the database tables (
   esac
   sh -c "$cmd" || { echo "DBeaver install failed (network?). Later: $cmd"; return 1; }
   echo "DBeaver installed (in the app menu)."
+}
+
+# --- PG local: a PostgreSQL 18 server on THIS machine for the "PG local" gate ---
+# The gate connects with "host=localhost dbname=jac313 user=jac313" (PgClient.hpp). install_pg_local
+# installs the server (Fedora: postgresql-server; RHEL: PGDG postgresql18-server; Mint: PGDG
+# postgresql-18), starts it at boot, creates the role + database jac313 with a random password,
+# allows that login over localhost (scram-sha-256 lines at the top of pg_hba.conf, marked
+# "jac313 pg_local") and stores the password in your pgpass ($PGPASSFILE or ~/.pgpass, mode 600),
+# never in git. A working login is left alone.
+pg_psql() {
+  local p
+  for p in "$(command -v psql 2>/dev/null)" /usr/pgsql-18/bin/psql /usr/lib/postgresql/18/bin/psql; do
+    [ -n "$p" ] && [ -x "$p" ] && { echo "$p"; return 0; }
+  done
+  return 1
+}
+pg_local_ok() {
+  local p
+  p=$(pg_psql) || return 1
+  PGCONNECT_TIMEOUT=5 "$p" -w -h localhost -U jac313 -d jac313 -Atc "select 1" >/dev/null 2>&1
+}
+pg_su() { ( cd / && sudo -u postgres "$(pg_psql)" -v ON_ERROR_STOP=1 -Atq "$@" ); }
+install_pg_local() {
+  local service pw hba pgpass
+  case "$family" in
+    fedora)
+      rpm -q postgresql-server >/dev/null 2>&1 || sudo dnf install -y postgresql-server || return 1
+      sudo test -f /var/lib/pgsql/data/PG_VERSION || sudo postgresql-setup --initdb || return 1
+      service=postgresql ;;
+    rhel)
+      rpm -q pgdg-redhat-repo >/dev/null 2>&1 || sudo dnf install -y \
+        "https://download.postgresql.org/pub/repos/yum/reporpms/EL-$(rpm -E %rhel)-$(uname -m)/pgdg-redhat-repo-latest.noarch.rpm" || return 1
+      rpm -q postgresql18-server >/dev/null 2>&1 || sudo dnf install -y postgresql18-server || return 1
+      sudo test -f /var/lib/pgsql/18/data/PG_VERSION || sudo /usr/pgsql-18/bin/postgresql-18-setup initdb || return 1
+      service=postgresql-18 ;;
+    linuxmint)
+      if ! dpkg -s postgresql-18 >/dev/null 2>&1; then
+        [ -x /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh ] || sudo apt-get install -y postgresql-common || return 1
+        [ -e /etc/apt/sources.list.d/pgdg.sources ] || [ -e /etc/apt/sources.list.d/pgdg.list ] \
+          || sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y || return 1
+        sudo apt-get install -y postgresql-18 || return 1   # creates and starts the cluster 18/main
+      fi
+      service=postgresql ;;
+    *) echo "PG local: no recipe for '$family'."; return 1 ;;
+  esac
+  sudo systemctl enable --now "$service" || return 1
+  for _ in $(seq 1 20); do pg_su -c "select 1" >/dev/null 2>&1 && break; sleep 1; done
+  pw=$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)
+  if [ "$(pg_su -c "select 1 from pg_roles where rolname = 'jac313'")" = 1 ]; then
+    pg_su -c "alter role jac313 with login password '$pw'" || return 1
+  else
+    pg_su -c "create role jac313 with login password '$pw'" || return 1
+  fi
+  [ "$(pg_su -c "select 1 from pg_database where datname = 'jac313'")" = 1 ] \
+    || pg_su -c "create database jac313 owner jac313" || return 1
+  hba=$(pg_su -c "show hba_file") || return 1
+  if ! sudo grep -q "jac313 pg_local" "$hba"; then
+    # pg_hba.conf is read top-down and the first match wins, so these go first.
+    sudo sed -i '1i # jac313 pg_local: the PG local gate (bootstrap.sh)\nhost    jac313    jac313    127.0.0.1/32    scram-sha-256\nhost    jac313    jac313    ::1/128         scram-sha-256' "$hba" || return 1
+  fi
+  pg_su -c "select pg_reload_conf()" >/dev/null || return 1
+  pgpass="${PGPASSFILE:-$HOME/.pgpass}"
+  touch "$pgpass" && chmod 600 "$pgpass" || return 1
+  { grep -vE '^(localhost|127\.0\.0\.1|::1):(5432|\*):jac313:jac313:' "$pgpass"
+    printf 'localhost:5432:jac313:jac313:%s\n127.0.0.1:5432:jac313:jac313:%s\n' "$pw" "$pw"; } > "$pgpass.new" \
+    && cat "$pgpass.new" > "$pgpass"; rm -f "$pgpass.new"
+  if pg_local_ok; then
+    echo "PG local: PostgreSQL $(pg_su -c "show server_version") on localhost; role + database jac313; password in $pgpass."
+  else
+    echo "PG local: set up, but jac313 still cannot log in on localhost — check $hba and $pgpass."
+    return 1
+  fi
 }
 
 # --- 2. find a C++23 g++ (>= 14) and the activation prefix needed to invoke it ---
@@ -263,18 +337,20 @@ compute_missing
 # --- one question, one password: "install" means yes to every step of this run ---
 need_install=0
 [ -n "$missing" ] && need_install=1
+pg_local_ok || need_install=1   # the PG local gate's server
 if [ "$WANT_GUI" = 1 ]; then
   upp_gui_libs_ok || need_install=1
   { [ -x "$UPP_DIR/umk" ] && [ -d "$UPP_DIR/uppsrc" ]; } || need_install=1
-  flatpak info io.dbeaver.DBeaverCommunity >/dev/null 2>&1 || need_install=1
+  dbeaver_ok || need_install=1
 fi
 if [ "$need_install" = 1 ] && [ "$ASSUME_YES" = 0 ] && [ -t 0 ]; then
   echo
   echo "This bootstrap installs what is missing:"
   [ -n "$missing" ] && echo "  - build tools and libraries:$missing (dnf / apt, with sudo)"
+  pg_local_ok || echo "  - a PostgreSQL 18 server on this machine for the PG local gate (sudo; role + database jac313)"
   if [ "$WANT_GUI" = 1 ]; then
     echo "  - the U++ GUI libraries (sudo), U++ itself (no sudo) and the Jac313Runner window"
-    echo "  - DBeaver, a database browser (per-user Flatpak)"
+    echo "  - DBeaver, a database browser (~130 MB download, sudo)"
   fi
   printf "Install everything? [Y/n] "
   read -r ans || ans=n
@@ -468,6 +544,25 @@ if [ -n "$GIT_DIR" ] && [ -d "$GIT_DIR" ] && [ -f "$HOOK_SRC" ]; then
     chmod +x "$HOOK_DST"
     echo "Installed pre-push hook -> $HOOK_DST (valgrind verify-lite; bypass: git push --no-verify)"
   fi
+fi
+
+# --- the PostgreSQL server for the PG local gate (install_pg_local). Non-fatal. ---
+if ! pg_local_ok; then
+  ans=y
+  if [ "$ASSUME_YES" != 1 ]; then
+    if [ -t 0 ]; then
+      printf "Set up a PostgreSQL 18 server on this machine for the PG local gate? [Y/n] "
+      read -r ans || ans=n
+    else
+      ans=n
+    fi
+  fi
+  case "$ans" in
+    [nN]*) echo "PG local: skipped (re-run ./bootstrap.sh to set it up)." ;;
+    *) install_pg_local || echo "(PG local did not complete — the other gates are ready; fix the above and re-run ./bootstrap.sh)" ;;
+  esac
+else
+  echo "PG local: ready (jac313 logs in on localhost)."
 fi
 
 # --- the GUI (unless --no-gui). Non-fatal: the test tools above are ready either way. ---

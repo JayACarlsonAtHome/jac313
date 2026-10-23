@@ -74,7 +74,9 @@ Run from inside the `v001/` directory.
 ./jac313_test_cli --run-everything  # just like it says, including ctests, smoke tests, benchtests, verify, verify-lite
 ```
 
-`./bootstrap.sh` prepares everything (compilers, headers, valgrind, etc.) in one run: it asks once "Install everything?", asks for the sudo password once, installs what is missing, builds the tests, installs U++ and builds the Jac313Runner window, adds DBeaver, and opens the Runner. `--yes` skips the question; `--no-gui` leaves out the window.
+`./bootstrap.sh` prepares everything (compilers, headers, valgrind, etc.) in one run: it asks once "Install everything?", asks for the sudo password once, installs what is missing, builds the tests, sets up a PostgreSQL 18 server on this machine for the PG local gate, installs U++ and builds the Jac313Runner window, adds DBeaver (a database browser, its own pinned package), and opens the Runner. `--yes` skips the question; `--no-gui` leaves out the window.
+
+**PostgreSQL.** PG local works after bootstrap: it creates the role and database `jac313` on localhost and puts their random password in your `~/.pgpass` (or `$PGPASSFILE`), never in git. PG remote is your own server: create a login role and database there (e.g. both named `jac313`), add one line `host:5432:jac313:jac313:password` to `~/.pgpass` (mode 600), type the host into the Runner's Remote PG fields and press **Test**.
 
 The window part installs U++ from [upp_basefix](https://github.com/JayACarlsonAtHome/upp_basefix) into `$HOME/upp_basefix` (U++ pinned to a GitHub commit plus patches; an existing install is kept) and builds `../gui/out/Jac313Runner` with GCC. Run bootstrap, the tests and the GUI as your own user, from inside this directory.
 

@@ -83,7 +83,7 @@ scoped by `world` (`v001` / `v002`).
 `PgClient` + `PgEventSink` (`Store/include/jac313/Store/v002/headers/persistence/Pg*`)
 write a run's events straight into PostgreSQL with one `COPY` transaction per batch.
 It is an optional build: CMake option `JAC313_STORE_PG_PERSIST`, target
-`jac313_store_pg_persist`, ON only when libpq 17+ is found (bootstrap's `pg17` component).
+`jac313_store_pg_persist`, ON only when libpq 17+ is found (bootstrap installs libpq 18: the `pg18` component).
 
 | | |
 |---|---|
@@ -92,6 +92,19 @@ It is an optional build: CMake option `JAC313_STORE_PG_PERSIST`, target
 | Never touched | `results.*` and `store.*` |
 | Cleanup | `--pg-cleanup keep-last` (default) or `delete` |
 | Recorded | connect ms, median `SELECT 1` ping ms, total `COPY` ms (`testRun.pg_connect_ms`, `pg_ping_ms`, `pg_write_ms`) |
+
+**PG local, set up by bootstrap.** `./bootstrap.sh` installs a PostgreSQL 18 server on the
+machine (Fedora `postgresql-server`, RHEL PGDG `postgresql18-server`, Mint PGDG `postgresql-18`),
+starts it at boot, creates the role and database `jac313` with a random password, adds two
+`scram-sha-256` lines for `jac313` on 127.0.0.1 / ::1 at the top of `pg_hba.conf` (marked
+`jac313 pg_local`) and writes the password to `~/.pgpass` / `$PGPASSFILE` (mode 600). A working
+login is left alone, so re-running bootstrap changes nothing.
+
+**PG remote, set up by you.** On your server: a login role and a database it owns, and a
+`pg_hba.conf` line that lets the client machine in with a password. On the client: one line
+`host:5432:dbname:user:password` in `~/.pgpass` (mode 600), then the Runner's Remote PG fields
+and **Test**. "no password supplied" means the pgpass line is missing or does not match the
+host / database / user exactly.
 
 The remote backend exists to show the network cost to users without a local server:
 on the lab LAN a local ping is about 0.015 ms and the lab server about 1.4 ms.
