@@ -182,6 +182,7 @@ std::expected<void, std::string> session_open_jtext(TableSession& session,
     session.column_names = std::move(loaded->field_names);
     session.field_defs = std::move(loaded->field_defs);
     session.rows = std::move(loaded->rows);
+    session.case_sensitive = loaded->case_sensitive;
     session.changes.clear();
     // Lines that gained |# were not in the file. The file is dirty until saved.
     if (loaded->filled_default_markers) {
@@ -200,7 +201,8 @@ std::expected<void, std::string> session_save_jtext(TableSession& session,
     if (out_path.empty())
         return std::unexpected("session_save_jtext: no path");
 
-    auto r = jtext_save(out_path, session.rows, session.table.empty() ? "records" : session.table);
+    auto r = jtext_save(out_path, session.rows, session.table.empty() ? "records" : session.table,
+                        nullptr, session.case_sensitive);
     if (!r) return std::unexpected(r.error());
 
     session.jtext_path = out_path;
@@ -237,6 +239,7 @@ std::expected<void, std::string> session_open_db(TableSession& session,
     session.columns = std::move(q->columns);
     session.key_column = q->key_column.empty() ? "id" : q->key_column;
     session.rows = std::move(q->rows);
+    session.case_sensitive = store.kind() != SessionKind::MariaDB;   // default collations
     session.changes.clear();
     return {};
 }

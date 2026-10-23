@@ -94,6 +94,10 @@ struct TableSession {
 
     std::vector<Record> rows;
     ChangeSet changes;
+    /// How values compare (the Filter, lookups), like a database collation; values are
+    /// always kept as written. A jText file: its Case line. A database: the server's
+    /// default (SQLite, PostgreSQL compare with case; MariaDB without). New: Sensitive.
+    bool case_sensitive = true;
 
     void clear() {
         kind = SessionKind::None;
@@ -107,6 +111,7 @@ struct TableSession {
         field_defs.clear();
         rows.clear();
         changes.clear();
+        case_sensitive = true;
     }
 
     [[nodiscard]] bool is_open() const { return kind != SessionKind::None; }

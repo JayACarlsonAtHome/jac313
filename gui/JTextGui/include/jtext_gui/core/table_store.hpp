@@ -29,6 +29,9 @@ struct JTextLoadResult {
     /// True when a data line had no marker and was given the default "|#".
     /// An explicit marker is kept as its right two characters. "#|#" loads as "|#".
     bool filled_default_markers = false;
+    /// The file's Case setting. Values are kept as written either way; Case only
+    /// decides how they compare (the Filter, lookups), like a database collation.
+    bool case_sensitive = false;
 };
 
 /// Load with the canonical jText library (jText::v001). Field values stay as written.
@@ -44,11 +47,13 @@ struct JTextLoadResult {
 
 /// Write rows. With no shape, a light file (no templates). With columns, a full
 /// jText file: the standard // file header, Create Table, SQL Insert,
-/// SQL Insert - no id, the Fields block, then the rows.
+/// SQL Insert - no id, the Fields block, then the rows. `case_sensitive` is written as
+/// the file's Case line (Sensitive / Insensitive); values are never changed by it.
 [[nodiscard]] std::expected<void, std::string> jtext_save(std::string_view path,
                                                           const std::vector<Record>& rows,
                                                           std::string_view table_label = "records",
-                                                          const TableShape* shape = nullptr);
+                                                          const TableShape* shape = nullptr,
+                                                          bool case_sensitive = true);
 
 // ---------------------------------------------------------------------------
 // Database reader/writer — same shape for SQLite, MariaDB, PostgreSQL

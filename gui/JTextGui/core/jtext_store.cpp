@@ -455,7 +455,8 @@ void write_data_rows(std::ostream& out, const std::vector<Record>& rows) {
 std::expected<void, std::string> write_full_jtext(std::string_view path,
                                                   const std::vector<Record>& rows,
                                                   std::string_view table_label,
-                                                  const TableShape& shape) {
+                                                  const TableShape& shape,
+                                                  bool case_sensitive) {
     TableShape use = shape;
     if (use.table.empty()) use.table = std::string(table_label.empty() ? "records" : table_label);
     debug_log(std::format("save jtext {} columns={} dialect={}", path, use.columns.size(),
@@ -484,7 +485,7 @@ std::expected<void, std::string> write_full_jtext(std::string_view path,
     jText::v001::write_jtext_line_number(out, 4, pad);
     out << "?# 0.1\n";
     jText::v001::write_jtext_line_number(out, 5, pad);
-    out << "?# Sensitive\n";
+    out << (case_sensitive ? "?# Sensitive\n" : "?# Insensitive\n");
     jText::v001::write_jtext_line_number(out, 6, pad);
     out << "?# " << dialect_label(use.dialect) << '\n';
     jText::v001::write_jtext_line_number(out, 7, pad);
@@ -550,6 +551,7 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path) {
     }
 
     JTextLoadResult result;
+    result.case_sensitive = file.case_mode == jText::v001::CaseMode::Sensitive;
     result.section_name = (sec && !sec->name.empty()) ? sec->name
                          : (!file.table_name.empty() ? file.table_name : "records");
     collect_field_names(path, result.field_names, &result.field_defs);
@@ -865,7 +867,8 @@ namespace {
 /// Light profile. Data lines use the live two-character marker.
 std::expected<void, std::string> write_light_jtext(std::string_view path,
                                                    const std::vector<Record>& rows,
-                                                   std::string_view table_label) {
+                                                   std::string_view table_label,
+                                                   bool case_sensitive) {
     std::ofstream out{std::string(path), std::ios::trunc};
     if (!out) return std::unexpected("cannot write " + std::string(path));
     const std::string table = table_label.empty() ? std::string("records") : std::string(table_label);
@@ -873,7 +876,9 @@ std::expected<void, std::string> write_light_jtext(std::string_view path,
     const auto today = std::chrono::floor<std::chrono::days>(std::chrono::system_clock::now());
     const std::string date = std::format("{:%Y-%m-%d}", today);
     jText::v001::write_jtext_hash_header(out, date, "Saved by jText_GUI",
-                                         jText::v001::CaseMode::Sensitive, table);
+                                         case_sensitive ? jText::v001::CaseMode::Sensitive
+                                                        : jText::v001::CaseMode::Insensitive,
+                                         table);
     out << '\n';
     jText::v001::write_light_section_banner(out, table);
     write_data_rows(out, rows);
@@ -887,15 +892,16 @@ std::expected<void, std::string> write_light_jtext(std::string_view path,
 std::expected<void, std::string> jtext_save(std::string_view path,
                                             const std::vector<Record>& rows,
                                             std::string_view table_label,
-                                            const TableShape* shape) {
+                                            const TableShape* shape,
+                                            bool case_sensitive) {
     for (std::size_t i = 0; i < rows.size(); ++i) {
         if (!record_id_of(rows[i]))
             return std::unexpected(std::format(
                 "record {} is missing an integer record id in field 1", i + 1));
     }
     if (shape && !shape->columns.empty())
-        return write_full_jtext(path, rows, table_label, *shape);
-    return write_light_jtext(path, rows, table_label);
+        return write_full_jtext(path, rows, table_label, *shape, case_sensitive);
+    return write_light_jtext(path, rows, table_label, case_sensitive);
 }
 
 } // namespace jtext_gui

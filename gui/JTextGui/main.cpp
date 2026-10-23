@@ -68,7 +68,8 @@ bool FilterWord(const String& hay, const String& pat) {
 	return pi == pat.GetCount();
 }
 
-bool RowMatchesFilter(const jtext_gui::Record& r, const String& raw) {
+// Like a database: the session's Case decides whether the Filter ignores letter case.
+bool RowMatchesFilter(const jtext_gui::Record& r, const String& raw, bool case_sensitive) {
 	String filt = TrimBoth(raw);
 	if (filt.IsEmpty())
 		return true;
@@ -80,8 +81,11 @@ bool RowMatchesFilter(const jtext_gui::Record& r, const String& raw) {
 			blob.Cat(' ');
 		blob << S(r.fields[i]);
 	}
-	blob = ToLower(blob);
-	Vector<String> words = Split(ToLower(filt), ' ');
+	if (!case_sensitive) {
+		blob = ToLower(blob);
+		filt = ToLower(filt);
+	}
+	Vector<String> words = Split(filt, ' ');
 	for (const String& w : words)
 		if (!w.IsEmpty() && !FilterWord(blob, w))
 			return false;
@@ -1886,7 +1890,7 @@ struct JTextGui : TopWindow {
 		shown.Clear();
 		int cursor = -1;
 		for (int i = 0; i < (int)session.rows.size(); i++) {
-			if (!RowMatchesFilter(session.rows[(std::size_t)i], filt))
+			if (!RowMatchesFilter(session.rows[(std::size_t)i], filt, session.case_sensitive))
 				continue;
 			if (i == keep)
 				cursor = shown.GetCount();
@@ -2132,7 +2136,8 @@ struct JTextGui : TopWindow {
 			shape.columns = session.columns;
 			const jtext_gui::TableShape* use = shape.columns.empty() ? nullptr : &shape;
 			auto r = jtext_gui::jtext_save(out, session.rows,
-			                               shape.table.empty() ? "records" : shape.table, use);
+			                               shape.table.empty() ? "records" : shape.table, use,
+			                               session.case_sensitive);
 			if (!r) Tell("Export failed:\n" + S(r.error()));
 			else Status("Exported to " + path +
 			            (use ? " with templates from the table." : ".") +

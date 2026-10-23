@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/src/core
 
-1. #|# 3|canonical_commit|d3de3f8ba22a
+1. #|# 3|canonical_commit|80e80636062e
 
 1. #|# 4|canonical_dirty|No
 
@@ -31,7 +31,7 @@
 
 1. #|# 6|transform|none
 
-1. #|# 7|ported|2026-10-19
+1. #|# 7|ported|2026-10-22
 
 1. #|# 8|baseline|No
 
@@ -60,11 +60,11 @@
 === Data ===
 1. #|# 1|connections_file.cpp|connections_file.cpp|7b89f7815b9b862424f88345f2a84c4f6b2b3ae22448da4b79884258d6df515c|7b89f7815b9b862424f88345f2a84c4f6b2b3ae22448da4b79884258d6df515c
 
-1. #|# 2|jtext_store.cpp|jtext_store.cpp|d722c45caedc7acb029039e1d83f6d874c6b2d6d561b425fd4465c808955fa33|d722c45caedc7acb029039e1d83f6d874c6b2d6d561b425fd4465c808955fa33
+1. #|# 2|jtext_store.cpp|jtext_store.cpp|95dcb2b6a5e94f7d51bd439ad30030d37012798e25e164530c52af736aef92f6|95dcb2b6a5e94f7d51bd439ad30030d37012798e25e164530c52af736aef92f6
 
 1. #|# 3|maria_postgres_store.cpp|maria_postgres_store.cpp|371c47cb935be1bdbec9b2207d51d21374b41ace12adbeed4441ff350ce1bd70|371c47cb935be1bdbec9b2207d51d21374b41ace12adbeed4441ff350ce1bd70
 
-1. #|# 4|session_ops.cpp|session_ops.cpp|091e2383d8005b162356227266a15203cef677d6e6440a418a4b96c994c0f42e|091e2383d8005b162356227266a15203cef677d6e6440a418a4b96c994c0f42e
+1. #|# 4|session_ops.cpp|session_ops.cpp|17384b123df45fe66b8c00ee740ab2d50248d4b070f14433ca4ef3603e399536|17384b123df45fe66b8c00ee740ab2d50248d4b070f14433ca4ef3603e399536
 
 1. #|# 5|spreadsheet.cpp|spreadsheet.cpp|6fb777554d7253ea3f58b6305242af22d4afc6e1a3f52985bdf3a97fc5af5270|6fb777554d7253ea3f58b6305242af22d4afc6e1a3f52985bdf3a97fc5af5270
 

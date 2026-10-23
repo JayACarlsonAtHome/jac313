@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/include
 
-1. #|# 3|canonical_commit|d3de3f8ba22a
+1. #|# 3|canonical_commit|80e80636062e
 
 1. #|# 4|canonical_dirty|No
 
@@ -31,7 +31,7 @@
 
 1. #|# 6|transform|none
 
-1. #|# 7|ported|2026-10-19
+1. #|# 7|ported|2026-10-22
 
 1. #|# 8|baseline|No
 
@@ -66,11 +66,11 @@
 
 1. #|# 4|jtext_gui/core/record.hpp|jtext_gui/core/record.hpp|aeeef780a2d414b5935c99f077f52e930838ef70d24f8df6d37a5333f9903368|aeeef780a2d414b5935c99f077f52e930838ef70d24f8df6d37a5333f9903368
 
-1. #|# 5|jtext_gui/core/session.hpp|jtext_gui/core/session.hpp|158c0646a76f6e4e73508116cf73eb93df1955c7d735d61cc4c60981fc043fd4|158c0646a76f6e4e73508116cf73eb93df1955c7d735d61cc4c60981fc043fd4
+1. #|# 5|jtext_gui/core/session.hpp|jtext_gui/core/session.hpp|9f71032524229a9d0011adc1bc567c5508539eba5ed7723b876fc48ee3f914c6|9f71032524229a9d0011adc1bc567c5508539eba5ed7723b876fc48ee3f914c6
 
 1. #|# 6|jtext_gui/core/spreadsheet.hpp|jtext_gui/core/spreadsheet.hpp|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87
 
-1. #|# 7|jtext_gui/core/table_store.hpp|jtext_gui/core/table_store.hpp|6727613bcd0eb42e8146be9acb84485d17e10b569feca5c33d6c63b8e728c5e8|6727613bcd0eb42e8146be9acb84485d17e10b569feca5c33d6c63b8e728c5e8
+1. #|# 7|jtext_gui/core/table_store.hpp|jtext_gui/core/table_store.hpp|48f260c6303d8a032207a0a99da25dd27485da0026930fcfce85db234dbe7eb3|48f260c6303d8a032207a0a99da25dd27485da0026930fcfce85db234dbe7eb3
 
 1. #|# 8|jtext_gui/record.hpp|jtext_gui/record.hpp|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5
 
