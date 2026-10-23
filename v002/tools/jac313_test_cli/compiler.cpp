@@ -166,9 +166,17 @@ CompilerSelection resolve_compiler(const CompilerResolveRequest& request) {
     // Flag-directed selection: map each flag to a registry toolchain.
     const char* flag = nullptr;
     const char* reason = nullptr;
-    if (request.prefer_gcc15) {
-        flag = "--gcc15";
-        reason = "--gcc15";
+    if (request.prefer_gcc) {
+        // --gcc: the newest gcc this machine has
+        std::vector<ResolvedToolchain> gccs;
+        for (const Toolchain& tc : registry) {
+            if (tc.kind == "gcc") gccs.push_back(resolve_toolchain(tc, baseline));
+        }
+        const ResolvedToolchain* best = pick_auto(gccs);
+        if (best == nullptr || !best->available) {
+            throw std::runtime_error("no gcc found on this host (required by --gcc)");
+        }
+        return selection_from(*best, "--gcc (" + best->spec.label + ")");
     } else if (request.prefer_clang) {
         flag = "--clang";
         reason = "--clang";

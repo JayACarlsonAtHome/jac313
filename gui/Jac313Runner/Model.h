@@ -16,7 +16,7 @@ struct RunOptions {
 	bool   bench      = false;
 	bool   verifyLite = false;
 	bool   verify     = false;
-	String compiler   = "gcc15";    // gcc15 | clang | both
+	String compiler   = "gcc";      // gcc | clang | both (each: the newest on this machine)
 	String buildType  = "Debug";    // Debug | Release
 	bool   strict     = false;      // --strict   (extra compiler warnings)
 	bool   hardened   = false;      // --hardened (runtime hardening; ctest/smoke builds only)
@@ -91,7 +91,7 @@ String          EffectiveRoot(const RunOptions& o, const String& cmdRoot);
 struct RunPlan {
 	String         exe;        // <root>/<version>/jac313_test_cli
 	String         cwd;        // <root>/<version>
-	String         compiler;   // gcc15 | clang
+	String         compiler;   // gcc | clang
 	String         summary;    // --summary-json path
 	Vector<String> args;       // without exe
 	String         Display() const;   // exe + args, quoted where needed

@@ -31,6 +31,7 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
+#include <regex>
 #include <string>
 #include <vector>
 #include <chrono>
@@ -109,7 +110,7 @@ void print_usage() {
         "  --report <path>      Write summary file (tab-separated)\n\n"
         "Configure options:\n"
         "  --compiler <cxx>     Explicit compiler: registry label, name, or path\n"
-        "  --gcc15              Select the gcc15 toolchain (default)\n"
+        "  --gcc                The newest gcc on this machine (default)\n"
         "  --clang              Select the clang toolchain (min Clang 20)\n"
         "  --modules            Enable JAC313_BUILD_MODULES=ON\n"
         "  --release            CMAKE_BUILD_TYPE=Release (default: Debug)\n"
@@ -378,7 +379,7 @@ bool apply_compiler_resolution(GlobalOptions& global,
         CompilerResolveRequest request;
         request.source_dir = global.source_dir;
         request.explicit_compiler = configure_opts.compiler;
-        request.prefer_gcc15 = configure_opts.prefer_gcc15;
+        request.prefer_gcc = configure_opts.prefer_gcc;
         request.prefer_clang = configure_opts.prefer_clang;
 
         const CompilerSelection selection = resolve_compiler(request);
@@ -2233,17 +2234,17 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
 
     // Preset gates run BOTH compilers (gcc first, then clang), using THIS machine's pinned
     // labels from Setup/compilers.pin — or highest-available from compilers.conf when unpinned
-    // (gcc16 on Fedora, gcc15 on RHEL/Mint, etc.). User --compiler/--gcc15/--clang is ignored.
+    // (gcc16 on Fedora, gcc15 on RHEL/Mint, etc.). User --compiler/--gcc/--clang is ignored.
     const auto [gcc_label, clang_label] = pinned_or_highest_labels(root);
     if (gcc_label.empty() || clang_label.empty()) {
         std::cerr << "preset: could not resolve gcc/clang for this machine "
                      "(run `jac313_test_cli pin --ensure`)\n";
         return 1;
     }
-    // Both compilers by default; an explicit --gcc15 or --clang (Jac313Runner) runs just that one.
+    // Both compilers by default; an explicit --gcc or --clang (Jac313Runner) runs just that one.
     std::vector<std::string> preset_labels = {gcc_label, clang_label};
-    if (configure_opts.prefer_gcc15 && !configure_opts.prefer_clang) preset_labels = {gcc_label};
-    if (configure_opts.prefer_clang && !configure_opts.prefer_gcc15) preset_labels = {clang_label};
+    if (configure_opts.prefer_gcc && !configure_opts.prefer_clang) preset_labels = {gcc_label};
+    if (configure_opts.prefer_clang && !configure_opts.prefer_gcc) preset_labels = {clang_label};
     std::cout << "preset compilers:";
     for (const auto& l : preset_labels) std::cout << ' ' << l;
     std::cout << "\n";
@@ -2667,6 +2668,27 @@ int refuse_root_unless_allowed(int& argc, char** argv) {
 }
 } // namespace
 
+// `compiler-versions`: the gcc and the clang a run uses on this machine (pinned in
+// Setup/compilers.pin, else the newest installed), one line each: "gcc gcc16 16.2.1",
+// "clang clang 22.1.8" ("-" when missing). Jac313Runner shows them beside its choices.
+int run_compiler_versions_command(const GlobalOptions& global) {
+    const auto [gcc_label, clang_label] = pinned_or_highest_labels(global.source_dir);
+    const auto probes = probe_compilers(global.source_dir);
+    const std::regex number(R"((\d+\.\d+(\.\d+)?))");
+    const std::pair<std::string, std::string> kinds[] = {{"gcc", gcc_label}, {"clang", clang_label}};
+    for (const auto& [kind, label] : kinds) {
+        std::string version;
+        for (const auto& p : probes) {
+            std::smatch m;
+            if (p.available && p.spec.label == label && std::regex_search(p.version_line, m, number))
+                version = m[1];
+        }
+        std::cout << kind << ' ' << (label.empty() ? "-" : label) << ' '
+                  << (version.empty() ? "-" : version) << '\n';
+    }
+    return 0;
+}
+
 int main(int argc, char** argv) {
     // flush every line at once: through a pipe (Jac313Runner, tee) std::cout is block-buffered,
     // so its lines arrived late and out of order with the build tools' output
@@ -2977,8 +2999,8 @@ int main(int argc, char** argv) {
                 ::setenv(arg == "--pg-remote" ? "JAC313_PG_REMOTE" : "JAC313_PG_LOCAL", ci.c_str(), 1);
             } else if (arg == "--compiler" && i + 1 < argc) {
                 configure_opts.compiler = argv[++i];
-            } else if (arg == "--gcc15") {
-                configure_opts.prefer_gcc15 = true;
+            } else if (arg == "--gcc") {
+                configure_opts.prefer_gcc = true;
             } else if (arg == "--clang") {
                 configure_opts.prefer_clang = true;
             } else if (arg == "--modules") {
@@ -3075,14 +3097,11 @@ int main(int argc, char** argv) {
                     return 2;
                 }
             }
-            if (compiler == "gcc15") {
-                configure_opts.prefer_gcc15 = true;
-                matrix_opts.compiler_label = "gcc15";
-            } else if (compiler == "clang") {
+            if (compiler == "clang") {
                 configure_opts.prefer_clang = true;
                 matrix_opts.compiler_label = "clang";
             } else if (!compiler.empty()) {
-                // Any other registry label (gcc16, future toolchains): resolved by label
+                // Any gcc label (gcc15, gcc16, future toolchains): resolved by label
                 // via compilers.conf; the run is recorded under that exact label.
                 configure_opts.compiler = compiler;
                 matrix_opts.compiler_label = compiler;
@@ -3127,8 +3146,8 @@ int main(int argc, char** argv) {
             ConfigureOptions co;
             for (int i = 3; i < argc; ++i) {
                 const std::string a = argv[i];
-                if (a == "--gcc15") {
-                    co.prefer_gcc15 = true;
+                if (a == "--gcc") {
+                    co.prefer_gcc = true;
                 } else if (a == "--clang") {
                     co.prefer_clang = true;
                 } else if (a == "--compiler" && i + 1 < argc) {
@@ -3142,7 +3161,7 @@ int main(int argc, char** argv) {
                               << (full ? "ctest + smoke matrix — all sinks (binary/jtext/html/json/sql/none)"
                                       : "ctest + matrix 001 — representative sinks (binary; 001 across jtext/html/json/sql)")
                               << "; memcheck + helgrind/DRD)\n\n"
-                                 "  --gcc15 | --clang | --compiler <cxx>   (default: auto-detect)\n"
+                                 "  --gcc | --clang | --compiler <cxx>   (default: auto-detect)\n"
                                  "  --source-dir <path>\n";
                     return 0;
                 } else {
@@ -3235,6 +3254,9 @@ int main(int argc, char** argv) {
     }
     if (command == "compilers") {
         return run_compilers_command(global, configure_opts);
+    }
+    if (command == "compiler-versions") {
+        return run_compiler_versions_command(global);
     }
     if (command == "setup") {
         return run_setup_command(global);

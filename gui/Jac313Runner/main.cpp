@@ -309,6 +309,8 @@ struct Runner : TopWindow {
 	Vector<ConnRow> connRows;   // the file's rows as loaded (other backends are kept on Save)
 	Label     lRoot, lVersion, lComp, lType, lFront, lSize, lDb, lFiles, lMaxRuns, lMaxRec, lMax, lMaxHint, lRb, lPg, lCmd, lInfo;
 	Label     lFormat;   // the format checks every build has (not an option)
+	Label     lCompVer;  // "gcc 16.2.1, clang 22.1.8": what gcc / clang mean on this machine
+	String    compVerFor;   // the version dir lCompVer was filled for
 	EditString root;
 	Button    browse;
 	LabelBox  boxVersion, boxGates, boxBuild, boxPersist, boxRows;
@@ -400,6 +402,7 @@ struct Runner : TopWindow {
 	void   ConnStatus(const String& text, bool bad);
 	String CheckConnFile(const String& path);   // the CLI's jText check line for the file
 	void   FillVersions();
+	void   ShowCompilerVersions();
 	String versionKey;     // the version set FillVersions last built
 };
 
@@ -463,11 +466,11 @@ Runner::Runner()
 	lType.SetText("Type:");
 	lFront.SetText("Front-end:");
 	lSize.SetText("Size:");
-	// "gcc15" stays the saved value and the CLI's --gcc15; the CLI runs this machine's GCC
-	// (Setup/compilers.pin: gcc16 on Fedora 44, gcc15 on RHEL and Mint), so the label says gcc
-	comp.Add("gcc15", "gcc").Add("clang", "clang").Add("both", "both");
-	comp.Tip("gcc = this machine's GCC from Setup/compilers.pin (gcc16 on Fedora 44, gcc15 on RHEL "
-	         "and Linux Mint). The results show the exact version.");
+	// gcc / clang: the newest of each on this machine (the CLI's --gcc / --clang); lCompVer shows
+	// which versions those are (jac313_test_cli compiler-versions)
+	comp.Add("gcc", "gcc").Add("clang", "clang").Add("both", "both");
+	comp.Tip("gcc and clang: the newest of each on this machine (pinned in Setup/compilers.pin). "
+	         "The versions are shown to the right.");
 	type.Add("Debug", "Debug").Add("Release", "Release");
 	front.Add("textual", "textual").Add("modules", "modules");
 	size.Add("smoke", "smoke").Add("full", "full");
@@ -477,6 +480,7 @@ Runner::Runner()
 		Place(s1, *bl[i], 20, y + 18 + 26 * i, 90, 22);
 		Place(s1, *bs[i], 110, y + 18 + 26 * i, 300, 22);
 	}
+	Place(s1, lCompVer, 420, y + 18, 400, 22);   // on the Compiler row
 	bStrict.SetLabel("strict warnings");
 	bHardened.SetLabel("hardened");
 	bStrict.Tip("--strict: -Wall -Wextra -Wpedantic and friends (ctest/smoke builds); "
@@ -833,6 +837,7 @@ void Runner::ToOptions()
 void Runner::UpdateCommand()
 {
 	ToOptions();
+	ShowCompilerVersions();
 	String r = Root();
 	String text;
 	Array<RunPlan> p = BuildPlans(opt, r);
@@ -868,6 +873,35 @@ void Runner::CopyCommand()
 	WriteClipboardText(text);
 	lInfo.SetInk(SColorText());
 	lInfo.SetText("Copied the command line: paste it into a terminal to run it yourself.");
+}
+
+void Runner::ShowCompilerVersions()
+{
+	String dir = AppendFileName(Root(), opt.version);
+	if(dir == compVerFor)
+		return;
+	compVerFor = dir;
+	String exe = AppendFileName(dir, "jac313_test_cli");
+	String text;
+	LocalProcess p;
+	Vector<String> args;
+	args << "compiler-versions";
+	if(FileExists(exe) && p.Start(exe, args, NULL, dir)) {
+		String out, chunk;
+		dword t = msecs();
+		while(p.IsRunning() && msecs(t) < 10000)
+			if(p.Read(chunk)) out << chunk; else Sleep(10);
+		while(p.Read(chunk)) out << chunk;
+		for(const String& line : Split(out, '\n')) {   // "gcc gcc16 16.2.1"
+			Vector<String> w = Split(line, ' ');
+			if(w.GetCount() == 3 && (w[0] == "gcc" || w[0] == "clang")) {
+				if(text.GetCount())
+					text << ",  ";
+				text << w[0] << " " << (w[2] == "-" ? String("not found") : w[2]);
+			}
+		}
+	}
+	lCompVer.SetText(text);
 }
 
 void Runner::Browse()
@@ -1057,7 +1091,7 @@ void Runner::LastResults()
 	ToOptions();
 	String dir = AppendFileName(AppendFileName(Root(), opt.version), "test-summary");
 	Vector<String> files;
-	for(const char *f : { "runner_last.json", "runner_last_gcc15.json", "runner_last_clang.json" })
+	for(const char *f : { "runner_last.json", "runner_last_gcc.json", "runner_last_clang.json" })
 		if(FileExists(AppendFileName(dir, f)))
 			files.Add(AppendFileName(dir, f));
 	if(files.IsEmpty()) {
@@ -1699,8 +1733,8 @@ GUI_APP_MAIN
 	}
 	Snap(w, AppendFileName(snap, "screen1_options.png"));
 	w.Show(2);
-	w.runTitle.SetText("Run 1 of 1: gcc15 (snapshot: sample lines, no child process)");
-	w.Feed("$ ./jac313_test_cli --smoke --gcc15 ...\n"
+	w.runTitle.SetText("Run 1 of 1: gcc (snapshot: sample lines, no child process)");
+	w.Feed("$ ./jac313_test_cli --smoke --gcc ...\n"
 	       "  [115/172] 005_XS | sqlite | off ... PASS (402 ms)\n"
 	       "  [116/172] 006_TS | sqlite | off ... PASS (812 ms)\n"
 	       "  [117/172] 006_TS | jtext | off ... FAIL (90 ms)\n");

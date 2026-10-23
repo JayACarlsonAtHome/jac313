@@ -156,7 +156,7 @@ remember.
 
 ```bash
 jac313_test_cli cleancheck            # auto-detect compiler
-jac313_test_cli cleancheck --gcc15    # pick a toolchain
+jac313_test_cli cleancheck --gcc    # pick a toolchain
 ```
 
 `cleancheck` self-builds a dedicated **annotated** Debug tree

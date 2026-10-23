@@ -179,7 +179,7 @@ only with a root whose engine is safe to run.
 Working dir `<root>/<version>`, executable `<root>/<version>/jac313_test_cli`:
 
 ```
-jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc15|--clang] [--release] [--strict] [--hardened] [--modules]
+jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc|--clang] [--release] [--strict] [--hardened] [--modules]
                 [--size full] --persist <list> [--max-runs N] [--max-records N] [--max-persist-rows N]
                 --readback <sample|all>
                 --pg-cleanup <keep-last|delete> --summary-json <path>

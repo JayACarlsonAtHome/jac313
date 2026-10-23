@@ -44,7 +44,7 @@ inline std::string harness_version(const GlobalOptions& global) {
 
 struct ConfigureOptions {
     std::optional<std::string> compiler;  // set by --compiler; empty = auto-detect
-    bool prefer_gcc15{false};
+    bool prefer_gcc{false};
     bool prefer_clang{false};
     bool modules{false};
     bool store_tests{true};

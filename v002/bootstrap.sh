@@ -181,6 +181,7 @@ install_upp() {  # U++ into $UPP_DIR via upp_basefix; keeps an existing install 
     echo "Fetching upp_basefix -> $UPP_BASEFIX_SRC…"
     git clone -q "$UPP_BASEFIX_REPO" "$UPP_BASEFIX_SRC" || { echo "git clone failed (network?)."; return 1; }
   fi
+  export UPP_BASEFIX_FROM=jac313   # upp_basefix then skips its "Next: ..." hint for a person
   # its bootstrap: the pinned U++ from GitHub, umk built from it, the patches; it lists the
   # system packages U++ needs and installs them only when asked (sudo). A yes to the GUI
   # libraries above already covers these, so the user is asked once.
@@ -209,14 +210,14 @@ bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner
       echo "FreeType, Fontconfig and X11 development packages by hand, then: ./bootstrap.sh"
       return 1
     fi
-    echo "U++ needs these build libraries (and a few more that upp_basefix finds once U++ is fetched):"
-    echo "  $cmd"
+    echo "Installing the libraries U++ builds with (GTK3, X11, fonts)…"
     if [ "$ASSUME_YES" = 1 ]; then
       ans=y
     else
-      if [ ! -t 0 ]; then echo "(non-interactive — not installing; run that, then ./bootstrap.sh)"; return 1; fi
-      printf "Install them now? [y/N] "
+      if [ ! -t 0 ]; then echo "(non-interactive — not installing; run ./bootstrap.sh in a terminal)"; return 1; fi
+      printf "Install them now? [Y/n] "
       read -r ans || ans=""
+      case "$ans" in [nN]*) ;; *) ans=y ;; esac
     fi
     case "$ans" in
       [yY]|[yY][eE][sS]) sh -c "$cmd" || { echo "Installing the GUI libraries failed."; return 1; }

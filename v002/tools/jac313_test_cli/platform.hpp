@@ -19,7 +19,7 @@ struct PlatformInfo {
 struct ReleaseCompilerSlot {
     std::string label;
     std::string compiler_id;
-    bool prefer_gcc15{false};
+    bool prefer_gcc{false};
     bool prefer_clang{false};
 };
 

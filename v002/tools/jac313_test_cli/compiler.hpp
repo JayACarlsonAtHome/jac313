@@ -44,7 +44,7 @@ struct CompilerSelection {
 struct CompilerResolveRequest {
     std::filesystem::path source_dir;     // where to load the registry from
     std::optional<std::string> explicit_compiler;  // --compiler value
-    bool prefer_gcc15{false};
+    bool prefer_gcc{false};
     bool prefer_clang{false};
 };
 

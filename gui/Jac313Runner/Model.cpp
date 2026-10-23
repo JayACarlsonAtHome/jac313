@@ -30,7 +30,7 @@ bool LoadSettings(RunOptions& o)
 	if(!FileExists(SettingsPath()) || !LoadFromJsonFile(s, SettingsPath()))
 		return false;
 	// a hand-edited file with an unknown word falls back to the default choice
-	s.compiler  = OneOf(s.compiler, "gcc15", "clang", "both");
+	s.compiler  = OneOf(s.compiler, "gcc", "clang", "both");
 	s.buildType = OneOf(s.buildType, "Debug", "Release");
 	s.frontEnd  = OneOf(s.frontEnd, "textual", "modules");
 	s.size      = OneOf(s.size, "smoke", "full");
@@ -403,9 +403,9 @@ Array<RunPlan> BuildPlans(const RunOptions& opts, const String& root)
 	Array<RunPlan> plans;
 	Vector<String> compilers;
 	if(o.compiler == "both")
-		compilers << "gcc15" << "clang";
+		compilers << "gcc" << "clang";
 	else
-		compilers << (o.compiler == "clang" ? "clang" : "gcc15");
+		compilers << (o.compiler == "clang" ? "clang" : "gcc");
 	String cwd = AppendFileName(root, o.version);
 	for(const String& c : compilers) {
 		RunPlan& p = plans.Add();
@@ -421,7 +421,7 @@ Array<RunPlan> BuildPlans(const RunOptions& opts, const String& root)
 		if(o.bench)      a << "--bench";
 		if(o.verifyLite) a << "--verify-lite";
 		if(o.verify)     a << "--verify";
-		a << (c == "clang" ? "--clang" : "--gcc15");
+		a << (c == "clang" ? "--clang" : "--gcc");
 		if(o.buildType == "Release") a << "--release";
 		String cf = EffectiveConnFile(o, root);
 		if(FileExists(cf))
