@@ -70,6 +70,9 @@ String          EnclosingGitProject(const String& path);        // "" when not i
 
 // libpq conninfo for the Remote PG fields ("" when no host is set).
 String          RemoteConninfo(const RunOptions& o);
+// libpq conninfo for pg-local: the file's pg-local row, else localhost / jac313 / jac313
+// (what jac313_test_cli uses when nothing else names the local server).
+String          LocalConninfo(const Vector<ConnRow>& rows);
 // The password file for pg-remote / pg-local beside the connections file
 // (<dir>/jac313_pg_remote.pgpass / jac313_pg_local.pgpass; "" when it does not exist), and a
 // conninfo with passfile=<it> added (unchanged when the file is "" or passfile= is already set).

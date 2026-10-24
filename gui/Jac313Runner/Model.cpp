@@ -201,6 +201,25 @@ String RemoteConninfo(const RunOptions& o)
 	return c << " connect_timeout=10";
 }
 
+String LocalConninfo(const Vector<ConnRow>& rows)
+{
+	RunOptions o;   // only its pg* fields are used, through RemoteConninfo's quoting
+	o.pgHost = "localhost";
+	o.pgDb = "jac313";
+	o.pgUser = "jac313";
+	for(const ConnRow& r : rows)
+		if(r.backend == "pg-local") {
+			if(TrimBoth(r.host).GetCount())
+				o.pgHost = r.host;
+			o.pgPort = r.port;
+			if(TrimBoth(r.dbname).GetCount())
+				o.pgDb = r.dbname;
+			if(TrimBoth(r.user).GetCount())
+				o.pgUser = r.user;
+		}
+	return RemoteConninfo(o);
+}
+
 String FindDatasetTool(const String& root, const String& version)
 {
 	// any build dir (build-gcc15, build-gcc16, build-clang, -strict, -hardened, bench, ...):

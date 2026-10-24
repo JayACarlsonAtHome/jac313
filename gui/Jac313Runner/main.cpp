@@ -300,9 +300,9 @@ struct Runner : TopWindow {
 	ParentCtrl s1, s2, s3;
 
 	// ---- Screen 1
-	Label     lRemote, lPgHost, lPgPort, lPgDb, lPgUser, pgTestRes;
+	Label     lRemote, lPgHost, lPgPort, lPgDb, lPgUser, pgTestRes, pgLTestRes;
 	EditString pgHost, pgPort, pgDb, pgUser;
-	Button    pgTest;
+	Button    pgTest, pgLTest;
 	Label     lConn, connStatus;
 	EditString connFile;
 	Button    connBrowse, connLoad, connSave;
@@ -368,7 +368,7 @@ struct Runner : TopWindow {
 	void   Show(int screen);
 	void   ToOptions();
 	void   FromOptions();
-	void   TestResult(const String& text, bool ok);
+	void   TestResult(Label& res, const String& text, bool ok);
 	void   UpdateCommand();
 	void   CopyCommand();
 	void   Browse();
@@ -395,7 +395,9 @@ struct Runner : TopWindow {
 	void   ShowAi();
 	virtual void Close();
 	void   LimitPersistField();
-	void   TestRemote();
+	void   TestRemote() { TestPg(true); }
+	void   TestLocal()  { TestPg(false); }
+	void   TestPg(bool remote);
 	void   LoadConn(bool quiet);
 	void   SaveConn();
 	void   BrowseConn();
@@ -511,6 +513,13 @@ Runner::Runner()
 	Place(s1, pSql, 110, y + 18, 90, 22);
 	Place(s1, pPgL, 210, y + 18, 100, 22);
 	Place(s1, pPgR, 320, y + 18, 160, 22);
+	pgLTest.SetLabel("Test PG local");
+	pgLTest.Tip("Connect once to this machine's PostgreSQL (the connections file's pg-local row, else "
+	            "localhost / jac313 / jac313) and show the connect time, the round trip (ping) and the "
+	            "server version. The password comes from jac313_pg_local.pgpass beside the connections file.");
+	pgLTest << THISBACK(TestLocal);
+	Place(s1, pgLTest, 490, y + 18, 110, 22);
+	s1.Add(pgLTestRes.HSizePosZ(608, 16).TopPosZ(y + 18, 22));
 	Place(s1, lFiles, 20, y + 44, 90, 22);
 	Place(s1, pJt, 110, y + 44, 90, 22);
 	Place(s1, pBin, 210, y + 44, 100, 22);
@@ -1386,28 +1395,41 @@ void Runner::ShowAi()
 	validation.SetText(aiPath);
 }
 
-void Runner::TestRemote()
+// Test for PG remote (the Remote PG fields) or PG local (the connections file's pg-local row,
+// re-read now so a hand edit counts; else the default local server).
+void Runner::TestPg(bool remote)
 {
 	ToOptions();
-	String c = RemoteConninfo(opt);
+	Label&  res = remote ? pgTestRes : pgLTestRes;
+	Button& btn = remote ? pgTest : pgLTest;
+	String c;
+	if(remote)
+		c = RemoteConninfo(opt);
+	else {
+		Vector<ConnRow> rows;
+		String err;
+		LoadConnections(EffectiveConnFile(opt, Root()), rows, err);   // no file -> the default
+		c = LocalConninfo(rows);
+	}
 	if(c.IsEmpty()) {
-		pgTestRes.SetInk(Color(170, 0, 0));
-		pgTestRes.SetText("Enter the Host first.");
+		res.SetInk(Color(170, 0, 0));
+		res.SetText("Enter the Host first.");
 		return;
 	}
 	String exe = FindDatasetTool(Root(), opt.version);
 	if(exe.IsEmpty()) {
-		TestResult("Press Start once first: its build makes jac313_store_dataset, which does this test.",
+		TestResult(res, "Press Start once first: its build makes jac313_store_dataset, which does this test.",
 		           false);
 		return;
 	}
-	pgTestRes.SetInk(SColorText());
-	pgTestRes.SetText("Connecting...");
-	pgTest.Disable();
+	res.SetInk(SColorText());
+	res.SetText("Connecting...");
+	btn.Disable();
 	Sync();
 	LocalProcess p;
 	Vector<String> args;
-	args << "--ping" << "pg-remote" << "--conninfo" << WithPassFile(c, PassFileFor(opt, Root(), true));
+	args << "--ping" << (remote ? "pg-remote" : "pg-local")
+	     << "--conninfo" << WithPassFile(c, PassFileFor(opt, Root(), remote));
 	String out;
 	if(p.Start(exe, args)) {
 		dword t = msecs();
@@ -1427,7 +1449,7 @@ void Runner::TestRemote()
 	}
 	else
 		out = "PING failed: cannot start " + exe;
-	pgTest.Enable();
+	btn.Enable();
 	out = TrimBoth(out);
 	if(out.StartsWith("PING ok")) {
 		// "PING ok connect_ms=19.3 ping_ms=2.182 server=17.10 (...)"
@@ -1439,22 +1461,23 @@ void Runner::TestRemote()
 			return e < 0 ? out.Mid(a) : out.Mid(a, e - a);
 		};
 		int sv = out.Find("server=");
-		TestResult("OK: connect " + field("connect_ms=") + " ms, ping " + field("ping_ms=")
+		TestResult(res, String(remote ? "PG remote" : "PG local") + " OK: connect " + field("connect_ms=") + " ms, ping " + field("ping_ms=")
 		           + " ms, PostgreSQL " + (sv >= 0 ? field("server=") : String("?")), true);   // "17.10" (no distro text)
 	}
 	else
-		TestResult(out.StartsWith("PING failed: ") ? out.Mid(13) : out, false);
+		TestResult(res, String(remote ? "PG remote: " : "PG local: ")
+		                + (out.StartsWith("PING failed: ") ? out.Mid(13) : out), false);
 }
 
 // The Test result: a short word beside the button, the whole message on the full-width line
 // below it (a PostgreSQL error is longer than the space beside the button), and as a tooltip.
-void Runner::TestResult(const String& text, bool ok)
+void Runner::TestResult(Label& res, const String& text, bool ok)
 {
 	String t = TrimBoth(text);
 	t.Replace("\n", " ");
-	pgTestRes.SetInk(ok ? Color(0, 120, 0) : Color(170, 0, 0));
-	pgTestRes.SetText(ok ? "OK (details below)" : "failed (see below)");
-	pgTestRes.Tip(t);
+	res.SetInk(ok ? Color(0, 120, 0) : Color(170, 0, 0));
+	res.SetText(ok ? "OK (details below)" : "failed (see below)");
+	res.Tip(t);
 	ConnStatus(t, !ok);
 	connStatus.Tip(t);
 }
@@ -1621,7 +1644,7 @@ static void Snap(Runner& w, const String& file)
 GUI_APP_MAIN
 {
 	String summary, jtext, snap;
-	bool autostart = false, copyAiStep = false, testRemote = false, allowRoot = false;
+	bool autostart = false, copyAiStep = false, testRemote = false, testLocal = false, allowRoot = false;
 	String connSaveHost;
 	int autostop = -1, selectRow = 1;
 	const Vector<String>& a = CommandLine();
@@ -1646,6 +1669,8 @@ GUI_APP_MAIN
 			copyAiStep = true;
 		else if(a[i] == "--test-remote")   // with --snap: also press Remote PG's Test button
 			testRemote = true;
+		else if(a[i] == "--test-local")    // with --snap: also press PG local's Test button
+			testLocal = true;
 		else if(a[i] == "--conn-save" && i + 1 < a.GetCount())   // with --snap: type HOST, press Save
 			connSaveHost = a[++i];
 		else if(a[i] == "--allow-root")   // run even as root (jac313_test_cli refuses root too)
@@ -1737,6 +1762,10 @@ GUI_APP_MAIN
 	if(testRemote) {
 		w.TestRemote();
 		Cout() << "test_remote: " << w.pgTestRes.GetText() << "\n";
+	}
+	if(testLocal) {
+		w.TestLocal();
+		Cout() << "test_local: " << w.pgLTestRes.GetText() << " | " << w.connStatus.GetText() << "\n";
 	}
 	Snap(w, AppendFileName(snap, "screen1_options.png"));
 	w.Show(2);
