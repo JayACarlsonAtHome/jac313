@@ -802,9 +802,11 @@ void write_bench_detail(jac313::Qlite::v001::Sqlite& db, const fs::path& dir, st
           det << "_" << host << " · " << name << " " << ver << " · " << bt << " · " << ts << "_\n\n"; } }
     det << "| config | persist | events | median ops/sec | band (low–high) | bytes |\n|---|---|--:|--:|---|--:|\n";
     auto st = db.prepare(
-        "SELECT tl.name, IFNULL(p.persist,''), IFNULL(p.threads*p.events_per_thread,0), "
+        // LEFT JOIN + the name rebuilt from the parameters: a row recorded without its testList
+        // name (bench labels with " [capped]" before the fix) still shows.
+        "SELECT IFNULL(tl.name, CASE WHEN IFNULL(p.persist,'') IN ('','none') THEN IFNULL(p.flag_count,0) || ' flags, non-durable' ELSE 'durable ' || p.persist END), IFNULL(p.persist,''), IFNULL(p.threads*p.events_per_thread,0), "
         "IFNULL(tr.median_ops,0), IFNULL(tr.low_ops,0), IFNULL(tr.high_ops,0), IFNULL(tr.bytes,0) "
-        "FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id JOIN parameter p ON p.id=tr.parameter_id "
+        "FROM testRun tr LEFT JOIN testList tl ON tl.id=tr.test_list_id JOIN parameter p ON p.id=tr.parameter_id "
         "JOIN testType tt ON tt.id=tr.test_type_id WHERE tr.run_id=? AND tt.name='bench' ORDER BY IFNULL(tr.median_ops,0) DESC");
     st.bind(run_id);
     while (st.step()) {
@@ -862,9 +864,9 @@ void write_bench_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
 
         std::vector<Row> rows;
         { auto st = db.prepare(
-            "SELECT tr.run_id, tl.name, IFNULL(p.persist,''), IFNULL(p.threads*p.events_per_thread,0), "
+            "SELECT tr.run_id, IFNULL(tl.name, CASE WHEN IFNULL(p.persist,'') IN ('','none') THEN IFNULL(p.flag_count,0) || ' flags, non-durable' ELSE 'durable ' || p.persist END), IFNULL(p.persist,''), IFNULL(p.threads*p.events_per_thread,0), "
             "IFNULL(tr.median_ops,0), IFNULL(tr.low_ops,0), IFNULL(tr.high_ops,0), IFNULL(tr.bytes,0) "
-            "FROM testRun tr JOIN testList tl ON tl.id=tr.test_list_id JOIN parameter p ON p.id=tr.parameter_id "
+            "FROM testRun tr LEFT JOIN testList tl ON tl.id=tr.test_list_id JOIN parameter p ON p.id=tr.parameter_id "
             "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' AND tr.run_id IN (" + inlist + ") "
             "ORDER BY IFNULL(tr.median_ops,0) DESC");   // SQL sorts: each config first appears at its best median
           while (st.step()) {

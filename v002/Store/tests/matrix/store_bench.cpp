@@ -578,8 +578,12 @@ void record_to_results_db(const Params& p, const BenchSummary& s) {
                                     R::package_version_get(db, group_id, jver, "Store", std::string(jac313::Store::v002::version())),
                                     R::package_version_get(db, group_id, jver, "Qlite", std::string(jac313::Qlite::v002::version())),
                                     R::package_version_get(db, group_id, jver, "jText"));
+        // The config name without the run's suffixes ("durable sql @10M [capped] (smoke)" -> "durable sql");
+        // the scale, runs and events are in the parameter row. An unknown name is added, never left 0.
         std::string base = p.label;
-        if (const auto pos = base.find(" @10M"); pos != std::string::npos) base.erase(pos, 5);
+        for (const char* suffix : {" (smoke)", " [capped]", " @10M"})
+            if (const auto pos = base.find(suffix); pos != std::string::npos) base.erase(pos, std::string(suffix).size());
+        db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", base);
         const std::int64_t test_list_id = results_lookup_id(db, "SELECT id FROM testList WHERE name=?", base);
         const std::int64_t test_type_id = results_lookup_id(db, "SELECT id FROM testType WHERE name=?", std::string("bench"));
         const std::int64_t flags = set_flag_count(p.flags);
