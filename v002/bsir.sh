@@ -23,7 +23,7 @@
 #   6. A PostgreSQL 18 server for the PG local gate (role + database jac313).
 #   7. The GUI (skipped with --no-gui): the U++ GUI build libraries (recipe upp_gui), U++ from
 #      upp_basefix into $HOME/upp_basefix, Jac313Runner via `jac313_test_cli gui-build`, and
-#      DBeaver; then the Runner opens.
+#      DBeaver and Google Chrome (Open Reports in Chrome); then the Runner opens.
 #
 # Idempotent: re-run it any time; what is already there is left alone.
 set -eu
@@ -41,9 +41,10 @@ for arg in "$@"; do
     -h|--help)
       echo "usage: ./bsir.sh [--yes] [--no-gui]"
       echo "Installs what is missing, builds the tests and the Jac313Runner window (U++ into"
-      echo "\$HOME/upp_basefix), adds DBeaver (a database browser), then opens the Runner."
+      echo "\$HOME/upp_basefix), adds DBeaver (a database browser) and Google Chrome (the reports),"
+      echo "then opens the Runner."
       echo "  --yes      install everything that is missing without asking"
-      echo "  --no-gui   no window: skip U++, the Runner and DBeaver (e.g. a server without a screen)"
+      echo "  --no-gui   no window: skip U++, the Runner, DBeaver and Chrome (e.g. a server without a screen)"
       echo "Without --yes it asks once \"Install everything?\" and then asks for the sudo password"
       echo "once; that one answer and password cover the whole run."
       exit 0 ;;
@@ -234,6 +235,7 @@ bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner
     || { echo "Retrying with a clean rebuild (stale U++ cache)…"; ( cd "$ROOT" && UPP_DIR="$UPP_DIR" $ACT "$CLI" gui-build --method "$UPP_METHOD" --clean ); } \
     || { echo "gui-build failed."; return 1; }
   install_dbeaver || true   # optional; the GUI is ready either way
+  install_chrome || return 1   # required: the Runner's Open Reports in Chrome
 }
 
 dbeaver_ok() { sh -c "$(recipe_cmd dbeaver check)"; }
@@ -254,6 +256,26 @@ install_dbeaver() {  # DBeaver for browsing results.db and the database tables (
   esac
   sh -c "$cmd" || { echo "DBeaver install failed (network?). Later: $cmd"; return 1; }
   echo "DBeaver installed (in the app menu)."
+}
+
+chrome_ok() { sh -c "$(recipe_cmd chrome check)"; }
+
+install_chrome() {  # Google Chrome for Jac313Runner's "Open Reports in Chrome" (required by the GUI)
+  chrome_ok && { echo "Google Chrome: installed."; return 0; }
+  cmd=$(recipe_cmd chrome "$family")
+  [ -n "$cmd" ] || { echo "No chrome recipe for '$family' in Setup/recipes.conf."; return 1; }
+  ans=y
+  if [ "$ASSUME_YES" != 1 ]; then
+    [ -t 0 ] || { echo "Google Chrome is required for the GUI and is missing (non-interactive). Run: $cmd"; return 1; }
+    echo
+    printf "Install Google Chrome (required: the Runner opens the test reports in it; ~120 MB download)? [Y/n] "
+    read -r ans || ans=""
+  fi
+  case "$ans" in
+    [nN]*) echo "Google Chrome is required for the GUI (Open Reports in Chrome); install it and re-run ./bsir.sh."; return 1 ;;
+  esac
+  sh -c "$cmd" || { echo "Google Chrome install failed (network?). Later: $cmd"; return 1; }
+  echo "Google Chrome installed."
 }
 
 # --- PG local: a PostgreSQL 18 server on THIS machine for the "PG local" gate ---
@@ -354,6 +376,7 @@ if [ "$WANT_GUI" = 1 ]; then
   upp_gui_libs_ok || need_install=1
   { [ -x "$UPP_DIR/umk" ] && [ -d "$UPP_DIR/uppsrc" ]; } || need_install=1
   dbeaver_ok || need_install=1
+  chrome_ok || need_install=1
 fi
 if [ "$need_install" = 1 ] && [ "$ASSUME_YES" = 0 ] && [ -t 0 ]; then
   echo
@@ -363,6 +386,7 @@ if [ "$need_install" = 1 ] && [ "$ASSUME_YES" = 0 ] && [ -t 0 ]; then
   if [ "$WANT_GUI" = 1 ]; then
     echo "  - the U++ GUI libraries (sudo), U++ itself (no sudo) and the Jac313Runner window"
     echo "  - DBeaver, a database browser (~130 MB download, sudo)"
+    chrome_ok || echo "  - Google Chrome, for Open Reports in Chrome (~120 MB download, sudo; Google's signed repository)"
   fi
   printf "Install everything? [Y/n] "
   read -r ans || ans=n
