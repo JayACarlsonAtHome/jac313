@@ -422,6 +422,22 @@ fi
 echo "Bootstrap compiler: ${ACT:+[$ACT] }$CXX"
 echo "Ninja: $(ninja --version)   CMake: $(cmake --version | head -n1)"
 
+# --- 3b. drop CMake build dirs made for another source tree ---
+# A copied, renamed or moved checkout carries build-*/ whose CMakeCache.txt still names the old
+# source dir, and CMake refuses to reuse them. Remove only those (gitignored, rebuilt on demand);
+# caches made for THIS tree are kept so a re-run stays incremental.
+ROOT_REAL="$(cd "$ROOT" && pwd -P)"
+for cache in "$ROOT"/build-*/CMakeCache.txt; do
+  [ -f "$cache" ] || continue
+  src="$(sed -n 's/^CMAKE_HOME_DIRECTORY:INTERNAL=//p' "$cache")"
+  src_real="$( (cd "$src" 2>/dev/null && pwd -P) || printf '%s' "$src")"
+  if [ "$src_real" != "$ROOT_REAL" ]; then
+    stale="$(dirname "$cache")"
+    echo "Removing stale build dir ${stale#"$ROOT"/} (made for $src)"
+    rm -rf -- "$stale"
+  fi
+done
+
 # --- 4. build jac313_test_cli once, then hand off to it ---
 BUILD="$ROOT/build-bootstrap"
 echo
