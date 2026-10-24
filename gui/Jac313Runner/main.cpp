@@ -327,7 +327,7 @@ struct Runner : TopWindow {
 	Label     runTitle, counts, elapsed;
 	ProgressIndicator prog;
 	LineEdit  out;
-	Button    stop, runBack, runResults;
+	Button    stop, runBack, runResults, runReport;
 
 	// ---- Screen 3
 	Label     header, lTest, lBackend, vTitle, validation;
@@ -339,8 +339,9 @@ struct Runner : TopWindow {
 	Switch    viewMode;
 	ArrayCtrl table;
 	LineEdit  raw;
-	Button    openFile, showLog, copyAi, showAi, resBack, quit;
+	Button    openFile, showLog, copyAi, showAi, report, resBack, quit;
 	String    aiPath;     // the *_ai.md that Copy for AI wrote for the results on screen
+	Vector<String> reportPages;   // the report's .md pages while the viewer shows them (sectionList = pages)
 
 	// ---- run state
 	Array<RunPlan> plans;
@@ -393,6 +394,9 @@ struct Runner : TopWindow {
 	void   ShowLog();
 	void   CopyForAi();
 	void   ShowAi();
+	String ReportDir();
+	void   ShowReport();
+	void   ShowReportPage();
 	virtual void Close();
 	void   LimitPersistField();
 	void   TestRemote() { TestPg(true); }
@@ -658,9 +662,13 @@ Runner::Runner()
 	s2.Add(stop.LeftPosZ(8, 120).BottomPosZ(8, 26));
 	s2.Add(runResults.RightPosZ(136, 120).BottomPosZ(8, 26));
 	s2.Add(runBack.RightPosZ(8, 120).BottomPosZ(8, 26));
+	runReport.SetLabel("Reports");
+	runReport.Tip("Show the report pages this run rendered from results.db (test-summary/*.md)");
+	s2.Add(runReport.RightPosZ(264, 120).BottomPosZ(8, 26));
 	stop << THISBACK(Stop);
 	runBack << [this] { Show(1); };
 	runResults << [this] { ShowResults(); };
+	runReport << THISBACK(ShowReport);
 
 	// ================= Screen 3
 	s3.Add(header.HSizePosZ(8, 8).TopPosZ(6, 22));
@@ -726,6 +734,11 @@ Runner::Runner()
 	s3.Add(showAi.LeftPosZ(372, 120).BottomPosZ(8, 26));
 	showAi << THISBACK(ShowAi);
 	showAi.Disable();
+	report.SetLabel("Reports");
+	report.Tip("Show the report pages rendered from results.db at the end of every run "
+	           "(test-summary/README.md, then each gate's pages); pick a page in the list above");
+	s3.Add(report.LeftPosZ(500, 100).BottomPosZ(8, 26));
+	report << THISBACK(ShowReport);
 	s3.Add(resBack.RightPosZ(136, 120).BottomPosZ(8, 26));
 	s3.Add(quit.RightPosZ(8, 120).BottomPosZ(8, 26));
 	openFile << THISBACK(OpenFile);
@@ -1106,6 +1119,7 @@ void Runner::AllFinished()
 	stop.Disable();
 	runBack.Enable();
 	runResults.Enable(sums.GetCount());
+	runReport.Enable(FileExists(AppendFileName(ReportDir(), "README.md")));
 	runTitle.SetText(stopping ? "Stopped" : "Finished");
 	elapsed.SetText(Format("elapsed %s", Elapsed(msecs() - t0)));
 	if(!stopping && sums.GetCount())
@@ -1275,6 +1289,7 @@ void Runner::RowSel()
 
 void Runner::ShowDoc(const String& text, const String& baseDir)
 {
+	reportPages.Clear();   // the section list holds jText sections again
 	docText = text;
 	doc.Parse(text, baseDir);
 	raw.Set(text);
@@ -1290,6 +1305,10 @@ void Runner::ShowDoc(const String& text, const String& baseDir)
 
 void Runner::ShowSection()
 {
+	if(reportPages.GetCount()) {
+		ShowReportPage();
+		return;
+	}
 	table.Reset();
 	table.HeaderObject().Absolute();
 	int si = IsNull(~sectionList) ? -1 : (int)~sectionList;
@@ -1413,6 +1432,74 @@ void Runner::ShowAi()
 	ViewMode();
 	validation.SetInk(SColorText());
 	validation.SetText(aiPath);
+}
+
+String Runner::ReportDir()
+{
+	ToOptions();
+	return AppendFileName(AppendFileName(Root(), opt.version), "test-summary");
+}
+
+// Reports: the pages jac313_test_cli --report renders at the end of every run. The list above
+// the viewer holds the pages: Group Summary (test-summary/README.md) first, then per gate its
+// README and its runs, newest first.
+void Runner::ShowReport()
+{
+	String dir = ReportDir();
+	if(!FileExists(AppendFileName(dir, "README.md"))) {
+		Exclamation(DeQtf("No report pages yet in " + dir + ": they are rendered at the end of a run."));
+		return;
+	}
+	if(dRunning) {
+		KillGroup(dproc, SIGKILL);
+		dproc.Kill();
+		dRunning = false;
+	}
+	ShowDoc(Null, Null);
+	Vector<String> labels;
+	reportPages.Add(AppendFileName(dir, "README.md"));
+	labels.Add("Group Summary");
+	Vector<String> gates;
+	for(FindFile ff(AppendFileName(dir, "*")); ff; ff.Next())
+		if(ff.IsFolder() && FileExists(AppendFileName(ff.GetPath(), "README.md")))
+			gates.Add(ff.GetName());
+	Sort(gates);
+	for(const String& g : gates) {
+		String gd = AppendFileName(dir, g);
+		reportPages.Add(AppendFileName(gd, "README.md"));
+		labels.Add(g + " summary");
+		Vector<String> runs;
+		for(FindFile ff(AppendFileName(gd, "Run_*.md")); ff; ff.Next())
+			if(ff.IsFile())
+				runs.Add(ff.GetName());
+		Sort(runs, std::greater<String>());   // Run_030 before Run_024
+		for(const String& r : runs) {
+			reportPages.Add(AppendFileName(gd, r));
+			labels.Add(g + " · " + GetFileTitle(r));
+		}
+	}
+	sectionList.ClearList();
+	for(int i = 0; i < labels.GetCount(); i++)
+		sectionList.Add(i, Format("Page %d of %d: %s", i + 1, labels.GetCount(), labels[i]));
+	sectionList <<= 0;
+	sectionList.Show();
+	viewMode <<= "raw";
+	ViewMode();
+	Show(3);
+	ShowReportPage();
+}
+
+void Runner::ShowReportPage()
+{
+	int i = IsNull(~sectionList) ? 0 : (int)~sectionList;
+	if(i < 0 || i >= reportPages.GetCount())
+		return;
+	const String& page = reportPages[i];
+	String dir = ReportDir();
+	vTitle.SetText("Reports: " + (i == 0 ? String("Group Summary") : page.Mid(dir.GetCount() + 1)));
+	raw.Set(LoadFile(page));
+	validation.SetInk(SColorText());
+	validation.SetText(page);
 }
 
 // Test for PG remote (the Remote PG fields) or PG local (the connections file's pg-local row,
@@ -1678,7 +1765,7 @@ static void Snap(Runner& w, const String& file)
 GUI_APP_MAIN
 {
 	String summary, jtext, snap;
-	bool autostart = false, copyAiStep = false, testRemote = false, testLocal = false, allowRoot = false;
+	bool autostart = false, copyAiStep = false, reportsStep = false, testRemote = false, testLocal = false, allowRoot = false;
 	String connSaveHost;
 	int autostop = -1, selectRow = 1;
 	const Vector<String>& a = CommandLine();
@@ -1701,6 +1788,8 @@ GUI_APP_MAIN
 			selectRow = ScanInt(a[++i]);
 		else if(a[i] == "--copy-ai")   // with --snap: also press Copy for AI, then Show AI md
 			copyAiStep = true;
+		else if(a[i] == "--reports")   // with --snap: also press Reports, then pick page 2
+			reportsStep = true;
 		else if(a[i] == "--test-remote")   // with --snap: also press Remote PG's Test button
 			testRemote = true;
 		else if(a[i] == "--test-local")    // with --snap: also press PG local's Test button
@@ -1831,6 +1920,19 @@ GUI_APP_MAIN
 		       << " viewer_matches_file=" << (w.raw.Get() == LoadFile(w.aiPath))
 		       << " | " << w.vTitle.GetText() << " | " << w.validation.GetText() << "\n";
 		Snap(w, AppendFileName(snap, "screen3_ai_rebuilt.png"));
+	}
+	if(reportsStep) {
+		w.ShowReport();
+		Cout() << "reports: pages=" << w.reportPages.GetCount() << " | " << w.vTitle.GetText()
+		       << " | viewer_matches_file=" << (w.reportPages.GetCount() && w.raw.Get() == LoadFile(w.reportPages[0])) << "\n";
+		Snap(w, AppendFileName(snap, "screen3_reports.png"));
+		if(w.reportPages.GetCount() > 1) {
+			w.sectionList <<= 1;
+			w.ShowSection();
+			Cout() << "reports page 2: " << w.vTitle.GetText()
+			       << " | viewer_matches_file=" << (w.raw.Get() == LoadFile(w.reportPages[1])) << "\n";
+			Snap(w, AppendFileName(snap, "screen3_reports_page2.png"));
+		}
 	}
 	w.Close();
 }
