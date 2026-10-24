@@ -26,6 +26,8 @@
 #include <signal.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 #include "Model.h"
 
 using namespace Upp;
@@ -285,6 +287,46 @@ static bool StartChild(LocalProcess& p, const String& exe, const Vector<String>&
 	return split ? p.Start2(exe, args, NULL, cwd) : p.Start(exe, args, NULL, cwd);
 }
 
+// Start a program that outlives this window (a browser): double fork, own session, output dropped.
+static bool LaunchDetached(const Vector<String>& argv)
+{
+	if(argv.IsEmpty())
+		return false;
+	pid_t pid = fork();
+	if(pid < 0)
+		return false;
+	if(pid == 0) {
+		if(fork() != 0)
+			_exit(0);
+		setsid();
+		int nul = open("/dev/null", O_RDWR);
+		if(nul >= 0) {
+			dup2(nul, 0);
+			dup2(nul, 1);
+			dup2(nul, 2);
+		}
+		Vector<char *> a;
+		for(const String& s : argv)
+			a.Add(const_cast<char *>(~s));
+		a.Add(nullptr);
+		execvp(a[0], a.begin());
+		_exit(127);
+	}
+	int st = 0;
+	waitpid(pid, &st, 0);
+	return WIFEXITED(st) && WEXITSTATUS(st) == 0;
+}
+
+// The first browser found: Chrome, then Chromium, then the desktop default (xdg-open).
+static String FindBrowser()
+{
+	for(const char *b : { "google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "xdg-open" })
+		for(const String& d : Split(Nvl(GetEnv("PATH"), String("/usr/bin")), ':'))
+			if(FileExists(AppendFileName(d, b)))
+				return AppendFileName(d, b);
+	return Null;
+}
+
 // ======================================================================= window
 
 // An int spin box that says when the user leaves it (U++ edit fields have no such event).
@@ -327,7 +369,7 @@ struct Runner : TopWindow {
 	Label     runTitle, counts, elapsed;
 	ProgressIndicator prog;
 	LineEdit  out;
-	Button    stop, runBack, runResults, runReport;
+	Button    stop, runBack, runResults, runReport, runChrome;
 
 	// ---- Screen 3
 	Label     header, lTest, lBackend, vTitle, validation;
@@ -339,7 +381,7 @@ struct Runner : TopWindow {
 	Switch    viewMode;
 	ArrayCtrl table;
 	LineEdit  raw;
-	Button    openFile, showLog, copyAi, showAi, report, resBack, quit;
+	Button    openFile, showLog, copyAi, showAi, report, chrome, resBack, quit;
 	String    aiPath;     // the *_ai.md that Copy for AI wrote for the results on screen
 	Vector<String> reportPages;   // the report's .md pages while the viewer shows them (sectionList = pages)
 
@@ -397,6 +439,7 @@ struct Runner : TopWindow {
 	String ReportDir();
 	void   ShowReport();
 	void   ShowReportPage();
+	void   OpenReportsInBrowser();
 	virtual void Close();
 	void   LimitPersistField();
 	void   TestRemote() { TestPg(true); }
@@ -669,6 +712,10 @@ Runner::Runner()
 	runBack << [this] { Show(1); };
 	runResults << [this] { ShowResults(); };
 	runReport << THISBACK(ShowReport);
+	runChrome.SetLabel("Open Reports in Chrome");
+	runChrome.Tip("Open the Group Summary in Chrome as a web page; its links lead to every other report page");
+	s2.Add(runChrome.RightPosZ(392, 180).BottomPosZ(8, 26));
+	runChrome << THISBACK(OpenReportsInBrowser);
 
 	// ================= Screen 3
 	s3.Add(header.HSizePosZ(8, 8).TopPosZ(6, 22));
@@ -739,6 +786,11 @@ Runner::Runner()
 	           "(test-summary/README.md, then each gate's pages); pick a page in the list above");
 	s3.Add(report.LeftPosZ(500, 100).BottomPosZ(8, 26));
 	report << THISBACK(ShowReport);
+	chrome.SetLabel("Open Reports in Chrome");
+	chrome.Tip("Open the Group Summary in Chrome as a web page (made from the report pages into "
+	           "~/.cache/jac313/reports); its links lead to every other report page");
+	s3.Add(chrome.LeftPosZ(608, 180).BottomPosZ(8, 26));
+	chrome << THISBACK(OpenReportsInBrowser);
 	s3.Add(resBack.RightPosZ(136, 120).BottomPosZ(8, 26));
 	s3.Add(quit.RightPosZ(8, 120).BottomPosZ(8, 26));
 	openFile << THISBACK(OpenFile);
@@ -1120,6 +1172,7 @@ void Runner::AllFinished()
 	runBack.Enable();
 	runResults.Enable(sums.GetCount());
 	runReport.Enable(FileExists(AppendFileName(ReportDir(), "README.md")));
+	runChrome.Enable(runReport.IsEnabled());
 	runTitle.SetText(stopping ? "Stopped" : "Finished");
 	elapsed.SetText(Format("elapsed %s", Elapsed(msecs() - t0)));
 	if(!stopping && sums.GetCount())
@@ -1500,6 +1553,36 @@ void Runner::ShowReportPage()
 	raw.Set(LoadFile(page));
 	validation.SetInk(SColorText());
 	validation.SetText(page);
+}
+
+// Open Reports in Chrome: the report pages turned into HTML (links .md -> .html) in
+// ~/.cache/jac313/reports/<root>_<version>/, then the Group Summary opened in the browser.
+void Runner::OpenReportsInBrowser()
+{
+	String src = ReportDir();
+	if(!FileExists(AppendFileName(src, "README.md"))) {
+		Exclamation(DeQtf("No report pages yet in " + src + ": they are rendered at the end of a run."));
+		return;
+	}
+	String key = Root() + "_" + opt.version;
+	for(int i = 0; i < key.GetCount(); i++)
+		if(!IsAlNum(key[i]) && key[i] != '-' && key[i] != '.')
+			key.Set(i, '_');
+	String dst = AppendFileName(GetHomeDirFile(".cache/jac313/reports"), TrimLeft("_", key));
+	String err;
+	int n = ExportReportHtml(src, dst, err);
+	if(n == 0) {
+		Exclamation(DeQtf("Could not make the report web pages: " + err));
+		return;
+	}
+	String page = AppendFileName(dst, "README.html");
+	String browser = FindBrowser();
+	bool ok = browser.GetCount() && LaunchDetached(Vector<String>{ browser, page });
+	validation.SetInk(ok ? SColorText() : Color(170, 0, 0));
+	validation.SetText(ok ? Format("Opened %s in %s (%d pages)", page, GetFileName(browser), n)
+	                      : "No browser found (google-chrome, chromium, xdg-open); the pages are in " + dst);
+	if(!ok)
+		Exclamation(DeQtf(validation.GetText()));   // also seen from the Running screen
 }
 
 // Test for PG remote (the Remote PG fields) or PG local (the connections file's pg-local row,
@@ -1933,6 +2016,10 @@ GUI_APP_MAIN
 			       << " | viewer_matches_file=" << (w.raw.Get() == LoadFile(w.reportPages[1])) << "\n";
 			Snap(w, AppendFileName(snap, "screen3_reports_page2.png"));
 		}
+		String err;
+		String hdir = AppendFileName(snap, "reports_html");
+		int n = ExportReportHtml(w.ReportDir(), hdir, err);
+		Cout() << "reports html: pages=" << n << " " << err << " | " << AppendFileName(hdir, "README.html") << "\n";
 	}
 	w.Close();
 }

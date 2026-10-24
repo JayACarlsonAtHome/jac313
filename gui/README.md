@@ -125,7 +125,7 @@ Needs a desktop session: Wayland (`WAYLAND_DISPLAY`) first, else X11 (`DISPLAY`)
    when two summaries are loaded. On the right is the jText viewer with **Table | Raw**,
    a section picker when the document has more than one section, and a validation line.
    The other buttons are **Open file...** (any `.jtext`), **Show log** (the row's `log`),
-   **Copy for AI**, **Show AI md**, **Reports**, **Back** and **Quit**.
+   **Copy for AI**, **Show AI md**, **Reports**, **Open Reports in Chrome**, **Back** and **Quit**.
 
 ### Reports
 Every run ends by rendering the report pages from `results.db` (`jac313_test_cli --report`).
@@ -134,6 +134,11 @@ in the viewer as Raw text; the list above the viewer picks the page: **Group Sum
 (`<root>/<version>/test-summary/README.md`: machines, safeness, latest runs), then for each
 gate (bench, ctest, smoke, verify, verify-lite, ...) its summary and its runs, newest first.
 `--snap DIR --summary FILE --reports` presses it and pictures pages 1 and 2.
+
+**Open Reports in Chrome** (beside Reports) turns the pages into web pages in
+`~/.cache/jac313/reports/<root>_<version>/` (rebuilt on every press; links to `.md` pages become
+`.html`) and opens the Group Summary (`README.html`) in Chrome; from there every link leads to the
+other pages. Without Chrome it tries Chromium, then the desktop's default browser (`xdg-open`).
 
 ### Copy for AI
 One Markdown document for pasting into any AI ("what am I looking at?", "why did this

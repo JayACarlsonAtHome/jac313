@@ -168,4 +168,13 @@ struct JDoc {
 
 const String&   JNull();          // the NULL marker: "\xE2\x88\x85" (empty set sign)
 
+// ---- Reports in a browser: the report pages are Markdown (headings, pipe tables, links,
+// **bold**, _italic_, `code`, ---, "- " lists and raw <a id> anchors). MarkdownToHtml makes one
+// HTML page of that subset; link() rewrites each link target (e.g. x.md -> x.html).
+String          MarkdownToHtml(const String& md, Function<String (const String&)> link);
+// Convert every *.md under srcDir into dstDir (same layout, .html; dstDir is emptied first).
+// Links to converted pages point at their .html; others at the original file. Returns the
+// number of pages (0 = none, err set on failure).
+int             ExportReportHtml(const String& srcDir, const String& dstDir, String& err);
+
 }

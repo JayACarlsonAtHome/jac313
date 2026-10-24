@@ -985,4 +985,231 @@ void JDoc::Parse(const String& text, const String& baseDir)
 				s.cols[i] = AsString(i + 1);
 }
 
+// ---------------------------------------------------------------- reports as HTML
+
+static String HtmlEsc(const String& s)
+{
+	String r;
+	for(char c : s)
+		switch(c) {
+		case '&': r << "&amp;"; break;
+		case '<': r << "&lt;"; break;
+		case '>': r << "&gt;"; break;
+		case '"': r << "&quot;"; break;
+		default:  r.Cat(c);
+		}
+	return r;
+}
+
+static bool MdWordChar(int c) { return IsAlNum(c) || (c & 0x80); }
+
+static String MdInline(const String& s, const Function<String (const String&)>& link)
+{
+	String r;
+	bool strong = false, em = false;
+	int n = s.GetCount();
+	for(int i = 0; i < n; i++) {
+		char c = s[i];
+		if(c == '\\' && i + 1 < n && strchr("\\`*_[]()#|-!.<>", s[i + 1])) {
+			r << HtmlEsc(String(s[++i], 1));
+			continue;
+		}
+		if(c == '`') {
+			int e = s.Find('`', i + 1);
+			if(e > i) {
+				r << "<code>" << HtmlEsc(s.Mid(i + 1, e - i - 1)) << "</code>";
+				i = e;
+				continue;
+			}
+		}
+		if(c == '[') {
+			int m = s.Find("](", i + 1);
+			int e = m > i ? s.Find(')', m + 2) : -1;
+			if(e > m) {
+				r << "<a href=\"" << HtmlEsc(link(s.Mid(m + 2, e - m - 2))) << "\">"
+				  << MdInline(s.Mid(i + 1, m - i - 1), link) << "</a>";
+				i = e;
+				continue;
+			}
+		}
+		if(c == '*' && i + 1 < n && s[i + 1] == '*') {
+			r << (strong ? "</strong>" : "<strong>");
+			strong = !strong;
+			i++;
+			continue;
+		}
+		if(c == '_') {   // _x_ only at word edges, so snake_case names stay as they are
+			bool before = i > 0 && MdWordChar((byte)s[i - 1]);
+			bool after = i + 1 < n && MdWordChar((byte)s[i + 1]);
+			if(!em && !before && i + 1 < n && s[i + 1] != ' ') { r << "<em>"; em = true; continue; }
+			if(em && !after && i > 0 && s[i - 1] != ' ') { r << "</em>"; em = false; continue; }
+		}
+		r << HtmlEsc(String(c, 1));
+	}
+	if(em) r << "</em>";
+	if(strong) r << "</strong>";
+	return r;
+}
+
+static Vector<String> MdCells(const String& line)
+{
+	String t = TrimBoth(line);
+	if(t.StartsWith("|")) t.Remove(0);
+	if(t.EndsWith("|") && !t.EndsWith("\\|")) t.Trim(t.GetCount() - 1);
+	Vector<String> cells;
+	String cur;
+	bool code = false;
+	for(int i = 0; i < t.GetCount(); i++) {
+		char c = t[i];
+		if(c == '\\' && i + 1 < t.GetCount() && t[i + 1] == '|') { cur << "\\|"; i++; continue; }
+		if(c == '`') code = !code;
+		if(c == '|' && !code) { cells.Add(TrimBoth(cur)); cur.Clear(); continue; }
+		cur.Cat(c);
+	}
+	cells.Add(TrimBoth(cur));
+	return cells;
+}
+
+String MarkdownToHtml(const String& md, Function<String (const String&)> link)
+{
+	Vector<String> lines = Split(md, '\n', false);
+	for(String& l : lines)
+		l.TrimEnd("\r");
+	String title, body;
+	String para;
+	auto flush = [&] {
+		if(para.GetCount())
+			body << "<p>" << para << "</p>\n";
+		para.Clear();
+	};
+	for(int i = 0; i < lines.GetCount(); i++) {
+		const String& l = lines[i];
+		String t = TrimBoth(l);
+		if(t.IsEmpty()) { flush(); continue; }
+		if(t.StartsWith("<")) { flush(); body << t << "\n"; continue; }   // raw HTML (anchors)
+		if(t == "---") { flush(); body << "<hr>\n"; continue; }
+		int h = 0;
+		while(h < t.GetCount() && h < 6 && t[h] == '#') h++;
+		if(h && h < t.GetCount() && t[h] == ' ') {
+			flush();
+			String text = t.Mid(h + 1);
+			if(title.IsEmpty()) title = text;
+			body << Format("<h%d>", h) << MdInline(text, link) << Format("</h%d>\n", h);
+			continue;
+		}
+		if(t.StartsWith("|")) {
+			flush();
+			Vector<String> head = MdCells(t);
+			Vector<String> align;
+			int j = i + 1;
+			if(j < lines.GetCount() && TrimBoth(lines[j]).StartsWith("|")) {
+				Vector<String> a = MdCells(lines[j]);
+				bool isAlign = true;
+				for(const String& x : a)
+					for(char c : x)
+						if(c != '-' && c != ':') isAlign = false;
+				if(isAlign) {
+					for(const String& x : a)
+						align.Add(x.EndsWith(":") ? (x.StartsWith(":") ? "center" : "right") : "left");
+					j++;
+				}
+			}
+			auto cell = [&](const char *tag, const String& v, int k) {
+				body << "<" << tag;
+				if(k < align.GetCount() && align[k] != "left")
+					body << " style=\"text-align:" << align[k] << "\"";
+				body << ">" << MdInline(v, link) << "</" << tag << ">";
+			};
+			body << "<table>\n<thead><tr>";
+			for(int k = 0; k < head.GetCount(); k++) cell(align.GetCount() ? "th" : "td", head[k], k);
+			body << "</tr></thead>\n<tbody>\n";
+			for(; j < lines.GetCount() && TrimBoth(lines[j]).StartsWith("|"); j++) {
+				Vector<String> row = MdCells(lines[j]);
+				body << "<tr>";
+				for(int k = 0; k < row.GetCount(); k++) cell("td", row[k], k);
+				body << "</tr>\n";
+			}
+			body << "</tbody></table>\n";
+			i = j - 1;
+			continue;
+		}
+		if(t.StartsWith("- ")) {
+			flush();
+			body << "<ul>\n";
+			int j = i;
+			for(; j < lines.GetCount() && TrimBoth(lines[j]).StartsWith("- "); j++)
+				body << "<li>" << MdInline(TrimBoth(lines[j]).Mid(2), link) << "</li>\n";
+			body << "</ul>\n";
+			i = j - 1;
+			continue;
+		}
+		if(para.GetCount()) para << "<br>\n";
+		para << MdInline(t, link);
+	}
+	flush();
+	return "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
+	       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+	       "<title>" + HtmlEsc(title.GetCount() ? title : String("Report")) + "</title>\n<style>\n"
+	       ":root{color-scheme:light dark;--bg:#fff;--fg:#1d1d1f;--mut:#6e6e73;--line:#d2d2d7;--head:#f2f2f5;--link:#0b63c5}\n"
+	       "@media (prefers-color-scheme:dark){:root{--bg:#1c1c1e;--fg:#f2f2f7;--mut:#a1a1a6;--line:#3a3a3c;--head:#2c2c2e;--link:#6cb4ff}}\n"
+	       "body{background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;"
+	       "max-width:1200px;margin:0 auto;padding:16px 24px}\n"
+	       "a{color:var(--link)}em{color:var(--mut)}h1,h2,h3{line-height:1.25}\n"
+	       "table{border-collapse:collapse;margin:12px 0;display:block;overflow-x:auto}\n"
+	       "th,td{border:1px solid var(--line);padding:4px 10px;white-space:nowrap}th{background:var(--head)}\n"
+	       "tbody tr:nth-child(even){background:var(--head)}\n"
+	       "code{font:13px ui-monospace,Menlo,Consolas,monospace}hr{border:0;border-top:1px solid var(--line)}\n"
+	       "</style>\n</head>\n<body>\n" + body + "</body>\n</html>\n";
+}
+
+static void MdFiles(const String& root, const String& rel, Vector<String>& out)
+{
+	String dir = rel.GetCount() ? AppendFileName(root, rel) : root;
+	for(FindFile ff(AppendFileName(dir, "*")); ff; ff.Next()) {
+		String r = rel.GetCount() ? rel + "/" + ff.GetName() : ff.GetName();
+		if(ff.IsFolder())
+			MdFiles(root, r, out);
+		else if(ff.IsFile() && ToLower(GetFileExt(r)) == ".md")
+			out.Add(r);
+	}
+}
+
+int ExportReportHtml(const String& srcDir, const String& dstDir, String& err)
+{
+	Vector<String> pages;
+	MdFiles(srcDir, Null, pages);
+	if(pages.IsEmpty()) {
+		err = "no .md pages in " + srcDir;
+		return 0;
+	}
+	Index<String> known;
+	for(const String& p : pages)
+		known.Add(p);
+	if(DirectoryExists(dstDir))
+		DeleteFolderDeep(dstDir);
+	for(const String& p : pages) {
+		String pdir = GetFileFolder(p);   // "" or "ctest"
+		auto link = [&](const String& url) -> String {
+			if(url.StartsWith("#") || url.Find("://") >= 0)
+				return url;
+			int h = url.Find('#');
+			String path = h >= 0 ? url.Left(h) : url, frag = h >= 0 ? url.Mid(h) : String();
+			if(ToLower(GetFileExt(path)) != ".md")
+				return url;
+			String abs = NormalizePath(AppendFileName(AppendFileName(srcDir, pdir), path));
+			String rel = abs.StartsWith(srcDir + "/") ? abs.Mid(srcDir.GetCount() + 1) : String();
+			if(rel.GetCount() && known.Find(rel) >= 0)
+				return ForceExt(path, ".html") + frag;   // a converted page: same relative link
+			return "file://" + abs + frag;              // outside the report: the original file
+		};
+		String html = MarkdownToHtml(LoadFile(AppendFileName(srcDir, p)), link);
+		String dst = ForceExt(AppendFileName(dstDir, p), ".html");
+		if(!RealizeDirectory(GetFileFolder(dst)) || !SaveFile(dst, html)) {
+			err = "cannot write " + dst;
+			return 0;
+		}
+	}
+	return pages.GetCount();
+}
+
 }
