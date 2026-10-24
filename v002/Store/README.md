@@ -31,7 +31,7 @@ jac313::Store::v002::ts_store<Config> store(threads, events_per_thread);
 store.save_event(0, 0, Config::ValueT("hello"), 0, Config::CategoryT("demo"));
 ```
 
-`jac313::Store::v002::version()` returns the package's `"major.minor"` version (`"v002.014"`
+`jac313::Store::v002::version()` returns the package's `"major.minor"` version (`"v002.015"`
 now): major is the `v002` API line, minor bumps on each small code change (a real break moves
 it to `"v003.001"`). The `version-check` pre-push gate enforces the bump
 (see the version's top-level README.md).
