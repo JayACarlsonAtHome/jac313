@@ -8,6 +8,11 @@
 namespace Upp {
 
 // ---- Options (Screen 1), saved to Jac313Runner.json beside the program ----
+// The Max fields' defaults (shown beside each field on screen 1)
+const int       kDefMaxRuns    = 20;
+const int       kDefMaxRecords = 10000;
+const int       kDefMaxRows    = 10000;
+
 struct RunOptions {
 	String root;                    // project root (jac315 dir); "" = found from the executable
 	String version;                 // "v001", "v002", ... ("" or not found = the newest bootstrapped version)
@@ -29,9 +34,9 @@ struct RunOptions {
 	bool   binary     = true;
 	bool   json       = true;
 	bool   html       = true;
-	int    maxRuns    = 0;          // --max-runs (0 = test default, not emitted)
-	int    maxRecords = 0;          // --max-records (0 = test default, not emitted)
-	int    maxRows    = 100000;     // --max-persist-rows (0 = no limit, not emitted)
+	int    maxRuns    = kDefMaxRuns;      // --max-runs (0 = test default, not emitted)
+	int    maxRecords = kDefMaxRecords;   // --max-records (0 = test default, not emitted)
+	int    maxRows    = kDefMaxRows;      // --max-persist-rows (0 = no limit, not emitted)
 	String readback   = "sample";   // sample | all
 	String pgCleanup  = "keep-last";// keep-last | delete
 	// The PostgreSQL connections file (jText, kept OUTSIDE git; "" = the default beside the

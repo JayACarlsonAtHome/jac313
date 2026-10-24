@@ -300,14 +300,14 @@ struct Runner : TopWindow {
 	ParentCtrl s1, s2, s3;
 
 	// ---- Screen 1
-	Label     lRemote, lPgHost, lPgPort, lPgDb, lPgUser, pgTestRes, pgLTestRes;
+	Label     lRemote, lPgHost, lPgPort, lPgDb, lPgUser, pgTestRes;
 	EditString pgHost, pgPort, pgDb, pgUser;
 	Button    pgTest, pgLTest;
 	Label     lConn, connStatus;
 	EditString connFile;
-	Button    connBrowse, connLoad, connSave;
+	Button    connBrowse, connLoad, connView, connSave;
 	Vector<ConnRow> connRows;   // the file's rows as loaded (other backends are kept on Save)
-	Label     lRoot, lVersion, lComp, lType, lFront, lSize, lDb, lFiles, lMaxRuns, lMaxRec, lMax, lMaxHint, lRb, lPg, lCmd, lInfo;
+	Label     lRoot, lVersion, lComp, lType, lFront, lSize, lDb, lFiles, lMaxRuns, lMaxRec, lMax, lDefRuns, lDefRec, lDefRows, lRb, lPg, lCmd, lInfo;
 	Label     lFormat;   // the format checks every build has (not an option)
 	Label     lCompVer;  // "gcc 16.2.1, clang 22.1.8": what gcc / clang mean on this machine
 	String    compVerFor;   // the version dir lCompVer was filled for
@@ -368,7 +368,7 @@ struct Runner : TopWindow {
 	void   Show(int screen);
 	void   ToOptions();
 	void   FromOptions();
-	void   TestResult(Label& res, const String& text, bool ok);
+	void   TestResult(const String& text, bool ok);
 	void   UpdateCommand();
 	void   CopyCommand();
 	void   Browse();
@@ -400,6 +400,7 @@ struct Runner : TopWindow {
 	void   TestPg(bool remote);
 	void   LoadConn(bool quiet);
 	void   SaveConn();
+	void   ViewConn();
 	void   BrowseConn();
 	void   ConnStatus(const String& text, bool bad);
 	String CheckConnFile(const String& path);   // the CLI's jText check line for the file
@@ -513,13 +514,6 @@ Runner::Runner()
 	Place(s1, pSql, 110, y + 18, 90, 22);
 	Place(s1, pPgL, 210, y + 18, 100, 22);
 	Place(s1, pPgR, 320, y + 18, 160, 22);
-	pgLTest.SetLabel("Test PG local");
-	pgLTest.Tip("Connect once to this machine's PostgreSQL (the connections file's pg-local row, else "
-	            "localhost / jac313 / jac313) and show the connect time, the round trip (ping) and the "
-	            "server version. The password comes from jac313_pg_local.pgpass beside the connections file.");
-	pgLTest << THISBACK(TestLocal);
-	Place(s1, pgLTest, 490, y + 18, 110, 22);
-	s1.Add(pgLTestRes.HSizePosZ(608, 16).TopPosZ(y + 18, 22));
 	Place(s1, lFiles, 20, y + 44, 90, 22);
 	Place(s1, pJt, 110, y + 44, 90, 22);
 	Place(s1, pBin, 210, y + 44, 100, 22);
@@ -528,7 +522,21 @@ Runner::Runner()
 	lMaxRuns.SetText("Max runs:");
 	lMaxRec.SetText("Max records in a run:");
 	lMax.SetText("Max persisted in a run:");
-	lMaxHint.SetText("(0 = no limit / test default)");
+	auto def = [](int n) {   // "(default 10,000)": thousands separated by commas
+		String d = AsString(n), t;
+		for(int i = 0; i < d.GetCount(); i++) {
+			if(i && (d.GetCount() - i) % 3 == 0)
+				t.Cat(',');
+			t.Cat(d[i]);
+		}
+		return "(default " + t + ")";
+	};
+	lDefRuns.SetText(def(kDefMaxRuns));
+	lDefRec.SetText(def(kDefMaxRecords));
+	lDefRows.SetText(def(kDefMaxRows));
+	maxRuns.Tip("0 = the test's own default");
+	maxRecords.Tip("0 = the test's own default");
+	maxRows.Tip("0 = no limit (never more than Max records)");
 	maxRuns.Min(0);
 	maxRecords.Min(0);
 	maxRows.Min(0);
@@ -542,16 +550,23 @@ Runner::Runner()
 	lPgUser.SetText("User");
 	pgHost.Tip("Host name or IP address of your PostgreSQL server (needed for PG remote)");
 	pgPort.Tip("Empty = 5432");
-	pgTest.SetLabel("Test");
-	pgTest.Tip("Connect once and show the connect time, the round trip (ping) and the server version. "
-	           "The password comes from jac313_pg_remote.pgpass beside the connections file.");
+	pgTest.SetLabel("Test Remote");
+	pgTest.Tip("Connect once to the Remote PG server and show the connect time, the round trip (ping) and "
+	           "the server version. The password comes from jac313_pg_remote.pgpass beside the connections file.");
 	pgTest << THISBACK(TestRemote);
+	pgLTest.SetLabel("Test Local");
+	pgLTest.Tip("Connect once to this machine's PostgreSQL (the connections file's pg-local row, else "
+	            "localhost / jac313 / jac313) and show the connect time, the round trip (ping) and the "
+	            "server version. The password comes from jac313_pg_local.pgpass beside the connections file.");
+	pgLTest << THISBACK(TestLocal);
 	// Connections file: where the server details are kept (jText, outside git)
 	lConn.SetText("Connections:");
 	connFile.Tip("The PostgreSQL connections file (jText). Keep it OUTSIDE every git project; "
 	             "the default is a SQL_Secrets folder beside the project.");
 	connBrowse.SetLabel("...");
 	connLoad.SetLabel("Load");
+	connView.SetLabel("View");
+	connView.Tip("Show the connections file in the jText viewer (screen 3)");
 	connSave.SetLabel("Save");
 	connLoad.Tip("Read the file into the Remote PG fields");
 	connSave.Tip("Write the Remote PG fields into the file (creates the folder and file if needed; "
@@ -559,10 +574,12 @@ Runner::Runner()
 	connBrowse << THISBACK(BrowseConn);
 	connLoad << [this] { LoadConn(false); };
 	connSave << THISBACK(SaveConn);
+	connView << THISBACK(ViewConn);
 	Place(s1, lConn, 20, y + 70, 90, 22);
-	s1.Add(connFile.HSizePosZ(110, 236).TopPosZ(y + 70, 22));
-	s1.Add(connBrowse.RightPosZ(196, 30).TopPosZ(y + 70, 22));
-	s1.Add(connLoad.RightPosZ(108, 80).TopPosZ(y + 70, 22));
+	s1.Add(connFile.HSizePosZ(110, 324).TopPosZ(y + 70, 22));
+	s1.Add(connBrowse.RightPosZ(284, 30).TopPosZ(y + 70, 22));
+	s1.Add(connLoad.RightPosZ(196, 80).TopPosZ(y + 70, 22));
+	s1.Add(connView.RightPosZ(108, 80).TopPosZ(y + 70, 22));
 	s1.Add(connSave.RightPosZ(20, 80).TopPosZ(y + 70, 22));
 	Place(s1, lRemote, 20, y + 96, 90, 22);
 	Place(s1, lPgHost, 110, y + 96, 36, 22);
@@ -573,16 +590,19 @@ Runner::Runner()
 	Place(s1, pgDb, 462, y + 96, 100, 22);
 	Place(s1, lPgUser, 570, y + 96, 34, 22);
 	Place(s1, pgUser, 604, y + 96, 100, 22);
-	Place(s1, pgTest, 712, y + 96, 60, 22);
-	s1.Add(pgTestRes.HSizePosZ(780, 16).TopPosZ(y + 96, 22));
+	Place(s1, pgTest, 712, y + 96, 100, 22);
+	Place(s1, pgLTest, 818, y + 96, 100, 22);
+	s1.Add(pgTestRes.HSizePosZ(926, 16).TopPosZ(y + 96, 22));
 	s1.Add(connStatus.HSizePosZ(110, 16).TopPosZ(y + 122, 22));
 	Place(s1, lMaxRuns, 20, y + 148, 70, 22);
-	Place(s1, maxRuns, 92, y + 148, 80, 22);
-	Place(s1, lMaxRec, 186, y + 148, 140, 22);
-	Place(s1, maxRecords, 326, y + 148, 100, 22);
-	Place(s1, lMax, 440, y + 148, 150, 22);
-	Place(s1, maxRows, 592, y + 148, 100, 22);
-	Place(s1, lMaxHint, 702, y + 148, 220, 22);
+	Place(s1, maxRuns, 92, y + 148, 70, 22);
+	Place(s1, lDefRuns, 166, y + 148, 90, 22);
+	Place(s1, lMaxRec, 262, y + 148, 140, 22);
+	Place(s1, maxRecords, 402, y + 148, 90, 22);
+	Place(s1, lDefRec, 496, y + 148, 110, 22);
+	Place(s1, lMax, 612, y + 148, 150, 22);
+	Place(s1, maxRows, 764, y + 148, 90, 22);
+	Place(s1, lDefRows, 858, y + 148, 110, 22);
 	y += 182;
 
 	boxRows.SetLabel("Rows and read-back");
@@ -1400,8 +1420,7 @@ void Runner::ShowAi()
 void Runner::TestPg(bool remote)
 {
 	ToOptions();
-	Label&  res = remote ? pgTestRes : pgLTestRes;
-	Button& btn = remote ? pgTest : pgLTest;
+	Label&  res = pgTestRes;   // one result word for both buttons; the detail line names which
 	String c;
 	if(remote)
 		c = RemoteConninfo(opt);
@@ -1418,13 +1437,14 @@ void Runner::TestPg(bool remote)
 	}
 	String exe = FindDatasetTool(Root(), opt.version);
 	if(exe.IsEmpty()) {
-		TestResult(res, "Press Start once first: its build makes jac313_store_dataset, which does this test.",
+		TestResult("Press Start once first: its build makes jac313_store_dataset, which does this test.",
 		           false);
 		return;
 	}
 	res.SetInk(SColorText());
-	res.SetText("Connecting...");
-	btn.Disable();
+	res.SetText(remote ? "Remote: connecting..." : "Local: connecting...");
+	pgTest.Disable();
+	pgLTest.Disable();
 	Sync();
 	LocalProcess p;
 	Vector<String> args;
@@ -1449,7 +1469,8 @@ void Runner::TestPg(bool remote)
 	}
 	else
 		out = "PING failed: cannot start " + exe;
-	btn.Enable();
+	pgTest.Enable();
+	pgLTest.Enable();
 	out = TrimBoth(out);
 	if(out.StartsWith("PING ok")) {
 		// "PING ok connect_ms=19.3 ping_ms=2.182 server=17.10 (...)"
@@ -1461,23 +1482,24 @@ void Runner::TestPg(bool remote)
 			return e < 0 ? out.Mid(a) : out.Mid(a, e - a);
 		};
 		int sv = out.Find("server=");
-		TestResult(res, String(remote ? "PG remote" : "PG local") + " OK: connect " + field("connect_ms=") + " ms, ping " + field("ping_ms=")
+		TestResult(String(remote ? "PG remote" : "PG local") + " OK: connect " + field("connect_ms=") + " ms, ping " + field("ping_ms=")
 		           + " ms, PostgreSQL " + (sv >= 0 ? field("server=") : String("?")), true);   // "17.10" (no distro text)
 	}
 	else
-		TestResult(res, String(remote ? "PG remote: " : "PG local: ")
+		TestResult(String(remote ? "PG remote: " : "PG local: ")
 		                + (out.StartsWith("PING failed: ") ? out.Mid(13) : out), false);
 }
 
 // The Test result: a short word beside the button, the whole message on the full-width line
 // below it (a PostgreSQL error is longer than the space beside the button), and as a tooltip.
-void Runner::TestResult(Label& res, const String& text, bool ok)
+void Runner::TestResult(const String& text, bool ok)
 {
 	String t = TrimBoth(text);
 	t.Replace("\n", " ");
-	res.SetInk(ok ? Color(0, 120, 0) : Color(170, 0, 0));
-	res.SetText(ok ? "OK (details below)" : "failed (see below)");
-	res.Tip(t);
+	String who = t.StartsWith("PG local") ? "Local: " : t.StartsWith("PG remote") ? "Remote: " : "";
+	pgTestRes.SetInk(ok ? Color(0, 120, 0) : Color(170, 0, 0));
+	pgTestRes.SetText(who + (ok ? "OK (details below)" : "failed (see below)"));
+	pgTestRes.Tip(t);
 	ConnStatus(t, !ok);
 	connStatus.Tip(t);
 }
@@ -1541,6 +1563,18 @@ void Runner::LoadConn(bool quiet)
 	           + (check.GetCount() ? " · jText " + check : String())
 	           + (git.GetCount() ? " · WARNING: inside the git project " + git + ": move it out" : String()), bad);
 	UpdateCommand();
+}
+
+void Runner::ViewConn()
+{
+	ToOptions();
+	String path = EffectiveConnFile(opt, Root());
+	if(!FileExists(path)) {
+		ConnStatus("Not found: " + path + " (fill in Remote PG and press Save to create it)", true);
+		return;
+	}
+	Show(3);
+	OpenJText(path);
 }
 
 void Runner::SaveConn()
@@ -1765,7 +1799,7 @@ GUI_APP_MAIN
 	}
 	if(testLocal) {
 		w.TestLocal();
-		Cout() << "test_local: " << w.pgLTestRes.GetText() << " | " << w.connStatus.GetText() << "\n";
+		Cout() << "test_local: " << w.pgTestRes.GetText() << " | " << w.connStatus.GetText() << "\n";
 	}
 	Snap(w, AppendFileName(snap, "screen1_options.png"));
 	w.Show(2);
