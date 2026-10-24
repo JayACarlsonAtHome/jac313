@@ -85,6 +85,7 @@ void print_usage() {
         "  --bench              throughput benchmark — durable jtext/html/json/binary/sql\n"
         "                       (auto-records to results.db, like every gate)\n"
         "  --report             render-only: (re)build the .md report pages from results.db\n"
+        "                       (alone; every gate run renders them at its end anyway)\n"
         "  --verify-lite        valgrind: ctest + matrix 001 (binary; 001 across jtext/html/json/sql)\n"
         "  --verify             valgrind: full smoke matrix (all sinks incl. html/json) + helgrind/DRD\n"
         "  --group-id           read-only precheck: which jac313-<group_id> this machine records under\n"
@@ -97,7 +98,7 @@ void print_usage() {
         "                                smoke/<compiler>/<test>/<option>/ (e.g. jtext_output_on)\n"
         "  --keep-logs-dir <p>  root for kept output (default: kept-logs; needs ~12+ GB for full run)\n"
         "  --wipe-logs          delete test-results/ + kept-logs/ (keeps README.md); alone or before a run\n"
-        "  (every gate auto-records; --report only renders. everyday: --ctest --smoke ;\n"
+        "  (every gate auto-records + renders the report at the end. everyday: --ctest --smoke ;\n"
         "   bench: --bench ; render: --report ; full battery: --run-everything ;\n"
         "   full battery + retained captures: --run-everything --keep-logs)\n\n"
         "Run options:\n"
@@ -2284,6 +2285,10 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
     for (const char* var : {"JAC313_PG_REMOTE", "JAC313_PG_LOCAL"})
         if (const char* val = std::getenv(var); val && *val) emit(std::string("export ") + var + "=" + shq(val));
     emit("CLI=\"" + self.string() + "\"");
+    // Every gate records into results.db; render the report pages ONCE at the end, also when a
+    // gate failed (set -e), keeping the run's exit status.
+    emit("# report pages — rendered from results.db when the run ends (pass or fail)");
+    emit("trap 'rc=$?; \"$CLI\" --report || echo \"report pages: not rendered\"; exit $rc' EXIT");
     emit("");
 
     if (preset.ctest || preset.smoke) {
@@ -2322,7 +2327,6 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
             emit("\"$BENCH\" --suite --db " + JAC313_RESULTS_DB + bench_keep_logs_args(global, label)
                  + bench_persist_args(global));
         }
-        if (preset.report) emit("\"$CLI\" --report");            // render-only, ONCE after both compilers
         emit("");
     }
 
@@ -3242,7 +3246,9 @@ int main(int argc, char** argv) {
         const bool any_preset = preset.ctest || preset.smoke || preset.bench
                              || preset.report || preset.verify_lite || preset.verify;
         if (any_preset) {
-            if (preset.report && !preset.bench) {
+            // --report alone renders only; with gates it is implied (the script renders at its end)
+            if (preset.report && !(preset.ctest || preset.smoke || preset.bench
+                                   || preset.verify_lite || preset.verify)) {
                 return run_report_command(global.source_dir);   // generate the report pages from results.db
             }
             return run_preset_command(global, configure_opts, preset);
