@@ -113,7 +113,7 @@ int main(int argc, char** argv) {
             return 1;
         }
 #else
-        std::cout << "PING failed: PostgreSQL support is not built in (libpq 17+ not found)\n";
+        std::cout << "PING failed: PostgreSQL support is not built in (libpq 18+ not found)\n";
         return 1;
 #endif
     }

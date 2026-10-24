@@ -11,10 +11,9 @@ option(JAC313_STORE_BUILD_MATRIX_TESTS
 option(JAC313_STORE_BUILD_MODULES "Build jac313.store.v001 C++23 module (in-tree)" OFF)
 option(JAC313_STORE_JTEXT_PERSIST "Build in-tree jText split persistence (needs jac313::jText)" OFF)
 option(JAC313_STORE_SQL_PERSIST "Build in-tree SQLite persistence (needs jac313::Qlite)" OFF)
-# PostgreSQL persistence (pg-local / pg-remote backends): ON by default, built only when libpq 17+
-# is found (PGDG installs under /usr/pgsql-18, then 17; 18 is preferred). Optional, so Store builds
-# without PostgreSQL.
-option(JAC313_STORE_PG_PERSIST "Build PostgreSQL persistence when libpq 17+ is found" ON)
+# PostgreSQL persistence (pg-local / pg-remote backends): ON by default, built only when libpq 18+
+# is found (PGDG installs under /usr/pgsql-18). Optional, so Store builds without PostgreSQL.
+option(JAC313_STORE_PG_PERSIST "Build PostgreSQL persistence when libpq 18+ is found" ON)
 
 add_library(jac313_Store INTERFACE)
 add_library(jac313::Store ALIAS jac313_Store)
@@ -110,11 +109,18 @@ if(JAC313_STORE_SQL_PERSIST)
 endif()
 
 if(JAC313_STORE_PG_PERSIST)
+    # A cached path whose files are gone (PostgreSQL 17 uninstalled) would stick: search again.
+    if(JAC313_LIBPQ_INCLUDE_DIR AND NOT EXISTS "${JAC313_LIBPQ_INCLUDE_DIR}/libpq-fe.h")
+        unset(JAC313_LIBPQ_INCLUDE_DIR CACHE)
+    endif()
+    if(JAC313_LIBPQ_LIBRARY AND NOT EXISTS "${JAC313_LIBPQ_LIBRARY}")
+        unset(JAC313_LIBPQ_LIBRARY CACHE)
+    endif()
     find_path(JAC313_LIBPQ_INCLUDE_DIR libpq-fe.h
-              HINTS /usr/pgsql-18/include /usr/pgsql-17/include
+              HINTS /usr/pgsql-18/include
               PATH_SUFFIXES postgresql pgsql)
     find_library(JAC313_LIBPQ_LIBRARY NAMES pq
-                 HINTS /usr/pgsql-18/lib /usr/pgsql-17/lib)
+                 HINTS /usr/pgsql-18/lib)
     set(_jac313_libpq_ok FALSE)
     if(JAC313_LIBPQ_INCLUDE_DIR AND JAC313_LIBPQ_LIBRARY)
         # The version macro is in pg_config.h, or (RHEL multilib) pg_config_<arch>.h.
@@ -127,7 +133,7 @@ if(JAC313_STORE_PG_PERSIST)
                 break()
             endif()
         endforeach()
-        if(_jac313_pg_major AND _jac313_pg_major GREATER_EQUAL 17)
+        if(_jac313_pg_major AND _jac313_pg_major GREATER_EQUAL 18)
             set(_jac313_libpq_ok TRUE)
         endif()
     endif()
@@ -145,7 +151,7 @@ if(JAC313_STORE_PG_PERSIST)
         target_link_libraries(jac313_store_pg_persist PUBLIC jac313_Store ${JAC313_LIBPQ_LIBRARY})
         message(STATUS "jac313::Store PostgreSQL persistence ENABLED (libpq ${_jac313_pg_major}: ${JAC313_LIBPQ_LIBRARY})")
     else()
-        message(STATUS "jac313::Store PostgreSQL persistence DISABLED (libpq 17+ not found; ./bsir.sh provisions it)")
+        message(STATUS "jac313::Store PostgreSQL persistence DISABLED (libpq 18+ not found; ./bsir.sh provisions it)")
     endif()
 endif()
 

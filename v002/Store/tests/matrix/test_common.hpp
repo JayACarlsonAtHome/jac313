@@ -107,7 +107,7 @@ inline std::unique_ptr<IEventSink> make_persistence_sink(const std::string& ptyp
             return nullptr;
         }
 #else
-        std::cerr << "ERROR: PostgreSQL persistence not enabled at compile time (needs libpq 17+)\n";
+        std::cerr << "ERROR: PostgreSQL persistence not enabled at compile time (needs libpq 18+)\n";
         return nullptr;
 #endif
     }

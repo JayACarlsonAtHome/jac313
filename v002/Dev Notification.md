@@ -40,7 +40,7 @@ Here's what changed so far.
 - Things may still shift under you for a bit — patience appreciated.
 
 ## 2026-10-16 — PostgreSQL sink, read-back, limits, runner GUI (ported from v001)
-- **PostgreSQL persist backends** `pg-local` / `pg-remote` (optional build, libpq 17+);
+- **PostgreSQL persist backends** `pg-local` / `pg-remote` (optional build, libpq 18+);
   tables in `store_test`, one "last run" per host + configuration. See `docs/store/postgres.md`.
 - **Read-back** of every persisted dataset (`--readback off|count|sample|all`) plus a
   self-test that damages each backend and must be caught (`jac313_store_readback_selftest`).

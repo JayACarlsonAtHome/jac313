@@ -140,7 +140,7 @@ void expand_store_matrix_scenarios(std::vector<MatrixScenario>& out,
             static bool warned = false;
             if (!warned) {
                 std::cerr << "NOTE: " << persist << " skipped: PostgreSQL persistence not built "
-                             "(needs libpq 17+; run ./bsir.sh)\n";
+                             "(needs libpq 18+; run ./bsir.sh)\n";
                 warned = true;
             }
             continue;

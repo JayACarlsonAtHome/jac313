@@ -84,7 +84,7 @@ scoped by `world` (`v001` / `v002`).
 `PgClient` + `PgEventSink` (`Store/include/jac313/Store/v002/headers/persistence/Pg*`)
 write a run's events straight into PostgreSQL with one `COPY` transaction per batch.
 It is an optional build: CMake option `JAC313_STORE_PG_PERSIST`, target
-`jac313_store_pg_persist`, ON only when libpq 17+ is found (bootstrap installs libpq 18: the `pg18` component).
+`jac313_store_pg_persist`, ON only when libpq 18+ is found (bootstrap installs libpq 18: the `pg18` component).
 
 | | |
 |---|---|

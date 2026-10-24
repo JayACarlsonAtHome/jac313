@@ -2,7 +2,7 @@
 
 // PgClient.hpp
 // Thin RAII wrapper over libpq for the PostgreSQL persistence sink and read-back.
-// Built only with JAC313_STORE_PG_PERSIST (libpq 17+). Credentials come from libpq's
+// Built only with JAC313_STORE_PG_PERSIST (libpq 18+). Credentials come from libpq's
 // own mechanisms (PGPASSFILE / ~/.pgpass); nothing in this repo holds a password.
 //
 // Backends:
