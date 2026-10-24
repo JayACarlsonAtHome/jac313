@@ -1,5 +1,6 @@
 #include "compiler.hpp"
 
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -129,6 +130,55 @@ std::optional<std::string> find_scan_deps(const std::vector<std::string>& candid
 
 std::optional<std::string> find_on_path(const std::string& name) {
     return find_executable(name);
+}
+
+NinjaChoice find_ninja() {
+    // Every PATH entry, then ~/.local/bin: a window started by systemd-run --user gets the
+    // user manager's PATH, which has no ~/.local/bin, and would otherwise see only the
+    // RHEL 9 system ninja 1.10.
+    std::vector<fs::path> dirs;
+    if (const char* path_env = std::getenv("PATH")) {
+        std::string_view rest(path_env);
+        while (true) {
+            const auto sep = rest.find(':');
+            if (const std::string_view entry = rest.substr(0, sep); !entry.empty()) {
+                dirs.emplace_back(std::string(entry));
+            }
+            if (sep == std::string_view::npos) {
+                break;
+            }
+            rest.remove_prefix(sep + 1);
+        }
+    }
+    if (const char* home = std::getenv("HOME"); home != nullptr && *home != '\0') {
+        dirs.push_back(fs::path(home) / ".local" / "bin");
+    }
+    dirs.emplace_back("/usr/bin");
+
+    NinjaChoice first;
+    for (const fs::path& dir : dirs) {
+        for (const char* name : {"ninja", "ninja-build"}) {
+            const fs::path candidate = dir / name;
+            if (!is_executable(candidate)) {
+                continue;
+            }
+            const CaptureResult r = run_capture("'" + candidate.string() + "' --version", 10);
+            std::string version = r.out.substr(0, r.out.find_first_of("\r\n"));
+            int major = 0;
+            int minor = 0;
+            const bool parsed =
+                r.exit_code == 0 && std::sscanf(version.c_str(), "%d.%d", &major, &minor) == 2;
+            const bool ok = parsed && (major > kMinNinjaMajor ||
+                                       (major == kMinNinjaMajor && minor >= kMinNinjaMinor));
+            if (ok) {
+                return NinjaChoice{candidate.string(), version, true};
+            }
+            if (first.path.empty()) {
+                first = NinjaChoice{candidate.string(), version, false};
+            }
+        }
+    }
+    return first;
 }
 
 std::vector<ResolvedToolchain> probe_compilers(const fs::path& source_dir) {

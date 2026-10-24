@@ -16,6 +16,7 @@ using jac313::Setup::v001::Toolchain;
 using jac313::Setup::v001::ResolvedToolchain;
 using jac313::Setup::v001::EnvSnapshot;
 using jac313::Setup::v001::CaptureResult;
+using jac313::Setup::v001::run_capture;
 using jac313::Setup::v001::load_registry;
 using jac313::Setup::v001::resolve_toolchain;
 using jac313::Setup::v001::resolve_registry;
@@ -62,6 +63,20 @@ std::optional<std::string> find_scan_deps(const std::vector<std::string>& candid
 
 // The program NAME as found on PATH (or NAME itself when it holds a '/').
 std::optional<std::string> find_on_path(const std::string& name);
+
+// C++ module scanning needs ninja >= 1.11 (RHEL 9 ships 1.10 as /usr/bin/ninja).
+constexpr int kMinNinjaMajor = 1;
+constexpr int kMinNinjaMinor = 11;
+
+struct NinjaChoice {
+    std::string path;     // empty when no ninja was found at all
+    std::string version;  // first line of --version
+    bool new_enough{false};
+};
+
+// The first ninja >= 1.11 on PATH, then in ~/.local/bin, then /usr/bin; when none is new
+// enough, the first one found (new_enough false) so the caller can say which one is too old.
+NinjaChoice find_ninja();
 
 bool is_clang_compiler(const std::string& compiler);
 

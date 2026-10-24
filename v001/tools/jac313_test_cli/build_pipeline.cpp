@@ -51,12 +51,22 @@ int run_configure_command(const GlobalOptions& global, const ConfigureOptions& o
         "-DCMAKE_CXX_COMPILER=" + opts.resolved_compiler,
         "-DCMAKE_BUILD_TYPE=" + opts.build_type,
     };
-    // The ninja on PATH, by name: CMake's own search tries "ninja-build" first and can pick an
+    // A ninja >= 1.11, by path: CMake's own search tries "ninja-build" first and can pick an
     // older system copy (RHEL 9: 1.10), which C++ module scanning rejects; a tree keeps the
     // make program it was first configured with, so name it every time.
     if (opts.generator == "Ninja") {
-        if (const auto ninja = find_on_path("ninja")) {
-            args.push_back("-DCMAKE_MAKE_PROGRAM=" + *ninja);
+        const NinjaChoice ninja = find_ninja();
+        if (opts.modules && !ninja.new_enough) {
+            std::cerr << "modules need ninja >= " << kMinNinjaMajor << '.' << kMinNinjaMinor;
+            if (ninja.path.empty()) {
+                std::cerr << " (no ninja found on PATH, in ~/.local/bin or /usr/bin)\n";
+            } else {
+                std::cerr << " (found only " << ninja.path << ' ' << ninja.version << ")\n";
+            }
+            return 1;
+        }
+        if (!ninja.path.empty()) {
+            args.push_back("-DCMAKE_MAKE_PROGRAM=" + ninja.path);
         }
     }
     if (opts.modules) {
