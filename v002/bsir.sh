@@ -133,6 +133,7 @@ compute_missing() {
   [ -n "$CXX" ]                    || missing="$missing gcc15"
   ( command -v clang >/dev/null 2>&1 || command -v clang-20 >/dev/null 2>&1 ) || missing="$missing clang"
   command -v cmake >/dev/null 2>&1 || missing="$missing cmake"
+  command -v vim >/dev/null 2>&1   || missing="$missing vim"
   ninja_ok                         || missing="$missing ninja"
   [ -e /usr/include/sqlite3.h ]    || missing="$missing sqlite"
   { [ -e /usr/pgsql-18/include/libpq-fe.h ] \
