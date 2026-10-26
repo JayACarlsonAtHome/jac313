@@ -473,6 +473,8 @@ $ACT cmake --build "$BUILD" --target jac313_test_cli
 $ACT cmake --build "$BUILD" --target jac313_wipe_all
 $ACT cmake --build "$BUILD" --target jac313_wipe_one
 $ACT cmake --build "$BUILD" --target jac313_wipe_jac
+# the PG ping tool behind Jac313Runner's Test Local / Test Remote, so they work before the first Start
+$ACT cmake --build "$BUILD" --target jac313_store_dataset
 CLI="$BUILD/tools/jac313_test_cli"
 
 # Convenience symlinks at the version root so everyday commands read `./jac313_test_cli ...`,

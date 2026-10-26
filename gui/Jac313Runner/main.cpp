@@ -1638,8 +1638,8 @@ void Runner::TestPg(bool remote)
 	}
 	String exe = FindDatasetTool(Root(), opt.version);
 	if(exe.IsEmpty()) {
-		TestResult("Press Start once first: its build makes jac313_store_dataset, which does this test.",
-		           false);
+		TestResult("jac313_store_dataset, which does this test, is not built yet: run ./bsir.sh in "
+		           + opt.version + " (it builds it), or press Start once.", false);
 		return;
 	}
 	res.SetInk(SColorText());
