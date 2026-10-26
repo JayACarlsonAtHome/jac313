@@ -46,3 +46,6 @@ gui/out/
 /v*/test-summary/runner_last*.json
 /v*/test-summary/runner_last*.json.parts
 /v*/test-summary/*_ai.md
+
+# The shared results DB is local to each machine (the CLI creates it when missing)
+test-summary/results.db

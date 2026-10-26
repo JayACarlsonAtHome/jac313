@@ -35,7 +35,7 @@ Here's what changed so far.
   (the std::atomic helgrind/DRD blind spot). Only real errors reach the DB.
 
 ## What this means for you
-- `results.db` is tracked but **regenerable** — re-run the gates to repopulate.
+- `results.db` is local (not in git) and **regenerable** — re-run the gates to repopulate.
 - The **pre-push gate is unchanged and fast** (`version-check` + `verify-lite`).
 - Things may still shift under you for a bit — patience appreciated.
 

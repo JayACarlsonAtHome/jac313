@@ -110,7 +110,7 @@ There is **no GitHub Actions and no shell-script CI.** The whole pipeline is a c
 C++ program, [`jac313_test_cli`](../v001/tools/jac313_test_cli/): it probes the available
 compilers (via the data-driven registry), configures and builds the tree, runs `ctest`,
 and drives a **persist × scale matrix** (smoke → full stress), recording every metric to
-a tracked results DB keyed by a `(os, compiler, build_type, disk, size, modules)`
+a local results DB (not in git) keyed by a `(os, compiler, build_type, disk, size, modules)`
 **RunIdentity**. It also runs valgrind gates (memcheck + helgrind/DRD).
 
 Because this is a **non-trivial but real** codebase, it ends up being a genuinely useful

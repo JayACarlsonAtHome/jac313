@@ -17,7 +17,7 @@ jac313/
 ├── Setup/                    # toolchain sensing + provisioning (jac313::Setup)
 ├── tools/jac313_test_cli/    # local C++ test runner / matrix orchestrator (no shell scripts)
 ├── tests/                    # matrix params (smoke / full / bench)
-├── test-summary/             # tracked results DB + rendered RUN.md pages
+├── test-summary/             # local results DB (not in git) + rendered RUN.md pages
 └── docs/                     # this documentation set
 ```
 
@@ -105,7 +105,7 @@ The matrix is the **functional/correctness** suite. Throughput is no longer read
 from test logs — it now comes from a separate `store_bench --suite` (curated 14-config run, headline =
 median + low–high band). See [Benchmarks.md](Benchmarks.md).
 
-Throughput metrics are **DB-only** (`test-summary/results.db`, tracked) — there are no file
+Throughput metrics are **DB-only** (`test-summary/results.db`, local, not in git) — there are no file
 side-channels; the per-area comparison pages render from `results.db` via `jac313_test_cli --report`. See
 [Benchmarks.md](Benchmarks.md) for commands and the per-run results layout.
 

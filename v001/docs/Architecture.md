@@ -103,7 +103,7 @@ The matrix is the **functional/correctness** suite. Throughput is no longer read
 from test logs — it now comes from the `--bench` suite (curated run, headline =
 median + low–high band). See [Benchmarks.md](Benchmarks.md).
 
-Metrics are **DB-only** (`results.db`, tracked) — there are no file side-channels; the host-scoped
+Metrics are **DB-only** (`results.db`, local, not in git) — there are no file side-channels; the host-scoped
 markdown pages render from it. See [Setup.md](Setup.md#4-testing) for commands and the RunIdentity
 results layout.
 
