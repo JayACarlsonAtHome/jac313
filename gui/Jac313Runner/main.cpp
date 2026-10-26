@@ -28,6 +28,10 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "Model.h"
 
 using namespace Upp;
@@ -464,6 +468,33 @@ void Runner::LimitPersistField()
 	UpdateCommand();
 }
 
+// "jac313-002 · 192.168.1.194, 10.10.10.2": this machine's name and its IPv4 addresses, so the
+// window says which box it runs on. Loopback, link-local (169.254) and VM/container bridges are left out.
+static String MachineLabel()
+{
+	char name[256] = {};
+	String s = gethostname(name, sizeof(name) - 1) == 0 ? String(name) : String("?");
+	String ips;
+	ifaddrs *list = nullptr;
+	if(getifaddrs(&list) == 0) {
+		for(ifaddrs *a = list; a; a = a->ifa_next) {
+			if(!a->ifa_addr || a->ifa_addr->sa_family != AF_INET || !(a->ifa_flags & IFF_UP) || (a->ifa_flags & IFF_LOOPBACK))
+				continue;
+			String dev = a->ifa_name;
+			if(dev.StartsWith("virbr") || dev.StartsWith("docker") || dev.StartsWith("podman") || dev.StartsWith("cni"))
+				continue;
+			char buf[INET_ADDRSTRLEN] = {};
+			inet_ntop(AF_INET, &((sockaddr_in *)a->ifa_addr)->sin_addr, buf, sizeof(buf));
+			String ip = buf;
+			if(ip.StartsWith("169.254.") || ips.Find(ip) >= 0)
+				continue;
+			ips << (ips.GetCount() ? ", " : "") << ip;
+		}
+		freeifaddrs(list);
+	}
+	return ips.GetCount() ? s + " · " + ips : s;
+}
+
 static void Place(Ctrl& parent, Ctrl& c, int x, int y, int cx, int cy)
 {
 	parent.Add(c.LeftPosZ(x, cx).TopPosZ(y, cy));
@@ -471,7 +502,7 @@ static void Place(Ctrl& parent, Ctrl& c, int x, int y, int cx, int cy)
 
 Runner::Runner()
 {
-	Title("Jac313Runner — jac313 test gates");
+	Title("Jac313Runner — jac313 test gates — " + MachineLabel());
 	Sizeable().Zoomable();
 	SetRect(0, 0, Zx(1060), Zy(760));
 	SetMinSize(Zsz(760, 560));

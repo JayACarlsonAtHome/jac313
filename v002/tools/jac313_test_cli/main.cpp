@@ -1015,6 +1015,25 @@ void write_build_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     nav_bottom(md, "../README.md");
 }
 
+// Why a machine is NOT SAFE, in words the reader can act on. Each gate gives its name, whether it
+// has any recorded result, and its fail count. Empty when every gate ran clean (PRESUMED SAFE).
+struct GateState { const char* name; bool ran; std::int64_t fail; };
+std::string not_safe_reason(std::initializer_list<GateState> gates) {
+    std::string missing, failed;
+    for (const GateState& g : gates) {
+        if (!g.ran)      missing += (missing.empty() ? "" : ", ") + std::string(g.name);
+        else if (g.fail) failed += (failed.empty() ? "" : ", ") + std::string(g.name) + " " + std::to_string(g.fail);
+    }
+    std::string why;
+    if (!missing.empty())
+        why = "not every test has run (no results for: " + missing + "). PRESUMED SAFE needs the full test: "
+              "ctest, smoke, bench and valgrind (memcheck, helgrind, drd) on both gcc and clang. Run "
+              "`jac313_test_cli --run-everything`, or in Jac313Runner tick every gate with Compiler: both";
+    if (!failed.empty())
+        why += (why.empty() ? "" : "; ") + std::string("failures: ") + failed;
+    return why;
+}
+
 // Top-level landing index: test-summary/README.md, linking to the compiler page and every test
 // type that has data (with its run/row counts).
 void write_index_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
@@ -1086,12 +1105,21 @@ void write_index_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
                 const GatePF me = gate_pf(g, "memcheck"), he = gate_pf(g, "helgrind"), dr = gate_pf(g, "drd");
                 const bool ran  = ct.ran && sm.ran && bn.ran && me.ran && he.ran && dr.ran;
                 const bool clean = (ct.fail + sm.fail + bn.fail + me.fail + he.fail + dr.fail) == 0;
-                md << "| " << jac313::results::host_label(g) << " | " << ((ran && clean) ? "✅ PRESUMED SAFE" : "❌ NOT SAFE")
+                md << "| " << jac313::results::host_label(g) << " | "
+                   << ((ran && clean) ? "✅ PRESUMED SAFE" : !ran ? "❌ NOT SAFE: tests missing" : "❌ NOT SAFE: failures")
                    << " | " << pf_cell(ct) << " | " << pf_cell(sm) << " | " << pf_cell(bn)
                    << " | " << vg_cell(me) << " | " << vg_cell(he) << " | " << vg_cell(dr) << " |\n";
             }
             md << "\n\\* ✅ PRESUMED SAFE = builds + ctest/smoke/bench 0-fail + memcheck/helgrind/drd clean, "
                   "both compilers. Presumed, not proven.\n\n";
+            for (const std::int64_t g : groups) {
+                const GatePF ct = gate_pf(g, "ctest"), sm = gate_pf(g, "smoke"), bn = gate_pf(g, "bench");
+                const GatePF me = gate_pf(g, "memcheck"), he = gate_pf(g, "helgrind"), dr = gate_pf(g, "drd");
+                const std::string why = not_safe_reason({ {"ctest", ct.ran != 0, ct.fail}, {"smoke", sm.ran != 0, sm.fail},
+                    {"bench", bn.ran != 0, bn.fail}, {"memcheck", me.ran != 0, me.fail},
+                    {"helgrind", he.ran != 0, he.fail}, {"drd", dr.ran != 0, dr.fail} });
+                if (!why.empty()) md << "❌ **" << jac313::results::host_label(g) << "** is NOT SAFE: " << why << ".\n\n";
+            }
             for (const std::int64_t g : groups) {
                 const GatePF ct = gate_pf(g, "ctest"), sm = gate_pf(g, "smoke"), bn = gate_pf(g, "bench");
                 const GatePF me = gate_pf(g, "memcheck"), he = gate_pf(g, "helgrind"), dr = gate_pf(g, "drd");
@@ -2624,6 +2652,9 @@ int run_everything_command(const GlobalOptions& global) {
             std::cout << "\n══════════ " << jac313::results::host_label(g) << " · " << gcc_label << "+" << clang_label
                       << (os.empty() ? "" : " · " + os) << (disk.empty() ? "" : " · " + disk) << " ══════════\n"
                       << ((ran && clean) ? "  ✅ PRESUMED SAFE\n" : "  ❌ NOT SAFE\n")
+                      << ((ran && clean) ? std::string() : "    why: " + not_safe_reason({ {"ctest", ct.ran != 0, ct.fail},
+                             {"smoke", sm.ran != 0, sm.fail}, {"bench", bn.ran != 0, bn.fail}, {"memcheck", me.ran != 0, me.fail},
+                             {"helgrind", he.ran != 0, he.fail}, {"drd", dr.ran != 0, dr.fail} }) + ".\n")
                       << "    ctest " << ct.pass << "/" << ct.fail << " · smoke " << sm.pass << "/" << sm.fail
                       << " · bench " << bn.pass << "/" << bn.fail << " · valgrind " << vgfail << " errors\n"
                       << "════════════════════════════════════════════════════════\n";
