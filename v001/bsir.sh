@@ -13,8 +13,9 @@
 #      dev header, the libpq 18+ dev header (PG sink + PG gates), and valgrind with the
 #      memcheck/helgrind/DRD dev headers — the full set
 #      needed to build AND run the gates, so a fresh box is provisioned in ONE pass.
-#   3. If any of it is missing -> install it here, item by item, from Setup/recipes.conf
-#      (after the one "Install everything?" yes and one sudo password), then go on.
+#   3. If any of it is missing -> after the one "Install everything?" yes and one sudo
+#      password, first update the system (dnf upgrade / apt upgrade), then install it here,
+#      item by item, from Setup/recipes.conf, then go on.
 #   4. Build jac313_test_cli once and let it check this machine ('setup' for readiness;
 #      '--run-everything' for the full battery).
 #   5. Sense + pin this machine as jac313-### (host_spec + current_host). Auto-pins when
@@ -382,6 +383,7 @@ fi
 if [ "$need_install" = 1 ] && [ "$ASSUME_YES" = 0 ] && [ -t 0 ]; then
   echo
   echo "This bootstrap installs what is missing:"
+  echo "  - first, a system update (dnf upgrade / apt upgrade, with sudo)"
   [ -n "$missing" ] && echo "  - build tools and libraries:$missing (dnf / apt, with sudo)"
   pg_local_ok || echo "  - a PostgreSQL 18 server on this machine for the PG local gate (sudo; role + database jac313)"
   if [ "$WANT_GUI" = 1 ]; then
@@ -403,6 +405,17 @@ if [ "$ASSUME_YES" = 1 ] && [ "$need_install" = 1 ]; then
     ( while kill -0 $$ 2>/dev/null; do sudo -n true 2>/dev/null; sleep 50; done ) &
     SUDO_KEEPALIVE=$!
     trap 'pkill -P "$SUDO_KEEPALIVE" 2>/dev/null; kill "$SUDO_KEEPALIVE" 2>/dev/null' EXIT
+    # First thing after the password: bring the system up to date, so every install below
+    # comes from current packages. It can move gcc / clang, so look for them again after.
+    echo
+    echo "=== system update ==="
+    case "$family" in
+      fedora|rhel) sudo dnf -y upgrade --refresh ;;
+      linuxmint)   sudo apt-get update && sudo apt-get -y upgrade ;;
+      *)           echo "  (no update command for '$family'; skipped)" ;;
+    esac || echo "  [FAIL] system update (see above); going on with the installs"
+    detect_cxx
+    compute_missing
   fi
 fi
 
