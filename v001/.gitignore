@@ -31,11 +31,8 @@ Thumbs.db
 # Local scratch (smoke monitor + ad-hoc helpers)
 /.tmp_*
 
-# Local matrix run artifacts — persist files stay ignored; .log text is committable
-test-results/**
-!test-results/**/
-!test-results/**/*.log
-!test-results/README.md
+# Local matrix run artifacts (all ignored)
+test-results/
 kept-logs/**
 !kept-logs/**/
 !kept-logs/**/*.log
