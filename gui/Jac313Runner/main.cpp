@@ -448,7 +448,9 @@ struct Runner : TopWindow {
 	void   LimitPersistField();
 	void   TestRemote() { TestPg(true); }
 	void   TestLocal()  { TestPg(false); }
-	void   TestPg(bool remote);
+	bool   TestPg(bool remote);
+	bool   CheckPgTick(bool remote);   // test a ticked PG box; on failure untick it and say why
+	String pgTestMsg;      // the last Test's whole message
 	void   LoadConn(bool quiet);
 	void   SaveConn();
 	void   ViewConn();
@@ -720,6 +722,9 @@ Runner::Runner()
 	                 &gVerify, &bStrict, &bHardened, &pSql, &pPgL, &pPgR, &pJt, &pBin, &pJson, &pHtml, &pgHost, &pgPort, &pgDb, &pgUser, &connFile, &maxRuns, &maxRecords, &maxRows };
 	for(Ctrl *c : live)
 		c->WhenAction << THISBACK(UpdateCommand);
+	// ticking a PG box tests that server; a failed test unticks it again
+	pPgL.WhenAction << [this] { CheckPgTick(false); };
+	pPgR.WhenAction << [this] { CheckPgTick(true); };
 
 	// ================= Screen 2
 	s2.Add(runTitle.HSizePosZ(8, 8).TopPosZ(8, 22));
@@ -1061,6 +1066,9 @@ void Runner::Start()
 {
 	if(running)
 		return;
+	// the ticked PG servers must answer now: a failed one is unticked and the command rebuilt
+	CheckPgTick(false);
+	CheckPgTick(true);
 	ToOptions();
 	maxRows <<= opt.maxRows;
 	String r = Root();
@@ -1074,11 +1082,6 @@ void Runner::Start()
 	}
 	if(!(opt.ctest || opt.smoke || opt.bench || opt.verifyLite || opt.verify)) {
 		Exclamation("Choose at least one gate.");
-		return;
-	}
-	if(opt.pgRemote && opt.pgHost.IsEmpty()) {
-		Exclamation("PG remote is ticked but no server is set.&Fill in Remote PG (Host, and Database / User "
-		            "if they differ), press Test, or untick PG remote.");
 		return;
 	}
 	plans = BuildPlans(opt, r);
@@ -1618,10 +1621,9 @@ void Runner::OpenReportsInBrowser()
 
 // Test for PG remote (the Remote PG fields) or PG local (the connections file's pg-local row,
 // re-read now so a hand edit counts; else the default local server).
-void Runner::TestPg(bool remote)
+bool Runner::TestPg(bool remote)
 {
 	ToOptions();
-	Label&  res = pgTestRes;   // one result word for both buttons; the detail line names which
 	String c;
 	if(remote)
 		c = RemoteConninfo(opt);
@@ -1632,20 +1634,20 @@ void Runner::TestPg(bool remote)
 		c = LocalConninfo(rows);
 	}
 	if(c.IsEmpty()) {
-		res.SetInk(Color(170, 0, 0));
-		res.SetText("Enter the Host first.");
-		return;
+		TestResult("PG remote: no server set: fill in Remote PG (Host, and Database / User if they differ).", false);
+		return false;
 	}
 	String exe = FindDatasetTool(Root(), opt.version);
 	if(exe.IsEmpty()) {
 		TestResult("jac313_store_dataset, which does this test, is not built yet: run ./bsir.sh in "
 		           + opt.version + " (it builds it), or press Start once.", false);
-		return;
+		return false;
 	}
-	res.SetInk(SColorText());
-	res.SetText(remote ? "Remote: connecting..." : "Local: connecting...");
-	pgTest.Disable();
-	pgLTest.Disable();
+	pgTestRes.SetInk(SColorText());
+	pgTestRes.SetText(remote ? "Remote: connecting..." : "Local: connecting...");
+	Ctrl *busy[] = { &pgTest, &pgLTest, &pPgL, &pPgR, &start };   // no second test or a Start meanwhile
+	for(Ctrl *b : busy)
+		b->Disable();
 	Sync();
 	LocalProcess p;
 	Vector<String> args;
@@ -1670,8 +1672,8 @@ void Runner::TestPg(bool remote)
 	}
 	else
 		out = "PING failed: cannot start " + exe;
-	pgTest.Enable();
-	pgLTest.Enable();
+	for(Ctrl *b : busy)
+		b->Enable();
 	out = TrimBoth(out);
 	if(out.StartsWith("PING ok")) {
 		// "PING ok connect_ms=19.3 ping_ms=2.182 server=17.10 (...)"
@@ -1685,10 +1687,23 @@ void Runner::TestPg(bool remote)
 		int sv = out.Find("server=");
 		TestResult(String(remote ? "PG remote" : "PG local") + " OK: connect " + field("connect_ms=") + " ms, ping " + field("ping_ms=")
 		           + " ms, PostgreSQL " + (sv >= 0 ? field("server=") : String("?")), true);   // "17.10" (no distro text)
+		return true;
 	}
-	else
-		TestResult(String(remote ? "PG remote: " : "PG local: ")
-		                + (out.StartsWith("PING failed: ") ? out.Mid(13) : out), false);
+	TestResult(String(remote ? "PG remote: " : "PG local: ")
+	                + (out.StartsWith("PING failed: ") ? out.Mid(13) : out), false);
+	return false;
+}
+
+// An unticked box passes untested.
+bool Runner::CheckPgTick(bool remote)
+{
+	Option& o = remote ? pPgR : pPgL;
+	if(!o || TestPg(remote))
+		return true;
+	o <<= false;
+	UpdateCommand();
+	Exclamation(String(remote ? "PG remote" : "PG local") + " failed its test, so it is unticked:&&" + DeQtf(pgTestMsg));
+	return false;
 }
 
 // The Test result: a short word beside the button, the whole message on the full-width line
@@ -1701,6 +1716,7 @@ void Runner::TestResult(const String& text, bool ok)
 	pgTestRes.SetInk(ok ? Color(0, 120, 0) : Color(170, 0, 0));
 	pgTestRes.SetText(who + (ok ? "OK (details below)" : "failed (see below)"));
 	pgTestRes.Tip(t);
+	pgTestMsg = t;
 	ConnStatus(t, !ok);
 	connStatus.Tip(t);
 }
@@ -1754,7 +1770,7 @@ void Runner::LoadConn(bool quiet)
 	for(const ConnRow& r : connRows)
 		if(r.backend == "pg-remote") {
 			pgHost <<= r.host;
-			pgPort <<= (r.port == "5432" ? String() : r.port);
+			pgPort <<= (r.port.IsEmpty() ? String("5432") : r.port);
 			pgDb <<= r.dbname;
 			pgUser <<= r.user;
 		}
@@ -1814,7 +1830,7 @@ void Runner::SaveConn()
 	ConnRow& r = remote >= 0 ? rows[remote] : rows.Add();
 	r.backend = "pg-remote";
 	r.host = opt.pgHost;
-	r.port = opt.pgPort;
+	r.port = opt.pgPort.IsEmpty() ? String("5432") : opt.pgPort;
 	r.dbname = opt.pgDb;
 	r.user = opt.pgUser;
 	String err;
