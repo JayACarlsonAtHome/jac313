@@ -339,11 +339,48 @@ struct LeaveIntSpin : EditIntNotNullSpin {
 	virtual void LostFocus() { EditIntNotNullSpin::LostFocus(); WhenLeave(); }
 };
 
+// Screen 1's options are a fixed-size page; on a small screen (or a big font scale) the page
+// scrolls instead of squeezing the command box to nothing and pushing the buttons off.
+struct ScrollPane : ParentCtrl {
+	ParentCtrl body;
+	ScrollBar  sb, hsb;
+	int        need = 0;    // the page's natural height in pixels
+	int        needW = 0;   // and width (the options sit at fixed x positions)
+
+	ScrollPane() {
+		AddFrame(sb.Vert().AutoHide());
+		AddFrame(hsb.Horz().AutoHide());
+		Add(body);
+		sb.WhenScroll = hsb.WhenScroll = [this] { Place(); };
+	}
+	void Place() {
+		Size sz = GetSize();
+		body.SetRect(-hsb.Get(), -sb.Get(), max(sz.cx, needW), max(sz.cy, need));
+	}
+	virtual void Layout() override {
+		Size sz = GetSize();
+		sb.SetPage(sz.cy);
+		sb.SetTotal(max(sz.cy, need));
+		sb.SetLine(Zy(24));
+		hsb.SetPage(sz.cx);
+		hsb.SetTotal(max(sz.cx, needW));
+		hsb.SetLine(Zx(24));
+		Place();
+	}
+	virtual void MouseWheel(Point, int zdelta, dword keyflags) override {
+		if(keyflags & K_SHIFT)
+			hsb.Wheel(zdelta);
+		else
+			sb.Wheel(zdelta);
+	}
+};
+
 struct Runner : TopWindow {
 	typedef Runner CLASSNAME;
 
 	RunOptions opt;
 	ParentCtrl s1, s2, s3;
+	ScrollPane s1p;   // Screen 1's options + command box; the bottom buttons stay outside it
 
 	// ---- Screen 1
 	Label     lRemote, lPgHost, lPgPort, lPgDb, lPgUser, pgTestRes;
@@ -506,45 +543,44 @@ Runner::Runner()
 {
 	Title("Jac313Runner — jac313 test gates — " + MachineLabel());
 	Sizeable().Zoomable();
-	SetRect(0, 0, Zx(1060), Zy(760));
-	SetMinSize(Zsz(760, 560));
 	Add(s1.SizePos());
 	Add(s2.SizePos());
 	Add(s3.SizePos());
 
 	// ================= Screen 1
+	s1.Add(s1p.HSizePos().VSizePosZ(0, 66));
 	int y = 8;
 	lRoot.SetText("Project root:");
-	Place(s1, lRoot, 8, y + 2, 90, 20);
-	s1.Add(root.HSizePosZ(100, 44).TopPosZ(y, 22));
+	Place(s1p.body, lRoot, 8, y + 2, 90, 20);
+	s1p.body.Add(root.HSizePosZ(100, 44).TopPosZ(y, 22));
 	browse.SetLabel("...");
-	s1.Add(browse.RightPosZ(8, 30).TopPosZ(y, 22));
+	s1p.body.Add(browse.RightPosZ(8, 30).TopPosZ(y, 22));
 	browse << THISBACK(Browse);
 	root.WhenAction = [this] { FillVersions(); UpdateCommand(); };
 	y += 32;
 
 	boxVersion.SetLabel("Version");
-	s1.Add(boxVersion.HSizePosZ(8, 8).TopPosZ(y, 46));
+	s1p.body.Add(boxVersion.HSizePosZ(8, 8).TopPosZ(y, 46));
 	// cases come from the vNNN folders under the project root (FillVersions)
-	Place(s1, version, 20, y + 18, 600, 22);
+	Place(s1p.body, version, 20, y + 18, 600, 22);
 	y += 52;
 
 	boxGates.SetLabel("Gates");
-	s1.Add(boxGates.HSizePosZ(8, 8).TopPosZ(y, 46));
+	s1p.body.Add(boxGates.HSizePosZ(8, 8).TopPosZ(y, 46));
 	gCtest.SetLabel("ctest");
 	gSmoke.SetLabel("smoke matrix");
 	gBench.SetLabel("bench");
 	gVerifyLite.SetLabel("verify-lite");
 	gVerify.SetLabel("verify (valgrind)");
-	Place(s1, gCtest, 20, y + 18, 80, 22);
-	Place(s1, gSmoke, 110, y + 18, 120, 22);
-	Place(s1, gBench, 240, y + 18, 80, 22);
-	Place(s1, gVerifyLite, 330, y + 18, 110, 22);
-	Place(s1, gVerify, 450, y + 18, 160, 22);
+	Place(s1p.body, gCtest, 20, y + 18, 80, 22);
+	Place(s1p.body, gSmoke, 110, y + 18, 120, 22);
+	Place(s1p.body, gBench, 240, y + 18, 80, 22);
+	Place(s1p.body, gVerifyLite, 330, y + 18, 110, 22);
+	Place(s1p.body, gVerify, 450, y + 18, 160, 22);
 	y += 52;
 
 	boxBuild.SetLabel("Build");
-	s1.Add(boxBuild.HSizePosZ(8, 8).TopPosZ(y, 124));
+	s1p.body.Add(boxBuild.HSizePosZ(8, 8).TopPosZ(y, 124));
 	lComp.SetText("Compiler:");
 	lType.SetText("Type:");
 	lFront.SetText("Front-end:");
@@ -560,26 +596,26 @@ Runner::Runner()
 	Label *bl[] = { &lComp, &lType, &lFront, &lSize };
 	Switch *bs[] = { &comp, &type, &front, &size };
 	for(int i = 0; i < 4; i++) {
-		Place(s1, *bl[i], 20, y + 18 + 26 * i, 90, 22);
-		Place(s1, *bs[i], 110, y + 18 + 26 * i, 300, 22);
+		Place(s1p.body, *bl[i], 20, y + 18 + 26 * i, 90, 22);
+		Place(s1p.body, *bs[i], 110, y + 18 + 26 * i, 300, 22);
 	}
-	Place(s1, lCompVer, 420, y + 18, 400, 22);   // on the Compiler row
+	Place(s1p.body, lCompVer, 420, y + 18, 400, 22);   // on the Compiler row
 	bStrict.SetLabel("strict warnings");
 	bHardened.SetLabel("hardened");
 	bStrict.Tip("--strict: -Wall -Wextra -Wpedantic and friends (ctest/smoke builds); "
 	            "the format checks are on without it");
 	bHardened.Tip("--hardened: libstdc++ assertions, zero-init locals, stack/CF protection "
 	              "(ctest/smoke builds; not bench or valgrind)");
-	Place(s1, bStrict, 420, y + 18 + 26, 130, 22);
-	Place(s1, bHardened, 560, y + 18 + 26, 100, 22);
+	Place(s1p.body, bStrict, 420, y + 18 + 26, 130, 22);
+	Place(s1p.body, bHardened, 560, y + 18 + 26, 100, 22);
 	lFormat.SetText("Always on: -Wformat=2 -Werror=format");
 	lFormat.Tip("Every build (any compiler, type or option) treats a printf-style call whose "
 	            "arguments do not match its format, such as a 64-bit value given to %d, as an error.");
-	Place(s1, lFormat, 420, y + 18 + 78, 360, 22);
+	Place(s1p.body, lFormat, 420, y + 18 + 78, 360, 22);
 	y += 130;
 
 	boxPersist.SetLabel("Persist to");
-	s1.Add(boxPersist.HSizePosZ(8, 8).TopPosZ(y, 176));
+	s1p.body.Add(boxPersist.HSizePosZ(8, 8).TopPosZ(y, 176));
 	lDb.SetText("Databases:");
 	lFiles.SetText("Files:");
 	pSql.SetLabel("SQLite");
@@ -590,15 +626,15 @@ Runner::Runner()
 	pBin.SetLabel("binary");
 	pJson.SetLabel("JSON");
 	pHtml.SetLabel("HTML");
-	Place(s1, lDb, 20, y + 18, 90, 22);
-	Place(s1, pSql, 110, y + 18, 90, 22);
-	Place(s1, pPgL, 210, y + 18, 100, 22);
-	Place(s1, pPgR, 320, y + 18, 160, 22);
-	Place(s1, lFiles, 20, y + 44, 90, 22);
-	Place(s1, pJt, 110, y + 44, 90, 22);
-	Place(s1, pBin, 210, y + 44, 100, 22);
-	Place(s1, pJson, 320, y + 44, 90, 22);
-	Place(s1, pHtml, 420, y + 44, 90, 22);
+	Place(s1p.body, lDb, 20, y + 18, 90, 22);
+	Place(s1p.body, pSql, 110, y + 18, 90, 22);
+	Place(s1p.body, pPgL, 210, y + 18, 100, 22);
+	Place(s1p.body, pPgR, 320, y + 18, 160, 22);
+	Place(s1p.body, lFiles, 20, y + 44, 90, 22);
+	Place(s1p.body, pJt, 110, y + 44, 90, 22);
+	Place(s1p.body, pBin, 210, y + 44, 100, 22);
+	Place(s1p.body, pJson, 320, y + 44, 90, 22);
+	Place(s1p.body, pHtml, 420, y + 44, 90, 22);
 	lMaxRuns.SetText("Max runs:");
 	lMaxRec.SetText("Max records in a run:");
 	lMax.SetText("Max persisted in a run:");
@@ -655,55 +691,57 @@ Runner::Runner()
 	connLoad << [this] { LoadConn(false); };
 	connSave << THISBACK(SaveConn);
 	connView << THISBACK(ViewConn);
-	Place(s1, lConn, 20, y + 70, 90, 22);
-	s1.Add(connFile.HSizePosZ(110, 324).TopPosZ(y + 70, 22));
-	s1.Add(connBrowse.RightPosZ(284, 30).TopPosZ(y + 70, 22));
-	s1.Add(connLoad.RightPosZ(196, 80).TopPosZ(y + 70, 22));
-	s1.Add(connView.RightPosZ(108, 80).TopPosZ(y + 70, 22));
-	s1.Add(connSave.RightPosZ(20, 80).TopPosZ(y + 70, 22));
-	Place(s1, lRemote, 20, y + 96, 90, 22);
-	Place(s1, lPgHost, 110, y + 96, 36, 22);
-	Place(s1, pgHost, 146, y + 96, 150, 22);
-	Place(s1, lPgPort, 304, y + 96, 32, 22);
-	Place(s1, pgPort, 336, y + 96, 56, 22);
-	Place(s1, lPgDb, 400, y + 96, 62, 22);
-	Place(s1, pgDb, 462, y + 96, 100, 22);
-	Place(s1, lPgUser, 570, y + 96, 34, 22);
-	Place(s1, pgUser, 604, y + 96, 100, 22);
-	Place(s1, pgTest, 712, y + 96, 100, 22);
-	Place(s1, pgLTest, 818, y + 96, 100, 22);
-	s1.Add(pgTestRes.HSizePosZ(926, 16).TopPosZ(y + 96, 22));
-	s1.Add(connStatus.HSizePosZ(110, 16).TopPosZ(y + 122, 22));
-	Place(s1, lMaxRuns, 20, y + 148, 70, 22);
-	Place(s1, maxRuns, 92, y + 148, 70, 22);
-	Place(s1, lDefRuns, 166, y + 148, 90, 22);
-	Place(s1, lMaxRec, 262, y + 148, 140, 22);
-	Place(s1, maxRecords, 402, y + 148, 90, 22);
-	Place(s1, lDefRec, 496, y + 148, 110, 22);
-	Place(s1, lMax, 612, y + 148, 150, 22);
-	Place(s1, maxRows, 764, y + 148, 90, 22);
-	Place(s1, lDefRows, 858, y + 148, 110, 22);
+	Place(s1p.body, lConn, 20, y + 70, 90, 22);
+	s1p.body.Add(connFile.HSizePosZ(110, 324).TopPosZ(y + 70, 22));
+	s1p.body.Add(connBrowse.RightPosZ(284, 30).TopPosZ(y + 70, 22));
+	s1p.body.Add(connLoad.RightPosZ(196, 80).TopPosZ(y + 70, 22));
+	s1p.body.Add(connView.RightPosZ(108, 80).TopPosZ(y + 70, 22));
+	s1p.body.Add(connSave.RightPosZ(20, 80).TopPosZ(y + 70, 22));
+	Place(s1p.body, lRemote, 20, y + 96, 90, 22);
+	Place(s1p.body, lPgHost, 110, y + 96, 36, 22);
+	Place(s1p.body, pgHost, 146, y + 96, 150, 22);
+	Place(s1p.body, lPgPort, 304, y + 96, 32, 22);
+	Place(s1p.body, pgPort, 336, y + 96, 56, 22);
+	Place(s1p.body, lPgDb, 400, y + 96, 62, 22);
+	Place(s1p.body, pgDb, 462, y + 96, 100, 22);
+	Place(s1p.body, lPgUser, 570, y + 96, 34, 22);
+	Place(s1p.body, pgUser, 604, y + 96, 100, 22);
+	Place(s1p.body, pgTest, 712, y + 96, 100, 22);
+	Place(s1p.body, pgLTest, 818, y + 96, 100, 22);
+	s1p.body.Add(pgTestRes.HSizePosZ(926, 16).TopPosZ(y + 96, 22));
+	s1p.body.Add(connStatus.HSizePosZ(110, 16).TopPosZ(y + 122, 22));
+	Place(s1p.body, lMaxRuns, 20, y + 148, 70, 22);
+	Place(s1p.body, maxRuns, 92, y + 148, 70, 22);
+	Place(s1p.body, lDefRuns, 166, y + 148, 90, 22);
+	Place(s1p.body, lMaxRec, 262, y + 148, 140, 22);
+	Place(s1p.body, maxRecords, 402, y + 148, 90, 22);
+	Place(s1p.body, lDefRec, 496, y + 148, 110, 22);
+	Place(s1p.body, lMax, 612, y + 148, 150, 22);
+	Place(s1p.body, maxRows, 764, y + 148, 90, 22);
+	Place(s1p.body, lDefRows, 858, y + 148, 110, 22);
 	y += 182;
 
 	boxRows.SetLabel("Rows and read-back");
-	s1.Add(boxRows.HSizePosZ(8, 8).TopPosZ(y, 72));
+	s1p.body.Add(boxRows.HSizePosZ(8, 8).TopPosZ(y, 72));
 	lRb.SetText("Read-back:");
 	lPg.SetText("PG test tables after read-back:");
 	rb.Add("sample", "count + checksum + sample").Add("all", "every row");
 	pg.Add("keep-last", "keep last run").Add("delete", "delete");
-	Place(s1, lRb, 20, y + 18, 130, 22);
-	Place(s1, rb, 150, y + 18, 360, 22);
-	Place(s1, lPg, 20, y + 44, 210, 22);
-	Place(s1, pg, 230, y + 44, 260, 22);
+	Place(s1p.body, lRb, 20, y + 18, 130, 22);
+	Place(s1p.body, rb, 150, y + 18, 360, 22);
+	Place(s1p.body, lPg, 20, y + 44, 210, 22);
+	Place(s1p.body, pg, 230, y + 44, 260, 22);
 	y += 80;
 
 	lCmd.SetText("Command that will run:");
-	Place(s1, lCmd, 8, y, 170, 20);
+	Place(s1p.body, lCmd, 8, y, 170, 20);
 	copyCmd.SetLabel("Copy");
 	copyCmd.Tip("Copy the command line(s), each with a cd into its folder, to run them yourself in a terminal");
-	Place(s1, copyCmd, 180, y - 1, 70, 22);
+	Place(s1p.body, copyCmd, 180, y - 1, 70, 22);
 	copyCmd << THISBACK(CopyCommand);
-	s1.Add(cmd.HSizePosZ(8, 8).VSizePosZ(y + 22, 66));
+	s1p.body.Add(cmd.HSizePosZ(8, 8).VSizePosZ(y + 22, 4));
+	s1p.need = Zy(y + 22 + 140);   // the options, then at least ~6 lines of command
+	s1p.needW = Zx(1060);          // the rightmost options end near x 968, then the PG test result
 	cmd.SetReadOnly();
 	cmd.SetFont(Monospace(Zy(11)));
 	s1.Add(lInfo.HSizePosZ(8, 8).BottomPosZ(40, 22));
@@ -717,6 +755,18 @@ Runner::Runner()
 	saveDef << THISBACK(SaveDefault);
 	start << THISBACK(Start);
 	start.Ok();
+
+	Size want(Zx(1060), s1p.need + Zy(66));
+	Size minsz = Zsz(760, 560);
+	Rect wa = GetMouseWorkArea();   // the monitor the Runner is started on (two-screen desks)
+	if(wa.Width() <= 0 || wa.Height() <= 0)
+		wa = GetPrimaryWorkArea();
+	if(wa.Width() > 0 && wa.Height() > 0) {
+		want = min(want, wa.GetSize() - Size(Zx(16), Zy(48)));   // leave room for the title bar
+		minsz = min(minsz, want);
+	}
+	SetRect(0, 0, want.cx, want.cy);
+	SetMinSize(minsz);
 
 	Ctrl *live[] = { &version, &comp, &type, &front, &size, &rb, &pg, &gCtest, &gSmoke, &gBench, &gVerifyLite,
 	                 &gVerify, &bStrict, &bHardened, &pSql, &pPgL, &pPgR, &pJt, &pBin, &pJson, &pHtml, &pgHost, &pgPort, &pgDb, &pgUser, &connFile, &maxRuns, &maxRecords, &maxRows };
