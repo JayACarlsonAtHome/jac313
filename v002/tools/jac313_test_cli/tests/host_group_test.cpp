@@ -153,6 +153,12 @@ int main() {
         CHECK(R::package_version_get(db5, 3, kVer, "Store") == "v002.001");
         CHECK(R::fleet_synced(db5, 3, "srv"));
         CHECK(!R::fleet_synced(db5, 3, "other-srv"));
+        CHECK(R::fleet_synced_within(db5, 3, "srv", 24) == false);   // "t" is no date: stale
+        R::mark_fleet_synced(db5, 3, "srv", R::utc_now_iso());
+        CHECK(R::fleet_synced_within(db5, 3, "srv", 24));
+        db5.exec("UPDATE fleet_sync SET ts_utc='2000-01-01T00:00:00Z' WHERE group_id=3");
+        CHECK(!R::fleet_synced_within(db5, 3, "srv", 24));
+        CHECK(R::fleet_synced(db5, 3, "srv"));
         std::string host10, host11;
         { auto st = db5.prepare("SELECT host FROM run WHERE run_id=10"); if (st.step()) st.get(host10); }
         { auto st = db5.prepare("SELECT host FROM run WHERE run_id=11"); if (st.step()) st.get(host11); }

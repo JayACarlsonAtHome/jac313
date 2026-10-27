@@ -90,10 +90,13 @@ std::optional<std::int64_t> pin_from_fleet(jac313::Qlite::v001::Sqlite& db,
     const std::string server = fleet_server_key();
     if (server.empty()) return std::nullopt;
     const std::int64_t local = R::find_exact_group(db, h);
-    if (local != 0 && R::fleet_synced(db, local, server)) {   // confirmed before: no round trip
+    // confirmed in the last day: no round trip. An older confirmation is checked again (quietly
+    // when nothing changed), so after a server wipe this machine registers again within a day.
+    if (local != 0 && R::fleet_synced_within(db, local, server, 24)) {
         R::set_current_host(db, local, version);
         return local;
     }
+    const bool known = local != 0 && R::fleet_synced(db, local, server);
     // one try per process: a run pins several times, and an unreachable server costs a timeout
     static bool tried = false;
     static FleetResult fr;
@@ -112,7 +115,8 @@ std::optional<std::int64_t> pin_from_fleet(jac313::Qlite::v001::Sqlite& db,
         err << "[fleet] this machine is " << R::host_label(fr.gid) << " on the shared server: local results moved from "
             << R::host_label(local) << "\n";
     } else if (local == fr.gid) {
-        err << "[fleet] " << R::host_label(fr.gid) << " is registered on the shared server\n";
+        if (!known)
+            err << "[fleet] " << R::host_label(fr.gid) << " is registered on the shared server\n";
     } else {
         if (R::group_in_use(db, fr.gid)) {   // another machine's local rows sat on that number
             R::renumber_group(db, fr.gid, R::next_free_group_id(db));

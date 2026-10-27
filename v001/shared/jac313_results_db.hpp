@@ -728,6 +728,17 @@ inline bool fleet_synced(Sqlite& db, std::int64_t gid, const std::string& server
     return n > 0;
 }
 
+// Confirmed by this server within the last `hours` (ts_utc is utc_now_iso()). An older confirmation
+// is checked again, so a server that was wiped or replaced makes the machine register again.
+inline bool fleet_synced_within(Sqlite& db, std::int64_t gid, const std::string& server, int hours) {
+    std::int64_t n = 0;
+    auto st = db.prepare("SELECT COUNT(*) FROM fleet_sync WHERE group_id=? AND server=? "
+                         "AND julianday(ts_utc) > julianday('now') - ? / 24.0");
+    st.bind(gid, server, static_cast<std::int64_t>(hours));
+    if (st.step()) st.get(n);
+    return n > 0;
+}
+
 inline void mark_fleet_synced(Sqlite& db, std::int64_t gid, const std::string& server, const std::string& ts_utc) {
     db.exec("INSERT OR REPLACE INTO fleet_sync(group_id, server, ts_utc) VALUES(?, ?, ?)", gid, server, ts_utc);
 }

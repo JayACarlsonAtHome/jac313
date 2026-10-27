@@ -321,14 +321,110 @@ static bool LaunchDetached(const Vector<String>& argv)
 	return WIFEXITED(st) && WEXITSTATUS(st) == 0;
 }
 
+// A program on $PATH (its full path), or Null.
+static String FindInPath(const String& name)
+{
+	if(name.Find('/') >= 0)
+		return FileExists(name) ? name : String();
+	for(const String& d : Split(Nvl(GetEnv("PATH"), String("/usr/bin")), ':'))
+		if(FileExists(AppendFileName(d, name)))
+			return AppendFileName(d, name);
+	return Null;
+}
+
 // The first browser found: Chrome, then Chromium, then the desktop default (xdg-open).
 static String FindBrowser()
 {
 	for(const char *b : { "google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "xdg-open" })
-		for(const String& d : Split(Nvl(GetEnv("PATH"), String("/usr/bin")), ':'))
-			if(FileExists(AppendFileName(d, b)))
-				return AppendFileName(d, b);
+		if(String f = FindInPath(b); f.GetCount())
+			return f;
 	return Null;
+}
+
+// Terminal shims: how each terminal is told "open a window running bash SCRIPT". $JAC313_TERMINAL
+// overrides them all ("ghostty -e", "my-term --run": its words, then bash SCRIPT); $TERMINAL is
+// tried first when it names one of these. Empty when no terminal is found.
+static Vector<String> TerminalArgv(const String& script)
+{
+	enum { DASHDASH, E, X, BARE, CMDSTR, WEZ };   // how the command is passed
+	struct Term { const char *exe; int style; };
+	static const Term terms[] = {
+		{ "ptyxis", CMDSTR },        // Fedora 41+ default: -x "command"
+		{ "ghostty", E },            // Fedora: COPR scottames/ghostty
+		{ "gnome-terminal", DASHDASH }, { "kgx", DASHDASH }, { "konsole", E }, { "kitty", BARE },
+		{ "alacritty", E }, { "wezterm", WEZ }, { "foot", BARE }, { "tilix", E },
+		{ "xfce4-terminal", X }, { "mate-terminal", X }, { "x-terminal-emulator", E }, { "xterm", E },
+	};
+	Vector<String> a;
+	if(String o = TrimBoth(GetEnv("JAC313_TERMINAL")); o.GetCount()) {
+		a = Split(o, ' ');
+		a << "bash" << script;
+		return a;
+	}
+	auto build = [&](const Term& t, const String& exe) {
+		a << exe;
+		switch(t.style) {
+		case DASHDASH: a << "--" << "bash" << script; break;
+		case E:        a << "-e" << "bash" << script; break;
+		case X:        a << "-x" << "bash" << script; break;
+		case BARE:     a << "bash" << script; break;
+		case CMDSTR:   a << "--new-window" << "-x" << "bash '" + script + "'"; break;
+		case WEZ:      a << "start" << "--" << "bash" << script; break;
+		}
+	};
+	String pref = GetFileName(GetEnv("TERMINAL"));
+	for(int pass = 0; pass < 2; pass++)
+		for(const Term& t : terms) {
+			if(pass == 0 && pref != t.exe)
+				continue;
+			if(String exe = FindInPath(t.exe); exe.GetCount()) {
+				build(t, exe);
+				return a;
+			}
+		}
+	return a;
+}
+
+static String gSnapSetup;   // --snap DIR --setup-pg: pictures of the Setup dialog (and a scripted run)
+
+// 'text' for bash (single quotes; a ' inside becomes '\'').
+static String ShQuote(const String& s)
+{
+	String q = "'";
+	for(char c : s)
+		q << (c == '\'' ? String("'\\''") : String(c, 1));
+	return q + "'";
+}
+
+// Letters, digits and the given punctuation only (host names, user names, networks).
+static bool OnlyChars(const String& s, const char *extra)
+{
+	if(s.IsEmpty())
+		return false;
+	for(char c : s)
+		if(!IsAlNum(c) && !strchr(extra, c))
+			return false;
+	return true;
+}
+
+// A file only its owner can read (0600), e.g. a password.
+static bool WritePrivateFile(const String& path, const String& text)
+{
+	int fd = open(~path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+	if(fd < 0)
+		return false;
+	bool ok = fchmod(fd, 0600) == 0 && write(fd, ~text, text.GetCount()) == text.GetCount();
+	return close(fd) == 0 && ok;
+}
+
+// 24 letters and digits for a new PostgreSQL role.
+static String RandomPassword()
+{
+	static const char abc[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+	String p;
+	for(int i = 0; i < 24; i++)
+		p << abc[Random(62)];
+	return p;
 }
 
 // ======================================================================= window
@@ -385,7 +481,7 @@ struct Runner : TopWindow {
 	// ---- Screen 1
 	Label     lRemote, lPgHost, lPgPort, lPgDb, lPgUser, pgTestRes;
 	EditString pgHost, pgPort, pgDb, pgUser;
-	Button    pgTest, pgLTest;
+	Button    pgTest, pgLTest, pgSetup;
 	Label     lConn, connStatus;
 	EditString connFile;
 	Button    connBrowse, connLoad, connView, connSave;
@@ -487,6 +583,8 @@ struct Runner : TopWindow {
 	void   TestLocal()  { TestPg(false); }
 	bool   TestPg(bool remote);
 	bool   CheckPgTick(bool remote);   // test a ticked PG box; on failure untick it and say why
+	void   SetupRemotePg();            // "Setup Remote PG Server..." (setup/setup_pg_server.sh)
+	bool   RegisterFleet(String& msg); // jac313_test_cli host: this machine's jac313-### on the server
 	String pgTestMsg;      // the last Test's whole message
 	void   LoadConn(bool quiet);
 	void   SaveConn();
@@ -507,13 +605,10 @@ void Runner::LimitPersistField()
 	UpdateCommand();
 }
 
-// "jac313-002 · 192.168.1.194, 10.10.10.2": this machine's name and its IPv4 addresses, so the
-// window says which box it runs on. Loopback, link-local (169.254) and VM/container bridges are left out.
-static String MachineLabel()
+// This machine's IPv4 addresses. Loopback, link-local (169.254) and VM/container bridges are left out.
+static Vector<String> MachineIps()
 {
-	char name[256] = {};
-	String s = gethostname(name, sizeof(name) - 1) == 0 ? String(name) : String("?");
-	String ips;
+	Vector<String> ips;
 	ifaddrs *list = nullptr;
 	if(getifaddrs(&list) == 0) {
 		for(ifaddrs *a = list; a; a = a->ifa_next) {
@@ -525,13 +620,40 @@ static String MachineLabel()
 			char buf[INET_ADDRSTRLEN] = {};
 			inet_ntop(AF_INET, &((sockaddr_in *)a->ifa_addr)->sin_addr, buf, sizeof(buf));
 			String ip = buf;
-			if(ip.StartsWith("169.254.") || ips.Find(ip) >= 0)
-				continue;
-			ips << (ips.GetCount() ? ", " : "") << ip;
+			if(!ip.StartsWith("169.254.") && FindIndex(ips, ip) < 0)
+				ips.Add(ip);
 		}
 		freeifaddrs(list);
 	}
-	return ips.GetCount() ? s + " · " + ips : s;
+	return ips;
+}
+
+// "192.168.1.0/24": the /24 of this machine's address on the server's network (an address that
+// shares the server's first three numbers), else of its first address. Only a suggestion: the
+// Setup dialog shows it to be confirmed.
+static String DefaultAllowNet(const String& server)
+{
+	Vector<String> ips = MachineIps();
+	if(ips.IsEmpty())
+		return Null;
+	String pick = ips[0];
+	Vector<String> sv = Split(server, '.');
+	for(const String& ip : ips) {
+		Vector<String> p = Split(ip, '.');
+		if(sv.GetCount() == 4 && p.GetCount() == 4 && p[0] == sv[0] && p[1] == sv[1] && p[2] == sv[2])
+			pick = ip;
+	}
+	Vector<String> p = Split(pick, '.');
+	return p.GetCount() == 4 ? p[0] + "." + p[1] + "." + p[2] + ".0/24" : String();
+}
+
+// "jac313-002 · 192.168.1.194, 10.10.10.2": this machine's name and its IPv4 addresses, so the
+// window says which box it runs on.
+static String MachineLabel()
+{
+	char name[256] = {};
+	String s = gethostname(name, sizeof(name) - 1) == 0 ? String(name) : String("?");
+	return s + (MachineIps().GetCount() ? " · " + Join(MachineIps(), ", ") : String());
 }
 
 static void Place(Ctrl& parent, Ctrl& c, int x, int y, int cx, int cy)
@@ -709,7 +831,12 @@ Runner::Runner()
 	Place(s1p.body, pgTest, 712, y + 96, 100, 22);
 	Place(s1p.body, pgLTest, 818, y + 96, 100, 22);
 	s1p.body.Add(pgTestRes.HSizePosZ(926, 16).TopPosZ(y + 96, 22));
-	s1p.body.Add(connStatus.HSizePosZ(110, 16).TopPosZ(y + 122, 22));
+	s1p.body.Add(connStatus.HSizePosZ(110, 200).TopPosZ(y + 122, 22));
+	pgSetup.SetLabel("Setup Remote PG Server...");
+	pgSetup.Tip("Make a machine the shared PG remote server (PostgreSQL 18, role + database jac313, logins "
+	            "from your network): over ssh in a terminal, or with the steps shown to run by hand");
+	s1p.body.Add(pgSetup.RightPosZ(16, 176).TopPosZ(y + 122, 22));
+	pgSetup << THISBACK(SetupRemotePg);
 	Place(s1p.body, lMaxRuns, 20, y + 148, 70, 22);
 	Place(s1p.body, maxRuns, 92, y + 148, 70, 22);
 	Place(s1p.body, lDefRuns, 166, y + 148, 90, 22);
@@ -1773,6 +1900,324 @@ void Runner::TestResult(const String& text, bool ok)
 	connStatus.Tip(t);
 }
 
+// What a failed Test Remote means, in the words the Setup dialog opens with.
+static String PgRemoteAdvice(const String& msg)
+{
+	String m = ToLower(msg);
+	if(m.IsEmpty())
+		return "Fill in the server below. The setup checks it and changes only what is missing.";
+	if(m.Find(" ok:") >= 0 || m.Find(" ok ") >= 0)
+		return "Remote PG works already. Running the setup again only changes what is missing.";
+	if(m.Find("no server set") >= 0)
+		return "No server yet: fill in the machine that should be the PG remote server.";
+	if(m.Find("no pg_hba.conf entry") >= 0)
+		return "The server answers but does not let jac313 in from this machine (pg_hba.conf).\n"
+		       "The setup adds a line for your network.";
+	if(m.Find("password") >= 0 || m.Find("fe_sendauth") >= 0)
+		return "The server answers, but the password is missing or wrong. If role jac313 already exists\n"
+		       "there, type its password below and press Save password (the setup never changes it).";
+	if(m.Find("does not exist") >= 0)
+		return "The server answers, but role or database jac313 is missing. The setup creates them.";
+	return "The server does not answer on its PostgreSQL port: PostgreSQL is not installed or not running,\n"
+	       "it listens on localhost only, or a firewall blocks the port. The setup fixes all three.";
+}
+
+// "Setup Remote PG Server...": make a machine the shared PG remote server with setup/setup_pg_server.sh.
+// Do it for me: a terminal runs it over ssh (ssh and sudo ask there); this window makes the new
+// role's password and the terminal keeps it in SQL_Secrets. Show me the steps: the commands to run
+// by hand, then the password typed here. Test & Finish (also run after either): keep the server in
+// the connections file, Test Remote, and register this machine's jac313-### on it.
+void Runner::SetupRemotePg()
+{
+	ToOptions();
+	const String script = AppendFileName(AppendFileName(Root(), "setup"), "setup_pg_server.sh");
+	if(!FileExists(script)) {
+		Exclamation("Not found: " + DeQtf(script));
+		return;
+	}
+	if(opt.pgHost.GetCount() && pgTestMsg.Find("PG remote") < 0)
+		TestPg(true);   // what is wrong decides the advice
+	const String secrets = GetFileFolder(EffectiveConnFile(opt, Root()));
+	const String pgpass = AppendFileName(secrets, "jac313_pg_remote.pgpass");
+
+	TopWindow dlg;
+	dlg.Title("Setup Remote PG Server").Sizeable();
+	dlg.SetRect(0, 0, Zx(700), Zy(500));
+	Label advice, lHost, lPort, lUser, lAllow, lAllowTip, lPw, status;
+	EditString host, port, sshUser, allow, pw;
+	Button doIt, steps, copy, savePw, finish, close;
+	LineEdit cmds;
+	auto at = [&](Ctrl& c, int x, int y, int cx, int cy) { dlg.Add(c.LeftPosZ(x, cx).TopPosZ(y, cy)); };
+	advice.SetText(PgRemoteAdvice(pgTestMsg.Find("PG remote") >= 0 ? pgTestMsg : String()));
+	dlg.Add(advice.HSizePosZ(8, 8).TopPosZ(6, 40));
+	lHost.SetText("Server");
+	lPort.SetText("Port");
+	lUser.SetText("ssh user");
+	at(lHost, 8, 54, 90, 22);
+	at(host, 100, 54, 200, 22);
+	at(lPort, 310, 54, 36, 22);
+	at(port, 346, 54, 60, 22);
+	at(lUser, 416, 54, 64, 22);
+	at(sshUser, 480, 54, 140, 22);
+	lAllow.SetText("Allow network");
+	lAllowTip.SetText("only the test machines on this network may log in (please check it)");
+	at(lAllow, 8, 82, 90, 22);
+	at(allow, 100, 82, 200, 22);
+	at(lAllowTip, 310, 82, 380, 22);
+	host <<= opt.pgHost;
+	port <<= Nvl(opt.pgPort, String("5432"));
+	sshUser <<= GetUserName();
+	allow <<= DefaultAllowNet(opt.pgHost);
+	host.WhenAction = [&] { allow <<= DefaultAllowNet(TrimBoth(~host)); };
+	doIt.SetLabel("Do it for me (ssh)");
+	doIt.Tip("A terminal runs the setup on the server over ssh: ssh and sudo ask there, the setup shows its plan first");
+	steps.SetLabel("Show me the steps");
+	steps.Tip("The commands to run yourself; then type the password it prints below");
+	at(doIt, 100, 114, 160, 26);
+	at(steps, 268, 114, 160, 26);
+	cmds.SetReadOnly();
+	cmds.SetFont(Monospace(Zy(10)));
+	dlg.Add(cmds.HSizePosZ(8, 88).TopPosZ(148, 150));
+	copy.SetLabel("Copy");
+	dlg.Add(copy.RightPosZ(8, 72).TopPosZ(148, 24));
+	lPw.SetText("Password");
+	pw.Password();
+	savePw.SetLabel("Save password");
+	savePw.Tip("Keep the jac313 password in " + pgpass + " (mode 600), then Test & Finish");
+	at(lPw, 8, 308, 90, 22);
+	at(pw, 100, 308, 200, 22);
+	at(savePw, 310, 307, 120, 24);
+	dlg.Add(status.HSizePosZ(8, 8).TopPosZ(340, 66));
+	finish.SetLabel("Test && Finish");
+	finish.Tip("Keep the server in the connections file, Test Remote, register this machine's jac313-###");
+	close.SetLabel("Close");
+	dlg.Add(finish.RightPosZ(136, 120).BottomPosZ(8, 26));
+	dlg.Add(close.RightPosZ(8, 120).BottomPosZ(8, 26));
+	close << [&] { dlg.Break(); };
+	dlg.WhenClose = [&] { dlg.Break(); };
+
+	auto say = [&](const String& t, bool bad) {   // a Label does not wrap: break long text at spaces
+		String w, line;
+		for(const String& word : Split(t, ' ')) {
+			if(line.GetCount() && line.GetCount() + word.GetCount() > 110) {
+				w << line << "\n";
+				line.Clear();
+			}
+			line << (line.GetCount() ? " " : "") << word;
+		}
+		status.SetInk(bad ? Color(170, 0, 0) : SColorText());
+		status.SetText(w + line);
+	};
+	// "PG remote: PostgreSQL connect failed (host=... passfile=...): connection to server ... failed: FATAL: ..."
+	// -> the server's own words
+	auto pgError = [](const String& m) { int q = m.ReverseFind("failed: "); return q >= 0 ? TrimBoth(m.Mid(q + 8)) : m; };
+	auto port_ = [&] { return Nvl(TrimBoth(~port), String("5432")); };
+	auto checked = [&]() -> bool {   // the fields go into a shell script: plain words only
+		String h = TrimBoth(~host), u = TrimBoth(~sshUser), a = TrimBoth(~allow);
+		if(!OnlyChars(h, ".-")) { say("Server: a host name or IPv4 address.", true); return false; }
+		if(!OnlyChars(u, "._-")) { say("ssh user: a user name on the server.", true); return false; }
+		if(!OnlyChars(a, "./") || a.Find('/') < 0) { say("Allow network: like 192.168.1.0/24.", true); return false; }
+		if(!OnlyChars(port_(), "")) { say("Port: a number.", true); return false; }
+		return true;
+	};
+	auto finishSetup = [&] {
+		if(!OnlyChars(TrimBoth(~host), ".-")) { say("Server: a host name or IPv4 address.", true); return; }
+		pgHost <<= TrimBoth(~host);
+		pgPort <<= port_();
+		pgDb <<= "jac313";   // what the setup makes
+		pgUser <<= "jac313";
+		UpdateCommand();
+		SaveConn();          // the CLI finds the server in the connections file
+		say("Testing the server...", false);
+		Sync();
+		if(!TestPg(true)) {
+			say("Test Remote failed: " + pgError(pgTestMsg), true);
+			advice.SetText(PgRemoteAdvice(pgTestMsg));
+			return;
+		}
+		String m;
+		bool ok = RegisterFleet(m);
+		say(pgTestMsg + "\n" + m, !ok);
+		advice.SetText(PgRemoteAdvice(pgTestMsg));
+	};
+	finish << finishSetup;
+
+	steps << [&] {
+		if(!checked())
+			return;
+		String to = TrimBoth(~sshUser) + "@" + TrimBoth(~host);
+		cmds <<= "# 1. copy the setup script to the server (run here):\n"
+		         "scp " + ShQuote(script) + " " + to + ":\n"
+		         "# 2. run it ON the server: it shows its plan, asks before changing anything, uses sudo:\n"
+		         "ssh -t " + to + " bash setup_pg_server.sh --allow " + TrimBoth(~allow) + "\n"
+		         "# 3. it prints the new password once at the end: type it in Password below,\n"
+		         "#    press Save password (if role jac313 already existed, type its old password).\n"
+		         "# 4. press Test & Finish.\n";
+		say("Run the commands in a terminal (Copy puts them on the clipboard).", false);
+	};
+	copy << [&] { WriteClipboardText(~cmds); say("Copied.", false); };
+
+	savePw << [&] {
+		String p = TrimBoth(~pw);
+		if(p.IsEmpty()) { say("Type the jac313 password first.", true); return; }
+		if(!checked())
+			return;
+		String esc;   // pgpass escapes ':' and '\'
+		for(char c : p)
+			esc << (c == ':' || c == '\\' ? String("\\") : String()) << c;
+		RealizeDirectory(secrets);
+		if(!WritePrivateFile(pgpass, TrimBoth(~host) + ":" + port_() + ":jac313:jac313:" + esc + "\n")) {
+			say("Cannot write " + pgpass, true);
+			return;
+		}
+		pw.Clear();
+		finishSetup();
+	};
+
+	String tmp;   // the running setup's folder (status file, launcher)
+	doIt << [&] {
+		if(!checked())
+			return;
+		char tmpl[] = "/tmp/jac313-pgsetup-XXXXXX";
+		if(!mkdtemp(tmpl)) { say("Cannot make a temporary folder.", true); return; }
+		tmp = tmpl;
+		if(!DirectoryExists(secrets)) {
+			RealizeDirectory(secrets);
+			chmod(~secrets, 0700);
+		}
+		const String h = TrimBoth(~host), u = TrimBoth(~sshUser), a = TrimBoth(~allow);
+		String run =
+			"#!/bin/bash\n"
+			"# Jac313Runner: set up the jac313 PG remote server over ssh, then keep its password here.\n"
+			"T=" + ShQuote(tmp) + "; H=" + h + "; U=" + u + "; A=" + a + "; PORT=" + port_()
+			+ "; PGPASS=" + ShQuote(pgpass) + "\n"
+			"C=(-o ControlMaster=auto -o ControlPath=\"$T/c\" -o ControlPersist=300)   # one ssh login for all steps\n"
+			"R=\".jac313-pgsetup-$$\"\n"
+			"echo \"=== jac313: setting up the PG remote server on $H (ssh as $U) ===\"\n"
+			"echo \"ssh may ask for $U's password on $H; the setup shows its plan, then asks for sudo there.\"\n"
+			"echo\n"
+			"if ssh \"${C[@]}\" \"$U@$H\" \"mkdir -m 700 -p $R\" && scp -q \"${C[@]}\" \"$T/setup_pg_server.sh\" \"$T/pw\" \"$U@$H:$R/\"; then\n"
+			"  ssh \"${C[@]}\" -t \"$U@$H\" \"bash $R/setup_pg_server.sh --allow $A --password-file $R/pw; rc=\\$?; rm -rf $R; exit \\$rc\"\n"
+			"  rc=$?\n"
+			"else\n"
+			"  rc=1; echo \"Could not reach $U@$H over ssh.\"\n"
+			"fi\n"
+			"case $rc in\n"
+			"  0) ( umask 077; printf '%s:%s:jac313:jac313:%s\\n' \"$H\" \"$PORT\" \"$(cat \"$T/pw\")\" > \"$PGPASS\" ) && chmod 600 \"$PGPASS\" \\\n"
+			"       && echo \"The password is kept in $PGPASS (mode 600).\" ;;\n"
+			"  3) echo \"Role jac313 already existed on $H, so its password is unchanged:\"\n"
+			"     echo \"type it in the Runner's Setup dialog (Password) and press Save password.\" ;;\n"
+			"  *) echo \"The setup did not finish (exit $rc): nothing was kept here.\" ;;\n"
+			"esac\n"
+			"rm -f \"$T/pw\"\n"
+			"ssh \"${C[@]}\" -O exit \"$U@$H\" 2>/dev/null\n"
+			"echo \"$rc\" > \"$T/status\"\n"
+			"echo; read -rp \"Press Enter to close this window. \" _\n";
+		if(!WritePrivateFile(AppendFileName(tmp, "pw"), RandomPassword() + "\n")
+		   || !WritePrivateFile(AppendFileName(tmp, "setup_pg_server.sh"), LoadFile(script))
+		   || !WritePrivateFile(AppendFileName(tmp, "run.sh"), run)) {
+			say("Cannot write the setup files in " + tmp, true);
+			return;
+		}
+		Vector<String> term = TerminalArgv(AppendFileName(tmp, "run.sh"));
+		if(term.IsEmpty() || !LaunchDetached(term)) {
+			DeleteFolderDeep(tmp);
+			say("No terminal found (ptyxis, ghostty, gnome-terminal, konsole, kitty, alacritty, xterm, ...; "
+			    "or set $JAC313_TERMINAL, e.g. \"ghostty -e\"). Use Show me the steps.", true);
+			return;
+		}
+		say("A terminal (" + GetFileName(term[0]) + ") runs the setup on " + h + ": answer ssh and sudo there.\n"
+		    "This window goes on by itself when it ends (no terminal? use Show me the steps).", false);
+		dlg.SetTimeCallback(-500, [&] {
+			String st = AppendFileName(tmp, "status");
+			if(tmp.IsEmpty() || !FileExists(st))
+				return;
+			dlg.KillTimeCallback(1);
+			int rc = ScanInt(LoadFile(st));
+			DeleteFolderDeep(tmp);
+			tmp.Clear();
+			if(rc == 0)
+				finishSetup();
+			else if(rc == 3)
+				say("Role jac313 already existed on the server, so its password is unchanged: type it in "
+				    "Password and press Save password.", true);
+			else
+				say("The setup did not finish (see the terminal). Fix what it says and try again, or use Show me the steps.", true);
+		}, 1);
+	};
+
+	if(gSnapSetup.GetCount()) {   // --snap DIR --setup-pg: the dialog, its steps, then Do it for me
+		int step = 0;             // when $JAC313_TERMINAL is set (a test runs the launcher headless)
+		dword t0 = msecs();
+		dlg.SetTimeCallback(-300, [&] {
+			auto shot = [&](const char *n) {
+				ImageDraw iw(dlg.GetSize());
+				dlg.DrawCtrl(iw, 0, 0);
+				PNGEncoder().SaveFile(AppendFileName(gSnapSetup, n), iw);
+				Cout() << "wrote " << AppendFileName(gSnapSetup, n) << "\n";
+			};
+			switch(step++) {
+			case 0: shot("setup_open.png"); break;
+			case 1: steps.WhenAction(); break;
+			case 2: shot("setup_steps.png"); Cout() << "steps:\n" << ~cmds; break;
+			case 3:
+				if(GetEnv("JAC313_TERMINAL").IsEmpty()) { step = 99; break; }
+				doIt.WhenAction();
+				t0 = msecs();
+				break;
+			default:
+				if(step < 99 && tmp.GetCount() && msecs(t0) < 60000) { step--; break; }   // the setup runs
+				shot("setup_done.png");
+				Cout() << "status: " << status.GetText() << "\n";
+				dlg.KillTimeCallback(2);
+				dlg.Break();
+			}
+		}, 2);
+	}
+	dlg.Execute();
+	if(tmp.GetCount() && FileExists(AppendFileName(tmp, "status")))
+		DeleteFolderDeep(tmp);   // a setup still running keeps its folder (and removes its password itself)
+}
+
+// jac313_test_cli host with the Remote PG server: registers (or confirms) this machine's jac313-###
+// in the server's fleet registry. msg is its [fleet] line, or why it could not.
+bool Runner::RegisterFleet(String& msg)
+{
+	ToOptions();
+	String vdir = AppendFileName(Root(), opt.version);
+	String exe = AppendFileName(vdir, "jac313_test_cli");
+	if(!FileExists(exe)) {
+		msg = "jac313_test_cli is not built yet: run ./bsir.sh in " + opt.version + " (it registers this machine).";
+		return false;
+	}
+	setenv("JAC313_PG_REMOTE", WithPassFile(RemoteConninfo(opt), PassFileFor(opt, Root(), true)), 1);
+	LocalProcess p;
+	if(!p.Start(exe, Vector<String>{ "host" }, NULL, vdir)) {
+		msg = "Cannot start " + exe;
+		return false;
+	}
+	String out, chunk;
+	dword t = msecs();
+	while(p.IsRunning() && msecs(t) < 30000) {
+		if(p.Read(chunk))
+			out << chunk;
+		ProcessEvents();
+		Sleep(20);
+	}
+	while(p.Read(chunk) && chunk.GetCount())
+		out << chunk;
+	String fleet, label;
+	for(String l : Split(out, '\n')) {
+		l = TrimBoth(l);
+		if(l.StartsWith("[fleet]"))
+			fleet << (fleet.GetCount() ? " " : "") << TrimBoth(l.Mid(7));
+		if(int q = l.Find("jac313-"); q >= 0 && l.StartsWith("=== host"))
+			label = l.Mid(q, 10);
+	}
+	msg = fleet.GetCount() ? fleet : "This machine is " + Nvl(label, String("registered")) + " (already confirmed by the server).";
+	return fleet.Find("not used") < 0 && label.GetCount();
+}
+
 void Runner::ConnStatus(const String& text, bool bad)
 {
 	connStatus.SetInk(bad ? Color(170, 0, 0) : SColorText());
@@ -1947,7 +2392,7 @@ static void Snap(Runner& w, const String& file)
 GUI_APP_MAIN
 {
 	String summary, jtext, snap;
-	bool autostart = false, copyAiStep = false, reportsStep = false, testRemote = false, testLocal = false, allowRoot = false;
+	bool autostart = false, copyAiStep = false, reportsStep = false, testRemote = false, testLocal = false, allowRoot = false, setupPg = false;
 	String connSaveHost;
 	int autostop = -1, selectRow = 1;
 	const Vector<String>& a = CommandLine();
@@ -1976,6 +2421,8 @@ GUI_APP_MAIN
 			testRemote = true;
 		else if(a[i] == "--test-local")    // with --snap: also press PG local's Test button
 			testLocal = true;
+		else if(a[i] == "--setup-pg")      // with --snap: also open Setup Remote PG Server... (see gSnapSetup)
+			setupPg = true;
 		else if(a[i] == "--conn-save" && i + 1 < a.GetCount())   // with --snap: type HOST, press Save
 			connSaveHost = a[++i];
 		else if(a[i] == "--allow-root")   // run even as root (jac313_test_cli refuses root too)
@@ -2071,6 +2518,10 @@ GUI_APP_MAIN
 	if(testLocal) {
 		w.TestLocal();
 		Cout() << "test_local: " << w.pgTestRes.GetText() << " | " << w.connStatus.GetText() << "\n";
+	}
+	if(setupPg) {
+		gSnapSetup = snap;
+		w.SetupRemotePg();
 	}
 	Snap(w, AppendFileName(snap, "screen1_options.png"));
 	w.Show(2);
