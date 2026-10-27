@@ -73,7 +73,14 @@ pg_psql() {
   return 1
 }
 pg_su() { ( cd / && sudo -u postgres "$(pg_psql)" -v ON_ERROR_STOP=1 -Atq "$@" ); }
+# A PostgreSQL server of ANY version already running here (e.g. Debian's 17) is used as it is:
+# installing 18 beside it would make a second cluster on another port. Its unit becomes $service.
+existing=$(systemctl list-units --type=service --state=running --no-legend --plain 'postgresql*' 2>/dev/null \
+             | awk '{print $1}' | grep -v '^postgresql\.service$' | head -n1)
+[ -n "$existing" ] || existing=$(systemctl list-units --type=service --state=running --no-legend --plain 'postgresql*' 2>/dev/null | awk '{print $1}' | head -n1)
+[ -n "$existing" ] && service=${existing%.service}
 installed() {
+  [ -n "$existing" ] && return 0
   case "$family" in
     fedora) rpm -q postgresql-server >/dev/null 2>&1 ;;
     rhel) rpm -q postgresql18-server >/dev/null 2>&1 ;;
@@ -85,6 +92,7 @@ MARK="jac313 pg_remote $ALLOW"
 
 # --- the plan: what is there, what would change ---
 echo "=== jac313 PG remote server setup on $(hostname) ($family) ==="
+[ -n "$existing" ] && echo "(using the PostgreSQL server already running here: $service)"
 if [ "$DRY" = 0 ] && [ "$YES" = 0 ] && ! [ -t 0 ]; then
   echo "This needs a terminal to answer sudo and the y/N question (or pass --yes, or --dry-run)."
   exit 1
