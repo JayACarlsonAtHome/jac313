@@ -3,6 +3,7 @@ add_executable(jac313_test_cli
     jac313_test_cli/manifest.cpp
     jac313_test_cli/host_hardware.cpp
     jac313_test_cli/host_pin.cpp
+    jac313_test_cli/fleet_registry.cpp
     jac313_test_cli/runner.cpp
     jac313_test_cli/report.cpp
     jac313_test_cli/process.cpp
@@ -25,6 +26,11 @@ if(TARGET jac313::Setup)
 endif()
 if(TARGET jac313::Qlite)
     target_link_libraries(jac313_test_cli PRIVATE jac313::Qlite)
+endif()
+# libpq (Store's PgClient) for the fleet registry on the shared server (fleet_registry.cpp)
+if(TARGET jac313::store_pg_persist)
+    target_link_libraries(jac313_test_cli PRIVATE jac313::store_pg_persist)
+    target_compile_definitions(jac313_test_cli PRIVATE JAC313_TEST_CLI_HAS_PG=1)
 endif()
 # jText reads the PostgreSQL connections file (connections.cpp)
 if(TARGET jac313_jText)

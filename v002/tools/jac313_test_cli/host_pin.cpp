@@ -1,5 +1,7 @@
 #include "host_pin.hpp"
 
+#include "fleet_registry.hpp"
+
 #include <cstdio>
 #include <optional>
 #include <string>
@@ -73,13 +75,66 @@ int exit_ambiguous(std::ostream& err, jac313::Qlite::v002::Sqlite& db,
     return 1;
 }
 
+namespace {
+
+// The shared server's number for this machine, pinned locally (local rows renumbered to it), or
+// nullopt to fall back to local numbering: no server set, unreachable, or built without libpq.
+std::optional<std::int64_t> pin_from_fleet(jac313::Qlite::v002::Sqlite& db,
+                                           const jac313::results::HostId& h,
+                                           const std::string& version,
+                                           const std::filesystem::path& source_dir,
+                                           std::ostream& err) {
+    namespace R = jac313::results;
+    const std::string server = fleet_server_key();
+    if (server.empty()) return std::nullopt;
+    const std::int64_t local = R::find_exact_group(db, h);
+    if (local != 0 && R::fleet_synced(db, local, server)) {   // confirmed before: no round trip
+        R::set_current_host(db, local, version);
+        return local;
+    }
+    // one try per process: a run pins several times, and an unreachable server costs a timeout
+    static bool tried = false;
+    static FleetResult fr;
+    if (!tried) {
+        tried = true;
+        // a new machine asks for the next number free here, so other machines' local rows stay put
+        fr = fleet_register(h, local ? local : R::next_free_group_id(db), source_dir);
+        if (fr.gid == 0)
+            err << "[fleet] remote PG registry not used (" << fr.error << "); this machine keeps its local "
+                << (local ? R::host_label(local) : std::string("number")) << " for now and is checked again next run\n";
+    }
+    if (fr.gid == 0) return std::nullopt;
+    if (local != 0 && local != fr.gid) {
+        R::renumber_group(db, local, fr.gid);
+        err << "[fleet] this machine is " << R::host_label(fr.gid) << " on the shared server: local results moved from "
+            << R::host_label(local) << "\n";
+    } else if (local == fr.gid) {
+        err << "[fleet] " << R::host_label(fr.gid) << " is registered on the shared server\n";
+    } else {
+        if (R::group_in_use(db, fr.gid))   // another machine's local rows sat on that number
+            R::renumber_group(db, fr.gid, R::next_free_group_id(db));
+        err << "[fleet] this machine is " << R::host_label(fr.gid) << " (registered on the shared server)\n";
+    }
+    R::upsert_host_spec(db, fr.gid, h);
+    R::set_current_host(db, fr.gid, version);
+    R::mark_fleet_synced(db, fr.gid, server, R::utc_now_iso());
+    return fr.gid;
+}
+
+} // namespace
+
 std::optional<std::int64_t> try_resolve_and_pin(jac313::Qlite::v002::Sqlite& db,
                                                 const HostHardwareRecord& hw,
                                                 const HostPinFlags& flags,
                                                 const std::string& version,
-                                                std::ostream& err) {
+                                                std::ostream& err,
+                                                const std::filesystem::path& source_dir) {
     const jac313::results::HostId h = make_host_id(hw);
     const bool generic = is_generic_nodename(nodename_for_hash());
+    // --claim / --assign-new and generic nodenames (no telling VMs apart) stay on the local path
+    if (flags.claim.empty() && flags.assign_new == 0 && !generic) {
+        if (const auto gid = pin_from_fleet(db, h, version, source_dir, err)) return gid;
+    }
     const jac313::results::HostPinResult r =
         jac313::results::resolve_and_pin(db, h, to_pin_options(flags), generic, version);
     if (r.error == jac313::results::HostPinError::Ambiguous) {

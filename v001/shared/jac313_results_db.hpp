@@ -8,6 +8,7 @@
 
 #include <jac313/Qlite/v001.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -184,6 +185,14 @@ inline void ensure_schema(Sqlite& db) {
     db.exec("CREATE TABLE IF NOT EXISTS current_host (\n"
             "    version TEXT PRIMARY KEY\n"
             "  , group_id INTEGER NOT NULL\n"
+            ")");
+    // fleet_sync = the local group_ids the shared (pg-remote) server has confirmed, and which server
+    // (password-free conninfo). A confirmed number needs no round trip on later runs; one taken
+    // offline (no row here) is checked with the server, and renumbered to its number, next time.
+    db.exec("CREATE TABLE IF NOT EXISTS fleet_sync (\n"
+            "    group_id INTEGER PRIMARY KEY\n"
+            "  , server TEXT NOT NULL\n"
+            "  , ts_utc TEXT\n"
             ")");
     db.exec("CREATE TABLE IF NOT EXISTS testRun (\n"
             "    id INTEGER PRIMARY KEY\n"
@@ -661,6 +670,66 @@ inline std::int64_t pin_host(Sqlite& db, const HostId& h, const std::string& ver
 // Read-only: exact 6-tuple match only (0 if none).
 inline std::int64_t group_id(Sqlite& db, const HostId& h) {
     return find_exact_group(db, h);
+}
+
+// ---- fleet numbering (the shared server's jac313-###) ----
+// Every local table that holds a group_id. renumber_group() moves all of them together.
+inline constexpr const char* kGroupTables[] = {
+    "host_spec", "current_host", "run", "safeness", "io_best_fit", "package_version", "fleet_sync"};
+
+// True when any local table already uses this group_id.
+inline bool group_in_use(Sqlite& db, std::int64_t gid) {
+    for (const char* t : kGroupTables) {
+        std::int64_t n = 0;
+        auto st = db.prepare(std::string("SELECT COUNT(*) FROM ") + t + " WHERE group_id=?");
+        st.bind(gid);
+        if (st.step()) st.get(n);
+        if (n > 0) return true;
+    }
+    return false;
+}
+
+// One past the highest group_id in any local table.
+inline std::int64_t next_free_group_id(Sqlite& db) {
+    std::int64_t top = 0;
+    for (const char* t : kGroupTables) {
+        std::int64_t m = 0;
+        auto st = db.prepare(std::string("SELECT COALESCE(MAX(group_id),0) FROM ") + t);
+        if (st.step()) st.get(m);
+        top = std::max(top, m);
+    }
+    return top + 1;
+}
+
+namespace detail {
+inline void renumber_group_rows(Sqlite& db, std::int64_t from, std::int64_t to) {
+    if (from == to) return;
+    // `to` belongs to another machine's local rows (e.g. one that has not registered yet): move
+    // those out of the way first; that machine is renumbered when it registers.
+    if (group_in_use(db, to)) renumber_group_rows(db, to, next_free_group_id(db));
+    for (const char* t : kGroupTables)
+        db.exec(std::string("UPDATE ") + t + " SET group_id=? WHERE group_id=?", to, from);
+    db.exec("UPDATE run SET host=? WHERE group_id=?", host_label(to), to);
+}
+} // namespace detail
+
+// Move every local row of group `from` to group `to` (run.host relabelled too), in one transaction.
+inline void renumber_group(Sqlite& db, std::int64_t from, std::int64_t to) {
+    auto tx = db.transaction();
+    detail::renumber_group_rows(db, from, to);
+    tx.commit();
+}
+
+inline bool fleet_synced(Sqlite& db, std::int64_t gid, const std::string& server) {
+    std::int64_t n = 0;
+    auto st = db.prepare("SELECT COUNT(*) FROM fleet_sync WHERE group_id=? AND server=?");
+    st.bind(gid, server);
+    if (st.step()) st.get(n);
+    return n > 0;
+}
+
+inline void mark_fleet_synced(Sqlite& db, std::int64_t gid, const std::string& server, const std::string& ts_utc) {
+    db.exec("INSERT OR REPLACE INTO fleet_sync(group_id, server, ts_utc) VALUES(?, ?, ?)", gid, server, ts_utc);
 }
 
 // Delete the most recent run (and its testRun/runEvent rows) for this group + optional JAC313_VERSION.

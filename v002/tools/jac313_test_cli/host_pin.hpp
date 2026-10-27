@@ -7,6 +7,7 @@
 
 #include "jac313_results_db.hpp"
 
+#include <filesystem>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -32,12 +33,17 @@ void print_ambiguity_help(std::ostream& out, const jac313::results::HostPinResul
 int exit_ambiguous(std::ostream& err, jac313::Qlite::v002::Sqlite& db,
                    const jac313::results::HostPinResult& r, const jac313::results::HostId& h);
 
-// Resolve + pin; on ambiguity prints table and returns nullopt.
+// Resolve + pin; on ambiguity prints table and returns nullopt. With a remote PG server set
+// ($JAC313_PG_REMOTE) and no --claim / --assign-new, the number comes from the server's fleet
+// registry (fleet_registry.hpp) and the local rows are renumbered to it; when the server cannot
+// be reached the local number is used and checked again on the next run. source_dir is the
+// version dir (it holds schema/fleet_v0_1.sql).
 std::optional<std::int64_t> try_resolve_and_pin(jac313::Qlite::v002::Sqlite& db,
                                                 const HostHardwareRecord& hw,
                                                 const HostPinFlags& flags,
                                                 const std::string& version,
-                                                std::ostream& err = std::cerr);
+                                                std::ostream& err = std::cerr,
+                                                const std::filesystem::path& source_dir = {});
 
 // Read-only propose (no write).
 jac313::results::HostPinResult propose_host_group(jac313::Qlite::v002::Sqlite& db,

@@ -133,6 +133,36 @@ int main() {
         CHECK(assign.error == jac313::results::HostPinError::AssignTaken);
     }
 
+    // renumber_group: the shared server says this machine is 3, not its local 1. Every table moves,
+    // run.host is relabelled, and another machine's local rows already on 3 are moved out of the way.
+    {
+        namespace R = jac313::results;
+        Sqlite db5(":memory:");
+        R::ensure_schema(db5);
+        R::pin_host(db5, fedora_i7(), kVer);                    // local 1
+        R::upsert_host_spec(db5, 3, mint_i7());                 // another machine's local 3
+        R::insert_run(db5, 10, 1, R::host_label(1), kVer, "s", "q", "j");
+        R::insert_run(db5, 11, 3, R::host_label(3), kVer, "s", "q", "j");
+        R::upsert_package_version(db5, 1, kVer, "Store", "v002.001");
+        R::mark_fleet_synced(db5, 1, "srv", "t");
+        R::renumber_group(db5, 1, 3);
+        CHECK(os_at(db5, 3) == "fedora-44");
+        CHECK(os_at(db5, 4) == "linuxmint-22.3");               // moved to the next free number
+        CHECK(!R::group_in_use(db5, 1));
+        CHECK(R::current_host(db5, kVer) == 3);
+        CHECK(R::package_version_get(db5, 3, kVer, "Store") == "v002.001");
+        CHECK(R::fleet_synced(db5, 3, "srv"));
+        CHECK(!R::fleet_synced(db5, 3, "other-srv"));
+        std::string host10, host11;
+        { auto st = db5.prepare("SELECT host FROM run WHERE run_id=10"); if (st.step()) st.get(host10); }
+        { auto st = db5.prepare("SELECT host FROM run WHERE run_id=11"); if (st.step()) st.get(host11); }
+        CHECK(host10 == "jac313-003");
+        CHECK(host11 == "jac313-004");
+        CHECK(R::next_free_group_id(db5) == 5);
+        R::renumber_group(db5, 3, 3);                           // no-op
+        CHECK(os_at(db5, 3) == "fedora-44");
+    }
+
     if (failures == 0) {
         std::cout << "host group — OS/hash identity allocates distinct jac313-### rows\n";
         return 0;

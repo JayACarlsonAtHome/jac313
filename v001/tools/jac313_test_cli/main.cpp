@@ -255,7 +255,8 @@ void write_package_versions(jac313::Qlite::v001::Sqlite& db, std::int64_t gid,
 std::optional<std::int64_t> pin_current_host(jac313::Qlite::v001::Sqlite& db, const GlobalOptions& global,
                                                std::ostream& err = std::cerr) {
     const auto hw = collect_host_hardware_record(machine_disk_tier("."));
-    const auto gid = try_resolve_and_pin(db, hw, host_pin_flags_from(global), harness_version(global), err);
+    const auto gid = try_resolve_and_pin(db, hw, host_pin_flags_from(global), harness_version(global), err,
+                                         global.source_dir);
     if (gid) write_package_versions(db, *gid, global.source_dir, harness_version(global));   // refresh code versions (per group+world)
     return gid;
 }
@@ -2722,6 +2723,10 @@ int main(int argc, char** argv) {
             if (load_connections(cf, rows, cerr_text)) apply_connections(rows, false, false, false);
             else std::cerr << "note: ignoring the connections file: " << cerr_text << '\n';
         }
+        // and its password files now, for the commands that take their own arguments (host,
+        // run-everything: they pin this machine through the fleet registry). The flag parser
+        // applies them again after --connections / --pg-* replace a server.
+        apply_password_files(cf.parent_path());
     }
     // Resolve the ONE shared results DB once (absolute, at the monorepo root); read as JAC313_RESULTS_DB
     // everywhere after this — in this process and, independently, in each spawned gate/tool.
