@@ -1094,6 +1094,8 @@ void Runner::Start()
 	stop.Enable();
 	runBack.Disable();
 	runResults.Disable();
+	runReport.Disable();   // the reports are rendered at the end of the run; AllFinished enables them
+	runChrome.Disable();
 	Show(2);
 	StartPlan();
 }
