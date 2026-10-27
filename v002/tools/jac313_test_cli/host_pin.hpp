@@ -45,6 +45,10 @@ std::optional<std::int64_t> try_resolve_and_pin(jac313::Qlite::v002::Sqlite& db,
                                                 std::ostream& err = std::cerr,
                                                 const std::filesystem::path& source_dir = {});
 
+// True once this process has renumbered local results to the shared server's numbers (this
+// machine's, or another machine's rows moved aside): the report pages then carry stale labels.
+bool fleet_renumbered();
+
 // Read-only propose (no write).
 jac313::results::HostPinResult propose_host_group(jac313::Qlite::v002::Sqlite& db,
                                                   const HostHardwareRecord& hw);

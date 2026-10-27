@@ -252,12 +252,23 @@ void write_package_versions(jac313::Qlite::v001::Sqlite& db, std::int64_t gid,
     }
 }
 
+int run_report_command(const fs::path& source_dir);
+
 std::optional<std::int64_t> pin_current_host(jac313::Qlite::v001::Sqlite& db, const GlobalOptions& global,
                                                std::ostream& err = std::cerr) {
     const auto hw = collect_host_hardware_record(machine_disk_tier("."));
     const auto gid = try_resolve_and_pin(db, hw, host_pin_flags_from(global), harness_version(global), err,
                                          global.source_dir);
     if (gid) write_package_versions(db, *gid, global.source_dir, harness_version(global));   // refresh code versions (per group+world)
+    // a renumber (the shared server's jac313-###) relabels results.db at once; re-render this
+    // version's report pages now so none keeps the old label (the other version's pages follow
+    // on its next run). Once per process: the flag stays set after the first renumber.
+    static bool reported = false;
+    if (gid && fleet_renumbered() && !reported) {
+        reported = true;
+        err << "[fleet] re-rendering the report pages with the new jac313-### labels\n";
+        run_report_command(global.source_dir);
+    }
     return gid;
 }
 

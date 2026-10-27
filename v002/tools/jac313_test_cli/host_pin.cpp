@@ -77,6 +77,8 @@ int exit_ambiguous(std::ostream& err, jac313::Qlite::v002::Sqlite& db,
 
 namespace {
 
+bool g_fleet_renumbered = false;
+
 // The shared server's number for this machine, pinned locally (local rows renumbered to it), or
 // nullopt to fall back to local numbering: no server set, unreachable, or built without libpq.
 std::optional<std::int64_t> pin_from_fleet(jac313::Qlite::v002::Sqlite& db,
@@ -106,13 +108,16 @@ std::optional<std::int64_t> pin_from_fleet(jac313::Qlite::v002::Sqlite& db,
     if (fr.gid == 0) return std::nullopt;
     if (local != 0 && local != fr.gid) {
         R::renumber_group(db, local, fr.gid);
+        g_fleet_renumbered = true;
         err << "[fleet] this machine is " << R::host_label(fr.gid) << " on the shared server: local results moved from "
             << R::host_label(local) << "\n";
     } else if (local == fr.gid) {
         err << "[fleet] " << R::host_label(fr.gid) << " is registered on the shared server\n";
     } else {
-        if (R::group_in_use(db, fr.gid))   // another machine's local rows sat on that number
+        if (R::group_in_use(db, fr.gid)) {   // another machine's local rows sat on that number
             R::renumber_group(db, fr.gid, R::next_free_group_id(db));
+            g_fleet_renumbered = true;
+        }
         err << "[fleet] this machine is " << R::host_label(fr.gid) << " (registered on the shared server)\n";
     }
     R::upsert_host_spec(db, fr.gid, h);
@@ -122,6 +127,8 @@ std::optional<std::int64_t> pin_from_fleet(jac313::Qlite::v002::Sqlite& db,
 }
 
 } // namespace
+
+bool fleet_renumbered() { return g_fleet_renumbered; }
 
 std::optional<std::int64_t> try_resolve_and_pin(jac313::Qlite::v002::Sqlite& db,
                                                 const HostHardwareRecord& hw,
