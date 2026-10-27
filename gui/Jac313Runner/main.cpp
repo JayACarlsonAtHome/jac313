@@ -1945,7 +1945,7 @@ void Runner::SetupRemotePg()
 	dlg.SetRect(0, 0, Zx(700), Zy(500));
 	Label advice, lHost, lPort, lUser, lAllow, lAllowTip, lPw, status;
 	EditString host, port, sshUser, allow, pw;
-	Button doIt, steps, copy, savePw, finish, close;
+	Button doIt, steps, copy, savePw, fetch, finish, close;
 	LineEdit cmds;
 	auto at = [&](Ctrl& c, int x, int y, int cx, int cy) { dlg.Add(c.LeftPosZ(x, cx).TopPosZ(y, cy)); };
 	advice.SetText(PgRemoteAdvice(pgTestMsg.Find("PG remote") >= 0 ? pgTestMsg : String()));
@@ -1987,6 +1987,11 @@ void Runner::SetupRemotePg()
 	at(lPw, 8, 308, 90, 22);
 	at(pw, 100, 308, 200, 22);
 	at(savePw, 310, 307, 120, 24);
+	fetch.SetLabel("Fetch password (ssh + sudo)");
+	fetch.Tip("PostgreSQL keeps only a hash of the password: log in to the server over ssh, read with sudo "
+	          "where the test machines store it (SQL_Secrets/*.pgpass, .pgpass), and keep the one that logs in. "
+	          "For test machines only (the data is throwaway): never do this on a production server");
+	at(fetch, 440, 307, 200, 24);
 	dlg.Add(status.HSizePosZ(8, 8).TopPosZ(340, 66));
 	finish.SetLabel("Test && Finish");
 	finish.Tip("Keep the server in the connections file, Test Remote, register this machine's jac313-###");
@@ -2020,13 +2025,17 @@ void Runner::SetupRemotePg()
 		if(!OnlyChars(port_(), "")) { say("Port: a number.", true); return false; }
 		return true;
 	};
-	auto finishSetup = [&] {
-		if(!OnlyChars(TrimBoth(~host), ".-")) { say("Server: a host name or IPv4 address.", true); return; }
+	auto serverFields = [&] {   // the Runner's Remote PG fields := the dialog's server
 		pgHost <<= TrimBoth(~host);
 		pgPort <<= port_();
 		pgDb <<= "jac313";   // what the setup makes
 		pgUser <<= "jac313";
 		UpdateCommand();
+		ToOptions();
+	};
+	auto finishSetup = [&] {
+		if(!OnlyChars(TrimBoth(~host), ".-")) { say("Server: a host name or IPv4 address.", true); return; }
+		serverFields();
 		SaveConn();          // the CLI finds the server in the connections file
 		say("Testing the server...", false);
 		Sync();
@@ -2057,16 +2066,23 @@ void Runner::SetupRemotePg()
 	};
 	copy << [&] { WriteClipboardText(~cmds); say("Copied.", false); };
 
+	auto writePgpass = [&](const String& password) -> bool {   // pgpass escapes ':' and '\'
+		String esc;
+		for(char c : password)
+			esc << (c == ':' || c == '\\' ? String("\\") : String()) << c;
+		if(!DirectoryExists(secrets)) {
+			RealizeDirectory(secrets);
+			chmod(~secrets, 0700);
+		}
+		return WritePrivateFile(pgpass, TrimBoth(~host) + ":" + port_() + ":jac313:jac313:" + esc + "\n");
+	};
+
 	savePw << [&] {
 		String p = TrimBoth(~pw);
 		if(p.IsEmpty()) { say("Type the jac313 password first.", true); return; }
 		if(!checked())
 			return;
-		String esc;   // pgpass escapes ':' and '\'
-		for(char c : p)
-			esc << (c == ':' || c == '\\' ? String("\\") : String()) << c;
-		RealizeDirectory(secrets);
-		if(!WritePrivateFile(pgpass, TrimBoth(~host) + ":" + port_() + ":jac313:jac313:" + esc + "\n")) {
+		if(!writePgpass(p)) {
 			say("Cannot write " + pgpass, true);
 			return;
 		}
@@ -2074,25 +2090,69 @@ void Runner::SetupRemotePg()
 		finishSetup();
 	};
 
-	String tmp;   // the running setup's folder (status file, launcher)
+	// A job in a terminal: `files` (name -> text) and run.sh, all 0600, in a new private folder;
+	// run.sh writes its exit code to $T/status, and `done` gets it while the folder still exists.
+	String tmp;   // the running job's folder
+	Function<void (int)> jobDone;
+	auto launch = [&](const String& what, Function<String (const String&)> makeRun,
+	                  const Vector<String>& names, const Vector<String>& texts, Function<void (int)> done) {
+		if(tmp.GetCount()) { say("A terminal job is still running: finish it first.", true); return; }
+		char tmpl[] = "/tmp/jac313-pgsetup-XXXXXX";
+		if(!mkdtemp(tmpl)) { say("Cannot make a temporary folder.", true); return; }
+		String t = tmpl;
+		bool ok = WritePrivateFile(AppendFileName(t, "run.sh"), makeRun(t));
+		for(int i = 0; ok && i < names.GetCount(); i++)
+			ok = WritePrivateFile(AppendFileName(t, names[i]), texts[i]);
+		if(!ok) {
+			DeleteFolderDeep(t);
+			say("Cannot write the job's files in " + t, true);
+			return;
+		}
+		Vector<String> term = TerminalArgv(AppendFileName(t, "run.sh"));
+		if(term.IsEmpty() || !LaunchDetached(term)) {
+			DeleteFolderDeep(t);
+			say("No terminal found (ptyxis, ghostty, gnome-terminal, konsole, kitty, alacritty, xterm, ...; "
+			    "or set $JAC313_TERMINAL, e.g. \"ghostty -e\"). Use Show me the steps.", true);
+			return;
+		}
+		tmp = t;
+		jobDone = pick(done);
+		say("A terminal (" + GetFileName(term[0]) + ") " + what + ": answer ssh and sudo there.\n"
+		    "This window goes on by itself when it ends (no terminal? use Show me the steps).", false);
+		dlg.SetTimeCallback(-500, [&] {
+			if(tmp.IsEmpty() || !FileExists(AppendFileName(tmp, "status")))
+				return;
+			dlg.KillTimeCallback(1);
+			int rc = ScanInt(LoadFile(AppendFileName(tmp, "status")));
+			Function<void (int)> d = pick(jobDone);
+			d(rc);
+			DeleteFolderDeep(tmp);
+			tmp.Clear();
+		}, 1);
+	};
+	// run.sh's start and end: one ssh login for all its steps (ControlMaster), a folder $R on the server
+	auto runHead = [&](const String& t, const char *purpose) {
+		return String("#!/bin/bash\n"
+			"# Jac313Runner: ") + purpose + "\n"
+			"T=" + ShQuote(t) + "; H=" + TrimBoth(~host) + "; U=" + TrimBoth(~sshUser) + "\n"
+			"C=(-o ControlMaster=auto -o ControlPath=\"$T/c\" -o ControlPersist=300)\n"
+			"R=\".jac313-pgsetup-$$\"\n";
+	};
+	const String runTail =
+		"ssh \"${C[@]}\" -O exit \"$U@$H\" 2>/dev/null\n"
+		"echo \"$rc\" > \"$T/status\"\n"
+		"echo; read -rp \"Press Enter to close this window. \" _\n";
+
 	doIt << [&] {
 		if(!checked())
 			return;
-		char tmpl[] = "/tmp/jac313-pgsetup-XXXXXX";
-		if(!mkdtemp(tmpl)) { say("Cannot make a temporary folder.", true); return; }
-		tmp = tmpl;
 		if(!DirectoryExists(secrets)) {
 			RealizeDirectory(secrets);
 			chmod(~secrets, 0700);
 		}
-		const String h = TrimBoth(~host), u = TrimBoth(~sshUser), a = TrimBoth(~allow);
-		String run =
-			"#!/bin/bash\n"
-			"# Jac313Runner: set up the jac313 PG remote server over ssh, then keep its password here.\n"
-			"T=" + ShQuote(tmp) + "; H=" + h + "; U=" + u + "; A=" + a + "; PORT=" + port_()
-			+ "; PGPASS=" + ShQuote(pgpass) + "\n"
-			"C=(-o ControlMaster=auto -o ControlPath=\"$T/c\" -o ControlPersist=300)   # one ssh login for all steps\n"
-			"R=\".jac313-pgsetup-$$\"\n"
+		launch("runs the setup on " + TrimBoth(~host), [&](const String& t) {
+			return runHead(t, "set up the jac313 PG remote server over ssh, then keep its password here.")
+			+ "A=" + TrimBoth(~allow) + "; PORT=" + port_() + "; PGPASS=" + ShQuote(pgpass) + "\n"
 			"echo \"=== jac313: setting up the PG remote server on $H (ssh as $U) ===\"\n"
 			"echo \"ssh may ask for $U's password on $H; the setup shows its plan, then asks for sudo there.\"\n"
 			"echo\n"
@@ -2106,44 +2166,80 @@ void Runner::SetupRemotePg()
 			"  0) ( umask 077; printf '%s:%s:jac313:jac313:%s\\n' \"$H\" \"$PORT\" \"$(cat \"$T/pw\")\" > \"$PGPASS\" ) && chmod 600 \"$PGPASS\" \\\n"
 			"       && echo \"The password is kept in $PGPASS (mode 600).\" ;;\n"
 			"  3) echo \"Role jac313 already existed on $H, so its password is unchanged:\"\n"
-			"     echo \"type it in the Runner's Setup dialog (Password) and press Save password.\" ;;\n"
+			"     echo \"the Runner's Setup dialog can fetch it (Fetch password), or type it there.\" ;;\n"
 			"  *) echo \"The setup did not finish (exit $rc): nothing was kept here.\" ;;\n"
 			"esac\n"
-			"rm -f \"$T/pw\"\n"
-			"ssh \"${C[@]}\" -O exit \"$U@$H\" 2>/dev/null\n"
-			"echo \"$rc\" > \"$T/status\"\n"
-			"echo; read -rp \"Press Enter to close this window. \" _\n";
-		if(!WritePrivateFile(AppendFileName(tmp, "pw"), RandomPassword() + "\n")
-		   || !WritePrivateFile(AppendFileName(tmp, "setup_pg_server.sh"), LoadFile(script))
-		   || !WritePrivateFile(AppendFileName(tmp, "run.sh"), run)) {
-			say("Cannot write the setup files in " + tmp, true);
-			return;
-		}
-		Vector<String> term = TerminalArgv(AppendFileName(tmp, "run.sh"));
-		if(term.IsEmpty() || !LaunchDetached(term)) {
-			DeleteFolderDeep(tmp);
-			say("No terminal found (ptyxis, ghostty, gnome-terminal, konsole, kitty, alacritty, xterm, ...; "
-			    "or set $JAC313_TERMINAL, e.g. \"ghostty -e\"). Use Show me the steps.", true);
-			return;
-		}
-		say("A terminal (" + GetFileName(term[0]) + ") runs the setup on " + h + ": answer ssh and sudo there.\n"
-		    "This window goes on by itself when it ends (no terminal? use Show me the steps).", false);
-		dlg.SetTimeCallback(-500, [&] {
-			String st = AppendFileName(tmp, "status");
-			if(tmp.IsEmpty() || !FileExists(st))
-				return;
-			dlg.KillTimeCallback(1);
-			int rc = ScanInt(LoadFile(st));
-			DeleteFolderDeep(tmp);
-			tmp.Clear();
+			"rm -f \"$T/pw\"\n" + runTail;
+		}, Vector<String>{ "pw", "setup_pg_server.sh" }, Vector<String>{ RandomPassword() + "\n", LoadFile(script) },
+		[&](int rc) {
 			if(rc == 0)
 				finishSetup();
 			else if(rc == 3)
-				say("Role jac313 already existed on the server, so its password is unchanged: type it in "
-				    "Password and press Save password.", true);
+				say("Role jac313 already existed on the server, so its password is unchanged: press Fetch password "
+				    "to get it from where it is stored, or type it in Password and press Save password.", true);
 			else
 				say("The setup did not finish (see the terminal). Fix what it says and try again, or use Show me the steps.", true);
-		}, 1);
+		});
+	};
+
+	// The password from where it is stored on the server (PostgreSQL has only its hash): over ssh,
+	// with sudo there; every one found is tried with a real login, the first that works is kept.
+	const String finder = AppendFileName(GetFileFolder(script), "find_pg_password.sh");
+	fetch << [&] {
+		if(!checked())
+			return;
+		if(!FileExists(finder)) { say("Not found: " + finder, true); return; }
+		launch("fetches the stored jac313 password from " + TrimBoth(~host), [&](const String& t) {
+			return runHead(t, "fetch the stored jac313 password from the PG remote server (ssh, then sudo there).")
+			+ "echo \"=== jac313: fetching the stored jac313 password from $H (ssh as $U, then sudo there) ===\"\n"
+			"echo \"PostgreSQL keeps only a hash: the password comes from where the test machines store it.\"\n"
+			"echo\n"
+			"rc=1\n"
+			"if ssh \"${C[@]}\" \"$U@$H\" \"mkdir -m 700 -p $R\" && scp -q \"${C[@]}\" \"$T/find_pg_password.sh\" \"$U@$H:$R/\" \\\n"
+			"   && ssh \"${C[@]}\" -t \"$U@$H\" \"umask 077; bash $R/find_pg_password.sh > $R/found\" \\\n"
+			"   && scp -q \"${C[@]}\" \"$U@$H:$R/found\" \"$T/found\"; then rc=0; fi\n"
+			"ssh \"${C[@]}\" \"$U@$H\" \"rm -rf $R\" 2>/dev/null\n"
+			"if [ \"$rc\" = 0 ]; then\n"
+			"  chmod 600 \"$T/found\"\n"
+			"  echo \"Found $(grep -c . \"$T/found\") stored password(s): the Runner tries them now (they are not shown).\"\n"
+			"else\n"
+			"  echo \"Could not fetch the stored passwords (see above).\"\n"
+			"fi\n" + runTail;
+		}, Vector<String>{ "find_pg_password.sh" }, Vector<String>{ LoadFile(finder) },
+		[&](int rc) {
+			if(rc != 0) {
+				say("Fetching did not work (see the terminal): check the ssh user and its sudo rights on the server.", true);
+				return;
+			}
+			Index<String> found;
+			for(String l : Split(LoadFile(AppendFileName(tmp, "found")), '\n')) {
+				l.TrimEnd("\r");
+				if(l.GetCount())
+					found.FindAdd(l);
+			}
+			if(found.IsEmpty()) {
+				say("No jac313 password is stored on the server (no SQL_Secrets/*.pgpass or .pgpass line for "
+				    "jac313). Type it in Password, or run the setup (Do it for me).", true);
+				return;
+			}
+			const bool had = FileExists(pgpass);
+			const String old = had ? LoadFile(pgpass) : String();
+			serverFields();
+			for(const String& p : found) {
+				say(Format("Trying %d stored password(s)...", found.GetCount()), false);
+				Sync();
+				if(writePgpass(p) && TestPg(true)) {
+					finishSetup();   // tests again, keeps the server, registers this machine
+					return;
+				}
+			}
+			if(had)
+				WritePrivateFile(pgpass, old);
+			else
+				DeleteFile(pgpass);
+			say(Format("Found %d stored password(s) on the server, but none logs in: ", found.GetCount())
+			    + pgError(pgTestMsg), true);
+		});
 	};
 
 	if(gSnapSetup.GetCount()) {   // --snap DIR --setup-pg: the dialog, its steps, then Do it for me
@@ -2162,7 +2258,10 @@ void Runner::SetupRemotePg()
 			case 2: shot("setup_steps.png"); Cout() << "steps:\n" << ~cmds; break;
 			case 3:
 				if(GetEnv("JAC313_TERMINAL").IsEmpty()) { step = 99; break; }
-				doIt.WhenAction();
+				if(GetEnv("JAC313_SNAP_FETCH").GetCount())   // test Fetch password instead of Do it for me
+					fetch.WhenAction();
+				else
+					doIt.WhenAction();
 				t0 = msecs();
 				break;
 			default:

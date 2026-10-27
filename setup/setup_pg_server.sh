@@ -14,6 +14,11 @@
 #            --password-file F    the new role's password (the Runner writes it; F is deleted).
 #                                 Without it a random password is made and printed once at the end.
 #            --dry-run            show the plan only
+# NOTE:    A convenience for setting up TEST machines only. It opens PostgreSQL to a whole network
+#          with one shared role and password, and the Runner copies that password between machines:
+#          you would never do this on a real production server (there: one credential per client,
+#          no readable password files, nothing gathered over ssh). The jac313 databases hold
+#          throwaway test data of no value; that is the only reason it is OK here.
 # Exit:    0 ready, role jac313 created with the new password   3 ready, role jac313 already
 #          existed (its password is unchanged)   1 failed or declined   2 usage
 # Related: v001/bsir.sh install_pg_local (the same install steps, for PG local on a test machine),
