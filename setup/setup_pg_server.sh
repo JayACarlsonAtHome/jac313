@@ -80,8 +80,15 @@ MARK="jac313 pg_remote $ALLOW"
 
 # --- the plan: what is there, what would change ---
 echo "=== jac313 PG remote server setup on $(hostname) ($family) ==="
+if [ "$DRY" = 0 ] && [ "$YES" = 0 ] && ! [ -t 0 ]; then
+  echo "This needs a terminal to answer sudo and the y/N question (or pass --yes, or --dry-run)."
+  exit 1
+fi
 if [ "$DRY" = 0 ] || sudo -n true 2>/dev/null; then CANSU=1; else CANSU=0; fi
-[ "$DRY" = 0 ] && { sudo -v || { echo "sudo is needed"; exit 1; }; }
+if [ "$DRY" = 0 ] && ! sudo -n true 2>/dev/null; then
+  echo "sudo asks for $(id -un)'s password on $(hostname) now (it reads the server's setup):"
+  sudo -v || { echo "sudo is needed"; exit 1; }
+fi
 plan=()
 installed || plan+=("install PostgreSQL 18 ($family recipe)")
 running || plan+=("start $service and enable it at boot")
