@@ -287,11 +287,16 @@ install_chrome() {  # Google Chrome for Jac313Runner's "Open Reports in Chrome" 
 # --- PG local: a PostgreSQL 18 server on THIS machine for the "PG local" gate ---
 # The gate connects with "host=localhost dbname=jac313 user=jac313" (PgClient.hpp). install_pg_local
 # installs the server (Fedora: postgresql-server; RHEL: PGDG postgresql18-server; Mint: PGDG
-# postgresql-18), starts it at boot, creates the role + database jac313 with a random password,
-# allows that login over localhost (scram-sha-256 lines at the top of pg_hba.conf, marked
-# "jac313 pg_local") and stores the password in the SQL_Secrets folder beside the project
-# (<projects>/SQL_Secrets/jac313_pg_local.pgpass, mode 600; the folder of $JAC313_CONNECTIONS when
-# set), never in git. jac313_test_cli and Jac313Runner read it from there. A working login is left alone.
+# postgresql-18), starts it at boot, allows the jac313 login over localhost (scram-sha-256 lines at
+# the top of pg_hba.conf, marked "jac313 pg_local") and creates the role + database jac313. The
+# password comes from the SQL_Secrets folder beside the project (<projects>/SQL_Secrets/
+# jac313_pg_local.pgpass, mode 600; the folder of $JAC313_CONNECTIONS when set), never from git:
+# its localhost:5432:jac313:jac313: line, so a reinstall reuses the saved password. Only when there
+# is no such line is a new one made (30 letters/digits) and added to the file; an existing file is
+# never overwritten. The password goes to psql on stdin, never on a command line. An existing role
+# whose password differs is set to the file's, but only on a server that lets jac313 in from
+# localhost alone: a server that other machines reach (pg_hba.conf) keeps its password.
+# A working login is left alone.
 SECRETS_DIR="$(dirname "${JAC313_CONNECTIONS:-$(dirname "$(dirname "$ROOT")")/SQL_Secrets/jac313_connections.jtext}")"
 PG_LOCAL_PASSFILE="$SECRETS_DIR/jac313_pg_local.pgpass"
 pg_psql() {
@@ -308,6 +313,37 @@ pg_local_ok() {
   PGPASSFILE="$PG_LOCAL_PASSFILE" PGCONNECT_TIMEOUT=5 "$p" -w -h localhost -U jac313 -d jac313 -Atc "select 1" >/dev/null 2>&1
 }
 pg_su() { ( cd / && sudo -u postgres "$(pg_psql)" -v ON_ERROR_STOP=1 -Atq "$@" ); }
+# The password in $PG_LOCAL_PASSFILE's localhost line (pgpass \: and \\ unescaped), or nothing.
+pg_local_file_pw() {
+  [ -r "$PG_LOCAL_PASSFILE" ] || return 0
+  grep -m1 '^localhost:5432:jac313:jac313:' "$PG_LOCAL_PASSFILE" | cut -d: -f5- | sed 's/\\\(.\)/\1/g'
+}
+# Add the localhost + 127.0.0.1 lines for password $1 (a new file: umask 077; the folder 700 when
+# made here). Appends, so an existing file keeps what it has.
+pg_local_add_pw() {
+  [ -d "$SECRETS_DIR" ] || { mkdir -p "$SECRETS_DIR" && chmod 700 "$SECRETS_DIR"; } || return 1
+  ( umask 077 && printf 'localhost:5432:jac313:jac313:%s\n127.0.0.1:5432:jac313:jac313:%s\n' "$1" "$1" >> "$PG_LOCAL_PASSFILE" ) || return 1
+  chmod 600 "$PG_LOCAL_PASSFILE"
+}
+# A new password (30 letters/digits: no pgpass or SQL escaping needed), added to the file; printed.
+pg_local_new_pw() {
+  local pw
+  pw=$(head -c 64 /dev/urandom | base64 -w0 | tr -dc 'A-Za-z0-9' | head -c 30)
+  [ ${#pw} -eq 30 ] || { echo "PG local: could not make a password." >&2; return 1; }
+  pg_local_add_pw "$pw" || return 1
+  echo "$pw"
+}
+# Run "<sql> PASSWORD '<pw>'" through psql's stdin (a password on a command line shows in ps).
+pg_su_password() {
+  local esc=${2//\'/\'\'}
+  printf "%s password '%s';\n" "$1" "$esc" | pg_su -f -
+}
+# True when pg_hba.conf lets jac313 in from beyond this machine: the shared PG remote server, whose
+# jac313 password other machines use, so bootstrap must not change it.
+pg_shared() {
+  sudo awk '$1 ~ /^host/ && $2 ~ /(^|,)(jac313|all)(,|$)/ && $3 ~ /(^|,)(jac313|all)(,|$)/ \
+            && $4 !~ /^(127\.0\.0\.1\/32|::1\/128|localhost)$/ { f = 1 } END { exit !f }' "$1"
+}
 install_pg_local() {
   local service pw hba
   case "$family" in
@@ -334,33 +370,40 @@ install_pg_local() {
   esac
   sudo systemctl enable --now "$service" || return 1
   for _ in $(seq 1 20); do pg_su -c "select 1" >/dev/null 2>&1 && break; sleep 1; done
-  # A password is set only for a role bootstrap creates. An existing jac313 role keeps its
-  # password (other machines may use it): bootstrap needs it in the password file then.
-  pw=""
-  if [ "$(pg_su -c "select 1 from pg_roles where rolname = 'jac313'")" = 1 ]; then
-    if [ ! -r "$PG_LOCAL_PASSFILE" ]; then
-      echo "PG local: this server already has a role jac313. Put its password in $PG_LOCAL_PASSFILE"
-      echo "          (see docs/SQL_Secrets_example), then re-run ./bsir.sh."
-      return 1
-    fi
-  else
-    pw=$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)
-    pg_su -c "create role jac313 with login password '$pw'" || return 1
-  fi
-  [ "$(pg_su -c "select 1 from pg_database where datname = 'jac313'")" = 1 ] \
-    || pg_su -c "create database jac313 owner jac313" || return 1
   hba=$(pg_su -c "show hba_file") || return 1
   if ! sudo grep -q "jac313 pg_local" "$hba"; then
     # pg_hba.conf is read top-down and the first match wins, so these go first.
     sudo sed -i '1i # jac313 pg_local: the PG local gate (bsir.sh)\nhost    jac313    jac313    127.0.0.1/32    scram-sha-256\nhost    jac313    jac313    ::1/128         scram-sha-256' "$hba" || return 1
   fi
   pg_su -c "select pg_reload_conf()" >/dev/null || return 1
-  if [ -n "$pw" ]; then
-    # a folder bootstrap makes is private; an existing one keeps its permissions
-    [ -d "$SECRETS_DIR" ] || { mkdir -p "$SECRETS_DIR" && chmod 700 "$SECRETS_DIR"; } || return 1
-    ( umask 077 && printf 'localhost:5432:jac313:jac313:%s\n127.0.0.1:5432:jac313:jac313:%s\n' "$pw" "$pw" > "$PG_LOCAL_PASSFILE" ) || return 1
-    chmod 600 "$PG_LOCAL_PASSFILE" || return 1
+  # The password: the secrets file's, else a new one added to the file (never over what it holds).
+  pw=$(pg_local_file_pw)
+  if [ -e "$PG_LOCAL_PASSFILE" ] && [ ! -r "$PG_LOCAL_PASSFILE" ]; then
+    echo "PG local: cannot read $PG_LOCAL_PASSFILE (it should be yours, mode 600)."
+    return 1
   fi
+  if [ "$(pg_su -c "select 1 from pg_roles where rolname = 'jac313'")" = 1 ]; then
+    # the database first: the login check below connects to it
+    [ "$(pg_su -c "select 1 from pg_database where datname = 'jac313'")" = 1 ] \
+      || pg_su -c "create database jac313 owner jac313" || return 1
+    if ! pg_local_ok; then
+      # the role's password differs from the file's, or there is no file line yet
+      if pg_shared "$hba"; then
+        echo "PG local: role jac313 exists and this server lets it in from the network too (pg_hba.conf),"
+        echo "          so other machines may use its password: bootstrap does not change it. Put that"
+        echo "          password in $PG_LOCAL_PASSFILE (see docs/SQL_Secrets_example), then re-run ./bsir.sh."
+        return 1
+      fi
+      [ -n "$pw" ] || pw=$(pg_local_new_pw) || return 1
+      echo "PG local: role jac313 exists with another password; setting it to the one in $PG_LOCAL_PASSFILE (localhost-only server)."
+      pg_su_password "alter role jac313 with login" "$pw" || return 1
+    fi
+  else
+    [ -n "$pw" ] || pw=$(pg_local_new_pw) || return 1
+    pg_su_password "create role jac313 with login" "$pw" || return 1
+  fi
+  [ "$(pg_su -c "select 1 from pg_database where datname = 'jac313'")" = 1 ] \
+    || pg_su -c "create database jac313 owner jac313" || return 1
   if pg_local_ok; then
     echo "PG local: PostgreSQL $(pg_su -c "show server_version") on localhost; role + database jac313; password in $PG_LOCAL_PASSFILE."
   else

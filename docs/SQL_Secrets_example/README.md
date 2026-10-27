@@ -28,9 +28,12 @@ both at mode 600 (`chmod 600 ~/git/SQL_Secrets/*.pgpass`) and the folder at 700.
 
 ## PG local: the server on this machine
 
-`./bsir.sh` does all of it. It installs PostgreSQL 18, creates the role and database `jac313`
-with a random password, lets `jac313` log in over localhost, and writes
-`~/git/SQL_Secrets/jac313_pg_local.pgpass`. You never type that password.
+`./bsir.sh` does all of it. It installs PostgreSQL 18, lets `jac313` log in over localhost, and
+creates the role and database `jac313` with the password in
+`~/git/SQL_Secrets/jac313_pg_local.pgpass` (its `localhost:5432:jac313:jac313:` line). When there
+is no such line it makes one (30 random letters and digits) and adds it to the file; it never
+overwrites the file. So after a reinstall that keeps `SQL_Secrets`, the role comes back with the
+same password. You never type that password, and it never appears on a command line.
 
 To choose your own password instead:
 
@@ -45,11 +48,20 @@ localhost:5432:jac313:jac313:my-new-local-password
 127.0.0.1:5432:jac313:jac313:my-new-local-password
 ```
 
-Bootstrap sets a password only when it creates the role. If the role already exists (another
-install, or the file was lost), it leaves the password alone and asks you to put it in
-`jac313_pg_local.pgpass`; set a new one with the `ALTER ROLE` line above if you do not know it.
+If the role already exists but its password is not the file's (or the file has no line yet),
+bootstrap sets the role to the file's password (making one first when needed), but only when the
+server lets `jac313` in from localhost alone. A server that other machines also reach (a
+`pg_hba.conf` line for `jac313` beyond localhost, e.g. the shared PG remote server) keeps its
+password: bootstrap then asks you to put that password in `jac313_pg_local.pgpass`; set a new one
+with the `ALTER ROLE` line above if you do not know it.
 
 ## PG remote: your own server
+
+> **Test machines only.** The Runner's *Setup Remote PG Server...* (one shared `jac313` role for
+> the whole network, *Fetch password* reading stored passwords with sudo over ssh and copying them
+> to other machines) is there to make setting up test machines easy. The jac313 databases hold
+> throwaway test data of no value. On a real production server you would never do this: give each
+> client its own credential, keep no readable password files, and gather nothing over ssh.
 
 1. **On the server**, as a PostgreSQL superuser, make the role and its database:
 
