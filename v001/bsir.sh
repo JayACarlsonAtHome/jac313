@@ -184,6 +184,10 @@ install_upp() {  # U++ into $UPP_DIR via upp_basefix; keeps an existing install 
     command -v git >/dev/null 2>&1 || { echo "git missing — cannot fetch upp_basefix."; return 1; }
     echo "Fetching upp_basefix -> $UPP_BASEFIX_SRC…"
     git clone -q "$UPP_BASEFIX_REPO" "$UPP_BASEFIX_SRC" || { echo "git clone failed (network?)."; return 1; }
+  elif [ -d "$UPP_BASEFIX_SRC/.git" ]; then
+    # an older clone may lack a fix (e.g. EPEL for xxhash-devel on RHEL): bring it up to date first
+    echo "Updating upp_basefix in $UPP_BASEFIX_SRC…"
+    git -C "$UPP_BASEFIX_SRC" pull -q --ff-only || echo "(git pull failed — offline or local changes; going on with the clone as it is)"
   fi
   export UPP_BASEFIX_FROM=jac313   # upp_basefix then skips its "Next: ..." hint for a person
   # its bootstrap: the pinned U++ from GitHub, umk built from it, the patches; it lists the
