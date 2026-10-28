@@ -26,6 +26,12 @@ if(JAC313_STORE_BUILD_TESTS)
         target_link_libraries(jac313_store_binary_reader_test PRIVATE jac313::store_jtext_persist)
     endif()
     add_test(NAME jac313_store_binary_reader_test COMMAND jac313_store_binary_reader_test)
+
+    if(TARGET jac313_store_jtext_persist)
+        add_executable(jac313_store_jtext_text_test jtext_text_test.cpp)
+        target_link_libraries(jac313_store_jtext_text_test PRIVATE jac313::Store jac313::store_jtext_persist)
+        add_test(NAME jac313_store_jtext_text_test COMMAND jac313_store_jtext_text_test)
+    endif()
     # Toughened limit from test_limits.txt table (reader was part of the stall path)
     set_tests_properties(jac313_store_binary_reader_test PROPERTIES TIMEOUT 60)
 

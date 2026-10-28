@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/include
 
-1. #|# 3|canonical_commit|80e80636062e
+1. #|# 3|canonical_commit|3f095d3aa866
 
 1. #|# 4|canonical_dirty|No
 
@@ -31,7 +31,7 @@
 
 1. #|# 6|transform|none
 
-1. #|# 7|ported|2026-10-22
+1. #|# 7|ported|2026-10-28
 
 1. #|# 8|baseline|No
 
@@ -60,17 +60,17 @@
 === Data ===
 1. #|# 1|README.md|README.md|734fa4ea286f5b9c5dc0a23440ee8352aff920f253f5cfd45ccc851d2f75cdd8|734fa4ea286f5b9c5dc0a23440ee8352aff920f253f5cfd45ccc851d2f75cdd8
 
-1. #|# 2|jtext_gui/core/connection_info.hpp|jtext_gui/core/connection_info.hpp|ce6612e6cdde8f9e7d4a42e3c175abd3d51408bc08fbe22d8c05675d4cadbe65|ce6612e6cdde8f9e7d4a42e3c175abd3d51408bc08fbe22d8c05675d4cadbe65
+1. #|# 2|jtext_gui/core/connection_info.hpp|jtext_gui/core/connection_info.hpp|a9f591d52a15e11fafe53d94689e5544bc71a8c17b4dbef9027bce92a50e9e7b|a9f591d52a15e11fafe53d94689e5544bc71a8c17b4dbef9027bce92a50e9e7b
 
 1. #|# 3|jtext_gui/core/connections_file.hpp|jtext_gui/core/connections_file.hpp|39f97974bfac9c18bc70c7b55f699d1a39ad78e6f497c35522be97efe905c41a|39f97974bfac9c18bc70c7b55f699d1a39ad78e6f497c35522be97efe905c41a
 
-1. #|# 4|jtext_gui/core/record.hpp|jtext_gui/core/record.hpp|aeeef780a2d414b5935c99f077f52e930838ef70d24f8df6d37a5333f9903368|aeeef780a2d414b5935c99f077f52e930838ef70d24f8df6d37a5333f9903368
+1. #|# 4|jtext_gui/core/record.hpp|jtext_gui/core/record.hpp|eeb1e6cd3a6034bb0db8d2e4d6fbff2eaead41abe7ac371a97c7cde2b7e1029d|eeb1e6cd3a6034bb0db8d2e4d6fbff2eaead41abe7ac371a97c7cde2b7e1029d
 
-1. #|# 5|jtext_gui/core/session.hpp|jtext_gui/core/session.hpp|9f71032524229a9d0011adc1bc567c5508539eba5ed7723b876fc48ee3f914c6|9f71032524229a9d0011adc1bc567c5508539eba5ed7723b876fc48ee3f914c6
+1. #|# 5|jtext_gui/core/session.hpp|jtext_gui/core/session.hpp|57cb6a2a67db673e78994cfaa82c8449604d65aa32ee36ba91f8348754793a78|57cb6a2a67db673e78994cfaa82c8449604d65aa32ee36ba91f8348754793a78
 
 1. #|# 6|jtext_gui/core/spreadsheet.hpp|jtext_gui/core/spreadsheet.hpp|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87
 
-1. #|# 7|jtext_gui/core/table_store.hpp|jtext_gui/core/table_store.hpp|48f260c6303d8a032207a0a99da25dd27485da0026930fcfce85db234dbe7eb3|48f260c6303d8a032207a0a99da25dd27485da0026930fcfce85db234dbe7eb3
+1. #|# 7|jtext_gui/core/table_store.hpp|jtext_gui/core/table_store.hpp|7ed9d444c8f8b7099a14e75a56084e138efaa99513e16984199ddf673c121ce4|7ed9d444c8f8b7099a14e75a56084e138efaa99513e16984199ddf673c121ce4
 
 1. #|# 8|jtext_gui/record.hpp|jtext_gui/record.hpp|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5
 

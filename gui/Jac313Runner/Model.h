@@ -1,6 +1,6 @@
 // Model.h — everything Jac313Runner knows without a window: the run options and
 // the command line they make, the summary JSON the engine writes, the dataset
-// command for a result row, and a small tolerant jText reader for the viewer.
+// command for a result row, and the viewer's jText model (parsed by the jText library).
 // The headless modes (--dump-command, --dump-jtext, --dump-summary) use only this.
 #pragma once
 #include <Core/Core.h>
@@ -161,7 +161,7 @@ struct JSection {
 
 struct JDoc {
 	Array<JSection> sections;
-	Vector<String>  notes;         // tolerated problems (unresolved include, odd lines)
+	Vector<String>  notes;         // problems: a parse error (no sections then), an unresolved include
 	void Parse(const String& text, const String& baseDir);
 	int  MainSection() const;      // first section with rows, else first, else -1
 };

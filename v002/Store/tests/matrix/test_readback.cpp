@@ -93,8 +93,9 @@ void run_backend(const std::string& backend, const fs::path& dir) {
         std::string s = slurp(base + ".bin");
         if (s.size() > 64) { s[s.size() - 5] ^= 0x01; spit(base + ".bin", s); damaged = true; }   // last record's tail
     } else if (backend == "jtext") {
-        // the row for event id 0, wherever the writer threads put it (not always the first row)
-        damaged = damage_text(base + ".jtext", "\n1. #|# 0|");
+        // the row for event id 0, wherever the writer threads put it (not always the first row);
+        // main rows are " 1. " then U+25AE U+258C (the formatter), "0" then U+25AE
+        damaged = damage_text(base + ".jtext", "\n 1. \xE2\x96\xAE\xE2\x96\x8C" " 0" "\xE2\x96\xAE");
     } else if (backend == "html") {
         damaged = damage_text(base + ".html", "<tr><td>0</td><td>");
     } else if (backend == "json") {
@@ -125,7 +126,7 @@ void run_backend(const std::string& backend, const fs::path& dir) {
     store2.test_run();
     store2.finalize_persistence();
     bool removed = false;
-    if (backend == "jtext")      removed = drop_last_row(base + ".jtext", "1. #|# ");
+    if (backend == "jtext")      removed = drop_last_row(base + ".jtext", " 1. \xE2\x96\xAE\xE2\x96\x8C" " ");
     else if (backend == "html")  removed = drop_last_row(base + ".html", "<tr><td>");
     else if (backend == "json")  removed = drop_last_row(base + ".json", "{\"id\":");
     else if (backend == "binary") {

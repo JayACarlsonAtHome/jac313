@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
     const char sep = pick_separator(rs.rows);
 
     std::ostringstream out;
-    out << "//File:    " << base << " (" << backend << ")\n"
+    out << "//File:    " << fs::path(base).filename().string() << ".jtext\n"
         << "//Purpose: jac313 persisted dataset, shown by Jac313Runner\n"
         << "//\n"
         << "=== jText File ===\n"
@@ -181,7 +181,7 @@ int main(int argc, char** argv) {
     for (size_t k = 0; k < dc; ++k) fields.push_back(std::format("dbl{}/Number", k));
     const size_t pad = fields.size() > 9 ? 2 : 1;
     for (size_t f = 0; f < fields.size(); ++f) out << std::format("{}. #/# {}\n", field_no(f + 1, pad + 1), fields[f]);
-    out << "\n=== Data ===\n";
+    out << "=== End Fields ===\n\n=== Data ===\n";
     for (const auto& r : rs.rows) {
         out << std::format("{}. #{}# {}{}{}{}{}{}0x{:016x}{}{}{}{}{}{}", field_no(1, pad + 1), sep, r.event_id, sep, r.thread_id, sep,
                            r.per_thread_event_id, sep, r.flags, sep, r.category, sep, r.payload, sep, r.timestamp_us);

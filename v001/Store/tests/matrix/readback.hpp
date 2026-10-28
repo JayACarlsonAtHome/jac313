@@ -23,6 +23,7 @@
 //            checksum=PASS sample=PASS checked=100 read_ms=1.234 [pg timings...] [error="..."]
 
 #include "test_common.hpp"
+#include "parser/section.hpp"
 
 #include <jac313/Store/v001/headers/persistence/BinaryEventLogReader.hpp>
 #include <jac313/Store/v001/headers/persistence/JsonEventLogReader.hpp>
@@ -291,22 +292,31 @@ inline RowSet load_html(const std::string& base, size_t ic, size_t dc) {
     return rs;
 }
 
-// jText: compact rows "1. #|# v1|v2|..." after "=== Data ===".
-inline std::vector<std::vector<std::string_view>> jtext_rows(const std::string& path, std::string& text,
-                                                             std::string& err) {
-    std::vector<std::vector<std::string_view>> out;
+// jText: the records of the file's (only) section, read by the jText library's parser, so
+// the file must be valid jText, closers and all. A record is the lines between blank lines;
+// each line carries the values from its field position on (a compact row, or one multiline
+// value), so a record split around a multiline field reassembles.
+inline std::vector<std::vector<std::string>> jtext_rows(const std::string& path, std::string& text,
+                                                        std::string& err) {
+    std::vector<std::vector<std::string>> out;
     std::ifstream in(path, std::ios::binary);
     if (!in) { err = "cannot open " + path; return out; }
     text.assign(std::istreambuf_iterator<char>(in), {});
-    bool in_data = false;
-    for (auto line : split(text, "\n")) {
-        if (line.starts_with("=== Data ===")) { in_data = true; continue; }
-        if (!in_data) continue;
-        if (line.starts_with("===") || line.starts_with("-- EOF")) break;
-        const auto at = line.find("#|# ");
-        if (at == std::string_view::npos) continue;
-        out.push_back(split(line.substr(at + 4), "|"));
+    const auto file = jtext::parse_file_structure(std::string_view(text));
+    if (!file) { err = std::format("{}: line {}: {}", path, file.error().line_no, file.error().message); return out; }
+    if (file->sections.size() != 1) { err = std::format("{}: {} sections, expected 1", path, file->sections.size()); return out; }
+    std::vector<std::string> record;
+    for (const auto& pl : file->sections[0].data_lines) {
+        if (pl.number == 0) {   // a blank line ends the record
+            if (!record.empty()) out.push_back(std::move(record));
+            record.clear();
+            continue;
+        }
+        const size_t first = pl.number - 1;
+        if (record.size() < first + pl.hierarchy.size()) record.resize(first + pl.hierarchy.size());
+        for (size_t k = 0; k < pl.hierarchy.size(); ++k) record[first + k] = pl.hierarchy[k];
     }
+    if (!record.empty()) out.push_back(std::move(record));
     return out;
 }
 
@@ -319,7 +329,7 @@ inline RowSet load_jtext(const std::string& base, size_t ic, size_t dc) {
         PersistedEvent e;
         if (c.size() != 7 || !parse_u64(c[0], e.event_id) || !parse_u64(c[1], e.thread_id) ||
             !parse_u64(c[2], e.per_thread_event_id) || !parse_u64(c[3], e.flags) || !parse_u64(c[6], e.timestamp_us)) {
-            rs.error = std::format("bad main row ({} fields; a '|' inside a value splits it)", c.size());
+            rs.error = std::format("bad main row ({} fields)", c.size());
             return rs;
         }
         e.category = std::string(c[4]);

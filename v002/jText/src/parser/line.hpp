@@ -11,6 +11,7 @@
 //   - parsed_line       successful parse result
 //   - parse_error       parse failure details
 //   - line_kind         what kind of line this is (data, multiline_opener)
+//   - parse_value_line  a line inside a multiline value ("**", "*]")
 //   - parse_line(sv)    main entry point
 //
 // The parser is a pure function: no I/O, no global state. The same input
@@ -24,6 +25,8 @@
 #include <string_view>
 #include <vector>
 
+#include "utf8.hpp"
+
 namespace jtext {
 
 // ──────────────────────────────────────────────────────────────
@@ -32,22 +35,28 @@ namespace jtext {
 //  The live marker is two characters: splice, then comment.
 //  A longer run of marker characters is accepted. The reader keeps
 //  the right two and drops what is in front. Those two must differ.
-//  [] is raw data (see raw_data()). Each marker character is printable
-//  ASCII, non-alphanumeric, non-whitespace.
+//  [] is raw data (see raw_data()). Each marker character is one Unicode
+//  code point whose General Category is Punctuation or Symbol (SPEC 3.1):
+//  any printable non-alphanumeric ASCII character, or one such as U+25AE.
 //
 //  stand_in is set equal to the comment character and is unused.
 // ──────────────────────────────────────────────────────────────
 
 struct formatter {
-    char bookend   = '\0';
-    char separator = '\0';
-    char stand_in  = '\0';
+    char32_t bookend   = 0;
+    char32_t separator = 0;
+    char32_t stand_in  = 0;
 
     constexpr auto operator==(const formatter&) const -> bool = default;
 
     // [] is raw data: no splice, no comment. The rest of the line is the value.
     constexpr auto raw_data() const -> bool {
-        return separator == '[' && bookend == ']';
+        return separator == U'[' && bookend == U']';
+    }
+
+    // [* opens a multiline value (SPEC v0.8 Part C): "** " lines, then "*]".
+    constexpr auto multiline() const -> bool {
+        return separator == U'[' && bookend == U'*';
     }
 
     // The two live characters: splice, then comment.
@@ -64,7 +73,7 @@ struct formatter {
 
 enum class line_kind : std::uint8_t {
     data,               // a regular numbered data line
-    multiline_opener,   // "<num>. <<< <sentinel>" — body handled separately
+    multiline_opener,   // "<num>. [* # comment" — the value's "**" lines follow
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -84,9 +93,10 @@ enum class line_kind : std::uint8_t {
 //
 //  kind == multiline_opener:
 //    - number: 1..99
-//    - sentinel: the chosen sentinel string (after "<<<")
-//    - comment: optional trailing comment on the opener line
-//    - fmt and hierarchy are unused (default-constructed)
+//    - fmt: [*
+//    - comment: the opener's optional comment (after '#')
+//    - hierarchy: empty from parse_line; the file parser fills in the one
+//      value its "**" lines make
 // ──────────────────────────────────────────────────────────────
 
 struct parsed_line {
@@ -95,7 +105,6 @@ struct parsed_line {
     formatter                 fmt;
     std::vector<std::string>  hierarchy;
     std::string               comment;
-    std::string               sentinel;   // for kind == multiline_opener
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -116,12 +125,13 @@ enum class parse_error_kind : std::uint8_t {
     invalid_line_number,                 // 0, > 99, or not a number
     missing_formatter,                   // line ends after the period
     formatter_too_short,                 // fewer than 2 chars where the marker goes
-    formatter_bookends_mismatch,         // retained; no longer raised
     formatter_separator_equals_bookend,  // the right two characters are the same
     formatter_invalid_char,              // non-ASCII, alphanumeric, or whitespace
     hierarchy_empty_segment,             // hierarchy contains an empty segment
-    multiline_missing_sentinel,          // "<<<" with no following sentinel
-    multiline_sentinel_invalid,          // sentinel too short / has whitespace
+    invalid_utf8,                        // the formatter's bytes are not UTF-8
+    formatter_reserved,                  // '[' splice other than [] and [*
+    multiline_opener_text,               // text after "[*" that is not a "#" comment
+    value_line_invalid,                  // "**" without a space, or text after "*]"
 };
 
 // Render a parse_error_kind as a stable, human-readable string.
@@ -156,7 +166,47 @@ struct parse_error {
 //  Returns parsed_line on success, parse_error on failure.
 // ──────────────────────────────────────────────────────────────
 
-auto parse_line(std::string_view line) -> std::expected<parsed_line, parse_error>;
+//  split_rule
+//
+//  How the splice character divides the data (SPEC 2.6.3, 3.3).
+//    hierarchy - levels of one value: a leading or trailing separator is
+//                cosmetic, an empty level is an error. Fields-block lines,
+//                file-header lines.
+//    fields    - the values of a compact row: every separator splits, an
+//                empty value ("||", or a trailing "|") is an empty string.
+//                Data-block lines. This is the exact inverse of the writer.
+enum class split_rule : std::uint8_t { hierarchy, fields };
+
+auto parse_line(std::string_view line, split_rule rule = split_rule::hierarchy)
+    -> std::expected<parsed_line, parse_error>;
+
+//  Multiline values (SPEC v0.8 Part C)
+//
+//     6. [* # stack trace          the opener (parse_line: multiline_opener)
+//        ** Traceback ...          a line of the value
+//        **                        an empty line of the value
+//        *]                        the closer, alone
+//
+//  One space after "**" belongs to the marker; the rest of the line is the
+//  value's line, verbatim. Leading spaces and tabs before "**" and "*]" are
+//  alignment and are ignored.
+
+enum class value_line_kind : std::uint8_t {
+    content,   // "** text" or "**"
+    closer,    // "*]"
+    other,     // anything else: not part of a value
+};
+
+struct value_line {
+    value_line_kind kind = value_line_kind::other;
+    std::string     text;   // for content: the value's line
+};
+
+auto parse_value_line(std::string_view line) -> std::expected<value_line, parse_error>;
+
+// A template's opener: a bare "[*" (no line number), with an optional "# comment".
+// Returns the comment.
+auto parse_bare_value_opener(std::string_view line) -> std::expected<std::string, parse_error>;
 
 // ──────────────────────────────────────────────────────────────
 //  validate_formatter
@@ -175,15 +225,12 @@ auto validate_formatter(std::string_view three_chars)
 //  in later sessions.
 // ──────────────────────────────────────────────────────────────
 
-constexpr auto is_valid_formatter_char(char c) -> bool
+constexpr auto is_valid_formatter_char(char32_t cp) -> bool
 {
-    // Must be printable ASCII (0x21..0x7E), non-alphanumeric, non-whitespace.
-    const auto u = static_cast<unsigned char>(c);
-    if (u < 0x21 || u > 0x7E) return false;            // unprintable or non-ASCII
-    if ((u >= '0' && u <= '9') ||
-        (u >= 'A' && u <= 'Z') ||
-        (u >= 'a' && u <= 'z')) return false;          // alphanumeric
-    return true;
+    // One code point whose General Category is Punctuation or Symbol: never a
+    // letter, digit, mark, space, control or format character. In ASCII that is
+    // exactly the printable non-alphanumeric characters.
+    return is_punctuation_or_symbol(cp);
 }
 
 }  // namespace jtext

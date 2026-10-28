@@ -1,4 +1,5 @@
 #pragma once
+#include <filesystem>
 #include "../sat_compat.hpp"
 
 // BinaryEventLog.hpp
@@ -29,14 +30,14 @@ namespace jac313::Store::v002 {
 
 namespace detail {
     // Helper (binary has no jText dep) to emit the required // header at file start.
-    // Kept in sync with jText::write_file_comment_header convention.
-    inline size_t write_binary_file_header(int fd, std::string_view full_path) {
+    // Kept in sync with jText::write_file_comment_header convention (//File: the file's name only).
+    inline size_t write_binary_file_header(int fd, std::string_view path) {
         auto now = std::chrono::system_clock::now();
         auto today = std::chrono::floor<std::chrono::days>(now);
         std::string date_str = std::format("{:%Y-%m-%d}", today);
 
         std::string h;
-        h += std::format("//File:    {}\n", full_path);
+        h += std::format("//File:    {}\n", std::filesystem::path(std::string(path)).filename().string());
         h += std::format("//Date:    {}\n", date_str);
         h += "//Purpose: Binary Data File\n";
         h += "//\n";

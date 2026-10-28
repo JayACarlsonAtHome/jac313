@@ -6,7 +6,7 @@
 
 namespace jtext_gui {
 
-/// Connection parameters for any DB backend (no wx).
+/// Connection parameters for any DB backend (no GUI toolkit).
 struct ConnectionInfo {
     SessionKind kind = SessionKind::Sqlite;  ///< Sqlite | MariaDB | PostgreSQL
     std::string host = "localhost";

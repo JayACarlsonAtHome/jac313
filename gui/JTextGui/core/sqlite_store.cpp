@@ -103,6 +103,10 @@ public:
             return std::unexpected(std::string(sqlite3_errmsg(db_)) + "\nSQL: " + sql);
 
         const int ncols = sqlite3_column_count(st);
+        if (static_cast<std::size_t>(ncols) > kMaxFields) {
+            sqlite3_finalize(st);
+            return std::unexpected(too_many_fields(static_cast<std::size_t>(ncols)));
+        }
         while (sqlite3_step(st) == SQLITE_ROW) {
             Record rec;
             rec.marker = kDefaultMarker;

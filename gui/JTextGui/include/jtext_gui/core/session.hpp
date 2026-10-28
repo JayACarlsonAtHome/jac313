@@ -80,6 +80,8 @@ struct TableSession {
 
     /// jText path when kind == JTextFile
     std::string jtext_path;
+    /// The file's sections when kind == JTextFile; `table` is the one open.
+    std::vector<std::string> jtext_sections;
 
     /// DB identity when kind is a database session
     std::string db_path_or_dsn;  ///< SQLite file path, or host label for network DBs
@@ -102,6 +104,7 @@ struct TableSession {
     void clear() {
         kind = SessionKind::None;
         jtext_path.clear();
+        jtext_sections.clear();
         db_path_or_dsn.clear();
         table.clear();
         where_clause.clear();

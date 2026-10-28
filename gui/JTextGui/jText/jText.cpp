@@ -1,4 +1,7 @@
 #include "jText.h"
+#include "parser/line.hpp"
+#include "parser/section.hpp"
+#include "parser/utf8.hpp"
 #include <charconv>
 #include <filesystem>
 #include <optional>

@@ -1,4 +1,4 @@
-//File:    persist_keeper_Ints.jtext
+//File:    unresolved_include.jtext
 //Date:    2026-10-16
 //Purpose: jText Data File
 //Related: type=ts_store table=persist_keeper_ints
@@ -14,27 +14,27 @@
 
 
 === Template: Create Table ===
- 1. <<< !!!CT!!!
-CREATE TABLE IF NOT EXISTS persist_keeper_ints (
-    id BIGINT PRIMARY KEY
-  , int0 BIGINT
-  , int1 BIGINT
-  , int2 BIGINT
-  , int3 BIGINT
-  , int4 BIGINT
-  , int5 BIGINT
-  , int6 BIGINT
-  , int7 BIGINT
-  , int8 BIGINT
-);
-!!!CT!!!
+[*
+** CREATE TABLE IF NOT EXISTS persist_keeper_ints (
+**     id BIGINT PRIMARY KEY
+**   , int0 BIGINT
+**   , int1 BIGINT
+**   , int2 BIGINT
+**   , int3 BIGINT
+**   , int4 BIGINT
+**   , int5 BIGINT
+**   , int6 BIGINT
+**   , int7 BIGINT
+**   , int8 BIGINT
+** );
+*]
 
 
 === Template: SQL Insert ===
- 1. <<< !!!INS!!!
-INSERT OR IGNORE INTO persist_keeper_ints (id, int0, int1, int2, int3, int4, int5, int6, int7, int8)
-VALUES ({1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10});
-!!!INS!!!
+[*
+** INSERT OR IGNORE INTO persist_keeper_ints (id, int0, int1, int2, int3, int4, int5, int6, int7, int8)
+** VALUES ({1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10});
+*]
 
 
 === Fields ===
@@ -62,5 +62,7 @@ VALUES ({1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10});
 1. #|# 10|80|81|82|83|84|85|86|87|88
 
 1. #|# 13|90|91|92|93|94|95|96|97|98
+=== End Data ===
+=== End Section ===
+=== End File ===
 
--- EOF --

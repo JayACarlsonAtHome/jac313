@@ -7,10 +7,12 @@ uses
 file
 	Model.h,
 	Model.cpp,
-	main.cpp;
+	main.cpp,
+	../JTextGui/jText/src/parser/line.cpp,
+	../JTextGui/jText/src/parser/section.cpp;
 
 mainconfig
 	"" = "GUI WAYLAND";
 
 options
-	"-Wformat=2 -Werror=format";
+	"-I../JTextGui/jText/src -Wformat=2 -Werror=format";

@@ -11,23 +11,23 @@
 === Section: persist_keeper ===
 === <#include#> Schema: ../../../tests/jtext_includes/ts_store_main_schema.jschma ===
 === Template: Create Table ===
- 1. <<< !!!CT!!!
-CREATE TABLE IF NOT EXISTS persist_keeper (
-    id BIGINT PRIMARY KEY,
-    thread_id BIGINT,
-    per_thread_event_id BIGINT,
-    flags_raw BIGINT,
-    category TEXT,
-    payload TEXT,
-    timestamp_us BIGINT
-);
-!!!CT!!!
+[*
+** CREATE TABLE IF NOT EXISTS persist_keeper (
+**     id BIGINT PRIMARY KEY,
+**     thread_id BIGINT,
+**     per_thread_event_id BIGINT,
+**     flags_raw BIGINT,
+**     category TEXT,
+**     payload TEXT,
+**     timestamp_us BIGINT
+** );
+*]
 
 === Template: SQL Insert ===
- 1. <<< !!!INS!!!
-INSERT OR IGNORE INTO persist_keeper (id, thread_id, per_thread_event_id, flags_raw, category, payload, timestamp_us)
-VALUES ({1}, {2}, {3}, {4}, {5}, {6}, {7});
-!!!INS!!!
+[*
+** INSERT OR IGNORE INTO persist_keeper (id, thread_id, per_thread_event_id, flags_raw, category, payload, timestamp_us)
+** VALUES ({1}, {2}, {3}, {4}, {5}, {6}, {7});
+*]
 
 === Fields ===
 === <#include#> Fields: ../../../tests/jtext_includes/ts_store_main_fields.jtFlds ===
@@ -53,4 +53,6 @@ VALUES ({1}, {2}, {3}, {4}, {5}, {6}, {7});
 22. #|# 0|7|0x0000000000150002|NET|Fatal error in processing notification 💀|3408
 26. #|# 0|8|0x0000000000150002|NET|Not Set, default payload 😎|3433
 39. #|# 0|9|0x0000000000150002|NET|Trace processing request 😎|3525
--- EOF --
+=== End Data ===
+=== End Section ===
+=== End File ===

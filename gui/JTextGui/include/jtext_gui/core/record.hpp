@@ -4,6 +4,7 @@
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
+#include <format>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -11,8 +12,18 @@
 
 namespace jtext_gui {
 
-/// Most fields (lines) a record can have. A record grows to what its file or table needs.
-inline constexpr std::size_t kMaxFields = 999;
+/// Most fields (lines) a record can have: field positions 1-99 (SPEC 3.7). Line numbers
+/// are two columns wide; a 100th field would make them three on every line of the file,
+/// one more character per line that adds up in long tables, and a record that wide is no
+/// longer something a person reads. A record grows to what its file or table needs, up to this.
+inline constexpr std::size_t kMaxFields = 99;
+
+/// Why a query or sheet with more columns than a record can hold is refused, rather
+/// than cut short.
+inline std::string too_many_fields(std::size_t columns) {
+    return std::format("the result has {} columns; a jText record holds at most {} fields", columns,
+                       kMaxFields);
+}
 
 /// Fields a new record starts with (the editor shows at least this many lines).
 inline constexpr std::size_t kDefaultFields = 10;

@@ -20,6 +20,26 @@ using namespace jac313::jText::v002;
 
 namespace fs = std::filesystem;
 
+namespace {
+
+// Main rows are written with the formatter for machine-written free text (SPEC v0.8):
+// U+25AE splits the fields and U+258C starts a comment, characters real text almost never
+// holds. When a category or payload does hold one, the writer picks a character that is not
+// in the data instead: a separator inside a value would be a bad row, and a comment
+// character between spaces would cut the value short.
+void main_row_formatter(JTextEntry& e, std::string_view category, std::string_view payload)
+{
+    constexpr std::string_view kSplit = "\xE2\x96\xAE";     // U+25AE, as UTF-8
+    constexpr std::string_view kComment = "\xE2\x96\x8C";   // U+258C, as UTF-8
+    const auto in_text = [&](std::string_view c) {
+        return category.find(c) != std::string_view::npos || payload.find(c) != std::string_view::npos;
+    };
+    e.level_sep = in_text(kSplit) ? 0 : U'\u25AE';        // 0: the writer picks one
+    e.delimiter = in_text(kComment) ? U'#' : U'\u258C';   // '#': the writer picks one
+}
+
+} // namespace
+
 struct JTextSplitEventLog::Impl {
     std::ofstream main_ofs;
     std::ofstream ints_ofs;
@@ -78,14 +98,17 @@ JTextSplitEventLog::JTextSplitEventLog(
     std::string main_related = std::format("type=ts_store table={}", base_name);
     open_and_prep(i.main_ofs, i.main_path, "jText Data File", main_related);
     i.main_writer = std::make_unique<JTextWriter>(i.main_ofs);
+    i.main_writer->set_profile(JTextProfile::Full);
 
     std::string ints_related = std::format("type=ts_store table={}_ints", base_name);
     open_and_prep(i.ints_ofs, i.ints_path, "jText Data File", ints_related);
     i.ints_writer = std::make_unique<JTextWriter>(i.ints_ofs);
+    i.ints_writer->set_profile(JTextProfile::Full);
 
     std::string floats_related = std::format("type=ts_store table={}_floats", base_name);
     open_and_prep(i.floats_ofs, i.floats_path, "jText Data File", floats_related);
     i.floats_writer = std::make_unique<JTextWriter>(i.floats_ofs);
+    i.floats_writer->set_profile(JTextProfile::Full);
 
     // No JTextWriter auto-batching: append_event writes a blank record separator straight to
     // the stream after each entry, so entries must reach the stream in order too (a batched
@@ -130,7 +153,7 @@ void JTextSplitEventLog::append_event(
     {
         JTextEntry e;
         e.number = 1;  // jText line number = field position: a compact row starts at field 1
-        e.level_sep = '|';
+        main_row_formatter(e, category, payload);
         e.fields.reserve(7);
         e.fields.emplace_back(std::to_string(event_id));
         e.fields.emplace_back(std::to_string(thread_id));
@@ -274,101 +297,60 @@ void JTextSplitEventLog::write_all_headers(std::string_view base_name, size_t in
     // Relative path: from test_results/jText_logs/<test>/ back to tests/.
     const std::string kIncRel = "../../../tests/jtext_includes/";
 
-    i.main_writer->set_purpose("ts_store split event log (main)");
-    i.main_ofs << "=== jText File ===\n";
-    i.main_writer->write_header();
-    i.main_ofs << "\n=== Section: " << base_name << " ===\n";
-    i.main_ofs << "=== <#include#> Schema: " << kIncRel << "ts_store_main_schema.jschma ===\n";
-    // Emit SQL templates so jtext_process can generate full loadable .sql (schema + inserts) from this .jtext
-    // Using simple INSERT OR IGNORE for now (small templates, tolerant of re-runs/duplicates).
-    // Full ON CONFLICT DO UPDATE (true upsert) would work but produces much larger .jtext/.sql
-    // because every column must be repeated in the SET clause. That can be an option later
-    // (e.g. via config or different template name). The loader (jtext_process output + sqlite3)
-    // should continue on any remaining errors for subsequent records.
-    // Use clean table name (last path component of base) so SQL tables are "persist" (not full path from --base-name).
+    // Each file: the full-profile header, one section with its schema include, the SQL
+    // templates (jtext_process makes loadable .sql from them), the Fields block naming the
+    // shared field list, then the Data block. The writer closes every block at finalize().
+    // INSERT OR IGNORE keeps the templates small and tolerant of re-runs; a full upsert
+    // (ON CONFLICT DO UPDATE) would repeat every column and could become an option later.
+    // The table is the last path component of base_name ("persist", not the full path).
     std::string table_name = fs::path(std::string(base_name)).filename().string();
     if (table_name.empty()) table_name = "persist";
-    i.main_ofs << "\n\n=== Template: Create Table ===\n"
-               << " 1. <<< !!!CT!!!\n"
-               << "CREATE TABLE IF NOT EXISTS " << table_name << " (\n"
-               << "    id BIGINT PRIMARY KEY\n"
-               << "  , thread_id BIGINT\n"
-               << "  , per_thread_event_id BIGINT\n"
-               << "  , flags_raw BIGINT\n"
-               << "  , category TEXT\n"
-               << "  , payload TEXT\n"
-               << "  , timestamp_us BIGINT\n"
-               << ");\n"
-               << "!!!CT!!!\n\n\n";
-    i.main_ofs << "=== Template: SQL Insert ===\n"
-               << " 1. <<< !!!INS!!!\n"
-               << "INSERT OR IGNORE INTO " << table_name << " (id, thread_id, per_thread_event_id, flags_raw, category, payload, timestamp_us)\n"
-               << "VALUES ({1}, {2}, {3}, {4}, {5}, {6}, {7});\n"
-               << "!!!INS!!!\n\n\n";
-    i.main_ofs << "=== Fields ===\n";
-    i.main_ofs << "=== <#include#> Fields: " << kIncRel << "ts_store_main_fields.jtFlds ===\n";
-    i.main_ofs << "=== End Fields ===\n";
-    i.main_ofs << "\n\n=== Data ===\n";
 
-    if (int_count > 0 && i.ints_writer) {
-        i.ints_writer->set_purpose("ts_store integer metrics");
-        i.ints_ofs << "=== jText File ===\n";
-        i.ints_writer->write_header();
-        i.ints_ofs << "\n=== Section: " << base_name << "_ints ===\n";
-        i.ints_ofs << "=== <#include#> Schema: " << kIncRel << "ts_store_ints_schema.jschma ===\n";
-        std::string tname_i = table_name + "_ints";
-        i.ints_ofs << "\n\n=== Template: Create Table ===\n"
-                   << " 1. <<< !!!CT!!!\n"
-                   << "CREATE TABLE IF NOT EXISTS " << tname_i << " (\n"
-                   << "    id BIGINT PRIMARY KEY\n";
-        for (size_t k = 0; k < int_count; ++k) {
-            i.ints_ofs << "  , int" << k << " BIGINT\n";
-        }
-        i.ints_ofs << ");\n"
-                   << "!!!CT!!!\n\n\n";
-        i.ints_ofs << "=== Template: SQL Insert ===\n"
-                   << " 1. <<< !!!INS!!!\n"
-                   << "INSERT OR IGNORE INTO " << tname_i << " (id";
-        for (size_t k = 0; k < int_count; ++k) i.ints_ofs << ", int" << k;
-        i.ints_ofs << ")\nVALUES ({1}";
-        for (size_t k = 0; k < int_count; ++k) i.ints_ofs << ", {" << (k+2) << "}";
-        i.ints_ofs << ");\n"
-                   << "!!!INS!!!\n\n\n";
-        i.ints_ofs << "=== Fields ===\n";
-        i.ints_ofs << "=== <#include#> Fields: " << kIncRel << "ts_store_ints_fields.jtFlds ===\n";
-        i.ints_ofs << "=== End Fields ===\n";
-        i.ints_ofs << "\n\n=== Data ===\n";
-    }
+    auto open_file = [&](JTextWriter& w, std::string_view purpose, std::string_view section,
+                         std::string_view kind, const std::string& create, const std::string& insert) {
+        w.set_purpose(purpose);
+        w.write_header();
+        w.begin_section(section);
+        w.write_include("Schema", kIncRel + std::format("ts_store_{}_schema.jschma", kind));
+        w.write_template("Create Table", create);
+        w.write_template("SQL Insert", insert);
+        w.begin_fields();
+        w.write_include("Fields", kIncRel + std::format("ts_store_{}_fields.jtFlds", kind));
+        w.end_fields();
+        w.begin_data();
+    };
 
-    if (dbl_count > 0 && i.floats_writer) {
-        i.floats_writer->set_purpose("ts_store double metrics");
-        i.floats_ofs << "=== jText File ===\n";
-        i.floats_writer->write_header();
-        i.floats_ofs << "\n=== Section: " << base_name << "_floats ===\n";
-        i.floats_ofs << "=== <#include#> Schema: " << kIncRel << "ts_store_floats_schema.jschma ===\n";
-        std::string tname_f = table_name + "_floats";
-        i.floats_ofs << "\n\n=== Template: Create Table ===\n"
-                   << " 1. <<< !!!CT!!!\n"
-                   << "CREATE TABLE IF NOT EXISTS " << tname_f << " (\n"
-                   << "    id BIGINT PRIMARY KEY\n";
-        for (size_t k = 0; k < dbl_count; ++k) {
-            i.floats_ofs << "  , dbl" << k << " DOUBLE PRECISION\n";
+    open_file(*i.main_writer, "ts_store split event log (main)", base_name, "main",
+              std::format("CREATE TABLE IF NOT EXISTS {} (\n"
+                          "    id BIGINT PRIMARY KEY\n"
+                          "  , thread_id BIGINT\n"
+                          "  , per_thread_event_id BIGINT\n"
+                          "  , flags_raw BIGINT\n"
+                          "  , category TEXT\n"
+                          "  , payload TEXT\n"
+                          "  , timestamp_us BIGINT\n"
+                          ");", table_name),
+              std::format("INSERT OR IGNORE INTO {} (id, thread_id, per_thread_event_id, flags_raw, category, payload, timestamp_us)\n"
+                          "VALUES ({{1}}, {{2}}, {{3}}, {{4}}, {{5}}, {{6}}, {{7}});", table_name));
+
+    auto metric_file = [&](JTextWriter& w, std::string_view purpose, std::string_view kind,
+                           std::string_view prefix, std::string_view sql_type, size_t count) {
+        const std::string table = std::format("{}_{}", table_name, kind);
+        std::string create = std::format("CREATE TABLE IF NOT EXISTS {} (\n    id BIGINT PRIMARY KEY\n", table);
+        std::string columns = "id", values = "{1}";
+        for (size_t k = 0; k < count; ++k) {
+            create += std::format("  , {}{} {}\n", prefix, k, sql_type);
+            columns += std::format(", {}{}", prefix, k);
+            values += std::format(", {{{}}}", k + 2);
         }
-        i.floats_ofs << ");\n"
-                   << "!!!CT!!!\n\n\n";
-        i.floats_ofs << "=== Template: SQL Insert ===\n"
-                   << " 1. <<< !!!INS!!!\n"
-                   << "INSERT OR IGNORE INTO " << tname_f << " (id";
-        for (size_t k = 0; k < dbl_count; ++k) i.floats_ofs << ", dbl" << k;
-        i.floats_ofs << ")\nVALUES ({1}";
-        for (size_t k = 0; k < dbl_count; ++k) i.floats_ofs << ", {" << (k+2) << "}";
-        i.floats_ofs << ");\n"
-                   << "!!!INS!!!\n\n\n";
-        i.floats_ofs << "=== Fields ===\n";
-        i.floats_ofs << "=== <#include#> Fields: " << kIncRel << "ts_store_floats_fields.jtFlds ===\n";
-        i.floats_ofs << "=== End Fields ===\n";
-        i.floats_ofs << "\n\n=== Data ===\n";
-    }
+        create += ");";
+        open_file(w, purpose, std::format("{}_{}", base_name, kind), kind, create,
+                  std::format("INSERT OR IGNORE INTO {} ({})\nVALUES ({});", table, columns, values));
+    };
+    if (int_count > 0 && i.ints_writer)
+        metric_file(*i.ints_writer, "ts_store integer metrics", "ints", "int", "BIGINT", int_count);
+    if (dbl_count > 0 && i.floats_writer)
+        metric_file(*i.floats_writer, "ts_store double metrics", "floats", "dbl", "DOUBLE PRECISION", dbl_count);
 }
 
 } // namespace jac313::Store::v002

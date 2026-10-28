@@ -2,7 +2,7 @@
 //
 // The line parser already has dedicated error kinds for the malformed cases
 // below; these tests lock that behaviour in (regression guard) and cover the
-// newly added rule that a multiline sentinel must be printable ASCII.
+// multiline value form ("[*", "**", "*]") and the reserved '[' splice.
 //
 // Links jac313::jText::jText, which exposes the in-tree src/ headers.
 
@@ -64,6 +64,7 @@ bool date_validation_errors(const std::string& date,
         " 1. #/# id/Number/Not Null\n"
         " 2. #/# d/Date/Nullable\n"
         "\n"
+        "=== End Fields ===\n"
         "=== Data ===\n"
         " 1. #?# 1\n"
         " 2. #?# " + date + "\n"
@@ -101,14 +102,15 @@ bool template_validation_errors(const std::string& body,
         "=== Section: S ===\n"
         "\n"
         "=== Template: T ===\n"
-        " 1. <<< !!!T!!!\n"
-        + body + "\n"
-        "!!!T!!!\n"
+        "[*\n"
+        "** " + body + "\n"
+        "*]\n"
         "\n"
         "=== Fields ===\n"
         " 1. #/# id/Number/Not Null\n"
         " 2. #/# b/String/Nullable\n"
         "\n"
+        "=== End Fields ===\n"
         "=== Data ===\n"
         " 1. #?# 1\n"
         " 2. #?# y\n"
@@ -134,6 +136,7 @@ bool required_missing_errors(jtext::validation_level level) {
         " 1. #/# id/Number/Not Null\n"
         " 2. #/# name/String/Not Null\n"
         "\n"
+        "=== End Fields ===\n"
         "=== Data ===\n"
         " 1. #?# 1\n"
         "\n"
@@ -162,6 +165,7 @@ std::optional<jtext::validate_result> validate_doc(const std::string& fields,
         "\n"
         "=== Fields ===\n" + fields +
         "\n"
+        "=== End Fields ===\n"
         "=== Data ===\n" + data +
         "\n"
         "=== End Data ===\n"
@@ -230,20 +234,16 @@ int main() {
     // --- hierarchy ---
     expect_err("1. #/# A//B", K::hierarchy_empty_segment, "hierarchy-empty-middle");
 
-    // --- multiline sentinel ---
-    expect_err("1. <<< ab", K::multiline_sentinel_invalid, "sentinel-too-short");
-    {
-        // sentinel with an embedded control byte -> rejected by the new ASCII rule
-        std::string ctl = "1. <<< a";
-        ctl += '\x01';
-        ctl += 'c';
-        expect_err(ctl, K::multiline_sentinel_invalid, "sentinel-control-char");
-    }
+    // --- multiline value opener; '[' is reserved for [] and [* ---
+    expect_err("1. [* text", K::multiline_opener_text, "opener-text-not-comment");
+    expect_err("1. [| a[b", K::formatter_reserved, "reserved-bracket-splice");
+    expect_err("1. <<< !!!END!!!", K::formatter_separator_equals_bookend, "old-sentinel-gone");
 
     // --- positives (must still parse) ---
     expect_ok("1. #?# hello world", "ok-simple-data");
     expect_ok("1. #/# A/B/C",       "ok-hierarchy");
-    expect_ok("1. <<< !!!END!!!",   "ok-sentinel");
+    expect_ok("1. [*",              "ok-multiline-opener");
+    expect_ok("1. [* # a note",     "ok-multiline-opener-comment");
 
     // --- strict Date validation: exactly YYYY-MM-DD, real calendar date ---
     expect_date_ok("2026-06-23");                 // ordinary valid date

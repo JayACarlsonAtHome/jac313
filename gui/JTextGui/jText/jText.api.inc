@@ -8,7 +8,7 @@
 // Package version, "major.minor": major = the v001 API line, minor = the revision. Bump on
 // each small code change (edit the minor); v001 stays until a real (breaking) change, then
 // this becomes "v001.001". Enforced by `jac313_test_cli version-check` (pre-push).
-[[nodiscard]] constexpr std::string_view version() noexcept { return "v001.009"; }
+[[nodiscard]] constexpr std::string_view version() noexcept { return "v001.012"; }
 
 enum class CaseMode { Insensitive, Sensitive };
 
@@ -24,14 +24,21 @@ enum class CaseMode { Insensitive, Sensitive };
 //           Default for DB round-trips and high-throughput event logs.
 enum class JTextProfile { Light, Full };
 
+// What the writer does with a row it cannot write safely, such as a field holding the
+// row's separator (it would read back as two fields, and no reader can tell where).
+//   Terminate - print the reason to stderr, write out the rows before it, and end the
+//               process with std::terminate(). Nothing is silently lost. The default.
+//   Skip      - print the reason to stderr, leave the row out, count it, carry on.
+enum class BadRowPolicy { Terminate, Skip };
+
 struct JTextEntry {
     std::size_t number = 0;
-    char delimiter = '#';
-    char level_sep = 0;           // 0 = flat, otherwise separator char
+    char32_t delimiter = U'#';    // bookend; left at '#', the writer picks one not in the data
+    char32_t level_sep = 0;       // 0 = the writer picks one, otherwise the separator
+                                  // (any Unicode punctuation or symbol, e.g. U'|' or U'\u25AE')
     std::vector<std::optional<std::string>> fields;  // nullopt = null value; for compact ts_store, null is encoded as \x1F when writing
     std::string comment;
     bool is_null = false;  // legacy per-entry
-    bool is_special_block = false;
 };
 
 struct JTextSection {
@@ -64,10 +71,10 @@ private:
     static void log_error(std::string_view msg, const std::source_location loc = std::source_location::current());
 
     auto parse_header(std::string_view line) -> bool;
-    auto parse_entry(std::string_view line) -> std::expected<JTextEntry, std::string>;
-    auto parse_special_block(std::ifstream& in, JTextSection& sec) -> std::expected<void, std::string>;
 
-    auto parse_stream(std::ifstream& in, bool full_read, std::string_view target_section = {})
+    // Reads the file with the same parser the validator and tools use, adding its
+    // sections (only `only_section` when given) to `sections`.
+    auto read_file(std::string_view filepath, std::string_view only_section)
         -> std::expected<void, std::string>;
 };
 
@@ -100,6 +107,12 @@ public:
     void set_table_name(std::string_view name);
     void set_auto_id(bool enabled);
 
+    // Rows that cannot be written safely (see BadRowPolicy). Terminate is the default.
+    void set_bad_row_policy(BadRowPolicy policy) noexcept { bad_row_policy_ = policy; }
+    [[nodiscard]] BadRowPolicy bad_row_policy() const noexcept { return bad_row_policy_; }
+    // Rows left out under BadRowPolicy::Skip.
+    [[nodiscard]] std::size_t skipped_rows() const noexcept { return skipped_rows_; }
+
     // Record id (SPEC 2.6.4): field 1 of every record is a mandatory integer id.
     // When a field-1 entry ("1. ...") arrives with its value missing, null or
     // empty, the writer generates one: `seed` for the first record of a section,
@@ -129,7 +142,7 @@ public:
     void append_row(std::size_t number,
                     const std::vector<std::string>& fields,
                     std::string_view comment = "",
-                    char level_sep = 0);
+                    char32_t level_sep = 0);
 
     void finalize();
 
@@ -166,6 +179,10 @@ private:
     void ensure_header();
     void ensure_not_finalized();
     void flush_pending_batch();   // internal helper
+    // Write already-formatted lines (a multiline record), batched like any row.
+    void write_lines(std::string text);
+    // Report a bad row, then leave it out (Skip) or end the process (Terminate).
+    void reject_row(std::size_t field, char32_t sep, std::string_view value);
     // Field-1 entry with no id: fill one in `scratch` and return it; otherwise
     // note the id it carries and return `entry` unchanged.
     const JTextEntry& resolve_record_id(const JTextEntry& entry, JTextEntry& scratch);
@@ -189,7 +206,12 @@ private:
     std::size_t auto_batch_size_ = 0;
     std::vector<std::string> pending_batch_;   // stores pre-formatted lines for cheaper storage & faster flush
 
-    std::size_t line_pad_width_ = 0;
+    std::size_t line_pad_width_ = 2;   // line numbers right-aligned in two columns (SPEC 3.7)
+
+    BadRowPolicy bad_row_policy_ = BadRowPolicy::Terminate;
+    std::size_t skipped_rows_ = 0;
+    std::string section_;   // current section, for error messages
+    bool section_open_ = false;   // a "-- Name --" waits for its "-- End Name --"
 
     // Record id generation (per section)
     std::int64_t record_id_seed_ = 1;
@@ -227,7 +249,7 @@ void write_fields_include_line(std::ostream& out, std::string_view jtflds_path);
 // Always uses // comments. Call this before writing any data or jText's own # headers.
 // The produced block is (keys chosen for brevity + colons for consistency; values aligned):
 //
-//   //File:    <full-or-relative-path>
+//   //File:    <the file's name: never a path, which goes stale when the file moves>
 //   //Date:    YYYY-MM-DD
 //   //Purpose: jText Data File | jText Field List File | SQL Schema File | SQL Data File | ...
 //   //Related: type=PostgreSQL table=workshop_tools   (optional, if origin known)
@@ -240,6 +262,6 @@ void write_fields_include_line(std::ostream& out, std::string_view jtflds_path);
 //
 // Data...
 void write_file_comment_header(std::ostream& os,
-                               std::string_view full_path,
+                               std::string_view path,
                                std::string_view purpose,
                                std::string_view related = {});

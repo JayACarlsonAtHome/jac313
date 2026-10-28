@@ -1,4 +1,6 @@
 #include "Model.h"
+#include <parser/line.hpp>
+#include <parser/section.hpp>
 
 namespace Upp {
 
@@ -791,198 +793,74 @@ int JDoc::MainSection() const
 	return sections.GetCount() ? 0 : -1;
 }
 
-// "  3. #?# value" -> n=3, fmt="?", value="value". False for anything else.
-static bool NumberedLine(const String& line, int& n, String& fmt, String& value)
-{
-	const char *s = line;
-	while(*s == ' ' || *s == '\t') s++;
-	if(!IsDigit(*s))
-		return false;
-	n = 0;
-	while(IsDigit(*s)) n = n * 10 + (*s++ - '0');
-	if(*s++ != '.')
-		return false;
-	while(*s == ' ' || *s == '\t') s++;
-	if(*s == '<' && s[1] == '<' && s[2] == '<') {   // heredoc value: "<<< TAG"
-		fmt = "<<<";
-		value = TrimBoth(String(s + 3));
-		return n > 0;
-	}
-	if(*s++ != '#')
-		return false;
-	const char *f = s;
-	while(*s && *s != '#' && *s != ' ' && s - f < 4) s++;
-	if(*s != '#' || s == f)
-		return false;
-	fmt = String(f, s);
-	s++;
-	if(*s == ' ')
-		s++;
-	value = s;
-	return n > 0;
-}
+static String ToUpp(const std::string& s) { return String(s.data(), (int)s.size()); }
 
-static String CleanValue(const String& v)
+// The Unit Separator byte, or its escape as text, is NULL
+static String CleanValue(const std::string& v)
 {
 	if(v == "\x1F" || v == "\\x1F" || v == "\\x1f")
 		return JNull();
-	return v;
+	return ToUpp(v);
 }
 
+// The jText library parses; this turns its sections into named columns and rows.
+// A record is the lines between blank lines; each line's number is the field position.
 void JDoc::Parse(const String& text, const String& baseDir)
 {
 	sections.Clear();
 	notes.Clear();
-	enum { NONE, FIELDS, DATA } state = NONE;
-	JSection *sec = NULL;
-	Vector<String> rec;
-	bool recUsed = false;
-	String heredocTag, heredocText;
-	int heredocCol = -1;
-	bool inHeredoc = false;
-
-	auto Section = [&]() -> JSection& {
-		if(!sec) {
-			sec = &sections.Add();
-			sec->name = "(unnamed)";
-		}
-		return *sec;
-	};
-	auto Flush = [&]() {
-		if(recUsed && sec)
-			sec->rows.Add(pick(rec));
-		rec.Clear();
-		recUsed = false;
-	};
-	auto SetCol = [&](int col, const String& v) {
-		if(col < 0)
-			return;
-		if(rec.GetCount() <= col)
-			rec.SetCount(col + 1, JNull());
-		rec[col] = v;
-		recUsed = true;
-	};
-	auto AddField = [&](int n, const String& value) {
-		JSection& s = Section();
-		int slash = value.Find('/');
-		String name = TrimBoth(slash >= 0 ? value.Left(slash) : value);
-		int hash = name.Find(" #");
-		if(hash >= 0)
-			name = TrimBoth(name.Left(hash));
-		if(s.cols.GetCount() < n)
-			s.cols.SetCount(n);
-		s.cols[n - 1] = name;
-	};
-	auto FieldsFromInclude = [&](const String& rel) {
-		String p = rel;
-		if(!IsFullPath(p))
-			p = NormalizePath(AppendFileName(baseDir, p));
-		if(!FileExists(p)) {
-			notes.Add("include not found: " + rel + " (columns named 1..N)");
-			return;
-		}
-		Vector<String> lines = Split(LoadFile(p), '\n', false);
-		for(String l : lines) {
-			l.TrimEnd("\r");
-			int n; String fmt, v;
-			if(NumberedLine(l, n, fmt, v) && fmt == "/")
-				AddField(n, v);
-		}
-	};
-
-	Vector<String> lines = Split(text, '\n', false);
-	for(int li = 0; li < lines.GetCount(); li++) {
-		String line = lines[li];
-		line.TrimEnd("\r");
-		if(inHeredoc) {
-			if(TrimBoth(line) == heredocTag) {
-				inHeredoc = false;
-				if(heredocCol >= 0)
-					SetCol(heredocCol, heredocText);
-				heredocCol = -1;
-			}
-			else {
-				if(heredocText.GetCount())
-					heredocText << "\n";
-				heredocText << line;
-			}
-			continue;
-		}
-		String t = TrimBoth(line);
-		if(t == "-- EOF --") {
-			Flush();
-			break;
-		}
-		if(t.StartsWith("===") && t.EndsWith("===") && t.GetCount() >= 6) {
-			String b = TrimBoth(t.Mid(3, t.GetCount() - 6));
-			if(b.StartsWith("<#include#>")) {
-				String inc = TrimBoth(b.Mid(11));
-				int colon = inc.Find(':');
-				String kind = colon >= 0 ? TrimBoth(inc.Left(colon)) : String();
-				String rel = colon >= 0 ? TrimBoth(inc.Mid(colon + 1)) : inc;
-				if(state == FIELDS || ToLower(kind) == "fields")
-					FieldsFromInclude(rel);
+	const auto file = jtext::parse_file_structure(std::string_view(~text, text.GetCount()));
+	if(!file) {
+		notes.Add(Format("line %d: %s", (int)file.error().line_no, ToUpp(file.error().message)));
+		return;
+	}
+	for(const jtext::parsed_section& ps : file->sections) {
+		JSection& s = sections.Add();
+		s.name = ps.name.empty() ? String("(unnamed)") : ToUpp(ps.name);
+		auto AddField = [&](unsigned n, const std::string& name) {
+			if(s.cols.GetCount() < (int)n)
+				s.cols.SetCount(n);
+			s.cols[n - 1] = ToUpp(name);
+		};
+		for(const jtext::parsed_line& fl : ps.field_lines)
+			if(fl.number && fl.hierarchy.size())
+				AddField(fl.number, fl.hierarchy[0]);
+		for(const auto& [kind, path] : ps.includes) {   // a Fields include names the columns
+			if(ToLower(ToUpp(kind)) != "fields")
+				continue;
+			String rel = ToUpp(path);
+			String p = IsFullPath(rel) ? rel : NormalizePath(AppendFileName(baseDir, rel));
+			if(!FileExists(p)) {
+				notes.Add("include not found: " + rel + " (columns named 1..N)");
 				continue;
 			}
-			Flush();
-			if(b.StartsWith("Section:")) {
-				sec = &sections.Add();
-				sec->name = TrimBoth(b.Mid(8));
-				state = NONE;
+			for(String l : Split(LoadFile(p), '\n', false)) {
+				l.TrimEnd("\r");
+				const auto fl = jtext::parse_line(std::string_view(~l, l.GetCount()));
+				if(fl && fl->kind == jtext::line_kind::data && fl->hierarchy.size())
+					AddField(fl->number, fl->hierarchy[0]);
 			}
-			else if(b == "Fields") {
-				Section();
-				state = FIELDS;
+		}
+		Vector<String> rec;
+		for(const jtext::parsed_line& pl : ps.data_lines) {
+			if(pl.number == 0) {   // a blank line ends the record
+				if(rec.GetCount())
+					s.rows.Add(pick(rec));
+				rec.Clear();
+				continue;
 			}
-			else if(b == "Data") {
-				Section();
-				state = DATA;
-			}
-			else
-				state = NONE;   // End Fields / End Data / Template: / jText File / End Section ...
-			continue;
+			int first = pl.number - 1;
+			if(rec.GetCount() < first + (int)pl.hierarchy.size())
+				rec.SetCount(first + (int)pl.hierarchy.size(), JNull());
+			for(size_t k = 0; k < pl.hierarchy.size(); k++)
+				rec[first + (int)k] = CleanValue(pl.hierarchy[k]);
 		}
-		if(state == DATA && t.IsEmpty()) {
-			Flush();
-			continue;
-		}
-		if(t.IsEmpty() || t.StartsWith("//") || t.StartsWith("#"))
-			continue;
-		int n; String fmt, value;
-		if(!NumberedLine(line, n, fmt, value)) {
-			if(state == DATA || state == FIELDS)
-				notes.Add(Format("line %d not understood: %s", li + 1, t.Left(60)));
-			continue;
-		}
-		if(fmt == "<<<") {
-			inHeredoc = true;
-			heredocTag = value;
-			heredocText.Clear();
-			heredocCol = state == DATA ? n - 1 : -1;
-			continue;
-		}
-		if(state == FIELDS) {
-			if(fmt == "/")
-				AddField(n, value);
-		}
-		else if(state == DATA) {
-			if(fmt == "|") {
-				Vector<String> parts = Split(value, '|', false);
-				for(int k = 0; k < parts.GetCount(); k++)
-					SetCol(n - 1 + k, CleanValue(parts[k]));
-			}
-			else
-				SetCol(n - 1, CleanValue(value));
-		}
-		// numbered lines outside Fields/Data are file metadata
-	}
-	Flush();
-	if(inHeredoc)
-		notes.Add("unterminated block " + heredocTag);
-	for(JSection& s : sections)
+		if(rec.GetCount())
+			s.rows.Add(pick(rec));
 		for(int i = 0; i < s.cols.GetCount(); i++)
 			if(s.cols[i].IsEmpty())
 				s.cols[i] = AsString(i + 1);
+	}
 }
 
 // ---------------------------------------------------------------- reports as HTML

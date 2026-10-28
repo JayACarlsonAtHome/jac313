@@ -58,7 +58,7 @@ execute bit when it runs as root. A tree root owns (a container, CI) runs as usu
 | Package | What it does |
 |---------|--------------|
 | **Jac313Runner** | Runs the jac313 test gates through `jac313_test_cli`, streams the run, and shows the results with a jText viewer for each result row's dataset |
-| **JTextGui** | The jText table editor, vendored from jText_GUI. Open and save jText, pull PostgreSQL or SQLite and Mergesert, records of up to 999 lines, a Lines box and field box, an Excel-style Records grid (detachable to a second monitor), and Excel (.xlsx) export and import. A blank marker starts as `|#`. Guide: the jText Editor Manual in jText_GUI (`Manual/pdf/jText-Editor-Manual.pdf`). The package carries its own `jText/` library snapshot and does not compile the sibling jText checkout or `vNNN/jText`; it links SQLite, libpq and zlib. |
+| **JTextGui** | The jText table editor, vendored from jText_GUI. Open and save jText, pull PostgreSQL or SQLite and Mergesert, records of up to 99 lines, a Lines box and field box, an Excel-style Records grid (detachable to a second monitor), and Excel (.xlsx) export and import. A blank marker starts as `|#`. Guide: the jText Editor Manual in jText_GUI (`Manual/pdf/jText-Editor-Manual.pdf`). The package carries its own `jText/` library snapshot and does not compile the sibling jText checkout or `vNNN/jText`; it links SQLite, libpq and zlib. |
 
 ## Build
 
@@ -66,6 +66,7 @@ From either version, with no shell script:
 
 ```
 cd v002 && ./jac313_test_cli gui-build      # builds <root>/gui/Jac313Runner -> <root>/gui/out/Jac313Runner
+cd v002 && ./jac313_test_cli gui-build JTextGui   # the editor -> <root>/gui/out/JTextGui
 ```
 
 umk and its uppsrc come as a pair from one U++ install (the jac314 `gui_build` rule):
@@ -75,7 +76,7 @@ By hand, with the upp_basefix install:
 ```
 U=$HOME/upp_basefix
 $U/umk <root>/gui,$U/uppsrc Jac313Runner GCC -brsH <root>/gui/out/Jac313Runner
-$U/umk <root>/gui,$U/uppsrc JTextGui <root>/gui/JTextGui.bm -brsH <root>/gui/out/JTextGui
+$U/umk <root>/gui,$U/uppsrc JTextGui GCC -brsH <root>/gui/out/JTextGui
 ```
 
 Both packages have `options "-Wformat=2 -Werror=format"` in their `.upp`: a printf-style call
@@ -172,7 +173,7 @@ out/Jac313Runner --dump-ai FILE [--jtext FILE]  # the "Copy for AI" Markdown
 Samples to check against are in `Jac313Runner/samples/`:
 
 * `standard_dropdown.jtext`: a compact sentinel row, then per-field rows.
-* `compact_rows.jtext`: compact rows, a heredoc template, and both forms of NULL (the 0x1F byte and the literal `\x1F`).
+* `compact_rows.jtext`: compact rows, a multiline template, and both forms of NULL (the 0x1F byte and the literal `\x1F`).
 * `per_field.jtext`: per-field rows only.
 * `unresolved_include.jtext`: Fields come from an include that does not resolve, so the columns are named 1..N.
 * `runner_last.json`: a sample summary for testing Screen 3.
@@ -256,12 +257,13 @@ jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc|
 
 ## jText reader (viewer only)
 
-The reader is small and tolerant. It handles:
+The viewer reads files with the jText library's parser (`parse_file_structure`), compiled from
+the editor's snapshot in `JTextGui/jText/src/parser`. A file that does not parse shows no
+table, and the parser's error (line and reason) is the note; `jtext_close` adds the closers an
+older file is missing. On top of the parser, the viewer:
 
-* Banners: `=== Section: name ===`, `=== Fields ===` / `=== End Fields ===`, `=== Data ===` / `=== End Data ===`.
-  `=== <#include#> Fields: path ===` is resolved relative to the file's folder, and when it cannot be found the columns are named 1..N.
-* `-- EOF --` ends the file.
-* Template heredocs (`1. <<< !!!TAG!!!` ... `!!!TAG!!!`) are skipped.
-* Field `N. #/# name/Type/...  # comment` gives column N the name `name`.
-* Data records are separated by blank lines. `1. #|# a|b|c` is a compact row, and `N. #X# value` sets column N.
+* names column N from Fields line `N. #/# name/Type/...`. A `Fields` include is resolved
+  relative to the file's folder, and when it cannot be found the columns are named 1..N.
+* builds records from the Data block: a blank line ends a record, and a line's number is the
+  field position (`1. #|# a|b|c` fills columns 1-3, `N. #?# value` fills column N).
 * The Unit Separator (the 0x1F byte, or the literal `\x1F`) is NULL and shows as `∅`.

@@ -1,7 +1,7 @@
 #pragma once
 
 /// Ultimate backends: SQLite, MariaDB, PostgreSQL readers/writers + jText file store.
-/// GUI talks only to TableSession + these store APIs (testable without wx).
+/// GUI talks only to TableSession + these store APIs (testable without the window).
 
 #include "jtext_gui/core/connection_info.hpp"
 #include "jtext_gui/core/record.hpp"
@@ -26,16 +26,17 @@ struct JTextLoadResult {
     /// shows them for the line being edited). Same order as field_names.
     std::vector<ColumnDef> field_defs;
     std::string section_name;
-    /// True when a data line had no marker and was given the default "|#".
-    /// An explicit marker is kept as its right two characters. "#|#" loads as "|#".
-    bool filled_default_markers = false;
+    /// Every section in the file, in file order (dev, test, prod, ...): what can be opened.
+    std::vector<std::string> sections;
     /// The file's Case setting. Values are kept as written either way; Case only
     /// decides how they compare (the Filter, lookups), like a database collation.
     bool case_sensitive = false;
 };
 
 /// Load with the canonical jText library (jText::v001). Field values stay as written.
-[[nodiscard]] std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path);
+/// `section` names the section to open; empty opens the one with the most records.
+[[nodiscard]] std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path,
+                                                                     std::string_view section = {});
 
 /// Map a catalog type string (format_type, COLUMN_TYPE, or a SQLite declared type)
 /// onto a ColumnDef. `not_null` and `primary_key` come from the catalog, not the text.
@@ -54,6 +55,15 @@ struct JTextLoadResult {
                                                           std::string_view table_label = "records",
                                                           const TableShape* shape = nullptr,
                                                           bool case_sensitive = true);
+
+/// Save one section of an existing file: the file at `source_path` with `section`'s data
+/// replaced by `rows`, written to `out_path` (the same path saves in place). Every other
+/// line of the file stays as it was: its header, templates, Fields blocks and the other
+/// sections (a dev configuration is not touched by saving test).
+[[nodiscard]] std::expected<void, std::string> jtext_save_section(std::string_view source_path,
+                                                                  std::string_view out_path,
+                                                                  std::string_view section,
+                                                                  const std::vector<Record>& rows);
 
 // ---------------------------------------------------------------------------
 // Database reader/writer — same shape for SQLite, MariaDB, PostgreSQL
@@ -121,11 +131,15 @@ void debug_log(std::string_view message);
 // Session helpers — open + save by kind
 // ---------------------------------------------------------------------------
 
-/// Open jText file into session (sets kind JTextFile).
+/// Open jText file into session (sets kind JTextFile). `section` names the section to
+/// open; empty opens the one with the most records.
 [[nodiscard]] std::expected<void, std::string> session_open_jtext(TableSession& session,
-                                                                  std::string_view path);
+                                                                  std::string_view path,
+                                                                  std::string_view section = {});
 
 /// Save session to jText (only valid when kind == JTextFile). Clears dirty on success.
+/// When the session came from a file that still exists, only its section is rewritten
+/// (jtext_save_section); otherwise the whole file is written.
 [[nodiscard]] std::expected<void, std::string> session_save_jtext(TableSession& session,
                                                                   std::string_view path = {});
 

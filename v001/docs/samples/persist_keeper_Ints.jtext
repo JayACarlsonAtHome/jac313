@@ -11,26 +11,26 @@
 === Section: persist_keeper_ints ===
 === <#include#> Schema: ../../../tests/jtext_includes/ts_store_ints_schema.jschma ===
 === Template: Create Table ===
- 1. <<< !!!CT!!!
-CREATE TABLE IF NOT EXISTS persist_keeper_ints (
-    id BIGINT PRIMARY KEY,
-    int0 BIGINT,
-    int1 BIGINT,
-    int2 BIGINT,
-    int3 BIGINT,
-    int4 BIGINT,
-    int5 BIGINT,
-    int6 BIGINT,
-    int7 BIGINT,
-    int8 BIGINT
-);
-!!!CT!!!
+[*
+** CREATE TABLE IF NOT EXISTS persist_keeper_ints (
+**     id BIGINT PRIMARY KEY,
+**     int0 BIGINT,
+**     int1 BIGINT,
+**     int2 BIGINT,
+**     int3 BIGINT,
+**     int4 BIGINT,
+**     int5 BIGINT,
+**     int6 BIGINT,
+**     int7 BIGINT,
+**     int8 BIGINT
+** );
+*]
 
 === Template: SQL Insert ===
- 1. <<< !!!INS!!!
-INSERT OR IGNORE INTO persist_keeper_ints (id, int0, int1, int2, int3, int4, int5, int6, int7, int8)
-VALUES ({1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10});
-!!!INS!!!
+[*
+** INSERT OR IGNORE INTO persist_keeper_ints (id, int0, int1, int2, int3, int4, int5, int6, int7, int8)
+** VALUES ({1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10});
+*]
 
 === Fields ===
 === <#include#> Fields: ../../../tests/jtext_includes/ts_store_ints_fields.jtFlds ===
@@ -56,4 +56,6 @@ VALUES ({1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10});
 22. #|# 22|70|71|72|73|74|75|76|77|78
 26. #|# 26|80|81|82|83|84|85|86|87|88
 39. #|# 39|90|91|92|93|94|95|96|97|98
--- EOF --
+=== End Data ===
+=== End Section ===
+=== End File ===

@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <cstdio>
+#include <filesystem>
 #include <format>
 #include <vector>
 
@@ -171,24 +172,21 @@ std::expected<std::string, std::string> quote_table_ref(std::string_view name, S
 }
 
 std::expected<void, std::string> session_open_jtext(TableSession& session,
-                                                    std::string_view path) {
-    auto loaded = jtext_load(path);
+                                                    std::string_view path,
+                                                    std::string_view section) {
+    auto loaded = jtext_load(path, section);
     if (!loaded) return std::unexpected(loaded.error());
 
     session.clear();
     session.kind = SessionKind::JTextFile;
     session.jtext_path = std::string(path);
     session.table = loaded->section_name;
+    session.jtext_sections = std::move(loaded->sections);
     session.column_names = std::move(loaded->field_names);
     session.field_defs = std::move(loaded->field_defs);
     session.rows = std::move(loaded->rows);
     session.case_sensitive = loaded->case_sensitive;
     session.changes.clear();
-    // Lines that gained |# were not in the file. The file is dirty until saved.
-    if (loaded->filled_default_markers) {
-        for (std::size_t i = 0; i < session.rows.size(); ++i)
-            session.changes.mark_dirty(i);
-    }
     return {};
 }
 
@@ -201,8 +199,13 @@ std::expected<void, std::string> session_save_jtext(TableSession& session,
     if (out_path.empty())
         return std::unexpected("session_save_jtext: no path");
 
-    auto r = jtext_save(out_path, session.rows, session.table.empty() ? "records" : session.table,
-                        nullptr, session.case_sensitive);
+    // A file that exists keeps everything but this section's data; a new one is written whole.
+    std::error_code ec;
+    const bool from_file = !session.jtext_path.empty() && std::filesystem::exists(session.jtext_path, ec);
+    auto r = from_file
+        ? jtext_save_section(session.jtext_path, out_path, session.table, session.rows)
+        : jtext_save(out_path, session.rows, session.table.empty() ? "records" : session.table,
+                     nullptr, session.case_sensitive);
     if (!r) return std::unexpected(r.error());
 
     session.jtext_path = out_path;

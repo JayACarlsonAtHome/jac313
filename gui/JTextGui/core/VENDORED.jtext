@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/src/core
 
-1. #|# 3|canonical_commit|80e80636062e
+1. #|# 3|canonical_commit|3f095d3aa866
 
 1. #|# 4|canonical_dirty|No
 
@@ -31,7 +31,7 @@
 
 1. #|# 6|transform|none
 
-1. #|# 7|ported|2026-10-22
+1. #|# 7|ported|2026-10-28
 
 1. #|# 8|baseline|No
 
@@ -60,15 +60,15 @@
 === Data ===
 1. #|# 1|connections_file.cpp|connections_file.cpp|7b89f7815b9b862424f88345f2a84c4f6b2b3ae22448da4b79884258d6df515c|7b89f7815b9b862424f88345f2a84c4f6b2b3ae22448da4b79884258d6df515c
 
-1. #|# 2|jtext_store.cpp|jtext_store.cpp|95dcb2b6a5e94f7d51bd439ad30030d37012798e25e164530c52af736aef92f6|95dcb2b6a5e94f7d51bd439ad30030d37012798e25e164530c52af736aef92f6
+1. #|# 2|jtext_store.cpp|jtext_store.cpp|d6d92beda224f1ad93a0ab07da942f24fd2f81538e535a4b9ba497299b60c373|d6d92beda224f1ad93a0ab07da942f24fd2f81538e535a4b9ba497299b60c373
 
-1. #|# 3|maria_postgres_store.cpp|maria_postgres_store.cpp|371c47cb935be1bdbec9b2207d51d21374b41ace12adbeed4441ff350ce1bd70|371c47cb935be1bdbec9b2207d51d21374b41ace12adbeed4441ff350ce1bd70
+1. #|# 3|maria_postgres_store.cpp|maria_postgres_store.cpp|38edcbdda97a9e50fd223989de2942f9ca5aa918c47cc7296530158a835d6e3b|38edcbdda97a9e50fd223989de2942f9ca5aa918c47cc7296530158a835d6e3b
 
-1. #|# 4|session_ops.cpp|session_ops.cpp|17384b123df45fe66b8c00ee740ab2d50248d4b070f14433ca4ef3603e399536|17384b123df45fe66b8c00ee740ab2d50248d4b070f14433ca4ef3603e399536
+1. #|# 4|session_ops.cpp|session_ops.cpp|6107f48515103872e16a5062f30726a69ec44ff196c7218b058ec29f5f25935f|6107f48515103872e16a5062f30726a69ec44ff196c7218b058ec29f5f25935f
 
 1. #|# 5|spreadsheet.cpp|spreadsheet.cpp|6fb777554d7253ea3f58b6305242af22d4afc6e1a3f52985bdf3a97fc5af5270|6fb777554d7253ea3f58b6305242af22d4afc6e1a3f52985bdf3a97fc5af5270
 
-1. #|# 6|sqlite_store.cpp|sqlite_store.cpp|7d494908405f145a4031ea1274060cb636d89b730598e08d07d0e932a50ad6f8|7d494908405f145a4031ea1274060cb636d89b730598e08d07d0e932a50ad6f8
+1. #|# 6|sqlite_store.cpp|sqlite_store.cpp|d79c081ea2396a8eb9927244ecd89c9a096eca04cabdffd695dc800a7c3443eb|d79c081ea2396a8eb9927244ecd89c9a096eca04cabdffd695dc800a7c3443eb
 
 === End Data ===
 === End Section ===

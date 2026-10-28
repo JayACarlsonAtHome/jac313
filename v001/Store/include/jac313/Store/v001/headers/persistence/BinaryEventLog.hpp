@@ -5,6 +5,7 @@
 // Uses length-prefixed records for maximum speed and safety.
 // This is the "production" writer. jText remains the debug/human-readable path.
 
+#include <filesystem>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -27,13 +28,13 @@ namespace jac313::Store::v001 {
 
 namespace detail {
     // Helper (binary has no jText dep) to emit the required // header at file start.
-    inline size_t write_binary_file_header(int fd, std::string_view full_path) {
+    inline size_t write_binary_file_header(int fd, std::string_view path) {
         auto now = std::chrono::system_clock::now();
         auto today = std::chrono::floor<std::chrono::days>(now);
         std::string date_str = std::format("{:%Y-%m-%d}", today);
 
         std::string h;
-        h += std::format("//File:    {}\n", full_path);
+        h += std::format("//File:    {}\n", std::filesystem::path(std::string(path)).filename().string());
         h += std::format("//Date:    {}\n", date_str);
         h += "//Purpose: Binary Data File\n";
         h += "//\n";

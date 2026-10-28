@@ -71,7 +71,9 @@ static int DumpJText(const String& file)
 	int si = d.MainSection();
 	if(si < 0) {
 		Cout() << "columns=0 rows=0\n";
-		return 0;
+		for(const String& n : d.notes)
+			Cout() << "# note: " << n << "\n";
+		return d.notes.GetCount() ? 1 : 0;
 	}
 	const JSection& s = d.sections[si];
 	int w = s.Width();

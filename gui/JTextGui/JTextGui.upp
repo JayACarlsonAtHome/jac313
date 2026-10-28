@@ -16,6 +16,7 @@ file
 	jText/jText.cpp,
 	jText/src/parser/line.cpp,
 	jText/src/parser/section.cpp,
+	jText/src/parser/close.cpp,
 	jText/src/validator/validator.cpp;
 
 options

@@ -138,6 +138,10 @@ public:
 
         DbQueryResult out;
         const int ncols = PQnfields(res);
+        if (static_cast<std::size_t>(ncols) > kMaxFields) {
+            PQclear(res);
+            return std::unexpected(too_many_fields(static_cast<std::size_t>(ncols)));
+        }
         Oid relid = 0;
         for (int c = 0; c < ncols; ++c) {
             out.column_names.emplace_back(PQfname(res, c));
@@ -455,6 +459,10 @@ public:
 
         DbQueryResult out;
         const unsigned ncols = mysql_num_fields(res);
+        if (ncols > kMaxFields) {
+            mysql_free_result(res);
+            return std::unexpected(too_many_fields(ncols));
+        }
         MYSQL_FIELD* fields = mysql_fetch_fields(res);
         std::string schema;
         std::string org_table;

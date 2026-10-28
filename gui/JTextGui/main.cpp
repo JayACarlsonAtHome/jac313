@@ -409,7 +409,7 @@ struct TemplateDlg : TopWindow {
 	}
 };
 
-// A record's lines: as many rows as it needs (up to 999), with a scroll bar on the right.
+// A record's lines: as many rows as it needs (up to 99), with a scroll bar on the right.
 // The rows live in `content`, which is moved up as the bar scrolls. The mouse wheel
 // scrolls it, and Tab into a row out of sight scrolls that row into view.
 struct LinesView : ParentCtrl {
@@ -899,6 +899,11 @@ struct JTextGui : TopWindow {
 	MenuBar menu;
 	Label lTable, lWhere, lFilter, connStatus, status, lMarker, hint;
 	EditString table, where, filter, marker;
+	// A jText file's sections (dev, test, prod, ...): pick the one to edit. Shown when the
+	// file has more than one.
+	Label lSection;
+	DropList section;
+	bool fillingSections = false;
 	// One row per line of the record: number, marker, value. Created on demand (at least
 	// kDefaultFields, at most kMaxFields); rows past `visible` are hidden.
 	Array<Label> num;
@@ -1005,6 +1010,9 @@ struct JTextGui : TopWindow {
 		// Tab moves through the data fields. Markers, the list, and the
 		// pull row stay clickable and stay out of that order.
 		table.NoWantFocus();
+		section.NoWantFocus();
+		lSection.SetText("Section");
+		section.WhenAction = THISBACK(OnSection);
 		where.NoWantFocus();
 		// the Filter box takes the focus at start (ActiveFocus below), so it must want focus
 		marker.NoWantFocus();
@@ -1022,7 +1030,9 @@ struct JTextGui : TopWindow {
 		Add(connect.LeftPosZ(8, 110).TopPosZ(y, 26));
 		Add(lTable.LeftPosZ(128, 40).TopPosZ(y + 2, 22));
 		Add(table.LeftPosZ(172, 180).TopPosZ(y, 26));
-		Add(connStatus.HSizePosZ(364, 8).TopPosZ(y + 2, 22));
+		Add(lSection.LeftPosZ(364, 56).TopPosZ(y + 2, 22));
+		Add(section.LeftPosZ(424, 200).TopPosZ(y, 26));
+		Add(connStatus.HSizePosZ(636, 8).TopPosZ(y + 2, 22));
 		y += 34;
 		Add(lWhere.LeftPosZ(8, 50).TopPosZ(y + 2, 22));
 		Add(where.HSizePosZ(64, 530).TopPosZ(y, 26));
@@ -1152,7 +1162,7 @@ struct JTextGui : TopWindow {
 	}
 
 	// --- --self-test: drive the grid with real key events, then check -------------------
-	// Run on a file whose grid shows every cell (e.g. --lines 2-999). Every cell is visited
+	// Run on a file whose grid shows every cell (e.g. --lines 2-99). Every cell is visited
 	// in a slightly random order (row by row, shuffled in windows of 8; fixed seed), reached
 	// with arrow keys, and given a new value by typing + Enter. Mixed in: Ctrl+N (NULL),
 	// Delete (empty string), F2 + append, Ctrl+Z right after an edit, a one-value paste,
@@ -1181,7 +1191,7 @@ struct JTextGui : TopWindow {
 		const int t0 = msecs();
 		const int rows = shown.GetCount(), cols = gridCols.GetCount();
 		if (!grid.IsShown() || rows == 0 || cols < 2) {
-			printf("self-test: needs a file and a Lines list (e.g. --lines 2-999)\n");
+			printf("self-test: needs a file and a Lines list (e.g. --lines 2-99)\n");
 			selfTestRc = 2;
 			Break();
 			return;
@@ -1389,7 +1399,7 @@ struct JTextGui : TopWindow {
 	}
 
 	// After a grid edit: on the right, update only the line that changed (reloading the
-	// whole record redrew every line field, up to 999, for each edit).
+	// whole record redrew every line field, up to 99, for each edit).
 	void AfterGridChange(int row, int f) {
 		if (row == loaded) {
 			const auto& rec = session.rows[(std::size_t)row];
@@ -1755,7 +1765,44 @@ struct JTextGui : TopWindow {
 		seen_dirty = dirty;
 	}
 
+	// The Section list follows the session: a jText file's sections, the open one picked.
+	void FillSections() {
+		fillingSections = true;
+		section.Clear();
+		for (const auto& name : session.jtext_sections)
+			section.Add(S(name));
+		if (!session.table.empty())
+			section <<= S(session.table);
+		const bool show = session.kind == jtext_gui::SessionKind::JTextFile && session.jtext_sections.size() > 1;
+		lSection.Show(show);
+		section.Show(show);
+		fillingSections = false;
+	}
+
+	// Another section was picked: offer to save this one's edits, then open that one.
+	// Saving writes only this section's data; the rest of the file stays as it is.
+	void OnSection() {
+		if (fillingSections) return;
+		const String want = ~section;
+		if (want.IsEmpty() || Std(want) == session.table) return;
+		SaveCurrent();
+		if (session.is_dirty()) {
+			const int answer = PromptSaveDontSaveCancel(
+				"Save changes to section '" + S(session.table) + "' before opening '" + want + "'?");
+			if (answer == 1)
+				SaveJText();
+			if (answer != 0 && (answer != 1 || session.is_dirty())) {
+				fillingSections = true;
+				section <<= S(session.table);   // stay on this section
+				fillingSections = false;
+				return;
+			}
+		}
+		OpenPath(S(session.jtext_path), want);
+	}
+
 	void FinishLoad(const String& note) {
+		FillSections();
 		undo.Clear();   // grid undo belongs to the records that were loaded before
 		ShowRows(note);
 		RefreshTitle();
@@ -2000,9 +2047,9 @@ struct JTextGui : TopWindow {
 		Status(note);
 	}
 
-	void OpenPath(const String& path) {
+	void OpenPath(const String& path, const String& sectionName = String()) {
 		SaveCurrent();
-		auto r = jtext_gui::session_open_jtext(session, Std(path));
+		auto r = jtext_gui::session_open_jtext(session, Std(path), Std(sectionName));
 		if (!r) {
 			Tell("Could not open jText:\n" + S(r.error()));
 			return;
@@ -2013,10 +2060,10 @@ struct JTextGui : TopWindow {
 			table <<= S(session.table);
 		LoadTemplates(path);
 		String note = "Opened " + path;
+		if (session.jtext_sections.size() > 1)
+			note << ", section " << S(session.table);
 		if (templateNames.GetCount())
 			note << ". " << templateNames.GetCount() << " templates — use Templates to read them.";
-		if (session.is_dirty())
-			note << ". Lines with no marker now use |#. Save before closing.";
 		FinishLoad(note);
 	}
 
@@ -2031,12 +2078,12 @@ struct JTextGui : TopWindow {
 		if (!in) return;
 		auto parsed = jtext::parse_file_structure(in);
 		if (!parsed) return;
+		// The open section's templates (each configuration can have its own).
 		for (const auto& sec : parsed->sections) {
+			if (!session.table.empty() && sec.name != session.table)
+				continue;
 			for (const auto& t : sec.templates) {
-				String label = S(t.name);
-				if (!sec.name.empty())
-					label = S(sec.name) + " — " + label;
-				templateNames.Add(label);
+				templateNames.Add(S(t.name));
 				templateBodies.Add(S(t.body));
 			}
 		}
