@@ -56,19 +56,23 @@ jac313_store_link_matrix_target(jac313_store_bench)
 add_test(NAME jac313_store_bench_smoke
          COMMAND jac313_store_bench --threads 4 --events-per-thread 200 --runs 3 --persist none)
 
+# Each test persists under its own base name: ctest runs them in parallel in this one folder,
+# and a shared name lets one test overwrite another's files while they are being written.
 foreach(num IN LISTS _jac313_matrix_nums)
     add_executable(jac313_store_${num}_TS test_${num}_TS.cpp)
     target_compile_features(jac313_store_${num}_TS PRIVATE cxx_std_26)
     jac313_store_link_matrix_target(jac313_store_${num}_TS)
     add_test(NAME jac313_store_${num}_TS
-             COMMAND jac313_store_${num}_TS --no-interactive --test-size=smoke --persist=none)
+             COMMAND jac313_store_${num}_TS --no-interactive --test-size=smoke --persist=none
+                     --base-name=persist_${num}_TS)
     set_tests_properties(jac313_store_${num}_TS PROPERTIES TIMEOUT 120)
 
     add_executable(jac313_store_${num}_XS test_${num}_XS.cpp)
     target_compile_features(jac313_store_${num}_XS PRIVATE cxx_std_26)
     jac313_store_link_matrix_target(jac313_store_${num}_XS)
     add_test(NAME jac313_store_${num}_XS
-             COMMAND jac313_store_${num}_XS --no-interactive --test-size=smoke --persist=none)
+             COMMAND jac313_store_${num}_XS --no-interactive --test-size=smoke --persist=none
+                     --base-name=persist_${num}_XS)
 endforeach()
 # Read-back self-test: persists to every built-in backend, then damages the stored data and
 # requires read-back verification (readback.hpp) to catch it. PostgreSQL backends only run
