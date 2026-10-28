@@ -9,7 +9,8 @@ transformed) into a consuming project. Beside the copy's root sits `VENDORED.jte
 ## Locations
 
 - `projects dir` = the directory that holds the git checkouts (parent of the consuming
-  project's git root), e.g. `/run/media/jay/GFS/git`.
+  project's git root), wherever that is: e.g. the drive's `git` folder, mounted at a
+  different place on each OS. Nothing records it; it is found from the project's own location.
 - `canonical_dir` = path of the canonical directory **relative to the projects dir**, e.g.
   `jac414/v001/gsttime`, `jText/v001`, `Qlite/v001/Qlite`.
 - The manifest lives in the vendored root, e.g. `jac314/v001/xgox/third_party/jac414/gsttime/

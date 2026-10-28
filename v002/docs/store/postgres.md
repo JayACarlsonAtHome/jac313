@@ -1,4 +1,4 @@
-//File:    v002/docs/store/postgres.md
+//File:    postgres.md
 //Date:    2026-08-20
 //Purpose: Lab Postgres for jac313 results + Store persist SoR (sync from SQLite).
 //Related: type=jac313; pg=<the pg-remote row of SQL_Secrets/jac313_connections.jtext>; db=jac313
@@ -12,7 +12,7 @@ results and a Postgres-shaped persist schema lives on your lab server:
 |---|---|
 | Host | the `pg-remote` row of the connections file (below); never written in git |
 | Database | `jac313` (role `jac313` — one role per git project, owner of the database) |
-| Creds | `/etc/gfs/pgpass` (libpq password file, mirror `<GFS>/etc/gfs/pgpass`) — **not in git** |
+| Creds | `/etc/gfs/pgpass` (libpq password file; its mirror is `etc/gfs/pgpass` on the drive, beside the projects dir) — **not in git** |
 
 libpq finds the password itself (`PGPASSFILE=/etc/gfs/pgpass`, set in
 `/etc/profile.d/gfs-pgpass.sh`); nothing in this repo holds it.

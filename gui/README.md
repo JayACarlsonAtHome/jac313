@@ -69,7 +69,7 @@ cd v002 && ./jac313_test_cli gui-build      # builds <root>/gui/Jac313Runner -> 
 ```
 
 umk and its uppsrc come as a pair from one U++ install (the jac314 `gui_build` rule):
-`$UPP_DIR`, else `$HOME/upp_basefix`, else `<GFS>/upp-bin/rhel` + `<GFS>/upp`, else `$HOME/u++`.
+`$UPP_DIR`, else `$HOME/upp_basefix`, else `$HOME/u++`.
 By hand, with the upp_basefix install:
 
 ```
