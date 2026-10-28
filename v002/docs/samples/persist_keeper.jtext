@@ -4,11 +4,12 @@
 //Related: type=ts_store table=persist_keeper
 //
 === jText File ===
- 2. ^# 2026-10-28
- 3. -# ts_store split event log (main)
- 4. -# 0.8
- 5. -# Insensitive
- 8. -# true
+ 1. ▮▌ persist_keeper.jtext
+ 2. ▮▌ 2026-10-28
+ 3. ▮▌ ts_store split event log (main)
+ 4. ▮▌ 0.8
+ 5. ▮▌ Insensitive
+ 8. ▮▌ true
 
 === Section: persist_keeper ===
 === <#include#> Schema: ../../../tests/jtext_includes/ts_store_main_schema.jschma ===
@@ -33,25 +34,25 @@
 === <#include#> Fields: ../../../tests/jtext_includes/ts_store_main_fields.jtFlds ===
 === End Fields ===
 === Data ===
- 1. ▮▌ 20▮0▮0▮0x0000000000050002▮NET▮Not Set, default payload 😎▮742
+ 1. ▮▌ 40▮0▮0▮0x0000000000050002▮NET▮Not Set, default payload 😎▮819
 
- 1. ▮▌ 21▮0▮1▮0x0000000000150002▮NET▮Trace processing request 😎▮746
+ 1. ▮▌ 41▮0▮1▮0x0000000000150002▮NET▮Trace processing request 😎▮823
 
- 1. ▮▌ 22▮0▮2▮0x0000000000150002▮NET▮Debug processing request 😎▮747
+ 1. ▮▌ 42▮0▮2▮0x0000000000150002▮NET▮Debug processing request 😎▮825
 
- 1. ▮▌ 23▮0▮3▮0x0000000000150002▮NET▮Info processing request 😊▮749
+ 1. ▮▌ 43▮0▮3▮0x0000000000150002▮NET▮Info processing request 😊▮826
 
- 1. ▮▌ 24▮0▮4▮0x0000000000150002▮NET▮Warning in processing notification 😕▮751
+ 1. ▮▌ 44▮0▮4▮0x0000000000150002▮NET▮Warning in processing notification 😕▮828
 
- 1. ▮▌ 25▮0▮5▮0x0000000000150002▮NET▮Error in processing notification 😣▮752
+ 1. ▮▌ 45▮0▮5▮0x0000000000150002▮NET▮Error in processing notification 😣▮829
 
- 1. ▮▌ 26▮0▮6▮0x0000000000150002▮NET▮Critical processing request 😣▮754
+ 1. ▮▌ 46▮0▮6▮0x0000000000150002▮NET▮Critical processing request 😣▮831
 
- 1. ▮▌ 27▮0▮7▮0x0000000000150002▮NET▮Fatal error in processing notification 💀▮757
+ 1. ▮▌ 47▮0▮7▮0x0000000000150002▮NET▮Fatal error in processing notification 💀▮833
 
- 1. ▮▌ 28▮0▮8▮0x0000000000150002▮NET▮Not Set, default payload 😎▮759
+ 1. ▮▌ 48▮0▮8▮0x0000000000150002▮NET▮Not Set, default payload 😎▮835
 
- 1. ▮▌ 29▮0▮9▮0x0000000000150002▮NET▮Trace processing request 😎▮760
+ 1. ▮▌ 49▮0▮9▮0x0000000000150002▮NET▮Trace processing request 😎▮836
 
 === End Data ===
 === End Section ===

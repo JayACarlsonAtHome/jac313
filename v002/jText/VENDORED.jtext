@@ -23,11 +23,11 @@
 
 1. #|# 2|canonical_dir|jText/v002
 
-1. #|# 3|canonical_commit|a2d0330015f6
+1. #|# 3|canonical_commit|0e3686122f00
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v002.013
+1. #|# 5|canonical_version|v002.014
 
 1. #|# 6|transform|jac313-prefix
 
@@ -62,13 +62,13 @@
 
 1. #|# 2|include/jac313/jText/v002.hpp|include/jText/v002.hpp|3b0b42253b9287078698f9fc97e6aea14b740b3d059a15d970dd3f68b69748a9|4d8477911f65c529a9abcef74a6cf2c8922300b4004996e8608cfcecd9c5dab5
 
-1. #|# 3|jText.api.inc|jText.api.inc|5f506b09b411e6225725f58848cf528d684e3fa25b7f466a2c075b048a4270cd|5b3df43773e0595aeaf7c88dfe69b3b0b433c61151ec3c4884b5a361c1b6a1b0
+1. #|# 3|jText.api.inc|jText.api.inc|59691ef30db52dd3ab97231d86d167e7cf4fdb0447e349b0cc71e8d82c01db91|02d2d2b1635d4ce58e282650f14ae2aa71f8627aa8e6aac8c3240249c1710e0d
 
 1. #|# 4|jText.cpp|jText.cpp|c50d6711d29ec46de90fef053604bfab3aeaeaa4082e4fbaef731d827d70b075|a2462e21dcfbec6c09d905cdfec6735ca8be508fcb821869691e6eb6a1a2923a
 
 1. #|# 5|jText.h|jText.h|15c7d3fd94b8d7a632a0ab0de1fb346e981fa8ef6c3ec34ae6e423e1780df5d3|11ee3d1fc2719692cb9db0fbfb3e92700d8551592215c1dcf588ace1285a775e
 
-1. #|# 6|jText.impl.inc|jText.impl.inc|63611224a4ef55abec3e8faf645a205402d9acc0f92466b27818afedf0f39a0a|9fcf04de488d0cc30f85465b4929efa018ca05a6fc82105dadc358d99f5a6e8b
+1. #|# 6|jText.impl.inc|jText.impl.inc|bfb3c1f62b8fac3f38cf0bc8d146a11ac52449f121b6d2805a05ae3fd16f078d|34b500cc12f7b9f338d9a165f32b0694de11833763e4d1d30c372a450e86ecac
 
 1. #|# 7|modules/jac313.jtext.v002.core.cppm|modules/jText.v002.core.cppm|47c836b45fc03588f153d0628dbe165c01f870588567b2bcba8af6dccfcb1150|37f5acbfddb6d4f3a019fbd57ad4576c477fe0ca6c05a41cca132ddef14dec90
 
@@ -102,7 +102,7 @@
 
 1. #|# 22|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|916bc18c025ab1ca3e2b2dc6bb7e96534b04f90c2e3d69dbe24c35d2a748e821|b207939ea7bf2dbc0f179a69931f12a3de6a5950979a72e32e4f1e5f675c5db3
 
-1. #|# 23|tests/v002_test.cpp|tests/v002_test.cpp|6ab6a42ccd58f84890fddaf956a9773844a245e92663d1742e038a4645dd4f4b|a9b20e4a405ba8d24be8347e335c42ff7d4cdb7ec5264e2a2684bc236c8bcca8
+1. #|# 23|tests/v002_test.cpp|tests/v002_test.cpp|b03c6fffe8f0a3084fbd01f81746b1aea01081e5962fdfa1a3e74a5e1d0b9aff|9dcd4498868da130bd0ec2e9323ff452812cafd3d9960af10806cec22d4275fc
 
 1. #|# 24|tools/gen_unicode_ps_table.py|tools/gen_unicode_ps_table.py|20102028964ecc54e2f2da488fa1085b6a8f5fd9ebdfb05bd2f1b363956429c1|20102028964ecc54e2f2da488fa1085b6a8f5fd9ebdfb05bd2f1b363956429c1
 

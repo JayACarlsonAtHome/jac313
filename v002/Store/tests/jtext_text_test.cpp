@@ -11,20 +11,21 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <source_location>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace fs = std::filesystem;
 using jac313::Store::v002::JTextSplitEventLog;
 using jac313::Store::v002::PersistMode;
 
-#define CHECK(cond) \
-    do { \
-        if (!(cond)) { \
-            std::cerr << "FAIL: " #cond " at " << __FILE__ << ":" << __LINE__ << "\n"; \
-            return EXIT_FAILURE; \
-        } \
-    } while (0)
+// A failed check says what and where, and ends the test.
+void check(bool ok, std::string_view what, std::source_location at = std::source_location::current()) {
+    if (ok) return;
+    std::cerr << "FAIL: " << what << " at " << at.file_name() << ":" << at.line() << "\n";
+    std::exit(EXIT_FAILURE);
+}
 
 int main() {
     const fs::path dir = fs::temp_directory_path() / "jac313_store_jtext_text_test";
@@ -50,9 +51,9 @@ int main() {
     const std::string text{std::istreambuf_iterator<char>(in), {}};
     const auto file = jtext::parse_file_structure(text);
     if (!file) std::cerr << "parse: line " << file.error().line_no << ": " << file.error().message << "\n";
-    CHECK(file.has_value());
-    CHECK(file->sections.size() == 1);
-    CHECK(file->sections[0].templates.size() == 2);
+    check(file.has_value(), "the log parses");
+    check(file->sections.size() == 1, "one section");
+    check(file->sections[0].templates.size() == 2, "two templates");
 
     // Records are separated by blank lines; each line carries the values from its position on.
     std::vector<std::vector<std::string>> records(1);
@@ -66,14 +67,15 @@ int main() {
         for (std::size_t k = 0; k < pl.hierarchy.size(); ++k) r[pl.number - 1 + k] = pl.hierarchy[k];
     }
     if (records.back().empty()) records.pop_back();
-    CHECK(records.size() == events.size());
+    check(records.size() == events.size(), "one record per event");
     for (std::size_t n = 0; n < events.size(); ++n) {
-        CHECK(records[n].size() == 7);
-        CHECK(records[n][4] == events[n].first);
-        CHECK(records[n][5] == events[n].second);
+        check(records[n].size() == 7, "seven fields");
+        check(records[n][4] == events[n].first, "the category as written");
+        check(records[n][5] == events[n].second, "the payload as written");
     }
-    CHECK(text.find(" 1. \xE2\x96\xAE\xE2\x96\x8C 0\xE2\x96\xAE") != std::string::npos);   // the usual formatter
-    CHECK(text.find("//File:    text.jtext\n") == 0);                                          // the name only
+    check(text.find(" 1. \xE2\x96\xAE\xE2\x96\x8C 0\xE2\x96\xAE") != std::string::npos, "the usual formatter");
+    check(text.find("//File:    text.jtext\n") == 0, "//File: holds the name only");
+    check(text.find(" 1. \xE2\x96\xAE\xE2\x96\x8C text.jtext\n") != std::string::npos, "header line 1 is the file name");
 
     fs::remove_all(dir);
     std::cout << "Store jText text: every category and payload read back as written\n";
