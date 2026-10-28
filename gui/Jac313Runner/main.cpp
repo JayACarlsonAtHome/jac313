@@ -386,6 +386,7 @@ static Vector<String> TerminalArgv(const String& script)
 }
 
 static String gSnapSetup;   // --snap DIR --setup-pg: pictures of the Setup dialog (and a scripted run)
+static bool   gNoPopups;    // --snap: no message boxes (a layout check runs without a person)
 
 // 'text' for bash (single quotes; a ' inside becomes '\'').
 static String ShQuote(const String& s)
@@ -479,7 +480,7 @@ struct Runner : TopWindow {
 	ScrollPane s1p;   // Screen 1's options + command box; the bottom buttons stay outside it
 
 	// ---- Screen 1
-	Label     lRemote, lPgHost, lPgPort, lPgDb, lPgUser, pgTestRes;
+	Label     lRemote, lPgHost, lPgPort, lPgDb, lPgUser;
 	EditString pgHost, pgPort, pgDb, pgUser;
 	Button    pgTest, pgLTest, pgSetup;
 	Label     lConn, connStatus;
@@ -579,8 +580,9 @@ struct Runner : TopWindow {
 	void   OpenReportsInBrowser();
 	virtual void Close();
 	void   LimitPersistField();
-	void   TestRemote() { TestPg(true); }
-	void   TestLocal()  { TestPg(false); }
+	void   TestRemote() { TestButton(true); }
+	void   TestLocal()  { TestButton(false); }
+	void   TestButton(bool remote);       // Test Remote / Test Local: a failure also pops up
 	bool   TestPg(bool remote);
 	bool   CheckPgTick(bool remote);   // test a ticked PG box; on failure untick it and say why
 	void   SetupRemotePg();            // "Setup Remote PG Server..." (setup/setup_pg_server.sh)
@@ -590,7 +592,7 @@ struct Runner : TopWindow {
 	void   SaveConn();
 	void   ViewConn();
 	void   BrowseConn();
-	void   ConnStatus(const String& text, bool bad);
+	void   ConnStatus(const String& line, bool bad, const String& details = Null, bool pop = false);
 	String CheckConnFile(const String& path);   // the CLI's jText check line for the file
 	void   FillVersions();
 	void   ShowCompilerVersions();
@@ -830,12 +832,11 @@ Runner::Runner()
 	Place(s1p.body, pgUser, 604, y + 96, 100, 22);
 	Place(s1p.body, pgTest, 712, y + 96, 100, 22);
 	Place(s1p.body, pgLTest, 818, y + 96, 100, 22);
-	s1p.body.Add(pgTestRes.HSizePosZ(926, 16).TopPosZ(y + 96, 22));
-	s1p.body.Add(connStatus.HSizePosZ(110, 200).TopPosZ(y + 122, 22));
+	Place(s1p.body, connStatus, 110, y + 122, 594, 22);   // short; a long failure is a popup
 	pgSetup.SetLabel("Setup Remote PG Server...");
 	pgSetup.Tip("Make a machine the shared PG remote server (PostgreSQL 18, role + database jac313, logins "
 	            "from your network): over ssh in a terminal, or with the steps shown to run by hand");
-	s1p.body.Add(pgSetup.RightPosZ(16, 176).TopPosZ(y + 122, 22));
+	Place(s1p.body, pgSetup, 712, y + 122, 206, 22);    // under Test Remote .. Test Local
 	pgSetup << THISBACK(SetupRemotePg);
 	Place(s1p.body, lMaxRuns, 20, y + 148, 70, 22);
 	Place(s1p.body, maxRuns, 92, y + 148, 70, 22);
@@ -868,7 +869,7 @@ Runner::Runner()
 	copyCmd << THISBACK(CopyCommand);
 	s1p.body.Add(cmd.HSizePosZ(8, 8).VSizePosZ(y + 22, 4));
 	s1p.need = Zy(y + 22 + 140);   // the options, then at least ~6 lines of command
-	s1p.needW = Zx(1060);          // the rightmost options end near x 968, then the PG test result
+	s1p.needW = Zx(1000);          // the rightmost options end near x 968
 	cmd.SetReadOnly();
 	cmd.SetFont(Monospace(Zy(11)));
 	s1.Add(lInfo.HSizePosZ(8, 8).BottomPosZ(40, 22));
@@ -883,7 +884,7 @@ Runner::Runner()
 	start << THISBACK(Start);
 	start.Ok();
 
-	Size want(Zx(1060), s1p.need + Zy(66));
+	Size want(Zx(1000) + ScrollBarSize(), s1p.need + Zy(66));   // + the page's vertical scroll bar
 	Size minsz = Zsz(760, 560);
 	Rect wa = GetMouseWorkArea();   // the monitor the Runner is started on (two-screen desks)
 	if(wa.Width() <= 0 || wa.Height() <= 0)
@@ -1818,12 +1819,11 @@ bool Runner::TestPg(bool remote)
 	}
 	String exe = FindDatasetTool(Root(), opt.version);
 	if(exe.IsEmpty()) {
-		TestResult("jac313_store_dataset, which does this test, is not built yet: run ./bsir.sh in "
+		TestResult(String(remote ? "PG remote: " : "PG local: ") + "jac313_store_dataset, which does this test, is not built yet: run ./bsir.sh in "
 		           + opt.version + " (it builds it), or press Start once.", false);
 		return false;
 	}
-	pgTestRes.SetInk(SColorText());
-	pgTestRes.SetText(remote ? "Remote: connecting..." : "Local: connecting...");
+	ConnStatus(remote ? "PG remote: connecting..." : "PG local: connecting...", false);
 	Ctrl *busy[] = { &pgTest, &pgLTest, &pPgL, &pPgR, &start };   // no second test or a Start meanwhile
 	for(Ctrl *b : busy)
 		b->Disable();
@@ -1885,19 +1885,17 @@ bool Runner::CheckPgTick(bool remote)
 	return false;
 }
 
-// The Test result: a short word beside the button, the whole message on the full-width line
-// below it (a PostgreSQL error is longer than the space beside the button), and as a tooltip.
+// The Test result on the status line: an OK is short and shown whole; a failure (a PostgreSQL
+// error is long) shows "test failed" there and its whole message as the tooltip. Test Remote /
+// Test Local pop the message up as well (TestButton); the Setup dialog and Start's check say it
+// their own way.
 void Runner::TestResult(const String& text, bool ok)
 {
 	String t = TrimBoth(text);
 	t.Replace("\n", " ");
-	String who = t.StartsWith("PG local") ? "Local: " : t.StartsWith("PG remote") ? "Remote: " : "";
-	pgTestRes.SetInk(ok ? Color(0, 120, 0) : Color(170, 0, 0));
-	pgTestRes.SetText(who + (ok ? "OK (details below)" : "failed (see below)"));
-	pgTestRes.Tip(t);
+	String who = t.StartsWith("PG local") ? "PG local" : t.StartsWith("PG remote") ? "PG remote" : "PG";
 	pgTestMsg = t;
-	ConnStatus(t, !ok);
-	connStatus.Tip(t);
+	ConnStatus(ok ? t : who + ": test failed", !ok, t);
 }
 
 // What a failed Test Remote means, in the words the Setup dialog opens with.
@@ -1920,6 +1918,17 @@ static String PgRemoteAdvice(const String& msg)
 		return "The server answers, but role or database jac313 is missing. The setup creates them.";
 	return "The server does not answer on its PostgreSQL port: PostgreSQL is not installed or not running,\n"
 	       "it listens on localhost only, or a firewall blocks the port. The setup fixes all three.";
+}
+
+void Runner::TestButton(bool remote)
+{
+	if(TestPg(remote) || gNoPopups)
+		return;
+	String m = DeQtf(pgTestMsg);
+	if(remote)
+		m << "&&" << DeQtf(PgRemoteAdvice(pgTestMsg)) << "&"
+		  << DeQtf("Setup Remote PG Server... (below Test Remote) can set the server up.");
+	Exclamation(m);
 }
 
 // "Setup Remote PG Server...": make a machine the shared PG remote server with setup/setup_pg_server.sh.
@@ -2317,10 +2326,16 @@ bool Runner::RegisterFleet(String& msg)
 	return fleet.Find("not used") < 0 && label.GetCount();
 }
 
-void Runner::ConnStatus(const String& text, bool bad)
+// The status line under Remote PG is one short line ('line'); the whole text ('details', with
+// paths and errors) is its tooltip, and with 'pop' a failure also comes up as a message box.
+void Runner::ConnStatus(const String& line, bool bad, const String& details, bool pop)
 {
+	String full = Nvl(details, line);
 	connStatus.SetInk(bad ? Color(170, 0, 0) : SColorText());
-	connStatus.SetText(text);
+	connStatus.SetText(bad && details.GetCount() ? line + " (point here for details)" : line);
+	connStatus.Tip(full);
+	if(bad && pop && !gNoPopups)
+		Exclamation(DeQtf(full));
 }
 
 String Runner::CheckConnFile(const String& path)
@@ -2357,10 +2372,10 @@ void Runner::LoadConn(bool quiet)
 	String err;
 	if(!LoadConnections(path, connRows, err)) {
 		if(!FileExists(path))
-			ConnStatus(quiet ? "No connections file yet: fill in Remote PG and press Save to create " + path
-			                 : "Not found: " + path, !quiet);
+			ConnStatus(quiet ? "No connections file yet: fill in Remote PG and press Save" : "Connections file not found",
+			           !quiet, quiet ? "Press Save to create " + path : "Not found: " + path, !quiet);
 		else
-			ConnStatus("Cannot read " + path + ": " + err, true);
+			ConnStatus("Cannot read the connections file", true, "Cannot read " + path + ": " + err, !quiet);
 		return;
 	}
 	for(const ConnRow& r : connRows)
@@ -2372,9 +2387,11 @@ void Runner::LoadConn(bool quiet)
 		}
 	String check = CheckConnFile(path);
 	bool bad = git.GetCount() || (check.GetCount() && check.Find("errors=0") < 0);
-	ConnStatus(Format("Loaded %d row(s) from %s", connRows.GetCount(), path)
-	           + (check.GetCount() ? " · jText " + check : String())
-	           + (git.GetCount() ? " · WARNING: inside the git project " + git + ": move it out" : String()), bad);
+	String jt = check.GetCount() ? " · jText " + check : String();
+	ConnStatus(Format("Loaded %d row(s)", connRows.GetCount()) + jt + (git.GetCount() ? " · inside a git project" : ""),
+	           bad, Format("Loaded %d row(s) from %s", connRows.GetCount(), path) + jt
+	                + (git.GetCount() ? " · WARNING: inside the git project " + git + ": move it out" : String()),
+	           !quiet);
 	UpdateCommand();
 }
 
@@ -2383,7 +2400,8 @@ void Runner::ViewConn()
 	ToOptions();
 	String path = EffectiveConnFile(opt, Root());
 	if(!FileExists(path)) {
-		ConnStatus("Not found: " + path + " (fill in Remote PG and press Save to create it)", true);
+		ConnStatus("Connections file not found", true,
+		           "Not found: " + path + " (fill in Remote PG and press Save to create it)", true);
 		return;
 	}
 	Show(3);
@@ -2395,7 +2413,7 @@ void Runner::SaveConn()
 	ToOptions();
 	String path = EffectiveConnFile(opt, Root());
 	if(opt.pgHost.IsEmpty()) {
-		ConnStatus("Enter the remote server's Host before saving.", true);
+		ConnStatus("Enter the remote server's Host before saving.", true, Null, true);
 		return;
 	}
 	String git = EnclosingGitProject(path);
@@ -2431,14 +2449,15 @@ void Runner::SaveConn()
 	r.user = opt.pgUser;
 	String err;
 	if(!SaveConnections(path, rows, err)) {
-		ConnStatus("Not saved: " + err, true);
+		ConnStatus("Not saved", true, "Not saved: " + err, true);
 		return;
 	}
 	connRows = clone(rows);
 	String check = CheckConnFile(path);
-	ConnStatus("Saved " + path + (check.GetCount() ? " · jText " + check : String())
-	           + (git.GetCount() ? " · WARNING: inside the git project " + git : String()),
-	           git.GetCount() || (check.GetCount() && check.Find("errors=0") < 0));
+	String jt = check.GetCount() ? " · jText " + check : String();
+	bool bad = git.GetCount() || (check.GetCount() && check.Find("errors=0") < 0);
+	ConnStatus("Saved" + jt + (git.GetCount() ? " · inside a git project" : ""), bad,
+	           "Saved " + path + jt + (git.GetCount() ? " · WARNING: inside the git project " + git : String()), bad);
 	UpdateCommand();
 }
 
@@ -2545,6 +2564,7 @@ GUI_APP_MAIN
 		}
 		setenv("JAC313_ALLOW_ROOT", "1", 1);
 	}
+	gNoPopups = snap.GetCount();
 	Runner w;
 	if(summary.GetCount()) {
 		Vector<String> f;
@@ -2612,11 +2632,11 @@ GUI_APP_MAIN
 	}
 	if(testRemote) {
 		w.TestRemote();
-		Cout() << "test_remote: " << w.pgTestRes.GetText() << "\n";
+		Cout() << "test_remote: " << w.connStatus.GetText() << "\n";
 	}
 	if(testLocal) {
 		w.TestLocal();
-		Cout() << "test_local: " << w.pgTestRes.GetText() << " | " << w.connStatus.GetText() << "\n";
+		Cout() << "test_local: " << w.connStatus.GetText() << "\n";
 	}
 	if(setupPg) {
 		gSnapSetup = snap;
