@@ -17,6 +17,7 @@
 
 #include "test_common.hpp"
 
+#include "jText.h"
 #include "parser/section.hpp"
 #include "validator/validator.hpp"
 
@@ -27,6 +28,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 using namespace jac313::Store::v001;
@@ -52,25 +54,6 @@ size_t db_metric_columns(DbQuery& q, const std::string& table, std::string_view 
     } catch (...) {
         return 0;
     }
-}
-
-// A field separator that occurs in no value (compact rows split on it).
-char pick_separator(const std::vector<PersistedEvent>& rows) {
-    for (char c : {'|', '~', '^', '`'}) {
-        bool clash = false;
-        for (const auto& r : rows) {
-            if (r.category.find(c) != std::string::npos || r.payload.find(c) != std::string::npos) { clash = true; break; }
-        }
-        if (!clash) return c;
-    }
-    return '|';
-}
-
-// "  7" style field number, right-aligned to width. Kept out of std::format: a dynamic
-// width ("{:>{}}") does not compile under clang 21 + libstdc++ at C++26 (docs/Cpp26_Adoption.md).
-std::string field_no(size_t n, size_t width) {
-    std::string s = std::to_string(n);
-    return s.size() < width ? std::string(width - s.size(), ' ') + s : s;
 }
 
 } // namespace
@@ -162,34 +145,51 @@ int main(int argc, char** argv) {
     if (rs.rows.size() > limit) rs.rows.resize(limit);
     size_t ic = 0, dc = 0;
     for (const auto& r : rs.rows) { ic = std::max(ic, r.int_metrics.size()); dc = std::max(dc, r.dbl_metrics.size()); }
-    const char sep = pick_separator(rs.rows);
 
+    // Written by the jText library's writer: header, Fields and Data blocks, closers, and a
+    // formatter for each row that its data cannot clash with (U+25AE / U+258C by default).
+    using namespace jac313::jText::v001;
+    const std::string name = fs::path(base).filename().string();
     std::ostringstream out;
-    out << "//File:    " << fs::path(base).filename().string() << ".jtext\n"
+    out << "//File:    " << name << ".jtext\n"
         << "//Purpose: jac313 persisted dataset, shown by Jac313Runner\n"
-        << "//\n"
-        << "=== jText File ===\n"
-        << std::format(" 1. #?# {}\n", fs::path(base).filename().string())
-        << std::format(" 3. #?# {} dataset ({} rows read{})\n", backend, total,
-                       total > rs.rows.size() ? std::format(", first {} shown", rs.rows.size()) : std::string{})
-        << "\n"
-        << std::format("=== Section: {} ===\n\n", fs::path(base).filename().string())
-        << "=== Fields ===\n";
-    std::vector<std::string> fields = {"id/Number/Not Null", "thread_id/Number", "per_thread_event_id/Number",
-                                       "flags_raw/String", "category/String", "payload/String", "timestamp_us/Number"};
-    for (size_t k = 0; k < ic; ++k) fields.push_back(std::format("int{}/Number", k));
-    for (size_t k = 0; k < dc; ++k) fields.push_back(std::format("dbl{}/Number", k));
-    const size_t pad = fields.size() > 9 ? 2 : 1;
-    for (size_t f = 0; f < fields.size(); ++f) out << std::format("{}. #/# {}\n", field_no(f + 1, pad + 1), fields[f]);
-    out << "=== End Fields ===\n\n=== Data ===\n";
-    for (const auto& r : rs.rows) {
-        out << std::format("{}. #{}# {}{}{}{}{}{}0x{:016x}{}{}{}{}{}{}", field_no(1, pad + 1), sep, r.event_id, sep, r.thread_id, sep,
-                           r.per_thread_event_id, sep, r.flags, sep, r.category, sep, r.payload, sep, r.timestamp_us);
-        for (size_t k = 0; k < ic; ++k) out << sep << (k < r.int_metrics.size() ? r.int_metrics[k] : 0);
-        for (size_t k = 0; k < dc; ++k) out << sep << std::format("{}", k < r.dbl_metrics.size() ? r.dbl_metrics[k] : 0.0);
-        out << "\n\n";
+        << "//\n";
+    {
+        JTextWriter w(out);
+        w.set_profile(JTextProfile::Full);
+        w.set_filename(name + ".jtext");
+        w.set_purpose(std::format("{} dataset ({} rows read{})", backend, total,
+                                  total > rs.rows.size() ? std::format(", first {} shown", rs.rows.size())
+                                                         : std::string{}));
+        w.write_header();
+        w.begin_section(name);
+        w.begin_fields();
+        std::vector<std::string> fields = {"id/Number/Not Null", "thread_id/Number", "per_thread_event_id/Number",
+                                           "flags_raw/String", "category/String", "payload/String", "timestamp_us/Number"};
+        for (size_t k = 0; k < ic; ++k) fields.push_back(std::format("int{}/Number", k));
+        for (size_t k = 0; k < dc; ++k) fields.push_back(std::format("dbl{}/Number", k));
+        for (size_t f = 0; f < fields.size(); ++f) {
+            std::vector<std::string> levels;
+            for (std::string_view def = fields[f];;) {
+                const auto slash = def.find('/');
+                levels.emplace_back(def.substr(0, slash));
+                if (slash == std::string_view::npos) break;
+                def.remove_prefix(slash + 1);
+            }
+            w.append_row(f + 1, levels, "", U'/');
+        }
+        w.begin_data();
+        for (const auto& r : rs.rows) {
+            std::vector<std::string> row = {std::to_string(r.event_id), std::to_string(r.thread_id),
+                                            std::to_string(r.per_thread_event_id), std::format("0x{:016x}", r.flags),
+                                            r.category, r.payload, std::to_string(r.timestamp_us)};
+            for (size_t k = 0; k < ic; ++k) row.push_back(std::to_string(k < r.int_metrics.size() ? r.int_metrics[k] : 0));
+            for (size_t k = 0; k < dc; ++k) row.push_back(std::format("{}", k < r.dbl_metrics.size() ? r.dbl_metrics[k] : 0.0));
+            w.append_row(1, row);
+            w.end_record();
+        }
+        w.finalize();
     }
-    out << "=== End Data ===\n=== End Section ===\n=== End File ===\n";
 
     const std::string text = out.str();
     std::cout << text;

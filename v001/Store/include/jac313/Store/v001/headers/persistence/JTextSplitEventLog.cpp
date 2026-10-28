@@ -20,26 +20,6 @@ using namespace jac313::jText::v001;
 
 namespace fs = std::filesystem;
 
-namespace {
-
-// Main rows are written with the formatter for machine-written free text (SPEC v0.8):
-// U+25AE splits the fields and U+258C starts a comment, characters real text almost never
-// holds. When a category or payload does hold one, the writer picks a character that is not
-// in the data instead: a separator inside a value would be a bad row, and a comment
-// character between spaces would cut the value short.
-void main_row_formatter(JTextEntry& e, std::string_view category, std::string_view payload)
-{
-    constexpr std::string_view kSplit = "\xE2\x96\xAE";     // U+25AE, as UTF-8
-    constexpr std::string_view kComment = "\xE2\x96\x8C";   // U+258C, as UTF-8
-    const auto in_text = [&](std::string_view c) {
-        return category.find(c) != std::string_view::npos || payload.find(c) != std::string_view::npos;
-    };
-    e.level_sep = in_text(kSplit) ? 0 : U'\u25AE';        // 0: the writer picks one
-    e.delimiter = in_text(kComment) ? U'#' : U'\u258C';   // '#': the writer picks one
-}
-
-} // namespace
-
 struct JTextSplitEventLog::Impl {
     std::ofstream main_ofs;
     std::ofstream ints_ofs;
@@ -99,20 +79,23 @@ JTextSplitEventLog::JTextSplitEventLog(
     open_and_prep(i.main_ofs, i.main_path, "jText Data File", main_related);
     i.main_writer = std::make_unique<JTextWriter>(i.main_ofs);
     i.main_writer->set_profile(JTextProfile::Full);
+    i.main_writer->set_filename(i.main_path);
 
     std::string ints_related = std::format("type=ts_store table={}_ints", base_name);
     open_and_prep(i.ints_ofs, i.ints_path, "jText Data File", ints_related);
     i.ints_writer = std::make_unique<JTextWriter>(i.ints_ofs);
     i.ints_writer->set_profile(JTextProfile::Full);
+    i.ints_writer->set_filename(i.ints_path);
 
     std::string floats_related = std::format("type=ts_store table={}_floats", base_name);
     open_and_prep(i.floats_ofs, i.floats_path, "jText Data File", floats_related);
     i.floats_writer = std::make_unique<JTextWriter>(i.floats_ofs);
     i.floats_writer->set_profile(JTextProfile::Full);
+    i.floats_writer->set_filename(i.floats_path);
 
-    // No JTextWriter auto-batching: append_event writes a blank record separator straight to
-    // the stream after each entry, so entries must reach the stream in order too (a batched
-    // writer queued every entry behind its separator). The ofstream buffer does the batching.
+    // Rows are written with the writer's default formatter, U+25AE / U+258C (SPEC v0.8),
+    // which it changes only for a row whose data holds one of them. No JTextWriter
+    // auto-batching: the ofstream buffer does the batching.
 
     // Write SQL companions and headers immediately (early open requirement)
     write_sql_companions(base_name, int_count, dbl_count);
@@ -153,7 +136,6 @@ void JTextSplitEventLog::append_event(
     {
         JTextEntry e;
         e.number = 1;  // jText line number = field position: a compact row starts at field 1
-        main_row_formatter(e, category, payload);
         e.fields.reserve(7);
         e.fields.emplace_back(std::to_string(event_id));
         e.fields.emplace_back(std::to_string(thread_id));
@@ -163,34 +145,32 @@ void JTextSplitEventLog::append_event(
         e.fields.emplace_back(std::string(payload));
         e.fields.emplace_back(std::to_string(timestamp_us));
         i.main_writer->append_entry(e);
+        i.main_writer->end_record();
         i.stats.main_rows++;
-        i.main_ofs << "\n";  // blank separator for records (sentinel for parser)
     }
 
     // Ints
     if (i.int_count > 0) {
         JTextEntry e;
         e.number = 1;  // field 1 = event_id (links to main record)
-        e.level_sep = '|';
         e.fields.reserve(1 + int_metrics.size());
         e.fields.emplace_back(std::to_string(event_id));
         for (auto v : int_metrics) e.fields.emplace_back(std::to_string(v));
         i.ints_writer->append_entry(e);
+        i.ints_writer->end_record();
         i.stats.ints_rows++;
-        i.ints_ofs << "\n";  // blank separator for records
     }
 
     // Floats
     if (i.dbl_count > 0) {
         JTextEntry e;
         e.number = 1;  // field 1 = event_id (links to main record)
-        e.level_sep = '|';
         e.fields.reserve(1 + dbl_metrics.size());
         e.fields.emplace_back(std::to_string(event_id));
         for (auto v : dbl_metrics) e.fields.emplace_back(std::format("{:.10g}", v));
         i.floats_writer->append_entry(e);
+        i.floats_writer->end_record();
         i.stats.floats_rows++;
-        i.floats_ofs << "\n";  // blank separator for records
     }
 }
 

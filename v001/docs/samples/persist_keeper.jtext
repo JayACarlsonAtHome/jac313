@@ -4,11 +4,12 @@
 //Related: type=ts_store table=persist_keeper
 //
 === jText File ===
- 2. ^# 2026-10-28
- 3. -# ts_store split event log (main)
- 4. -# 0.8
- 5. -# Insensitive
- 8. -# true
+ 1. ▮▌ persist_keeper.jtext
+ 2. ▮▌ 2026-10-28
+ 3. ▮▌ ts_store split event log (main)
+ 4. ▮▌ 0.8
+ 5. ▮▌ Insensitive
+ 8. ▮▌ true
 
 === Section: persist_keeper ===
 === <#include#> Schema: ../../../tests/jtext_includes/ts_store_main_schema.jschma ===
@@ -33,25 +34,25 @@
 === <#include#> Fields: ../../../tests/jtext_includes/ts_store_main_fields.jtFlds ===
 === End Fields ===
 === Data ===
- 1. ▮▌ 60▮0▮0▮0x0000000000050002▮NET▮Not Set, default payload 😎▮1202
+ 1. ▮▌ 53▮0▮0▮0x0000000000050002▮NET▮Not Set, default payload 😎▮977
 
- 1. ▮▌ 61▮0▮1▮0x0000000000150002▮NET▮Trace processing request 😎▮1206
+ 1. ▮▌ 56▮0▮1▮0x0000000000150002▮NET▮Trace processing request 😎▮981
 
- 1. ▮▌ 63▮0▮2▮0x0000000000150002▮NET▮Debug processing request 😎▮1207
+ 1. ▮▌ 58▮0▮2▮0x0000000000150002▮NET▮Debug processing request 😎▮983
 
- 1. ▮▌ 64▮0▮3▮0x0000000000150002▮NET▮Info processing request 😊▮1209
+ 1. ▮▌ 60▮0▮3▮0x0000000000150002▮NET▮Info processing request 😊▮985
 
- 1. ▮▌ 65▮0▮4▮0x0000000000150002▮NET▮Warning in processing notification 😕▮1210
+ 1. ▮▌ 62▮0▮4▮0x0000000000150002▮NET▮Warning in processing notification 😕▮987
 
- 1. ▮▌ 67▮0▮5▮0x0000000000150002▮NET▮Error in processing notification 😣▮1212
+ 1. ▮▌ 64▮0▮5▮0x0000000000150002▮NET▮Error in processing notification 😣▮989
 
- 1. ▮▌ 69▮0▮6▮0x0000000000150002▮NET▮Critical processing request 😣▮1214
+ 1. ▮▌ 66▮0▮6▮0x0000000000150002▮NET▮Critical processing request 😣▮991
 
- 1. ▮▌ 71▮0▮7▮0x0000000000150002▮NET▮Fatal error in processing notification 💀▮1216
+ 1. ▮▌ 67▮0▮7▮0x0000000000150002▮NET▮Fatal error in processing notification 💀▮993
 
- 1. ▮▌ 73▮0▮8▮0x0000000000150002▮NET▮Not Set, default payload 😎▮1217
+ 1. ▮▌ 68▮0▮8▮0x0000000000150002▮NET▮Not Set, default payload 😎▮994
 
- 1. ▮▌ 75▮0▮9▮0x0000000000150002▮NET▮Trace processing request 😎▮1219
+ 1. ▮▌ 69▮0▮9▮0x0000000000150002▮NET▮Trace processing request 😎▮995
 
 === End Data ===
 === End Section ===
