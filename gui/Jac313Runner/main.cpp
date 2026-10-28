@@ -631,18 +631,24 @@ static Vector<String> MachineIps()
 }
 
 // "192.168.1.0/24": the /24 of this machine's address on the server's network (an address that
-// shares the server's first three numbers), else of its first address. Only a suggestion: the
-// Setup dialog shows it to be confirmed.
+// shares the server's first three numbers). With none (a VM behind its host's NAT: the server sees
+// the host's address, on the server's network), the server's own /24; for a server named by host
+// name, this machine's first address. Only a suggestion: the Setup dialog shows it to be confirmed,
+// and setup_pg_server.sh stops when it does not cover the address the server sees.
 static String DefaultAllowNet(const String& server)
 {
 	Vector<String> ips = MachineIps();
-	if(ips.IsEmpty())
-		return Null;
-	String pick = ips[0];
 	Vector<String> sv = Split(server, '.');
+	bool serverIp = sv.GetCount() == 4;
+	for(const String& s : sv) {   // four numbers, not a host name
+		serverIp = serverIp && s.GetCount() > 0;
+		for(char c : s)
+			serverIp = serverIp && IsDigit(c);
+	}
+	String pick = serverIp ? server : ips.GetCount() ? ips[0] : String();
 	for(const String& ip : ips) {
 		Vector<String> p = Split(ip, '.');
-		if(sv.GetCount() == 4 && p.GetCount() == 4 && p[0] == sv[0] && p[1] == sv[1] && p[2] == sv[2])
+		if(serverIp && p.GetCount() == 4 && p[0] == sv[0] && p[1] == sv[1] && p[2] == sv[2])
 			pick = ip;
 	}
 	Vector<String> p = Split(pick, '.');
@@ -834,8 +840,9 @@ Runner::Runner()
 	Place(s1p.body, pgLTest, 818, y + 96, 100, 22);
 	Place(s1p.body, connStatus, 110, y + 122, 594, 22);   // short; a long failure is a popup
 	pgSetup.SetLabel("Setup Remote PG Server...");
-	pgSetup.Tip("Make a machine the shared PG remote server (PostgreSQL 18, role + database jac313, logins "
-	            "from your network): over ssh in a terminal, or with the steps shown to run by hand");
+	pgSetup.Tip("TEST MACHINES ONLY, not a production setup. Make a machine the shared PG remote server "
+	            "(PostgreSQL 18, role + database jac313, logins from your network): over ssh in a terminal, "
+	            "or with the steps shown to run by hand");
 	Place(s1p.body, pgSetup, 712, y + 122, 206, 22);    // under Test Remote .. Test Local
 	pgSetup << THISBACK(SetupRemotePg);
 	Place(s1p.body, lMaxRuns, 20, y + 148, 70, 22);
@@ -1951,28 +1958,35 @@ void Runner::SetupRemotePg()
 
 	TopWindow dlg;
 	dlg.Title("Setup Remote PG Server").Sizeable();
-	dlg.SetRect(0, 0, Zx(700), Zy(500));
-	Label advice, lHost, lPort, lUser, lAllow, lAllowTip, lPw, status;
+	dlg.SetRect(0, 0, Zx(700), Zy(558));
+	Label warn, advice, lHost, lPort, lUser, lAllow, lAllowTip, lPw, status;
 	EditString host, port, sshUser, allow, pw;
 	Button doIt, steps, copy, savePw, fetch, finish, close;
 	LineEdit cmds;
 	auto at = [&](Ctrl& c, int x, int y, int cx, int cy) { dlg.Add(c.LeftPosZ(x, cx).TopPosZ(y, cy)); };
+	// Loud, first thing in the dialog: a helper for test machines, not a production setup.
+	warn.SetText("TEST MACHINES ONLY: this is NOT how to set up a production server.\n"
+	             "It opens PostgreSQL to a whole network with ONE shared role and password, and copies\n"
+	             "that password between machines. Fine for jac313's throwaway test data; never for real data.");
+	warn.SetInk(Color(170, 0, 0));
+	warn.SetFont(StdFont().Bold());
+	dlg.Add(warn.HSizePosZ(8, 8).TopPosZ(6, 52));
 	advice.SetText(PgRemoteAdvice(pgTestMsg.Find("PG remote") >= 0 ? pgTestMsg : String()));
-	dlg.Add(advice.HSizePosZ(8, 8).TopPosZ(6, 40));
+	dlg.Add(advice.HSizePosZ(8, 8).TopPosZ(64, 40));
 	lHost.SetText("Server");
 	lPort.SetText("Port");
 	lUser.SetText("ssh user");
-	at(lHost, 8, 54, 90, 22);
-	at(host, 100, 54, 200, 22);
-	at(lPort, 310, 54, 36, 22);
-	at(port, 346, 54, 60, 22);
-	at(lUser, 416, 54, 64, 22);
-	at(sshUser, 480, 54, 140, 22);
+	at(lHost, 8, 112, 90, 22);
+	at(host, 100, 112, 200, 22);
+	at(lPort, 310, 112, 36, 22);
+	at(port, 346, 112, 60, 22);
+	at(lUser, 416, 112, 64, 22);
+	at(sshUser, 480, 112, 140, 22);
 	lAllow.SetText("Allow network");
 	lAllowTip.SetText("only the test machines on this network may log in (please check it)");
-	at(lAllow, 8, 82, 90, 22);
-	at(allow, 100, 82, 200, 22);
-	at(lAllowTip, 310, 82, 380, 22);
+	at(lAllow, 8, 140, 90, 22);
+	at(allow, 100, 140, 200, 22);
+	at(lAllowTip, 310, 140, 380, 22);
 	host <<= opt.pgHost;
 	port <<= Nvl(opt.pgPort, String("5432"));
 	sshUser <<= GetUserName();
@@ -1982,26 +1996,26 @@ void Runner::SetupRemotePg()
 	doIt.Tip("A terminal runs the setup on the server over ssh: ssh and sudo ask there, the setup shows its plan first");
 	steps.SetLabel("Show me the steps");
 	steps.Tip("The commands to run yourself; then type the password it prints below");
-	at(doIt, 100, 114, 160, 26);
-	at(steps, 268, 114, 160, 26);
+	at(doIt, 100, 172, 160, 26);
+	at(steps, 268, 172, 160, 26);
 	cmds.SetReadOnly();
 	cmds.SetFont(Monospace(Zy(10)));
-	dlg.Add(cmds.HSizePosZ(8, 88).TopPosZ(148, 150));
+	dlg.Add(cmds.HSizePosZ(8, 88).TopPosZ(206, 150));
 	copy.SetLabel("Copy");
-	dlg.Add(copy.RightPosZ(8, 72).TopPosZ(148, 24));
+	dlg.Add(copy.RightPosZ(8, 72).TopPosZ(206, 24));
 	lPw.SetText("Password");
 	pw.Password();
 	savePw.SetLabel("Save password");
 	savePw.Tip("Keep the jac313 password in " + pgpass + " (mode 600), then Test & Finish");
-	at(lPw, 8, 308, 90, 22);
-	at(pw, 100, 308, 200, 22);
-	at(savePw, 310, 307, 120, 24);
+	at(lPw, 8, 366, 90, 22);
+	at(pw, 100, 366, 200, 22);
+	at(savePw, 310, 365, 120, 24);
 	fetch.SetLabel("Fetch password (ssh + sudo)");
 	fetch.Tip("PostgreSQL keeps only a hash of the password: log in to the server over ssh, read with sudo "
 	          "where the test machines store it (SQL_Secrets/*.pgpass, .pgpass), and keep the one that logs in. "
 	          "For test machines only (the data is throwaway): never do this on a production server");
-	at(fetch, 440, 307, 200, 24);
-	dlg.Add(status.HSizePosZ(8, 8).TopPosZ(340, 66));
+	at(fetch, 440, 365, 200, 24);
+	dlg.Add(status.HSizePosZ(8, 8).TopPosZ(398, 66));
 	finish.SetLabel("Test && Finish");
 	finish.Tip("Keep the server in the connections file, Test Remote, register this machine's jac313-###");
 	close.SetLabel("Close");
@@ -2064,7 +2078,8 @@ void Runner::SetupRemotePg()
 		if(!checked())
 			return;
 		String to = TrimBoth(~sshUser) + "@" + TrimBoth(~host);
-		cmds <<= "# 1. copy the setup script to the server (run here):\n"
+		cmds <<= "# TEST MACHINES ONLY: a helper for jac313's throwaway test data, NOT a production setup.\n"
+		         "# 1. copy the setup script to the server (run here):\n"
 		         "scp " + ShQuote(script) + " " + to + ":\n"
 		         "# 2. run it ON the server: it shows its plan, asks before changing anything, uses sudo:\n"
 		         "ssh -t " + to + " bash setup_pg_server.sh --allow " + TrimBoth(~allow) + "\n"

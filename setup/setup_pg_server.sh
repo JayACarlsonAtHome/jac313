@@ -52,6 +52,23 @@ if [ -n "$PWFILE" ]; then
   [[ "$NEWPW" =~ ^[A-Za-z0-9]+$ ]] || { echo "the password must be letters and digits only"; exit 1; }
 fi
 
+# Over ssh, the address this server sees the client at is the one PostgreSQL will see too (same
+# route, same NAT): a VM behind its host's NAT arrives as the HOST's address, not its own. Stop
+# before changing anything when --allow does not cover it. Run on the server itself: no check.
+ip2int() { local IFS=.; set -- $1; echo $(( ($1 << 24) + ($2 << 16) + ($3 << 8) + $4 )); }
+in_net() {   # in_net IP CIDR
+  local bits=${2#*/}
+  local mask=$(( bits == 0 ? 0 : (0xFFFFFFFF << (32 - bits)) & 0xFFFFFFFF ))
+  [ $(( $(ip2int "$1") & mask )) -eq $(( $(ip2int "${2%/*}") & mask )) ]
+}
+FROM=${SSH_CONNECTION%% *}
+FROM=${FROM#::ffff:}
+if [[ "$FROM" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] && [[ "$FROM" != 127.* ]] && ! in_net "$FROM" "$ALLOW"; then
+  echo "This machine reaches the server from $FROM, which --allow $ALLOW does not cover,"
+  echo "so PostgreSQL would turn its logins away. Use --allow ${FROM%.*}.0/24 (or a network that covers $FROM)."
+  exit 2
+fi
+
 # --- which recipe: fedora | rhel | linuxmint (Mint, Ubuntu, Debian: PGDG apt) ---
 family=$(. /etc/os-release 2>/dev/null; case " ${ID:-} ${ID_LIKE:-} " in
   *" fedora "*) [ "${ID:-}" = fedora ] && echo fedora || echo rhel ;;
@@ -144,6 +161,18 @@ else
   echo "Planned changes:"
   for p in "${plan[@]}"; do echo "  - $p"; done
 fi
+# Said loudly, every run, right before the y/N: what this is NOT (see NOTE at the top).
+red="" off=""; [ -t 1 ] && red=$'\e[1;31m' off=$'\e[0m'
+bar="  $(printf '#%.0s' {1..90})"
+echo "${red}"; echo "$bar"
+for l in "TEST MACHINES ONLY -- THIS IS NOT HOW TO SET UP A PRODUCTION SERVER" "" \
+         "A helper for jac313's throwaway test data. It opens PostgreSQL to a whole network" \
+         "$ALLOW with ONE shared role and password, and the Runner copies that" \
+         "password between machines. A real server needs one credential per client, TLS," \
+         "no readable password files and nothing gathered over ssh. Never use this for one."; do
+  printf '  ##  %-82s  ##\n' "$l"
+done
+echo "$bar"; echo "${off}"
 [ "$DRY" = 1 ] && { echo "(dry run: nothing changed)"; exit 0; }
 if [ ${#plan[@]} -gt 0 ] && [ "$YES" = 0 ]; then
   printf "Apply these changes? [y/N] "
