@@ -168,6 +168,7 @@ out/Jac313Runner --dump-command [--root R]      # the command(s) Screen 1 would 
 out/Jac313Runner --dump-jtext FILE              # columns=N rows=M, column names, first 3 rows (tab-separated)
 out/Jac313Runner --dump-summary FILE [--root R] # row count, totals, first 3 rows + their dataset command
 out/Jac313Runner --dump-ai FILE [--jtext FILE]  # the "Copy for AI" Markdown
+out/Jac313Runner --dump-connections FILE        # what Save would write for FILE's connections (writes nothing)
 ```
 
 Samples to check against are in `Jac313Runner/samples/`:

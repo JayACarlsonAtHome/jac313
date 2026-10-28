@@ -10,6 +10,8 @@
 #include <string_view>
 #include <vector>
 
+#include "parser/utf8.hpp"
+
 namespace jtext_gui {
 
 /// Most fields (lines) a record can have: field positions 1-99 (SPEC 3.7). Line numbers
@@ -28,38 +30,44 @@ inline std::string too_many_fields(std::size_t columns) {
 /// Fields a new record starts with (the editor shows at least this many lines).
 inline constexpr std::size_t kDefaultFields = 10;
 
-/// Marker written when a line has none. Splice `|`, comment `#`.
-inline constexpr const char* kDefaultMarker = "|#";
+/// Marker written when a line has none: the library writer's default (SPEC v0.8 Part E).
+/// Splice U+25AE, comment U+258C.
+inline constexpr const char* kDefaultMarker = "\xE2\x96\xAE\xE2\x96\x8C";
 
-/// Printable ASCII that is not a letter or a digit. Same test as the jText parser.
-inline bool is_marker_char(char c) {
-    const auto u = static_cast<unsigned char>(c);
-    if (u < 0x21 || u > 0x7E) return false;
-    if ((u >= '0' && u <= '9') || (u >= 'A' && u <= 'Z') || (u >= 'a' && u <= 'z'))
-        return false;
-    return true;
-}
-
-/// A marker run at the start of text. The live marker is the right two characters.
-/// A longer opener (`#|#`, `^|#`) drops what is in front. Equal right-two characters
-/// are not a marker.
+/// A marker run at the start of text. The live marker is the right two characters
+/// (code points, not bytes). A longer opener (`#|#`, `^|#`) drops what is in front.
+/// Equal right-two characters are not a marker. A marker character is one code point
+/// that is Punctuation or Symbol, the jText parser's own test (SPEC 3.1).
 struct MarkerRun {
     std::string text;
     std::size_t consumed = 0;
 };
 
 inline MarkerRun take_marker(std::string_view text) {
-    std::size_t end = 0;
-    while (end < text.size() && is_marker_char(text[end])) ++end;
+    std::size_t end = 0, prev = 0, last = 0, count = 0;   // last: start of the last character
+    while (end < text.size()) {
+        const auto cp = jtext::decode_utf8(text.substr(end));
+        if (!cp || !jtext::is_punctuation_or_symbol(cp->cp)) break;
+        prev = last;
+        last = end;
+        end += cp->len;
+        ++count;
+    }
     MarkerRun run;
-    if (end >= 2 && text[end - 2] != text[end - 1]) {
-        run.text.assign(text.data() + (end - 2), 2);
+    if (count >= 2 && text.substr(prev, last - prev) != text.substr(last, end - last)) {
+        run.text.assign(text.substr(prev, end - prev));
         run.consumed = end;
     }
     return run;
 }
 
-/// Live two-character marker. Empty or unusable text becomes "|#".
+/// The splice of a two-character marker, as UTF-8 (its first character).
+inline std::string_view marker_splice(std::string_view marker) {
+    const auto cp = jtext::decode_utf8(marker);
+    return cp ? marker.substr(0, cp->len) : std::string_view{};
+}
+
+/// Live two-character marker. Empty or unusable text becomes kDefaultMarker.
 inline std::string live_marker(std::string_view text) {
     std::size_t i = 0;
     while (i < text.size() && (text[i] == ' ' || text[i] == '\t')) ++i;
@@ -69,8 +77,7 @@ inline std::string live_marker(std::string_view text) {
 
 /// `[]` names no splice and no comment. The rest of the field is data as written.
 inline bool marker_is_raw(std::string_view marker) {
-    const MarkerRun run = take_marker(marker);
-    return run.text.size() == 2 && run.text[0] == '[' && run.text[1] == ']';
+    return take_marker(marker).text == "[]";
 }
 
 /// One logical table row (in-memory). Orthogonal to UI and storage backends.
@@ -79,7 +86,7 @@ inline bool marker_is_raw(std::string_view marker) {
 /// A field at or past size() is absent (NULL, no line); read it with field_is_null(),
 /// field_text() and field_has_line(), which allow that.
 struct Record {
-    /// Live marker: splice, then comment. Default "|#". "[]" is raw data.
+    /// Live marker: splice, then comment. Default kDefaultMarker. "[]" is raw data.
     std::string marker = kDefaultMarker;
     std::vector<std::string> fields = std::vector<std::string>(kDefaultFields);
     /// True when field i is SQL NULL / a missing jText line. False and an empty
@@ -131,11 +138,11 @@ inline bool field_has_line(const Record& r, std::size_t i) {
 }
 
 
-/// Splice character, or 0 when the marker is raw (do not split the field).
-inline char marker_separator(std::string_view marker) {
+/// Splice character as UTF-8, or empty when the marker is raw (do not split the field).
+inline std::string marker_separator(std::string_view marker) {
     const MarkerRun run = take_marker(marker.empty() ? std::string_view{kDefaultMarker} : marker);
-    if (run.text.size() != 2 || (run.text[0] == '[' && run.text[1] == ']')) return 0;
-    return run.text[0];
+    if (run.text.empty() || run.text == "[]") return {};
+    return std::string(marker_splice(run.text));
 }
 
 /// The marker field i is written with: its own, else the record's.
@@ -203,8 +210,8 @@ inline RecordIdFix ensure_record_ids(std::vector<Record>& rows) {
 
 /// Join first n non-trailing-empty fields for display (does not trim meaning).
 inline std::string record_preview(const Record& r, std::size_t max_fields = 4) {
-    char sep = marker_separator(r.marker);
-    if (sep == 0) sep = ' ';
+    std::string sep = marker_separator(r.marker);
+    if (sep.empty()) sep = " ";
     std::string out;
     const std::size_t n = std::min(max_fields, r.size());
     for (std::size_t i = 0; i < n; ++i) {

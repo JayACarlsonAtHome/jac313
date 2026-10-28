@@ -1,10 +1,14 @@
 #include "jtext_gui/core/connections_file.hpp"
 #include "jtext_gui/core/record.hpp"
 
+#include "jText.h"
+#include "parser/section.hpp"
+
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <map>
+#include <format>
+#include <optional>
 #include <sstream>
 
 namespace fs = std::filesystem;
@@ -54,113 +58,109 @@ bool load_connections(const std::string& path, std::vector<SavedConnection>& row
     rows.clear();
     std::ifstream in(path);
     if (!in) { err = "cannot read " + path; return false; }
-
-    // Enough jText for this file: field lines in "=== Fields ===", compact rows
-    // "1. |# v1|v2..." and per-field rows "N. ?# value" (a blank line ends a record).
-    // An older three-character marker is read as its right two characters.
-    std::vector<std::string> fields;
-    std::map<int, std::string> rec;
-    std::vector<std::map<int, std::string>> recs;
-    enum { none, in_fields, in_data } state = none;
-    auto flush = [&] { if (!rec.empty()) { recs.push_back(rec); rec.clear(); } };
-    for (std::string line; std::getline(in, line);) {
-        const std::string t = trim(line);
-        if (t.rfind("===", 0) == 0) {
-            flush();
-            state = t == "=== Fields ===" ? in_fields : t == "=== Data ===" ? in_data : none;
-            continue;
-        }
-        if (t.empty()) { flush(); continue; }
-        if (state == none || t.rfind("//", 0) == 0) continue;
-        const auto dot = t.find('.');
-        if (dot == std::string::npos || dot == 0) continue;
-        int num = 0;
-        bool digits = true;
-        for (std::size_t i = 0; i < dot; ++i) {
-            if (t[i] < '0' || t[i] > '9') { digits = false; break; }
-            num = num * 10 + (t[i] - '0');
-        }
-        if (!digits) continue;
-        const std::string rest = trim(t.substr(dot + 1));
-        const MarkerRun mark = take_marker(rest);
-        if (mark.text.size() != 2) continue;
-        const char sep = mark.text[0];
-        std::string body = rest.substr(mark.consumed);
-        if (!body.empty() && body[0] == ' ') body.erase(0, 1);
-        if (state == in_fields) {
-            fields.push_back(lower(trim(body.substr(0, body.find_first_of("/#")))));
-            continue;
-        }
-        if (sep == '?' || sep == '/') { rec[num] = trim(body); continue; }
-        flush();
-        std::size_t start = 0;
-        for (int k = 0;; ++k) {
-            const auto at = body.find(sep, start);
-            rec[num + k] = body.substr(start, at == std::string::npos ? std::string::npos : at - start);
-            if (at == std::string::npos) break;
-            start = at + 1;
-        }
-        flush();
+    const auto file = jtext::parse_file_structure(in);
+    if (!file) {
+        err = std::format("{}: line {}: {}", path, file.error().line_no, file.error().message);
+        return false;
     }
-    flush();
 
-    auto col = [&](const char* name) {
-        for (std::size_t i = 0; i < fields.size(); ++i) if (fields[i] == name) return static_cast<int>(i) + 1;
-        return -1;
-    };
-    const int cb = col("backend"), ch = col("host"), cp = col("port"), cd = col("dbname"),
-              cu = col("user"), ct = col("connect_timeout"), cn = col("notes");
-    if (cb < 0 || ch < 0) { err = path + ": no backend / host fields"; return false; }
-    for (const auto& r : recs) {
-        auto get = [&](int c) -> std::string {
-            auto it = r.find(c);
-            return (it == r.end() || is_null(it->second)) ? std::string{} : it->second;
+    // The library parses. The first section whose Fields name a backend and a host holds
+    // the servers: a record is the lines between blank lines, a line's number is its
+    // field position.
+    for (const auto& sec : file->sections) {
+        std::vector<std::string> fields;
+        for (const auto& fl : sec.field_lines) {
+            if (fl.number == 0 || fl.hierarchy.empty()) continue;
+            if (fields.size() < fl.number) fields.resize(fl.number);
+            fields[fl.number - 1] = lower(trim(fl.hierarchy[0]));
+        }
+        auto col = [&](const char* name) {
+            for (std::size_t i = 0; i < fields.size(); ++i) if (fields[i] == name) return static_cast<int>(i);
+            return -1;
         };
-        SavedConnection c{get(cb), get(ch), get(cp), get(cd), get(cu), get(ct), get(cn), {}};
-        if (!c.backend.empty() && !c.host.empty()) rows.push_back(std::move(c));
+        const int cb = col("backend"), ch = col("host"), cp = col("port"), cd = col("dbname"),
+                  cu = col("user"), ct = col("connect_timeout"), cn = col("notes");
+        if (cb < 0 || ch < 0) continue;
+
+        std::vector<std::vector<std::string>> recs;
+        std::vector<std::string> rec;
+        for (const auto& pl : sec.data_lines) {
+            if (pl.number == 0) {   // a blank line ends the record
+                if (!rec.empty()) recs.push_back(std::move(rec));
+                rec.clear();
+                continue;
+            }
+            const std::size_t first = pl.number - 1;
+            if (rec.size() < first + pl.hierarchy.size()) rec.resize(first + pl.hierarchy.size(), "\x1f");
+            for (std::size_t k = 0; k < pl.hierarchy.size(); ++k) rec[first + k] = pl.hierarchy[k];
+        }
+        if (!rec.empty()) recs.push_back(std::move(rec));
+
+        for (const auto& r : recs) {
+            auto get = [&](int c) -> std::string {
+                return (c < 0 || static_cast<std::size_t>(c) >= r.size() || is_null(r[c])) ? std::string{} : r[c];
+            };
+            SavedConnection c{get(cb), get(ch), get(cp), get(cd), get(cu), get(ct), get(cn), {}};
+            if (!c.backend.empty() && !c.host.empty()) rows.push_back(std::move(c));
+        }
+        if (rows.empty()) { err = path + ": no record with a backend and a host"; return false; }
+        return true;
     }
-    if (rows.empty()) { err = path + ": no record with a backend and a host"; return false; }
-    return true;
+    err = path + ": no backend / host fields";
+    return false;
 }
 
 std::string connections_text(const std::vector<SavedConnection>& rows) {
-    char sep = '|';
-    for (char c : {'|', '~', '^', '`'}) {
-        bool clash = false;
-        for (const auto& r : rows)
-            for (const std::string* v : {&r.backend, &r.host, &r.port, &r.dbname, &r.user, &r.connect_timeout, &r.notes})
-                if (v->find(c) != std::string::npos) clash = true;
-        if (!clash) { sep = c; break; }
-    }
-    auto val = [](const std::string& v) { return v.empty() ? std::string("\x1f") : v; };
+    using namespace jText::v001;
     std::ostringstream t;
     t << "//File:    jtext_gui_connections.jtext\n"
          "//Purpose: Saved database servers for jText_GUI's connect dialog.\n"
          "//         Keep this file OUTSIDE every git project. No passwords here: PostgreSQL reads\n"
          "//         them from ~/.pgpass or $PGPASSFILE; the others are typed in the dialog.\n"
-         "//\n"
-         "=== jText File ===\n"
-         " 1. ?# jtext_gui_connections\n"
-         " 3. ?# Database servers for jText_GUI\n\n\n"
-         "=== Section: connections ===\n\n\n"
-         "=== Fields ===\n"
-         " 1. /# id/Identity(1,1)/Not Null     # record id\n"
-         " 2. /# backend/String/Not Null       # pg-local | pg-remote | mariadb-local | mariadb-remote | mssql-...\n"
-         " 3. /# host/String/Not Null          # host name or IP address\n"
-         " 4. /# port/Number\n"
-         " 5. /# dbname/String\n"
-         " 6. /# user/String\n"
-         " 7. /# connect_timeout/Number        # seconds\n"
-         " 8. /# notes/String\n"
-         "=== End Fields ===\n\n\n"
-         "=== Data ===\n";
+         "//\n";
+    JTextWriter w(t);
+    w.set_profile(JTextProfile::Full);
+    w.set_filename("jtext_gui_connections.jtext");
+    w.set_purpose("Database servers for jText_GUI");
+    w.write_header();
+    w.begin_section("connections");
+    w.begin_fields();
+    static const char* const fields[][2] = {
+        {"id/Identity(1,1)/Not Null", "record id"},
+        {"backend/String/Not Null", "pg-local | pg-remote | mariadb-local | mariadb-remote | mssql-..."},
+        {"host/String/Not Null", "host name or IP address"},
+        {"port/Number", ""},
+        {"dbname/String", ""},
+        {"user/String", ""},
+        {"connect_timeout/Number", "seconds"},
+        {"notes/String", ""},
+    };
+    for (std::size_t i = 0; i < std::size(fields); ++i) {
+        std::vector<std::string> levels;
+        for (std::string_view def = fields[i][0];;) {
+            const auto slash = def.find('/');
+            levels.emplace_back(def.substr(0, slash));
+            if (slash == std::string_view::npos) break;
+            def.remove_prefix(slash + 1);
+        }
+        w.append_row(i + 1, levels, fields[i][1], U'/');
+    }
+    w.begin_data();
+    // Number fields need a value: an empty port / timeout is written as NULL too.
+    auto val = [](const std::string& v) -> std::optional<std::string> {
+        if (v.empty()) return std::nullopt;
+        return v;
+    };
     for (std::size_t i = 0; i < rows.size(); ++i) {
         const auto& r = rows[i];
-        // Number fields need a value: an empty port / timeout is written as NULL too.
-        t << "1. " << sep << "# " << (i + 1) << sep << r.backend << sep << r.host << sep << val(r.port) << sep
-          << val(r.dbname) << sep << val(r.user) << sep << val(r.connect_timeout) << sep << val(r.notes) << "\n\n";
+        JTextEntry e;
+        e.number = 1;
+        e.fields = {std::to_string(i + 1), r.backend, r.host, val(r.port), val(r.dbname), val(r.user),
+                    val(r.connect_timeout), val(r.notes)};
+        w.append_entry(e);
+        w.end_record();
     }
-    t << "=== End Data ===\n=== End Section ===\n=== End File ===\n";
+    w.finalize();
     return t.str();
 }
 

@@ -1,5 +1,7 @@
 #include "Model.h"
+#include <jText.h>
 #include <parser/line.hpp>
+#include <sstream>
 #include <parser/section.hpp>
 
 namespace Upp {
@@ -347,50 +349,58 @@ bool LoadConnections(const String& path, Vector<ConnRow>& rows, String& err)
 
 String ConnectionsText(const Vector<ConnRow>& rows)
 {
-	// a field separator that occurs in no value (compact rows split on it)
-	char sep = '|';
-	for(char c : { '|', '~', '^', '`' }) {
-		bool clash = false;
-		for(const ConnRow& r : rows)
-			for(const String *v : { &r.backend, &r.host, &r.port, &r.dbname, &r.user, &r.timeout, &r.notes })
-				if(v->Find(c) >= 0)
-					clash = true;
-		if(!clash) {
-			sep = c;
-			break;
-		}
+	using namespace jText::v001;
+	const Date d = GetSysDate();
+	const String date = Format("%04d-%02d-%02d", d.year, d.month, d.day);
+	std::ostringstream os;
+	os << "//File:    jac313_connections.jtext\n"
+	   << "//Date:    " << date.ToStd() << "\n"
+	   << "//Purpose: PostgreSQL servers for jac313 test runs (pg-local / pg-remote).\n"
+	   << "//         Keep this file OUTSIDE every git project. No passwords here: libpq reads them\n"
+	   << "//         jac313_pg_local.pgpass / jac313_pg_remote.pgpass beside it. Jac313Runner writes it; safe to edit by hand.\n"
+	   << "//\n";
+	JTextWriter w(os);
+	w.set_profile(JTextProfile::Full);
+	w.set_filename("jac313_connections.jtext");
+	w.set_date(date.ToStd());
+	w.set_purpose("PostgreSQL connections for jac313 / Jac313Runner");
+	w.write_header();
+	w.begin_section("connections");
+	w.begin_fields();
+	static const char *fields[][2] = {
+		{ "id/Identity(1,1)/Not Null", "record id" },
+		{ "backend/String/Not Null",   "pg-local | pg-remote" },
+		{ "host/String/Not Null",      "host name or IP address" },
+		{ "port/Number",               "5432 is PostgreSQL's usual port" },
+		{ "dbname/String",             "" },
+		{ "user/String",               "" },
+		{ "connect_timeout/Number",    "seconds" },
+		{ "notes/String",              "" },
+	};
+	for(int i = 0; i < __countof(fields); i++) {
+		std::vector<std::string> levels;
+		for(const String& l : Split(fields[i][0], '/'))
+			levels.push_back(l.ToStd());
+		w.append_row(i + 1, levels, fields[i][1], U'/');
 	}
-	auto val = [](const String& v) { return v.IsEmpty() ? String("\x1F") : v; };   // NULL = Unit Separator
-	String t;
-	t << "//File:    jac313_connections.jtext\n"
-	  << "//Date:    " << Format("%04d-%02d-%02d", GetSysDate().year, GetSysDate().month, GetSysDate().day) << "\n"
-	  << "//Purpose: PostgreSQL servers for jac313 test runs (pg-local / pg-remote).\n"
-	  << "//         Keep this file OUTSIDE every git project. No passwords here: libpq reads them\n"
-	  << "//         jac313_pg_local.pgpass / jac313_pg_remote.pgpass beside it. Jac313Runner writes it; safe to edit by hand.\n"
-	  << "//\n"
-	  << "=== jText File ===\n"
-	  << " 1. #?# jac313_connections\n"
-	  << " 3. #?# PostgreSQL connections for jac313 / Jac313Runner\n\n\n"
-	  << "=== Section: connections ===\n\n\n"
-	  << "=== Fields ===\n"
-	  << " 1. #/# id/Identity(1,1)/Not Null     # record id\n"
-	  << " 2. #/# backend/String/Not Null       # pg-local | pg-remote\n"
-	  << " 3. #/# host/String/Not Null          # host name or IP address\n"
-	  << " 4. #/# port/Number                   # 5432 is PostgreSQL's usual port\n"
-	  << " 5. #/# dbname/String\n"
-	  << " 6. #/# user/String\n"
-	  << " 7. #/# connect_timeout/Number        # seconds\n"
-	  << " 8. #/# notes/String\n"
-	  << "=== End Fields ===\n\n\n"
-	  << "=== Data ===\n";
+	w.begin_data();
+	auto val = [](const String& v) -> std::optional<std::string> {   // empty = NULL
+		if(v.IsEmpty())
+			return std::nullopt;
+		return v.ToStd();
+	};
 	for(int i = 0; i < rows.GetCount(); i++) {
 		const ConnRow& r = rows[i];
-		t << "1. #" << sep << "# " << (i + 1) << sep << r.backend << sep << r.host << sep
-		  << (r.port.GetCount() ? r.port : String("5432")) << sep << val(r.dbname) << sep << val(r.user) << sep
-		  << (r.timeout.GetCount() ? r.timeout : String("10")) << sep << val(r.notes) << "\n\n";
+		JTextEntry e;
+		e.number = 1;
+		e.fields = { std::to_string(i + 1), r.backend.ToStd(), r.host.ToStd(),
+		             (r.port.GetCount() ? r.port : String("5432")).ToStd(), val(r.dbname), val(r.user),
+		             (r.timeout.GetCount() ? r.timeout : String("10")).ToStd(), val(r.notes) };
+		w.append_entry(e);
+		w.end_record();
 	}
-	t << "=== End Data ===\n=== End Section ===\n=== End File ===\n";
-	return t;
+	w.finalize();
+	return String(os.str());
 }
 
 bool SaveConnections(const String& path, const Vector<ConnRow>& rows, String& err)

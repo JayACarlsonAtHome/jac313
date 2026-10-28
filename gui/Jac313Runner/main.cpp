@@ -93,6 +93,19 @@ static int DumpJText(const String& file)
 	return 0;
 }
 
+// What Save would write for FILE's connections (read-only: nothing is written).
+static int DumpConnections(const String& file)
+{
+	Vector<ConnRow> rows;
+	String err;
+	if(!LoadConnections(file, rows, err)) {
+		Cerr() << "Jac313Runner: " << file << ": " << err << "\n";
+		return 1;
+	}
+	Cout() << ConnectionsText(rows);
+	return 0;
+}
+
 static String Dash(const String& s) { return s.GetCount() ? s : String("-"); }
 
 static int DumpSummary(const String& file)
@@ -173,13 +186,17 @@ static bool HeadlessMain()
 			mode = 4;
 			file = a[++i];
 		}
+		else if(a[i] == "--dump-connections" && i + 1 < a.GetCount()) {
+			mode = 5;
+			file = a[++i];
+		}
 		else if(a[i] == "--jtext" && i + 1 < a.GetCount())
 			aiJText = a[++i];
 	}
 	if(!mode)
 		return false;
 	int rc = mode == 1 ? DumpCommand() : mode == 2 ? DumpJText(file) : mode == 3 ? DumpSummary(file)
-	       : DumpAi(file, aiJText);
+	       : mode == 4 ? DumpAi(file, aiJText) : DumpConnections(file);
 	SetExitCode(rc);
 	return true;
 }

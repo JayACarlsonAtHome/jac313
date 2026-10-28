@@ -30,16 +30,16 @@ std::string trim(std::string s) {
 }
 
 /// A multiline value ("[*" ... "*]") arrives as one field holding its lines; the
-/// library leaves it no separator and the default comment mark.
+/// library leaves it no separator and no comment character (0).
 bool is_multiline_entry(const jText::v001::JTextEntry& e) {
-    return e.level_sep == 0 && e.delimiter == U'#';
+    return e.level_sep == 0 && e.delimiter == 0;
 }
 
 std::string marker_of(const jText::v001::JTextEntry& e) {
     // A raw line has no separator and keeps ']' as its comment mark.
     if (e.level_sep == 0 && e.delimiter == U']') return "[]";
     if (e.level_sep == 0) return {};
-    return jtext::encode_utf8(e.level_sep) + jtext::encode_utf8(e.delimiter == 0 ? U'#' : e.delimiter);
+    return jtext::encode_utf8(e.level_sep) + jtext::encode_utf8(e.delimiter == 0 ? U'\u258C' : e.delimiter);
 }
 
 std::string field_value(const jText::v001::JTextEntry& e, std::size_t i) {
@@ -189,7 +189,7 @@ std::string constraint_word(bool not_null) { return not_null ? "Not Null" : "Nul
 void write_field_line(std::ostream& out, std::size_t number, std::size_t pad, const ColumnDef& col,
                       bool force_not_null) {
     jText::v001::write_jtext_line_number(out, number, pad);
-    out << "/# " << col.name << '/' << (col.jtext_type.empty() ? "String" : col.jtext_type);
+    out << "/\xE2\x96\x8C " << col.name << '/' << (col.jtext_type.empty() ? "String" : col.jtext_type);
     if (col.length > 0 && col.jtext_type == "String") out << '/' << col.length;
     out << '/' << constraint_word(force_not_null || col.not_null) << '\n';
 }
@@ -310,7 +310,7 @@ void write_data_rows(std::ostream& out, const std::vector<Record>& rows) {
                 write_marked_value(out, f + 1, pad, field_marker(row, f), row.fields[f]);
             }
         } else {
-            const char sep = marker_separator(record_mark);
+            const std::string sep = marker_separator(record_mark);
             jText::v001::write_jtext_line_number(out, 1, pad);   // two columns, like every line (SPEC 3.7)
             out << record_mark << ' ';
             for (std::size_t f = 0; f < last; ++f) {
@@ -347,21 +347,16 @@ std::expected<void, std::string> write_full_jtext(std::string_view path,
                                      jText::v001::jtext_line_pad_width_for_count(
                                          std::max(use.columns.size(), std::size_t{1})));
 
+    // Header lines (SPEC 2.3): filename, date, purpose, jtext_version, case, dialect, table.
     out << "=== jText File ===\n";
-    jText::v001::write_jtext_line_number(out, 1, pad);
-    out << "?# " << (filename.empty() ? std::string(path) : filename) << '\n';
-    jText::v001::write_jtext_line_number(out, 2, pad);
-    out << "?# " << date << '\n';
-    jText::v001::write_jtext_line_number(out, 3, pad);
-    out << "?# Saved by jText_GUI\n";
-    jText::v001::write_jtext_line_number(out, 4, pad);
-    out << "?# 0.1\n";
-    jText::v001::write_jtext_line_number(out, 5, pad);
-    out << (case_sensitive ? "?# Sensitive\n" : "?# Insensitive\n");
-    jText::v001::write_jtext_line_number(out, 6, pad);
-    out << "?# " << dialect_label(use.dialect) << '\n';
-    jText::v001::write_jtext_line_number(out, 7, pad);
-    out << "?# " << use.table << '\n';
+    const std::string header[] = {filename.empty() ? std::string(path) : filename, date,
+                                  "Saved by jText_GUI", "0.8",
+                                  case_sensitive ? "Sensitive" : "Insensitive",
+                                  std::string(dialect_label(use.dialect)), use.table};
+    for (std::size_t i = 0; i < std::size(header); ++i) {
+        jText::v001::write_jtext_line_number(out, i + 1, pad);
+        out << kDefaultMarker << ' ' << header[i] << '\n';
+    }
     out << '\n';
 
     out << "=== Section: " << use.table << " ===\n\n";
