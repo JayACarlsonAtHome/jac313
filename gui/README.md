@@ -214,8 +214,26 @@ jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc|
   beside the connections file, mode 600; see docs/SQL_Secrets_example). PG local needs nothing here:
   bootstrap sets up its server and `jac313_pg_local.pgpass`. With PG remote
   ticked they become `--pg-remote "host=... dbname=... user=... connect_timeout=10"`; Start refuses
-  PG remote without a Host. **Test** runs `jac313_store_dataset --ping pg-remote --conninfo ...` from
-  the version's build and shows connect ms, ping ms and the server version, or the error.
+  PG remote without a Host. **Test Remote** (and **Test Local** for this machine's server) runs
+  `jac313_store_dataset --ping pg-remote --conninfo ...` from the version's build.
+* **Status line** (Screen 1, under Host): one short line, never wider than the page. An OK shows in
+  full (`PG remote OK: connect 19.3 ms, ping 2.2 ms, PostgreSQL 18.6`, `Loaded 2 row(s) · jText ...`);
+  a failure shows as a short red line (`PG remote: test failed (point here for details)`) with the
+  whole text as its tooltip. A failure from a button (Test Remote / Test Local, Load, View, Save) also
+  pops up with the whole message; Test Remote's adds what is likely wrong and points at Setup.
+  Nothing pops up at start-up, from the Setup dialog or with `--snap`.
+* **Setup Remote PG Server...** (Screen 1, under Test Remote): makes a machine the shared PG remote
+  server with `setup/setup_pg_server.sh` (PostgreSQL 18, role + database jac313, pg_hba line,
+  `listen_addresses`, firewall), either **Do it for me (ssh)** in a terminal or **Show me the steps**
+  to run by hand; then **Test & Finish**. **TEST MACHINES ONLY, not a production setup**: it opens
+  PostgreSQL to a whole network with one shared role and password and copies that password between
+  machines (the dialog, the script and docs/SQL_Secrets_example all say so).
+  **Allow network** is the one network that may log in. Its suggestion is the /24 of this
+  machine's address on the server's network; with none, the server's own /24. That covers a VM
+  behind its host's NAT, which the server sees at the HOST's address (a libvirt VM on
+  192.168.122.x reaching a server on 192.168.1.x arrives as its host, so it needs 192.168.1.0/24). The
+  script checks the address the server sees over ssh and stops, before changing anything, when
+  `--allow` does not cover it.
 * The `--persist` names are `sql` (SQLite), `pg-local`, `pg-remote`, `jtext`, `binary`, `json` and `html`.
 * With Compiler **both**, the command runs twice, gcc15 first and then clang. The summaries go to `runner_last_gcc15.json` and `runner_last_clang.json`.
 * With one compiler the summary goes to `<root>/<version>/test-summary/runner_last.json`.
