@@ -1,58 +1,59 @@
 //File:    persist_keeper_Floats.jtext
-//Date:    2026-06-18
+//Date:    2026-10-28
 //Purpose: jText Data File
 //Related: type=ts_store table=persist_keeper_floats
 //
 === jText File ===
-# JText File - created 
-# Purpose - ts_store double metrics
-# Case: INSENSITIVE
+ 2. ^# 2026-10-28
+ 3. -# ts_store double metrics
+ 4. -# 0.8
+ 5. -# Insensitive
+ 8. -# true
 
 === Section: persist_keeper_floats ===
 === <#include#> Schema: ../../../tests/jtext_includes/ts_store_floats_schema.jschma ===
 === Template: Create Table ===
 [*
 ** CREATE TABLE IF NOT EXISTS persist_keeper_floats (
-**     id BIGINT PRIMARY KEY,
-**     dbl0 DOUBLE PRECISION,
-**     dbl1 DOUBLE PRECISION,
-**     dbl2 DOUBLE PRECISION,
-**     dbl3 DOUBLE PRECISION,
-**     dbl4 DOUBLE PRECISION,
-**     dbl5 DOUBLE PRECISION
+**     id BIGINT PRIMARY KEY
+**   , dbl0 DOUBLE PRECISION
+**   , dbl1 DOUBLE PRECISION
+**   , dbl2 DOUBLE PRECISION
+**   , dbl3 DOUBLE PRECISION
+**   , dbl4 DOUBLE PRECISION
+**   , dbl5 DOUBLE PRECISION
 ** );
 *]
-
 === Template: SQL Insert ===
 [*
 ** INSERT OR IGNORE INTO persist_keeper_floats (id, dbl0, dbl1, dbl2, dbl3, dbl4, dbl5)
 ** VALUES ({1}, {2}, {3}, {4}, {5}, {6}, {7});
 *]
-
 === Fields ===
 === <#include#> Fields: ../../../tests/jtext_includes/ts_store_floats_fields.jtFlds ===
 === End Fields ===
 === Data ===
+ 1. |# 60|0|0|0|0|0|0
 
+ 1. |# 61|0.01|0.01|0.01|0.01|0.01|0.01
 
+ 1. |# 63|0.02|0.02|0.02|0.02|0.02|0.02
 
+ 1. |# 64|0.03|0.03|0.03|0.03|0.03|0.03
 
+ 1. |# 65|0.04|0.04|0.04|0.04|0.04|0.04
 
+ 1. |# 67|0.05|0.05|0.05|0.05|0.05|0.05
 
+ 1. |# 69|0.06|0.06|0.06|0.06|0.06|0.06
 
+ 1. |# 71|0.07|0.07|0.07|0.07|0.07|0.07
 
+ 1. |# 73|0.08|0.08|0.08|0.08|0.08|0.08
 
+ 1. |# 75|0.09|0.09|0.09|0.09|0.09|0.09
 
-1. #|# 1|0|0|0|0|0|0
-3. #|# 3|0.01|0.01|0.01|0.01|0.01|0.01
-5. #|# 5|0.02|0.02|0.02|0.02|0.02|0.02
-8. #|# 8|0.03|0.03|0.03|0.03|0.03|0.03
-11. #|# 11|0.04|0.04|0.04|0.04|0.04|0.04
-14. #|# 14|0.05|0.05|0.05|0.05|0.05|0.05
-19. #|# 19|0.06|0.06|0.06|0.06|0.06|0.06
-22. #|# 22|0.07|0.07|0.07|0.07|0.07|0.07
-26. #|# 26|0.08|0.08|0.08|0.08|0.08|0.08
-39. #|# 39|0.09|0.09|0.09|0.09|0.09|0.09
 === End Data ===
 === End Section ===
+
 === End File ===

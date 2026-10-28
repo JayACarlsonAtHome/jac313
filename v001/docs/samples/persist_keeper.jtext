@@ -1,58 +1,59 @@
 //File:    persist_keeper.jtext
-//Date:    2026-06-18
+//Date:    2026-10-28
 //Purpose: jText Data File
 //Related: type=ts_store table=persist_keeper
 //
 === jText File ===
-# JText File - created 
-# Purpose - ts_store split event log (main)
-# Case: INSENSITIVE
+ 2. ^# 2026-10-28
+ 3. -# ts_store split event log (main)
+ 4. -# 0.8
+ 5. -# Insensitive
+ 8. -# true
 
 === Section: persist_keeper ===
 === <#include#> Schema: ../../../tests/jtext_includes/ts_store_main_schema.jschma ===
 === Template: Create Table ===
 [*
 ** CREATE TABLE IF NOT EXISTS persist_keeper (
-**     id BIGINT PRIMARY KEY,
-**     thread_id BIGINT,
-**     per_thread_event_id BIGINT,
-**     flags_raw BIGINT,
-**     category TEXT,
-**     payload TEXT,
-**     timestamp_us BIGINT
+**     id BIGINT PRIMARY KEY
+**   , thread_id BIGINT
+**   , per_thread_event_id BIGINT
+**   , flags_raw BIGINT
+**   , category TEXT
+**   , payload TEXT
+**   , timestamp_us BIGINT
 ** );
 *]
-
 === Template: SQL Insert ===
 [*
 ** INSERT OR IGNORE INTO persist_keeper (id, thread_id, per_thread_event_id, flags_raw, category, payload, timestamp_us)
 ** VALUES ({1}, {2}, {3}, {4}, {5}, {6}, {7});
 *]
-
 === Fields ===
 === <#include#> Fields: ../../../tests/jtext_includes/ts_store_main_fields.jtFlds ===
 === End Fields ===
 === Data ===
+ 1. ▮▌ 60▮0▮0▮0x0000000000050002▮NET▮Not Set, default payload 😎▮1202
 
+ 1. ▮▌ 61▮0▮1▮0x0000000000150002▮NET▮Trace processing request 😎▮1206
 
+ 1. ▮▌ 63▮0▮2▮0x0000000000150002▮NET▮Debug processing request 😎▮1207
 
+ 1. ▮▌ 64▮0▮3▮0x0000000000150002▮NET▮Info processing request 😊▮1209
 
+ 1. ▮▌ 65▮0▮4▮0x0000000000150002▮NET▮Warning in processing notification 😕▮1210
 
+ 1. ▮▌ 67▮0▮5▮0x0000000000150002▮NET▮Error in processing notification 😣▮1212
 
+ 1. ▮▌ 69▮0▮6▮0x0000000000150002▮NET▮Critical processing request 😣▮1214
 
+ 1. ▮▌ 71▮0▮7▮0x0000000000150002▮NET▮Fatal error in processing notification 💀▮1216
 
+ 1. ▮▌ 73▮0▮8▮0x0000000000150002▮NET▮Not Set, default payload 😎▮1217
 
+ 1. ▮▌ 75▮0▮9▮0x0000000000150002▮NET▮Trace processing request 😎▮1219
 
-1. #|# 0|0|0x0000000000050002|NET|Not Set, default payload 😎|3291
-3. #|# 0|1|0x0000000000150002|NET|Trace processing request 😎|3312
-5. #|# 0|2|0x0000000000150002|NET|Debug processing request 😎|3323
-8. #|# 0|3|0x0000000000150002|NET|Info processing request 😊|3338
-11. #|# 0|4|0x0000000000150002|NET|Warning in processing notification 😕|3350
-14. #|# 0|5|0x0000000000150002|NET|Error in processing notification 😣|3368
-19. #|# 0|6|0x0000000000150002|NET|Critical processing request 😣|3394
-22. #|# 0|7|0x0000000000150002|NET|Fatal error in processing notification 💀|3408
-26. #|# 0|8|0x0000000000150002|NET|Not Set, default payload 😎|3433
-39. #|# 0|9|0x0000000000150002|NET|Trace processing request 😎|3525
 === End Data ===
 === End Section ===
+
 === End File ===
