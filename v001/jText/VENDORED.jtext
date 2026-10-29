@@ -23,11 +23,11 @@
 
 1. #|# 2|canonical_dir|jText/v001
 
-1. #|# 3|canonical_commit|4d0652860e1b
+1. #|# 3|canonical_commit|3a5b8e2187be
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v001.027
+1. #|# 5|canonical_version|v001.028
 
 1. #|# 6|transform|jac313-prefix
 
@@ -60,7 +60,7 @@
 === Data ===
 1. #|# 1|Qlite/include/jac313/Qlite/v001.hpp|Qlite/include/Qlite/v001.hpp|2f4be1e0263e1ca942d496d87e05aa36d62b52e7bf4fad49c1daf983595a3ac9|1d185351c40d0e34ee25b0a4b813940fc89313d09c910e4e81464d9c7933b7af
 
-1. #|# 2|Qlite/include/jac313/Qlite/v001/Database.body.hpp|Qlite/include/Qlite/v001/Database.body.hpp|0eb2679a27c4c202c8c420e266ee3e2009f5f3a0b5151ff974e56831e815dc0e|907fbbe41023ab00fe629ecb15c9a5a0685d316366d5ed45b7e3252e3f879e07
+1. #|# 2|Qlite/include/jac313/Qlite/v001/Database.body.hpp|Qlite/include/Qlite/v001/Database.body.hpp|b2b3e9139937ccde459c2ad90d808e52ecda7e496fede888d4d44f22caab15f2|ffe9fd39c8ba3c4459d2ff04d1b4ca2a55bedf651b297cc0d58cec758da51bf3
 
 1. #|# 3|Qlite/include/jac313/Qlite/v001/Database.hpp|Qlite/include/Qlite/v001/Database.hpp|7dc6fa2f50fa8e51840526571e297e3114352e16b1a9a012078c2936b99ed29c|be9a66f5a8899da090683cbff741f6dca3890ba383fc435a02ff2c9dbfe63dd0
 
@@ -82,7 +82,7 @@
 
 1. #|# 12|include/jac313/jText/v001.hpp|include/jText/v001.hpp|50fa0c094772ea9628f53c827a5cef50ad76b5f4623bae28e8a19305ef40f210|06af37f1fcbf98aaa653f9e6500d7edd4d1ae8cf226ca88844a5fe2aca621814
 
-1. #|# 13|jText.api.inc|jText.api.inc|b232acb6a8a2fa459f3ca3792ed1d29b29afad264704b4bbbb37133626ac92ee|3ac3f92cd7db3c846c67f67b4c281e2e9b920f7229968a6860c49185e44b15a2
+1. #|# 13|jText.api.inc|jText.api.inc|0370cf617bab1d28dce94a93d52c0ae060fb8c7211a3731b4e058a3f729fc20d|7306cda30dc726cfed672d0ce2f519d97d02be6ffdb0216e8f211bc54f3157bf
 
 1. #|# 14|jText.cpp|jText.cpp|2004c32952a36a6d5bed4725c47347dab99f34d8aec9c80cb159ee4c4687746e|2f0538e503dea46fdbc7847b5abfab8407abae8a4f994beca45df849f5fee3cb
 
@@ -130,7 +130,7 @@
 
 1. #|# 36|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|31274214e52fa8c1a3a02cd13f5f20a629f14c940456f496247ec4e73829e329|afb6a46eae1f8f70b2da563a77cb4c2461f797e31b9ed0e92eab2909231687f4
 
-1. #|# 37|tests/v001_test.cpp|tests/v001_test.cpp|0a408a78656c44319c601272e8fc86cf1bcfa67db855fa078dfe01c6525b398b|b7bc9aeba87525ef5e6844feebbf6c780569d6fe384f17d17b05fda1cb182e85
+1. #|# 37|tests/v001_test.cpp|tests/v001_test.cpp|7bfad652bb3c346bdbb99e448f04820a3df4c767cb0a58a29b539e7959efb5a9|e0bd1d46350887ce878e0bae8f4095e354c15c986047fe08fc93b5286a2f0bda
 
 1. #|# 38|tools/common/record_lines.hpp|tools/common/record_lines.hpp|77d76b33723603912a3c14655f0cc5a979295a5968978faaad2e2a0c7a5b4ff6|c8e08a51d238a6ec076f4d81d8f544c263acb810b7072e3cc25c847187edd0cc
 

@@ -35,6 +35,8 @@ using jac313::Qlite::v002::get_top_one;       // get_top_one<T>(db, sql, [debug,
 using jac313::Qlite::v002::get_top_one_or;
 using jac313::Qlite::v002::get_top_one_bool;
 using jac313::Qlite::v002::get_top_one_bool_or;
+using jac313::Qlite::v002::get_top_one_id;      // 0 = found none
+using jac313::Qlite::v002::get_top_one_id_or;   // your own "found none", e.g. -1
 
 // Debug variants: get_top_one_xxx(db, sql, true, binds...) or the _debug shorthands
 // When debug=true they print [SQL] ... and result to stderr.
