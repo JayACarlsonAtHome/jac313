@@ -23,11 +23,11 @@
 
 1. #|# 2|canonical_dir|jText/v001
 
-1. #|# 3|canonical_commit|173da0b4ed1c
+1. #|# 3|canonical_commit|3729de508003
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v001.023
+1. #|# 5|canonical_version|v001.024
 
 1. #|# 6|transform|jac313-prefix
 
@@ -80,13 +80,13 @@
 
 1. #|# 11|include/jac313/jText/v001.hpp|include/jText/v001.hpp|50fa0c094772ea9628f53c827a5cef50ad76b5f4623bae28e8a19305ef40f210|06af37f1fcbf98aaa653f9e6500d7edd4d1ae8cf226ca88844a5fe2aca621814
 
-1. #|# 12|jText.api.inc|jText.api.inc|d8413b50b2c34231382a48f373d9fe99030d188fbe5dc30506623f3c2acb931d|a205b794a24a1bc393e8805f09075050298774c669ab2f5e98d438cabd595000
+1. #|# 12|jText.api.inc|jText.api.inc|fc76de77df8064f013be050b033b63951b50d565e49e3001ec5fb417ece867e3|47d9e22c8aeaa1ba2202a40342fb0eb7af1aeecc260760be73ffd315b5eb61da
 
 1. #|# 13|jText.cpp|jText.cpp|3e372209d20eb7fc59cede93e7a72c20b1d0b3117179560dae7c146fcadd78e2|bbc62b9b071e5127e11a7f5bd69f3a30d117009b7979647875f4cdc016c9d9f1
 
-1. #|# 14|jText.h|jText.h|23d46b3021b64b2dc39ca1fdcde7125ee5a469ce4c2602a103859525f5b04a6a|9217f50b76606e082704203a44d1bcede9ff6c04ee2469b86e67da1d8541ed53
+1. #|# 14|jText.h|jText.h|08b1bab29df782b68342c8a97419a7a47d0865ddf4d52261ad1b3a34b7a6cb1c|b4589aa8e49f552f82f46489ce4282c929e4d78294d757d39131231ac891f415
 
-1. #|# 15|jText.impl.inc|jText.impl.inc|8b6811af102d1fc34c4440597f20126642061285e1728ef76ae9e7447bd56845|1955def82ac7a5c780301e3a5f6a6c47d7287a428fbf491ddbcf7a8d69af93fc
+1. #|# 15|jText.impl.inc|jText.impl.inc|eae8dcb161b4ab0dae3f14ba748e0649b050bf8bff18ab02429601652234c974|bbb9681c3804fcea417b2be933326951e6e0695f46492f2d7de7a79dc78cc948
 
 1. #|# 16|modules/jac313.jtext.v001.core.cppm|modules/jText.v001.core.cppm|0c87a2cf765a7d0b7ae089211776a7ea7c957da1a85a2dd7e0006d9e60fd66c5|47edff4b5ff75cb402c39fc1c80e1a9d4a83de7a59eb6369915aa3cc6b5dd684
 
@@ -124,7 +124,7 @@
 
 1. #|# 33|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|31274214e52fa8c1a3a02cd13f5f20a629f14c940456f496247ec4e73829e329|afb6a46eae1f8f70b2da563a77cb4c2461f797e31b9ed0e92eab2909231687f4
 
-1. #|# 34|tests/v001_test.cpp|tests/v001_test.cpp|1a953eb39569d39b09aa0c9c5f3631c992ebd0cdfc66c73edf73112800fb7c05|a2c9b99e2540ba3c47f530bd10597d29c1c1fc6f7395baecea35cb38346f376e
+1. #|# 34|tests/v001_test.cpp|tests/v001_test.cpp|cd11710bf447e8ae57a04b48476f4aa73baf78b079d70f787db7c64e8c444510|8dc949a333f51061be754e27f961455ebf494132806ef20f0ca5a15f03811019
 
 1. #|# 35|tools/common/record_lines.hpp|tools/common/record_lines.hpp|77d76b33723603912a3c14655f0cc5a979295a5968978faaad2e2a0c7a5b4ff6|c8e08a51d238a6ec076f4d81d8f544c263acb810b7072e3cc25c847187edd0cc
 
@@ -150,15 +150,17 @@
 
 1. #|# 46|tools/jtext_from_sql.cpp|tools/jtext_from_sql.cpp|1d7d274b40f6f01a0063869faeae3bd05e5b4db80a773f0fd0cfcf557334d8a3|6a372a42e826ebb61c27bd3db27c8867642a85a9c1ff4e9de8bf5624b142a6b1
 
-1. #|# 47|tools/jtext_to_ods.cpp|tools/jtext_to_ods.cpp|8b4ecb3d498ed519da3b3996c7511dda19c418de11ca86479443643f4aac356f|8b4ecb3d498ed519da3b3996c7511dda19c418de11ca86479443643f4aac356f
+1. #|# 47|tools/jtext_from_xml.cpp|tools/jtext_from_xml.cpp|4a2843df2a10c014e12bcb4eefa24f1829f2f88bbc34d102dbb30f2819dc77df|9187287e3e3c1a62a8e861a5e8c762fe68076e265af3e9f1f2063e96024656f6
 
-1. #|# 48|tools/jtext_to_xml.cpp|tools/jtext_to_xml.cpp|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724
+1. #|# 48|tools/jtext_to_ods.cpp|tools/jtext_to_ods.cpp|8b4ecb3d498ed519da3b3996c7511dda19c418de11ca86479443643f4aac356f|8b4ecb3d498ed519da3b3996c7511dda19c418de11ca86479443643f4aac356f
 
-1. #|# 49|tools/jtext_xtox_sql.cpp|tools/jtext_xtox_sql.cpp|a983ae7a21c181e490f0cd1e01790ad8ec7bb5f7e45cc7aa5fa51731575ad41d|fa16e903554afd87b2c575a4f982fefdc7b64d581e22195d22b920d1f0d3cea7
+1. #|# 49|tools/jtext_to_xml.cpp|tools/jtext_to_xml.cpp|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724
 
-1. #|# 50|tools/ods/ods.cpp|tools/ods/ods.cpp|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2
+1. #|# 50|tools/jtext_xtox_sql.cpp|tools/jtext_xtox_sql.cpp|a983ae7a21c181e490f0cd1e01790ad8ec7bb5f7e45cc7aa5fa51731575ad41d|fa16e903554afd87b2c575a4f982fefdc7b64d581e22195d22b920d1f0d3cea7
 
-1. #|# 51|tools/ods/ods.hpp|tools/ods/ods.hpp|83484d569dfc4f885d796a6c9b8076878bff1b9a10efd78b7dbbdd5e1fa833f3|83484d569dfc4f885d796a6c9b8076878bff1b9a10efd78b7dbbdd5e1fa833f3
+1. #|# 51|tools/ods/ods.cpp|tools/ods/ods.cpp|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2
+
+1. #|# 52|tools/ods/ods.hpp|tools/ods/ods.hpp|83484d569dfc4f885d796a6c9b8076878bff1b9a10efd78b7dbbdd5e1fa833f3|83484d569dfc4f885d796a6c9b8076878bff1b9a10efd78b7dbbdd5e1fa833f3
 
 === End Data ===
 === End Section ===
