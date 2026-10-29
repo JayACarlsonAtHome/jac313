@@ -324,7 +324,7 @@ bool LoadConnections(const String& path, Vector<ConnRow>& rows, String& err)
 		int cp = col("port"), cd = col("dbname"), cu = col("user"), ct = col("connect_timeout"), cn = col("notes");
 		for(const Vector<String>& r : s.rows) {
 			auto get = [&](int c) {
-				if(c < 0 || c >= r.GetCount() || r[c] == JNull() || r[c] == "\\x1F" || r[c] == "\\N" || r[c] == "NULL")
+				if(c < 0 || c >= r.GetCount() || r[c] == JNull())
 					return String();
 				return r[c];
 			};
@@ -806,15 +806,18 @@ int JDoc::MainSection() const
 static String ToUpp(const std::string& s) { return String(s.data(), (int)s.size()); }
 
 // The Unit Separator byte, or its escape as text, is NULL
+// {NULL}, or the v0.7 marker U+001F the library reads as it, is the author's "no value":
+// shown as JNull(). Every other value is its text (SPEC 2.6.1).
 static String CleanValue(const std::string& v)
 {
-	if(v == "\x1F" || v == "\\x1F" || v == "\\x1f")
+	if(v == jtext::kNullValue || v == "\x1F")
 		return JNull();
 	return ToUpp(v);
 }
 
 // The jText library parses; this turns its sections into named columns and rows.
-// A record is the lines between blank lines; each line's number is the field position.
+// A blank line ends a record and a line for field 1 starts one (SPEC 2.6); each line's
+// number is the field position. A field with no line is empty.
 void JDoc::Parse(const String& text, const String& baseDir)
 {
 	sections.Clear();
@@ -835,8 +838,8 @@ void JDoc::Parse(const String& text, const String& baseDir)
 			s.cols[n - 1] = ToUpp(name);
 		};
 		for(const jtext::parsed_line& fl : ps.field_lines)
-			if(fl.number && fl.hierarchy.size())
-				AddField(fl.number, fl.hierarchy[0]);
+			if(fl.number && fl.values.size())
+				AddField(fl.number, fl.values[0]);
 		for(const auto& [kind, path] : ps.includes) {   // a Fields include names the columns
 			if(ToLower(ToUpp(kind)) != "fields")
 				continue;
@@ -849,23 +852,24 @@ void JDoc::Parse(const String& text, const String& baseDir)
 			for(String l : Split(LoadFile(p), '\n', false)) {
 				l.TrimEnd("\r");
 				const auto fl = jtext::parse_line(std::string_view(~l, l.GetCount()));
-				if(fl && fl->kind == jtext::line_kind::data && fl->hierarchy.size())
-					AddField(fl->number, fl->hierarchy[0]);
+				if(fl && fl->kind == jtext::line_kind::data && fl->values.size())
+					AddField(fl->number, fl->values[0]);
 			}
 		}
 		Vector<String> rec;
 		for(const jtext::parsed_line& pl : ps.data_lines) {
-			if(pl.number == 0) {   // a blank line ends the record
+			if(pl.number == 0 || (pl.number == 1 && rec.GetCount())) {
 				if(rec.GetCount())
 					s.rows.Add(pick(rec));
 				rec.Clear();
-				continue;
+				if(pl.number == 0)
+					continue;
 			}
 			int first = pl.number - 1;
-			if(rec.GetCount() < first + (int)pl.hierarchy.size())
-				rec.SetCount(first + (int)pl.hierarchy.size(), JNull());
-			for(size_t k = 0; k < pl.hierarchy.size(); k++)
-				rec[first + (int)k] = CleanValue(pl.hierarchy[k]);
+			if(rec.GetCount() < first + (int)pl.values.size())
+				rec.SetCount(first + (int)pl.values.size(), String());
+			for(size_t k = 0; k < pl.values.size(); k++)
+				rec[first + (int)k] = CleanValue(pl.values[k]);
 		}
 		if(rec.GetCount())
 			s.rows.Add(pick(rec));

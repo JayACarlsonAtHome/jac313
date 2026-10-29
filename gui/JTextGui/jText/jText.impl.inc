@@ -87,21 +87,18 @@ auto entry_from_line(jtext::parsed_line pl) -> JTextEntry
     e.number = pl.number;
     e.comment = std::move(pl.comment);
     if (pl.kind == jtext::line_kind::multiline_opener) {
-        e.fields.emplace_back(pl.hierarchy.empty() ? std::string{} : std::move(pl.hierarchy[0]));
+        e.fields.emplace_back(pl.values.empty() ? std::string{} : std::move(pl.values[0]));
         return e;
     }
     e.delimiter = pl.fmt.bookend;
     e.level_sep = pl.fmt.raw_data() ? 0 : pl.fmt.separator;
 
-    auto& values = pl.hierarchy;
-    if (values.size() == 1 && (values[0] == "NULL" || values[0] == "null" || values[0] == "Null")
-        && !pl.fmt.raw_data()) {
-        e.is_null = true;
-        e.fields.emplace_back("NULL");
-    } else if (!(values.size() == 1 && values[0].empty())) {
+    // Values are text (SPEC 2.6.1): "NULL" and "{NULL}" stay as written. U+001F was the
+    // v0.7 compact-row null marker; it reads as {NULL}.
+    auto& values = pl.values;
+    if (!(values.size() == 1 && values[0].empty())) {
         for (auto& v : values) {
-            // U+001F is the null marker of a compact row (SPEC 2.6.3); the writer emits it.
-            if (v == "\x1F") e.fields.emplace_back(std::nullopt);
+            if (v == "\x1F") e.fields.emplace_back(std::string{jtext::kNullValue});
             else e.fields.emplace_back(std::move(v));
         }
     }
@@ -135,8 +132,8 @@ auto JTextFile::read_file(std::string_view filepath, std::string_view only_secti
     // header lines by position (SPEC 2.3).
     for (const auto& m : parsed->metadata) parse_header(m);
     for (const auto& hl : parsed->header_lines) {
-        if (hl.hierarchy.size() != 1) continue;
-        const auto& value = hl.hierarchy[0];
+        if (hl.values.size() != 1) continue;
+        const auto& value = hl.values[0];
         switch (hl.number) {
         case 2: date = value; break;
         case 3: purpose = value; break;
@@ -148,14 +145,27 @@ auto JTextFile::read_file(std::string_view filepath, std::string_view only_secti
         }
     }
 
+    header_comments.clear();
+    for (auto& c : parsed->header_comments) header_comments.push_back(std::move(c.text));
+
     for (auto& ps : parsed->sections) {
         if (!only_section.empty() && ps.name != only_section) continue;
         JTextSection sec;
         sec.name = ps.name;
-        for (auto& pl : ps.data_lines) {
-            if (pl.number == 0) continue;   // record boundary
-            sec.entries.push_back(entry_from_line(std::move(pl)));
+        // A comment line stands before a data line; entries leave out the record
+        // boundaries, so its place is counted in entries.
+        std::size_t next_comment = 0;
+        auto take_comments = [&](std::size_t data_index) {
+            for (; next_comment < ps.data_comments.size() &&
+                   ps.data_comments[next_comment].before <= data_index; ++next_comment)
+                sec.comments.push_back({sec.entries.size(), std::move(ps.data_comments[next_comment].text)});
+        };
+        for (std::size_t d = 0; d < ps.data_lines.size(); ++d) {
+            take_comments(d);
+            if (ps.data_lines[d].number == 0) continue;   // record boundary
+            sec.entries.push_back(entry_from_line(std::move(ps.data_lines[d])));
         }
+        take_comments(ps.data_lines.size());
         sections.push_back(std::move(sec));
     }
     return {};
@@ -218,13 +228,22 @@ auto JTextFile::write(std::string_view filepath) const -> std::expected<void, st
     writer.set_auto_id(auto_id);
 
     writer.write_header();
+    for (const auto& c : header_comments) writer.write_comment_line(c);
 
     for (const auto& sec : sections) {
         writer.begin_section(sec.name);
         writer.set_line_number_pad_width(jtext_line_pad_width_for_count(sec.entries.size()));
-        for (const auto& e : sec.entries) {
-            writer.append_entry(e);
+        std::size_t next_comment = 0;
+        auto put_comments = [&](std::size_t before) {
+            for (; next_comment < sec.comments.size() && sec.comments[next_comment].before <= before;
+                 ++next_comment)
+                writer.write_comment_line(sec.comments[next_comment].text);
+        };
+        for (std::size_t n = 0; n < sec.entries.size(); ++n) {
+            put_comments(n);
+            writer.append_entry(sec.entries[n]);
         }
+        put_comments(sec.entries.size());
     }
 
     writer.finalize();
@@ -348,22 +367,40 @@ auto JTextFile::validate() const -> std::expected<void, std::string> {
 // JTextWriter implementation
 // ===================================================================
 
-void write_file_comment_header(std::ostream& os,
-                                   std::string_view path,
-                                   std::string_view purpose,
-                                   std::string_view related) {
+namespace {
+
+// The header block, each line opened by `lead` ("//" or "-- ").
+void write_comment_header(std::ostream& os, std::string_view lead, std::string_view path,
+                          std::string_view purpose, std::string_view related)
+{
     auto now = std::chrono::system_clock::now();
     auto today = std::chrono::floor<std::chrono::days>(now);
     std::string date_str = std::format("{:%Y-%m-%d}", today);
 
     // The file's name only: a path would go stale when the file or its project moves.
-    os << "//File:    " << std::filesystem::path(std::string(path)).filename().string() << "\n";
-    os << "//Date:    " << date_str << "\n";
-    os << "//Purpose: " << purpose << "\n";
+    os << lead << "File:    " << std::filesystem::path(std::string(path)).filename().string() << "\n";
+    os << lead << "Date:    " << date_str << "\n";
+    os << lead << "Purpose: " << purpose << "\n";
     if (!related.empty()) {
-        os << "//Related: " << related << "\n";
+        os << lead << "Related: " << related << "\n";
     }
-    os << "//\n";
+    os << lead.substr(0, 2) << "\n";
+}
+
+} // namespace
+
+void write_sql_comment_header(std::ostream& os,
+                              std::string_view path,
+                              std::string_view purpose,
+                              std::string_view related) {
+    write_comment_header(os, "-- ", path, purpose, related);
+}
+
+void write_file_comment_header(std::ostream& os,
+                                   std::string_view path,
+                                   std::string_view purpose,
+                                   std::string_view related) {
+    write_comment_header(os, "//", path, purpose, related);
     // End-of-text-header marker for consumers (e.g. binary log readers doing
     // safe prefix scan). Binary readers must *not* rely on getline after this.
 }
@@ -445,9 +482,16 @@ void write_header_block(std::ostream& out,
 static constexpr std::string_view kBookendChoices = "#^%~!@$&*+=:;?\"'(),./<>\\_`{}|-";
 
 // True when the parser would open a comment inside `field`: the bookend with a
-// space on each side, or a trailing " b" on the last field when a comment follows.
-static bool field_has_comment_marker(std::string_view field, char b, bool last_before_comment)
+// space on each side, a trailing " b" on the last field when a comment follows, or,
+// on the line's first field, the bookend as its first character followed by a space
+// or by the end of the line (SPEC 3.2).
+static bool field_has_comment_marker(std::string_view field, char b, bool first, bool only,
+                                     bool last_before_comment)
 {
+    if (first) {
+        const auto t = field.substr(std::min(field.find_first_not_of(' '), field.size()));
+        if (!t.empty() && t[0] == b && (t.size() > 1 ? t[1] == ' ' : only)) return true;
+    }
     for (std::size_t i = 1; i < field.size(); ++i) {
         if (field[i] != b || field[i - 1] != ' ') continue;
         if (i + 1 < field.size() ? field[i + 1] == ' ' : last_before_comment) return true;
@@ -462,7 +506,7 @@ static std::string_view field_text(const std::optional<std::string>& f)
 
 static std::string_view field_text(const std::string& f) { return f; }
 
-// The default formatter: U+25AE splits fields, U+258C starts the comment (SPEC v0.8 Part A).
+// The default formatter: U+25AE splits fields, U+258C starts the comment (SPEC 3.1).
 static constexpr char32_t kDefaultSplice  = U'\u25AE';
 static constexpr char32_t kDefaultComment = U'\u258C';
 
@@ -489,7 +533,8 @@ static char32_t choose_bookend(char32_t requested, char32_t sep, const Fields& f
         if (b == sep) continue;
         bool clash = false;
         for (std::size_t i = 0; i < fields.size() && !clash; ++i)
-            clash = field_has_comment_marker(field_text(fields[i]), b, has_comment && i + 1 == fields.size());
+            clash = field_has_comment_marker(field_text(fields[i]), b, i == 0, fields.size() == 1,
+                                             has_comment && i + 1 == fields.size());
         if (!clash) return b;
     }
     return '#';
@@ -587,6 +632,14 @@ static RowFormat row_format(char32_t requested_bookend, char32_t level_sep, cons
     return f;
 }
 
+// A field as written: its text, or {NULL} for a field given no value (SPEC 2.6.1).
+static std::string_view field_or_null(const std::optional<std::string>& f)
+{
+    return f ? std::string_view(*f) : jtext::kNullValue;
+}
+
+static std::string_view field_or_null(const std::string& f) { return f; }
+
 void write_entry_to_stream(std::ostream& out, const JTextEntry& e, std::size_t pad_width,
                            char32_t sep_cp, char32_t bookend_cp)
 {
@@ -602,11 +655,7 @@ void write_entry_to_stream(std::ostream& out, const JTextEntry& e, std::size_t p
     for (std::size_t i = 0; i < e.fields.size(); ++i) {
         if (i > 0) out << sep;
         const auto& f = e.fields[i];
-        if (!f.has_value()) {
-            out << '\x1F';  // official null marker for compact (chosen ASCII US)
-        } else {
-            out << *f;
-        }
+        out << field_or_null(f);
     }
 
     if (!e.comment.empty()) {
@@ -636,11 +685,7 @@ static std::string format_entry(const JTextEntry& e, std::size_t pad_width, char
     for (std::size_t i = 0; i < e.fields.size(); ++i) {
         if (i > 0) s += sep;
         const auto& f = e.fields[i];
-        if (!f.has_value()) {
-            s += '\x1F';
-        } else {
-            s += *f;
-        }
+        s += field_or_null(f);
     }
 
     if (!e.comment.empty()) {
@@ -691,15 +736,8 @@ static std::string format_row(std::size_t number,
     return s;
 }
 
-// A field as written: its text, or the compact-row null marker U+001F (SPEC 2.6.3).
-static std::string_view field_or_null(const std::optional<std::string>& f)
-{
-    return f ? std::string_view(*f) : std::string_view("\x1F", 1);
-}
 
-static std::string_view field_or_null(const std::string& f) { return f; }
-
-// A row with a field that holds a newline (SPEC v0.8 Part C): the fields before it
+// A row with a field that holds a newline (SPEC 5): the fields before it
 // are a compact row, that field is a multiline value on its own numbered line, and
 // the fields after it continue at the next position. Value lines and the closer are
 // indented to the column of the "[*", so every marker lines up. The row's comment
@@ -1015,6 +1053,7 @@ void JTextWriter::begin_fields()
     *out_ << "=== Fields ===\n";
     full_block_ = FullBlock::fields;
     fields_written_ = true;
+    record_lines_ = 0;   // field lines are not a record
 }
 
 void JTextWriter::end_fields()
@@ -1035,6 +1074,7 @@ void JTextWriter::begin_data()
     flush_pending_batch();
     *out_ << "=== Data ===\n";
     full_block_ = FullBlock::data;
+    record_lines_ = 0;
 }
 
 void JTextWriter::begin_section(std::string_view name)
@@ -1046,6 +1086,7 @@ void JTextWriter::begin_section(std::string_view name)
     flush_pending_batch();   // never buffer across section boundaries
     line_pad_width_ = 2;
     last_record_id_.reset(); // record ids are per section (per table)
+    record_lines_ = 0;
     if (profile_ == JTextProfile::Full) {
         close_full_section();
         section_ = name;
@@ -1077,6 +1118,7 @@ void JTextWriter::append_entry(const JTextEntry& entry)
 
     JTextEntry scratch;
     const JTextEntry& e = resolve_record_id(entry, scratch);
+    count_record_line(e.number, e.fields.size(), fmt.multiline);
 
     if (fmt.multiline) {
         write_lines(format_multiline_record(e.number, e.fields, e.comment, fmt.sep, fmt.bookend,
@@ -1120,6 +1162,7 @@ void JTextWriter::append_entries(std::span<const JTextEntry> entries)
         for (std::size_t n = 0; n < entries.size(); ++n) {
             if (!keep(n)) continue;
             const JTextEntry& e = resolve_record_id(entries[n], scratch);
+            count_record_line(e.number, e.fields.size(), formats[n].multiline);
             if (formats[n].multiline) {
                 write_lines(format_multiline_record(e.number, e.fields, e.comment, formats[n].sep,
                                                     formats[n].bookend, line_pad_width_));
@@ -1134,6 +1177,7 @@ void JTextWriter::append_entries(std::span<const JTextEntry> entries)
         for (std::size_t n = 0; n < entries.size(); ++n) {
             if (!keep(n)) continue;
             const JTextEntry& e = resolve_record_id(entries[n], scratch);
+            count_record_line(e.number, e.fields.size(), formats[n].multiline);
             if (formats[n].multiline) {
                 write_lines(format_multiline_record(e.number, e.fields, e.comment, formats[n].sep,
                                                     formats[n].bookend, line_pad_width_));
@@ -1172,6 +1216,7 @@ void JTextWriter::append_row(std::size_t number,
         return;
     }
     if (number == 1) note_record_id(fields[0]);
+    count_record_line(number, fields.size(), fmt.multiline);
 
     if (fmt.multiline) {
         write_lines(format_multiline_record(number, fields, comment, fmt.sep, fmt.bookend, line_pad_width_));
@@ -1197,7 +1242,32 @@ void JTextWriter::end_record()
 {
     ensure_not_finalized();
     if (!out_) return;
-    write_lines("\n");
+    if (record_lines_ > 0 && !(record_lines_ == 1 && record_is_row_)) write_lines("\n");
+    record_lines_ = 0;
+    record_is_row_ = false;
+}
+
+void JTextWriter::write_comment_line(std::string_view text)
+{
+    ensure_header();
+    ensure_not_finalized();
+    if (!out_) return;
+    std::string lines;
+    std::size_t start = 0;
+    for (;;) {
+        const auto end = text.find('\n', start);
+        const auto one = text.substr(start, end == std::string_view::npos ? end : end - start);
+        lines += one.empty() ? std::string{"//\n"} : std::format("// {}\n", one);
+        if (end == std::string_view::npos) break;
+        start = end + 1;
+    }
+    write_lines(std::move(lines));
+}
+
+void JTextWriter::count_record_line(std::size_t number, std::size_t field_count, bool multiline)
+{
+    record_is_row_ = record_lines_ == 0 && number == 1 && field_count > 1 && !multiline;
+    record_lines_ += multiline ? 2 : 1;
 }
 
 void JTextWriter::write_lines(std::string text)

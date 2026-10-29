@@ -84,7 +84,7 @@ static int DumpJText(const String& file)
 	Cout() << Row(names) << "\n";
 	for(int r = 0; r < min(3, s.rows.GetCount()); r++) {
 		Vector<String> v(s.rows[r], 1);
-		v.SetCount(w, JNull());
+		v.SetCount(w, String());
 		Cout() << Row(v) << "\n";
 	}
 	Cout() << "# section=" << s.name << " sections=" << d.sections.GetCount() << "\n";
@@ -1620,7 +1620,7 @@ void Runner::ShowSection()
 	for(const auto& row : s.rows) {
 		Vector<Value> v;
 		for(int c = 0; c < w; c++)
-			v.Add(c < row.GetCount() ? row[c] : JNull());
+			v.Add(c < row.GetCount() ? row[c] : String());
 		table.Add(v);
 	}
 }

@@ -23,11 +23,11 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/jText
 
-1. #|# 3|canonical_commit|ec48e226c295
+1. #|# 3|canonical_commit|8e01c7b21b31
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v001.016
+1. #|# 5|canonical_version|v001.020
 
 1. #|# 6|transform|none
 
@@ -58,33 +58,37 @@
 
 
 === Data ===
-1. #|# 1|jText.api.inc|jText.api.inc|96223f16e9af1e80dc6975b644f21258b7c861546b74e66debaf8db73ff68735|96223f16e9af1e80dc6975b644f21258b7c861546b74e66debaf8db73ff68735
+1. #|# 1|jText.api.inc|jText.api.inc|286fda177d2c6d131381cbcfb0184f901607d5f4664ea3186ad3f292ff95cd50|286fda177d2c6d131381cbcfb0184f901607d5f4664ea3186ad3f292ff95cd50
 
 1. #|# 2|jText.cpp|jText.cpp|3e372209d20eb7fc59cede93e7a72c20b1d0b3117179560dae7c146fcadd78e2|3e372209d20eb7fc59cede93e7a72c20b1d0b3117179560dae7c146fcadd78e2
 
 1. #|# 3|jText.h|jText.h|23d46b3021b64b2dc39ca1fdcde7125ee5a469ce4c2602a103859525f5b04a6a|23d46b3021b64b2dc39ca1fdcde7125ee5a469ce4c2602a103859525f5b04a6a
 
-1. #|# 4|jText.impl.inc|jText.impl.inc|0e40109869d4487fcea48bd05255c6c04c44eb02e0b10e272db1109c4d827fd3|0e40109869d4487fcea48bd05255c6c04c44eb02e0b10e272db1109c4d827fd3
+1. #|# 4|jText.impl.inc|jText.impl.inc|8b6811af102d1fc34c4440597f20126642061285e1728ef76ae9e7447bd56845|8b6811af102d1fc34c4440597f20126642061285e1728ef76ae9e7447bd56845
 
-1. #|# 5|src/parser/close.cpp|src/parser/close.cpp|c4774b3d137ad8002d179b4fe3873d46b87bd586c688aec9d691f86121337cfd|c4774b3d137ad8002d179b4fe3873d46b87bd586c688aec9d691f86121337cfd
+1. #|# 5|src/export/xml_export.cpp|src/export/xml_export.cpp|cb4310c54314adac53a3ad4077b3b12d4ff8841d553c0a8074b7c0df623470f7|cb4310c54314adac53a3ad4077b3b12d4ff8841d553c0a8074b7c0df623470f7
 
-1. #|# 6|src/parser/close.hpp|src/parser/close.hpp|4c7b26baf1477e4672019a2e15d633b381a8e937179472e01ec46b9ef306259e|4c7b26baf1477e4672019a2e15d633b381a8e937179472e01ec46b9ef306259e
+1. #|# 6|src/export/xml_export.hpp|src/export/xml_export.hpp|16cb0f2f81e56ca41746b46e3b04c793dc6e9d10945c96e46b191c6e21c8fda3|16cb0f2f81e56ca41746b46e3b04c793dc6e9d10945c96e46b191c6e21c8fda3
 
-1. #|# 7|src/parser/line.cpp|src/parser/line.cpp|d2bc1ecaebd7ef28a85521557dd7465eb66e97b85f715606a9aeeabf1903199f|d2bc1ecaebd7ef28a85521557dd7465eb66e97b85f715606a9aeeabf1903199f
+1. #|# 7|src/parser/close.cpp|src/parser/close.cpp|c4774b3d137ad8002d179b4fe3873d46b87bd586c688aec9d691f86121337cfd|c4774b3d137ad8002d179b4fe3873d46b87bd586c688aec9d691f86121337cfd
 
-1. #|# 8|src/parser/line.hpp|src/parser/line.hpp|265a2be65b4f5124c98ea825e674aa0300787ae79fdb00494fd56a4671573227|265a2be65b4f5124c98ea825e674aa0300787ae79fdb00494fd56a4671573227
+1. #|# 8|src/parser/close.hpp|src/parser/close.hpp|4c7b26baf1477e4672019a2e15d633b381a8e937179472e01ec46b9ef306259e|4c7b26baf1477e4672019a2e15d633b381a8e937179472e01ec46b9ef306259e
 
-1. #|# 9|src/parser/section.cpp|src/parser/section.cpp|9326aacbfd64926effa9d99b4505d1b3e065e761e9e1cb5d41e81d1eace67169|9326aacbfd64926effa9d99b4505d1b3e065e761e9e1cb5d41e81d1eace67169
+1. #|# 9|src/parser/line.cpp|src/parser/line.cpp|9fbbf4e1f07a497aa1b9dc0cd0d5aabed118920619470f6153b718c2f08b68a2|9fbbf4e1f07a497aa1b9dc0cd0d5aabed118920619470f6153b718c2f08b68a2
 
-1. #|# 10|src/parser/section.hpp|src/parser/section.hpp|b24a7f7941018a9d682f6906bbad739eb8687edd30711e70fa0c11ea57577f80|b24a7f7941018a9d682f6906bbad739eb8687edd30711e70fa0c11ea57577f80
+1. #|# 10|src/parser/line.hpp|src/parser/line.hpp|290197ccb1091457d142d32a3abd6780713c1777d7f3e1f0d310fcf380bcf147|290197ccb1091457d142d32a3abd6780713c1777d7f3e1f0d310fcf380bcf147
 
-1. #|# 11|src/parser/unicode_ps_table.hpp|src/parser/unicode_ps_table.hpp|d6f16f5a1fde668861fd3acee4d660b02e9858dccdc0a95de323070299fad4d9|d6f16f5a1fde668861fd3acee4d660b02e9858dccdc0a95de323070299fad4d9
+1. #|# 11|src/parser/section.cpp|src/parser/section.cpp|163fcb9e2e4ebd60aa4bad1a58e333ec0e4a695c1fe1f3957059712b0864376d|163fcb9e2e4ebd60aa4bad1a58e333ec0e4a695c1fe1f3957059712b0864376d
 
-1. #|# 12|src/parser/utf8.hpp|src/parser/utf8.hpp|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea
+1. #|# 12|src/parser/section.hpp|src/parser/section.hpp|d42c2af1e82cf6b47453e4c5bf156f6d17648644ae1603c5a0bce0a726e4473a|d42c2af1e82cf6b47453e4c5bf156f6d17648644ae1603c5a0bce0a726e4473a
 
-1. #|# 13|src/validator/validator.cpp|src/validator/validator.cpp|5419a5e6b9969eec56d15d86e7770ecd2043289a233b53c73ddc5eb2d4a89028|5419a5e6b9969eec56d15d86e7770ecd2043289a233b53c73ddc5eb2d4a89028
+1. #|# 13|src/parser/unicode_ps_table.hpp|src/parser/unicode_ps_table.hpp|d6f16f5a1fde668861fd3acee4d660b02e9858dccdc0a95de323070299fad4d9|d6f16f5a1fde668861fd3acee4d660b02e9858dccdc0a95de323070299fad4d9
 
-1. #|# 14|src/validator/validator.hpp|src/validator/validator.hpp|15582e6964d5c9ae347d1c59d9162cb3b87048e83f624048411156b3438b3c0d|15582e6964d5c9ae347d1c59d9162cb3b87048e83f624048411156b3438b3c0d
+1. #|# 14|src/parser/utf8.hpp|src/parser/utf8.hpp|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea
+
+1. #|# 15|src/validator/validator.cpp|src/validator/validator.cpp|533c396d2d20678fdfa0961ffc732c8541f24b24714dc551ff94763be466ac9b|533c396d2d20678fdfa0961ffc732c8541f24b24714dc551ff94763be466ac9b
+
+1. #|# 16|src/validator/validator.hpp|src/validator/validator.hpp|075807cbaae18d34e757057b1bd452ad2175e03628cc30a2120945ee0d3c7149|075807cbaae18d34e757057b1bd452ad2175e03628cc30a2120945ee0d3c7149
 
 === End Data ===
 === End Section ===

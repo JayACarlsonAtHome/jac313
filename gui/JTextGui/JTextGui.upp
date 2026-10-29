@@ -17,7 +17,8 @@ file
 	jText/src/parser/line.cpp,
 	jText/src/parser/section.cpp,
 	jText/src/parser/close.cpp,
-	jText/src/validator/validator.cpp;
+	jText/src/validator/validator.cpp,
+	jText/src/export/xml_export.cpp;
 
 options
 	"-Iinclude -IjText -IjText/src -I/usr/pgsql-18/include -DJTEXT_HAS_POSTGRESQL";

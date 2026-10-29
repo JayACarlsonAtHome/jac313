@@ -29,8 +29,10 @@ std::string lower(std::string s) {
     return s;
 }
 
+// {NULL}, or the v0.7 marker U+001F the library reads as it (SPEC 2.6.1): a setting
+// with no value. NULL and \N are text.
 bool is_null(const std::string& v) {
-    return v == "\x1f" || v == "\\x1F" || v == "\\x1f" || v == "\\N" || v == "NULL";
+    return v == jtext::kNullValue || v == "\x1f";
 }
 
 } // namespace
@@ -70,9 +72,9 @@ bool load_connections(const std::string& path, std::vector<SavedConnection>& row
     for (const auto& sec : file->sections) {
         std::vector<std::string> fields;
         for (const auto& fl : sec.field_lines) {
-            if (fl.number == 0 || fl.hierarchy.empty()) continue;
+            if (fl.number == 0 || fl.values.empty()) continue;
             if (fields.size() < fl.number) fields.resize(fl.number);
-            fields[fl.number - 1] = lower(trim(fl.hierarchy[0]));
+            fields[fl.number - 1] = lower(trim(fl.values[0]));
         }
         auto col = [&](const char* name) {
             for (std::size_t i = 0; i < fields.size(); ++i) if (fields[i] == name) return static_cast<int>(i);
@@ -85,14 +87,16 @@ bool load_connections(const std::string& path, std::vector<SavedConnection>& row
         std::vector<std::vector<std::string>> recs;
         std::vector<std::string> rec;
         for (const auto& pl : sec.data_lines) {
-            if (pl.number == 0) {   // a blank line ends the record
+            // A blank line ends the record, and a line for field 1 starts the next: rows
+            // that each hold a whole record follow one another directly (SPEC 2.6).
+            if (pl.number == 0 || (pl.number == 1 && !rec.empty())) {
                 if (!rec.empty()) recs.push_back(std::move(rec));
                 rec.clear();
-                continue;
+                if (pl.number == 0) continue;
             }
             const std::size_t first = pl.number - 1;
-            if (rec.size() < first + pl.hierarchy.size()) rec.resize(first + pl.hierarchy.size(), "\x1f");
-            for (std::size_t k = 0; k < pl.hierarchy.size(); ++k) rec[first + k] = pl.hierarchy[k];
+            if (rec.size() < first + pl.values.size()) rec.resize(first + pl.values.size(), "\x1f");
+            for (std::size_t k = 0; k < pl.values.size(); ++k) rec[first + k] = pl.values[k];
         }
         if (!rec.empty()) recs.push_back(std::move(rec));
 

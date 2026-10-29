@@ -48,7 +48,7 @@ std::string field_value(const jText::v001::JTextEntry& e, std::size_t i) {
 }
 
 bool null_token(const std::optional<std::string>& v) {
-    return v && (*v == "NULL" || *v == "\\N" || *v == "\x1F");
+    return v && *v == jtext::kNullValue;
 }
 
 std::string joined_value(const jText::v001::JTextEntry& e) {
@@ -84,7 +84,7 @@ void assign_one_field(Record& cur, const jText::v001::JTextEntry& e, const std::
         if (!e.fields.empty() && e.fields[0]) cur.fields[i] = *e.fields[0];
         return;
     }
-    const bool missing = e.is_null || (e.fields.size() == 1 && null_token(e.fields[0]));
+    const bool missing = e.fields.size() == 1 && null_token(e.fields[0]);
     if (missing) {
         cur.is_null[i] = true;
         cur.fields[i].clear();
@@ -143,11 +143,11 @@ void collect_field_names(std::string_view path, std::string_view section,
     for (const auto& sec : parsed->sections) {
         if (sec.name != section) continue;
         for (const auto& fl : sec.field_lines) {
-            if (fl.hierarchy.empty() || fl.hierarchy[0].empty() || names.size() >= kMaxFields) continue;
-            names.push_back(fl.hierarchy[0]);
+            if (fl.values.empty() || fl.values[0].empty() || names.size() >= kMaxFields) continue;
+            names.push_back(fl.values[0]);
             if (!defs) continue;
             std::string whole;
-            for (std::size_t i = 0; i < fl.hierarchy.size(); ++i) whole += (i ? "/" : "") + fl.hierarchy[i];
+            for (std::size_t i = 0; i < fl.values.size(); ++i) whole += (i ? "/" : "") + fl.values[i];
             defs->push_back(parse_field_def(whole));   // same order as names
         }
         return;
@@ -305,9 +305,12 @@ void write_data_rows(std::ostream& out, const std::vector<Record>& rows) {
         const bool multiline = std::any_of(row.fields.begin(), row.fields.end(),
             [](const std::string& v) { return v.find('\n') != std::string::npos; });
         if (has_field_markers(row) || hole || marker_is_raw(record_mark) || multiline) {
+            // A Null field that has its line is written {NULL}; one without a line stays
+            // out (a missing line is an empty value, SPEC 2.6.1).
             for (std::size_t f = 0; f < row.size(); ++f) {
-                if (row.is_null[f]) continue;
-                write_marked_value(out, f + 1, pad, field_marker(row, f), row.fields[f]);
+                if (row.is_null[f] && !row.has_line[f]) continue;
+                write_marked_value(out, f + 1, pad, field_marker(row, f),
+                                   row.is_null[f] ? std::string{jtext::kNullValue} : row.fields[f]);
             }
         } else {
             const std::string sep = marker_separator(record_mark);
@@ -460,7 +463,7 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path, st
         // record, when the next line is the field after its last value, or when it
         // continues a record after a multiline field. Otherwise the values are the
         // levels of one field ("Hand Tools/Hammers/Claw").
-        const bool multi = e.fields.size() > 1 && !e.is_null && !marker_is_raw(marker);
+        const bool multi = e.fields.size() > 1 && !marker_is_raw(marker);
         const bool starts_new = !open || static_cast<int>(e.number) <= last_num;
         const bool compact = multi &&
             ((starts_new && !next_continues) ||

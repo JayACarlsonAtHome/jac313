@@ -174,7 +174,7 @@ out/Jac313Runner --dump-connections FILE        # what Save would write for FILE
 Samples to check against are in `Jac313Runner/samples/`:
 
 * `standard_dropdown.jtext`: a compact sentinel row, then per-field rows.
-* `compact_rows.jtext`: compact rows, a multiline template, and both forms of NULL (the 0x1F byte and the literal `\x1F`).
+* `compact_rows.jtext`: compact rows, a multiline template, and both forms of "no value" (`{NULL}`, and the v0.7 0x1F byte, read as `{NULL}`).
 * `per_field.jtext`: per-field rows only.
 * `unresolved_include.jtext`: Fields come from an include that does not resolve, so the columns are named 1..N.
 * `runner_last.json`: a sample summary for testing Screen 3.
@@ -266,6 +266,7 @@ still shows, with the library's version warning as a note. On top of the parser,
 
 * names column N from Fields line `N. #/# name/Type/...`. A `Fields` include is resolved
   relative to the file's folder, and when it cannot be found the columns are named 1..N.
-* builds records from the Data block: a blank line ends a record, and a line's number is the
+* builds records from the Data block: a blank line ends a record, a line for field 1 starts
+  one (rows that each hold a record follow one another), and a line's number is the
   field position (`1. #|# a|b|c` fills columns 1-3, `N. #?# value` fills column N).
-* The Unit Separator (the 0x1F byte, or the literal `\x1F`) is NULL and shows as `∅`.
+* `{NULL}` (or the v0.7 0x1F byte, read as `{NULL}`) is the author's "no value" and shows as `∅`. A field with no line is empty; `NULL` and `\x1F` typed as text are text (SPEC 2.6.1).
