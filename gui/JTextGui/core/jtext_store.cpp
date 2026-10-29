@@ -347,6 +347,9 @@ bool has_later_comments(const Record& row) {
     return later(row.line_comments) || later(row.comment_lines);
 }
 
+/// The data block's records (SPEC 2.6): a compact row is one line and the next record's
+/// line for field 1 starts a new record, so compact rows stand together with no blank line
+/// between them; a vertical record (more than one line) ends with a blank line.
 void write_data_rows(std::ostream& out, const std::vector<Record>& rows,
                      const std::vector<std::string>& end_comments) {
     // Line numbers are padded to the widest record (at least kDefaultFields wide, so a
@@ -376,6 +379,7 @@ void write_data_rows(std::ostream& out, const std::vector<Record>& rows,
             has_later_comments(row)) {
             // A Null field that has its line is written {NULL}; one without a line stays
             // out (a missing line is an empty value, SPEC 2.6.1).
+            std::size_t lines = 0;
             for (std::size_t f = 0; f < row.size(); ++f) {
                 if (row.is_null[f] && !row.has_line[f]) {
                     comments.skip(f);
@@ -386,8 +390,10 @@ void write_data_rows(std::ostream& out, const std::vector<Record>& rows,
                 const std::string comment = comments.before_line(out, f, multiline_value || !marker_is_raw(mark));
                 write_marked_value(out, f + 1, pad, mark,
                                    row.is_null[f] ? std::string{jtext::kNullValue} : row.fields[f], comment);
+                ++lines;
             }
             comments.finish(out, row.size());
+            if (lines > 1) out << '\n';
         } else {
             const std::string comment = comments.before_line(out, 0, true);
             const std::string sep = marker_separator(record_mark);
@@ -401,7 +407,6 @@ void write_data_rows(std::ostream& out, const std::vector<Record>& rows,
             out << '\n';
             comments.finish(out, last);
         }
-        out << '\n';
     }
     write_comment_lines(out, end_comments);
 }
