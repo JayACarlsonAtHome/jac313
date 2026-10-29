@@ -105,6 +105,9 @@ struct Record {
     /// that line, and the comment lines standing before it. Saving puts each back.
     std::map<std::size_t, std::string> line_comments;
     std::map<std::size_t, std::vector<std::string>> comment_lines;
+    /// The file had this record vertical (more than one line, SPEC 2.6): it is saved a
+    /// line per field again. Otherwise it is saved as a compact row when it can be.
+    bool vertical = false;
 
     /// Fields every list covers. (A caller may brace-initialize fields alone, e.g.
     /// Record{"|#", {"1", "a"}}; the shortest list is what may be indexed.)

@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/src/core
 
-1. #|# 3|canonical_commit|bbaa3aaa76cf
+1. #|# 3|canonical_commit|e7d5fa2f9238
 
 1. #|# 4|canonical_dirty|No
 
@@ -66,7 +66,7 @@
 
 1. #|# 4|db_stores.hpp|db_stores.hpp|5749f39037f48fc7d7d23aafc977aac961abb7991719f249f75ab27c6df7e4c3|5749f39037f48fc7d7d23aafc977aac961abb7991719f249f75ab27c6df7e4c3
 
-1. #|# 5|jtext_store.cpp|jtext_store.cpp|28e03c85f2cbf6fbbe1b27bc41b2d3ec5986264b233fd50e3bee7a993b24b551|28e03c85f2cbf6fbbe1b27bc41b2d3ec5986264b233fd50e3bee7a993b24b551
+1. #|# 5|jtext_store.cpp|jtext_store.cpp|5e768cb588106d2de5b2bcf2dd00ee5b42e517459c23de01b6274c4440eaa011|5e768cb588106d2de5b2bcf2dd00ee5b42e517459c23de01b6274c4440eaa011
 
 1. #|# 6|mariadb_none.cpp|mariadb_none.cpp|67b4ff32678799d1bd88d3d1d70e246594a268eea17c47b66955e03a9ff06ee8|67b4ff32678799d1bd88d3d1d70e246594a268eea17c47b66955e03a9ff06ee8
 

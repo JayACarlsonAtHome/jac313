@@ -349,7 +349,8 @@ bool has_later_comments(const Record& row) {
 
 /// The data block's records (SPEC 2.6): a compact row is one line and the next record's
 /// line for field 1 starts a new record, so compact rows stand together with no blank line
-/// between them; a vertical record (more than one line) ends with a blank line.
+/// between them; a vertical record (more than one line) ends with a blank line. A record the
+/// file had vertical stays vertical; a new one is a compact row when it can be.
 void write_data_rows(std::ostream& out, const std::vector<Record>& rows,
                      const std::vector<std::string>& end_comments) {
     // Line numbers are padded to the widest record (at least kDefaultFields wide, so a
@@ -375,7 +376,7 @@ void write_data_rows(std::ostream& out, const std::vector<Record>& rows,
         // then each present field is its own line.
         const bool multiline = std::any_of(row.fields.begin(), row.fields.end(),
             [](const std::string& v) { return v.find('\n') != std::string::npos; });
-        if (has_field_markers(row) || hole || marker_is_raw(record_mark) || multiline ||
+        if (row.vertical || has_field_markers(row) || hole || marker_is_raw(record_mark) || multiline ||
             has_later_comments(row)) {
             // A Null field that has its line is written {NULL}; one without a line stays
             // out (a missing line is an empty value, SPEC 2.6.1).
@@ -520,6 +521,7 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path, st
     bool open = false;
     int last_num = 0;
     bool after_multiline = false;   // the last line was a multiline value
+    std::size_t lines = 0;          // the open record's lines so far
     auto flush = [&] {
         if (!open) return;
         cur.original_key = cur.is_null[0] ? std::string{} : cur.fields[0];
@@ -528,6 +530,7 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path, st
         open = false;
         last_num = 0;
         after_multiline = false;
+        lines = 0;
     };
 
     // Comment lines stand before entries[before]: each goes to the record and field of the
@@ -583,6 +586,7 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path, st
             }
             assign_compact(cur, e);
             keep_comments(e);
+            cur.vertical = ++lines > 1;
             last_num = static_cast<int>(e.number + e.fields.size() - 1);
             after_multiline = false;
             continue;
@@ -595,6 +599,7 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path, st
         }
         assign_one_field(cur, e, marker);
         keep_comments(e);
+        cur.vertical = ++lines > 1;
         last_num = static_cast<int>(e.number);
         after_multiline = is_multiline_entry(e);
     }
