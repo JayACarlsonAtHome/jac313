@@ -27,25 +27,29 @@ namespace jac313::results {
 using Sqlite = jac313::Qlite::v001::Sqlite;
 
 // Reusable scalar-query helpers live in Qlite (canonical, shared); surface them here for results code.
-using jac313::Qlite::v001::get_one_long;
-using jac313::Qlite::v001::get_one_string;
-using jac313::Qlite::v001::get_one_double;
-using jac313::Qlite::v001::get_one_string_or;
+using jac313::Qlite::v001::get_top_one_long;
+using jac313::Qlite::v001::get_top_one_string;
+using jac313::Qlite::v001::get_top_one_double;
+using jac313::Qlite::v001::get_top_one_string_or;
+using jac313::Qlite::v001::get_top_one;       // get_top_one<T>(db, sql, [debug,] binds...): the top row's first value
+using jac313::Qlite::v001::get_top_one_or;
+using jac313::Qlite::v001::get_top_one_bool;
+using jac313::Qlite::v001::get_top_one_bool_or;
 
-// Debug variants: get_one_xxx(db, sql, true, binds...) or the _debug shorthands
+// Debug variants: get_top_one_xxx(db, sql, true, binds...) or the _debug shorthands
 // When debug=true they print [SQL] ... and result to stderr.
-using jac313::Qlite::v001::get_one_long_debug;
-using jac313::Qlite::v001::get_one_string_debug;
-using jac313::Qlite::v001::get_one_double_debug;
-using jac313::Qlite::v001::get_one_long_or_debug;
-using jac313::Qlite::v001::get_one_string_or_debug;
+using jac313::Qlite::v001::get_top_one_long_debug;
+using jac313::Qlite::v001::get_top_one_string_debug;
+using jac313::Qlite::v001::get_top_one_double_debug;
+using jac313::Qlite::v001::get_top_one_long_or_debug;
+using jac313::Qlite::v001::get_top_one_string_or_debug;
 
 // Convenience helpers for testControl table (the central store for per-test limits)
 inline int get_test_timeout(Sqlite& db, const std::string& name, bool debug = false) {
-    return static_cast<int>(get_one_long(db, "SELECT timeout_sec FROM testControl WHERE name=?", debug, name));
+    return static_cast<int>(get_top_one_long(db, "SELECT timeout_sec FROM testControl WHERE name=?", debug, name));
 }
 inline int get_test_memory_mb(Sqlite& db, const std::string& name, bool debug = false) {
-    return static_cast<int>(get_one_long(db, "SELECT memory_mb FROM testControl WHERE name=?", debug, name));
+    return static_cast<int>(get_top_one_long(db, "SELECT memory_mb FROM testControl WHERE name=?", debug, name));
 }
 
 // The one shared results DB — full ABSOLUTE path, resolved ONCE at startup, then read everywhere by
@@ -815,7 +819,7 @@ inline void upsert_package_version(Sqlite& db, std::int64_t gid, const std::stri
 // Read this machine+world's recorded version for a package; returns fallback if not yet pinned.
 inline std::string package_version_get(Sqlite& db, std::int64_t gid, const std::string& version,
                                        const std::string& package, const std::string& fallback = "") {
-    return get_one_string_or(db,
+    return get_top_one_string_or(db,
         "SELECT pkg_version FROM package_version WHERE group_id=? AND version=? AND package=? LIMIT 1",
         fallback, gid, version, package);
 }

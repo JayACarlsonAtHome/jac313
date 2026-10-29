@@ -7,7 +7,7 @@
  * Postgres.body.hpp (an include-free fragment).
  */
 
-#include "jac313/Qlite/v001/Database.hpp"   // the concept, Error, Transaction, get_one_*
+#include "jac313/Qlite/v001/Database.hpp"   // the concept, Error, Transaction, get_top_one_*
 
 #include <libpq-fe.h>
 

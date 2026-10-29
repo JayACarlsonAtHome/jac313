@@ -117,8 +117,8 @@ private:
     }
 
     bool comments_exist(const std::string& table) {
-        return Qlite::v001::get_one_long(*db_, "SELECT CASE WHEN to_regclass($1) IS NULL THEN 0 ELSE 1 END",
-                                         table) == 1;
+        return Qlite::v001::get_top_one_long(*db_, "SELECT CASE WHEN to_regclass($1) IS NULL THEN 0 ELSE 1 END",
+                                             table) == 1;
     }
 
     std::optional<Postgres> db_;

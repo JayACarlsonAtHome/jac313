@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/src/core
 
-1. #|# 3|canonical_commit|099616049c3a
+1. #|# 3|canonical_commit|efcd68ac6656
 
 1. #|# 4|canonical_dirty|No
 
@@ -74,7 +74,7 @@
 
 1. #|# 8|postgres_none.cpp|postgres_none.cpp|14d7bf34b1467f4b07b55c246c02623b881264064ab141b0bc12973cbe4c5dae|14d7bf34b1467f4b07b55c246c02623b881264064ab141b0bc12973cbe4c5dae
 
-1. #|# 9|postgres_store.cpp|postgres_store.cpp|22b2dfcf0ccf23fed8ac50a6617c41e7a2a588f1cbcc0ba9167d7aa5b52c3a18|22b2dfcf0ccf23fed8ac50a6617c41e7a2a588f1cbcc0ba9167d7aa5b52c3a18
+1. #|# 9|postgres_store.cpp|postgres_store.cpp|f74d6710d4d700125e9f9c618d513fcb2f39614e2893c841228cf68c3524a0d5|f74d6710d4d700125e9f9c618d513fcb2f39614e2893c841228cf68c3524a0d5
 
 1. #|# 10|qlite_store.hpp|qlite_store.hpp|66c1f808b7125d25f5d5d80c9af875179a5f0747f4ce716bebd8cf8f211b0313|66c1f808b7125d25f5d5d80c9af875179a5f0747f4ce716bebd8cf8f211b0313
 
