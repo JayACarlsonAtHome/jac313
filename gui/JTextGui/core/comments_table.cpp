@@ -93,9 +93,9 @@ void place_comment_rows(std::vector<Record>& rows, std::vector<CommentRow> comme
 }
 
 std::expected<std::vector<CommentChange>, std::string> comment_changes(const TableSession& session) {
+    JTEXT_PRE(session.changes.in_range(session.rows.size()));
     std::vector<CommentChange> out;
     for (std::size_t idx : session.changes.dirty_rows) {
-        if (idx >= session.rows.size()) continue;
         const Record& rec = session.rows[idx];
         CommentChange change;
         if (auto before = parse_record_id(rec.original_key)) change.replace_ids.push_back(*before);

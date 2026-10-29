@@ -35,6 +35,9 @@ library
 link
 	"-L/usr/pgsql-18/lib";
 
+link(GCC)
+	-fcontracts;
+
 mainconfig
 	"" = "GUI WAYLAND";
 

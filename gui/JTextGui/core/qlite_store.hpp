@@ -129,6 +129,7 @@ void read_declarations(D& db, const Dialect& d, const std::string& table, DbQuer
 template<Qlite::v001::Database D, class Exists>
 std::expected<std::size_t, std::string> save(D& db, const Dialect& d, TableSession& session,
                                              Exists comments_exist) {
+    JTEXT_PRE(session.changes.in_range(session.rows.size()));
     auto table = quote_table_ref(session.table, d.kind);
     if (!table) return std::unexpected(table.error());
     auto comments = quote_table_ref(comments_table_of(session.table), d.kind);
@@ -179,7 +180,6 @@ std::expected<std::size_t, std::string> save(D& db, const Dialect& d, TableSessi
                     run(db, d, add, {std::to_string(p + 1), std::to_string(level + 1), session.declarations[p][level]});
         }
         for (std::size_t idx : session.changes.dirty_rows) {
-            if (idx >= session.rows.size()) continue;
             const Record& rec = session.rows[idx];
             std::vector<std::optional<std::string>> values;
             for (std::size_t c = 0; c < width; ++c)
@@ -219,10 +219,10 @@ std::expected<std::size_t, std::string> save(D& db, const Dialect& d, TableSessi
         return std::unexpected(e.what());
     }
 
-    for (std::size_t idx : session.changes.dirty_rows)
-        if (idx < session.rows.size())
-            session.rows[idx].original_key = session.rows[idx].is_null[0] ? std::string{}
-                                                                           : session.rows[idx].fields[0];
+    for (std::size_t idx : session.changes.dirty_rows) {
+        Record& rec = session.rows[idx];
+        rec.original_key = field_is_null(rec, 0) ? std::string{} : field_text(rec, 0);
+    }
     session.changes.clear();
     return written;
 }

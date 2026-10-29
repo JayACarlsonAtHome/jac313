@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "parser/utf8.hpp"
+#include "contracts.hpp"   // JTEXT_PRE/POST/ASSERT, from the jText snapshot
 
 namespace jtext_gui {
 
@@ -123,6 +124,7 @@ struct Record {
         if (is_null.size() < n) is_null.resize(n, true);
         if (has_line.size() < n) has_line.resize(n, false);
         if (field_markers.size() < n) field_markers.resize(n);
+        JTEXT_POST(size() >= n);
     }
 
     /// Every field absent (NULL, no line), as a loader starts a record.

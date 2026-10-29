@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/src/core
 
-1. #|# 3|canonical_commit|95696b886c16
+1. #|# 3|canonical_commit|099616049c3a
 
 1. #|# 4|canonical_dirty|No
 
@@ -58,7 +58,7 @@
 
 
 === Data ===
-1. #|# 1|comments_table.cpp|comments_table.cpp|d571798e54134cef967469ad67bbef9531dc7ad739575c253709ec6aaa514054|d571798e54134cef967469ad67bbef9531dc7ad739575c253709ec6aaa514054
+1. #|# 1|comments_table.cpp|comments_table.cpp|a5b8af54947bf66ffea5944174d2dc465f5d50739605c3c94190a6e47310ddea|a5b8af54947bf66ffea5944174d2dc465f5d50739605c3c94190a6e47310ddea
 
 1. #|# 2|connections_file.cpp|connections_file.cpp|d0f98e8351dc60d165f8fc593419ddbdc539bcc97337bea0be2cf6166a888519|d0f98e8351dc60d165f8fc593419ddbdc539bcc97337bea0be2cf6166a888519
 
@@ -76,7 +76,7 @@
 
 1. #|# 9|postgres_store.cpp|postgres_store.cpp|22b2dfcf0ccf23fed8ac50a6617c41e7a2a588f1cbcc0ba9167d7aa5b52c3a18|22b2dfcf0ccf23fed8ac50a6617c41e7a2a588f1cbcc0ba9167d7aa5b52c3a18
 
-1. #|# 10|qlite_store.hpp|qlite_store.hpp|3a4bd0464775c0f71295d52d137763b250fcc00d0c5c21e6314846ba8272dbaa|3a4bd0464775c0f71295d52d137763b250fcc00d0c5c21e6314846ba8272dbaa
+1. #|# 10|qlite_store.hpp|qlite_store.hpp|66c1f808b7125d25f5d5d80c9af875179a5f0747f4ce716bebd8cf8f211b0313|66c1f808b7125d25f5d5d80c9af875179a5f0747f4ce716bebd8cf8f211b0313
 
 1. #|# 11|session_ops.cpp|session_ops.cpp|acf9429085998403e82efd20c3d1935b7c31e7480544256a02635d59639777be|acf9429085998403e82efd20c3d1935b7c31e7480544256a02635d59639777be
 

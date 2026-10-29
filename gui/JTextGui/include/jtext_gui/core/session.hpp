@@ -71,6 +71,13 @@ struct ChangeSet {
         return dirty_rows.empty() && inserted.empty() && deleted.empty() && !end_comments;
     }
 
+    /// Every index names one of `row_count` rows, and every inserted row is dirty. Rows are
+    /// never removed, so a save may index session.rows with any of them (a contract there).
+    [[nodiscard]] bool in_range(std::size_t row_count) const {
+        const auto below = [&](const std::set<std::size_t>& s) { return s.empty() || *s.rbegin() < row_count; };
+        return below(dirty_rows) && below(inserted) && below(deleted) &&
+               std::ranges::includes(dirty_rows, inserted);
+    }
     void mark_dirty(std::size_t row) { dirty_rows.insert(row); }
     void mark_inserted(std::size_t row) {
         inserted.insert(row);

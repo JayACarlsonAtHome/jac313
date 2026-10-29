@@ -7,3 +7,8 @@ add_test(NAME jac313_jtext_v001_test COMMAND jac313_jtext_v001_test)
 add_executable(jac313_jtext_v001_parser_validator_test parser_validator_test.cpp)
 target_link_libraries(jac313_jtext_v001_parser_validator_test PRIVATE jac313::jText)
 add_test(NAME jac313_jtext_v001_parser_validator_test COMMAND jac313_jtext_v001_parser_validator_test)
+
+# Calling the writer out of order terminates (contracts; ported from the standalone jText repo).
+add_executable(jac313_jtext_v001_contracts_test contracts_test.cpp)
+target_link_libraries(jac313_jtext_v001_contracts_test PRIVATE jac313::jText)
+add_test(NAME jac313_jtext_v001_contracts_test COMMAND jac313_jtext_v001_contracts_test)
