@@ -12,6 +12,7 @@
 #include <iostream>
 #include <set>
 #include <sstream>
+#include <string_view>
 
 namespace fs = std::filesystem;
 
@@ -507,6 +508,29 @@ std::vector<Planned> plan(const Manifest& m, const fs::path& canon, bool from_he
     return out;
 }
 
+// The package version the copied files declare: the "vNNN.NNN" their version() returns (the
+// line version-check treats as authoritative). Empty when no copied file defines one, as with
+// an editor's own sources; the manifest then holds NULL.
+std::string declared_version(const std::vector<Planned>& files) {
+    auto is_version = [](std::string_view v) {
+        return v.size() == 8 && v[0] == 'v' && v[4] == '.' &&
+               std::all_of(v.begin() + 1, v.begin() + 4, [](char c) { return std::isdigit(static_cast<unsigned char>(c)); }) &&
+               std::all_of(v.begin() + 5, v.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)); });
+    };
+    for (const auto& p : files) {
+        std::istringstream in(p.content);
+        for (std::string line; std::getline(in, line);) {
+            if (line.find("version()") == std::string::npos || line.find("return") == std::string::npos) continue;
+            const auto q1 = line.find('"');
+            const auto q2 = q1 == std::string::npos ? q1 : line.find('"', q1 + 1);
+            if (q2 == std::string::npos) continue;
+            const std::string v = line.substr(q1 + 1, q2 - q1 - 1);
+            if (is_version(v)) return v;
+        }
+    }
+    return {};
+}
+
 } // namespace
 
 int run_vendor_sync(int argc, char** argv, int first_arg) {
@@ -520,7 +544,8 @@ int run_vendor_sync(int argc, char** argv, int first_arg) {
             std::cout << "vendor-sync VENDORED.jtext [--write] [--allow-dirty]\n"
                          "  Forward-port canonical into the vendored copy (copy + transform), then write a\n"
                          "  fresh manifest. Dry run unless --write. Refuses a canonical dir with uncommitted\n"
-                         "  changes (PROCESS.md: green and committed first) unless --allow-dirty.\n";
+                         "  changes (PROCESS.md: green and committed first) unless --allow-dirty.\n"
+                         "  canonical_version is the version() the copied files declare (NULL when none does).\n";
             return 0;
         } else manifest_path = a;
     }
@@ -570,6 +595,7 @@ int run_vendor_sync(int argc, char** argv, int first_arg) {
 
     m.source["canonical_commit"] = git(repo, {"rev-parse", "--short=12", "HEAD"});
     m.source["canonical_dirty"] = dirty ? "Yes" : "No";
+    m.source["canonical_version"] = declared_version(files);
     m.source["ported"] = today();
     m.source["baseline"] = "No";
     m.files.clear();
@@ -601,7 +627,8 @@ int run_vendor_baseline(int argc, char** argv, int first_arg) {
             std::cout << "vendor-baseline VENDORED_DIR --repo NAME --canonical DIR_UNDER_PROJECTS [--transform T]\n"
                          "                [--local GLOBS] [--exclude GLOBS] [--version V] [--notes TEXT]\n"
                          "  A starting-line manifest for an existing copy: canonical side = its last COMMIT\n"
-                         "  (so uncommitted canonical work shows as drift), vendored side = the files as they are.\n";
+                         "  (so uncommitted canonical work shows as drift), vendored side = the files as they are.\n"
+                         "  --version defaults to the version() the canonical files declare.\n";
             return 0;
         } else vdir = a;
     }
@@ -620,6 +647,7 @@ int run_vendor_baseline(int argc, char** argv, int first_arg) {
     if (!err.empty()) { std::cerr << "vendor-baseline: " << err << '\n'; return 1; }
     m.source["canonical_commit"] = git(repo, {"rev-parse", "--short=12", "HEAD"});
     m.source["canonical_dirty"] = git(repo, {"status", "--porcelain", "--", canon.string()}).empty() ? "No" : "Yes";
+    if (m.get("canonical_version").empty()) m.source["canonical_version"] = declared_version(files);
     m.source["ported"] = today();
     m.source["baseline"] = "Yes";
     std::vector<std::string> differ, missing;
