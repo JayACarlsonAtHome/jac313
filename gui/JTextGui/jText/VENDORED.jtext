@@ -23,11 +23,11 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/jText
 
-1. #|# 3|canonical_commit|d9f75cf0e7b2
+1. #|# 3|canonical_commit|1947d8d7b77d
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v001.014
+1. #|# 5|canonical_version|v001.015
 
 1. #|# 6|transform|none
 
@@ -39,7 +39,7 @@
 
 1. #|# 10|exclude|
 
-1. #|# 11|notes|jText_GUI's own copy of jText (canonical jText 0e36861 per jText_GUI v001/jText/VENDORED.jtext); not jac313 vNNN/jText, which stays the Store library.
+1. #|# 11|notes|jText_GUI's own copy of jText (canonical jText ab200fc per jText_GUI v001/jText/VENDORED.jtext); not jac313 vNNN/jText, which stays the Store library.
 
 === End Data ===
 === End Section ===
@@ -58,13 +58,13 @@
 
 
 === Data ===
-1. #|# 1|jText.api.inc|jText.api.inc|aef69233bcc3a24f2d2fb1752760a59b0b8b7c9e007269a1d47266aa0f5a326c|aef69233bcc3a24f2d2fb1752760a59b0b8b7c9e007269a1d47266aa0f5a326c
+1. #|# 1|jText.api.inc|jText.api.inc|aefcf1c7b4ba2b247168d730b851492515abfa1060aecdce4264cd8a14bbb9ae|aefcf1c7b4ba2b247168d730b851492515abfa1060aecdce4264cd8a14bbb9ae
 
 1. #|# 2|jText.cpp|jText.cpp|3e372209d20eb7fc59cede93e7a72c20b1d0b3117179560dae7c146fcadd78e2|3e372209d20eb7fc59cede93e7a72c20b1d0b3117179560dae7c146fcadd78e2
 
 1. #|# 3|jText.h|jText.h|23d46b3021b64b2dc39ca1fdcde7125ee5a469ce4c2602a103859525f5b04a6a|23d46b3021b64b2dc39ca1fdcde7125ee5a469ce4c2602a103859525f5b04a6a
 
-1. #|# 4|jText.impl.inc|jText.impl.inc|57da433f23c8f85592ce1e39271d77f6879e3a25b7c08b632ae68123582378c3|57da433f23c8f85592ce1e39271d77f6879e3a25b7c08b632ae68123582378c3
+1. #|# 4|jText.impl.inc|jText.impl.inc|2e0b7817133c2a25e29b8b6f338dffe755ffa190db62cfd58cf704b5a1bb9a51|2e0b7817133c2a25e29b8b6f338dffe755ffa190db62cfd58cf704b5a1bb9a51
 
 1. #|# 5|src/parser/close.cpp|src/parser/close.cpp|c4774b3d137ad8002d179b4fe3873d46b87bd586c688aec9d691f86121337cfd|c4774b3d137ad8002d179b4fe3873d46b87bd586c688aec9d691f86121337cfd
 
