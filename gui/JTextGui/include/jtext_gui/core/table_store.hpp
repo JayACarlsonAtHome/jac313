@@ -34,6 +34,8 @@ struct JTextLoadResult {
     /// What the read warned about but read past, such as a missing or older jText
     /// version (saving upgrades it).
     std::vector<std::string> warnings;
+    /// The comment lines at the end of the section's data (the records keep the others).
+    std::vector<std::string> end_comments;
 };
 
 /// Load with the canonical jText library (jText::v001). Field values stay as written.
@@ -57,16 +59,19 @@ struct JTextLoadResult {
                                                           const std::vector<Record>& rows,
                                                           std::string_view table_label = "records",
                                                           const TableShape* shape = nullptr,
-                                                          bool case_sensitive = true);
+                                                          bool case_sensitive = true,
+                                                          const std::vector<std::string>& end_comments = {});
 
 /// Save one section of an existing file: the file at `source_path` with `section`'s data
 /// replaced by `rows`, written to `out_path` (the same path saves in place). Every other
 /// line of the file stays as it was: its header, templates, Fields blocks and the other
-/// sections (a dev configuration is not touched by saving test).
+/// sections (a dev configuration is not touched by saving test). Each record's comments
+/// go back on their lines, and `end_comments` after the last record.
 [[nodiscard]] std::expected<void, std::string> jtext_save_section(std::string_view source_path,
                                                                   std::string_view out_path,
                                                                   std::string_view section,
-                                                                  const std::vector<Record>& rows);
+                                                                  const std::vector<Record>& rows,
+                                                                  const std::vector<std::string>& end_comments = {});
 
 // ---------------------------------------------------------------------------
 // Database reader/writer — same shape for SQLite, MariaDB, PostgreSQL
@@ -77,6 +82,9 @@ struct DbQueryResult {
     std::vector<std::string> column_names;
     std::vector<ColumnDef> columns;
     std::string key_column;  ///< usually column_names[0]
+    /// The comment lines at the end of the data, from <table>_comments (the records'
+    /// own comments are on the records).
+    std::vector<std::string> end_comments;
 };
 
 /// Attach catalog columns to a pull. An empty catalog becomes TEXT columns
@@ -100,13 +108,15 @@ public:
     }
 
     /// Pull a table slice. `where` is optional raw predicate (v1); prefer empty or simple forms.
-    /// Implementations must reject unsafe table names (identifier check).
+    /// Implementations must reject unsafe table names (identifier check). The records come
+    /// with their comments, from <table>_comments when the table has one (SPEC 4.3).
     virtual std::expected<DbQueryResult, std::string> query(std::string_view table,
                                                             std::string_view where,
                                                             int limit = 500) = 0;
 
-    /// Apply only dirty/inserted rows from session (UPDATE by key, else INSERT).
-    /// Returns number of rows written (update+insert).
+    /// Apply only dirty/inserted rows from session (UPDATE by key, else INSERT), and the
+    /// comments of those rows: each one's rows in <table>_comments are replaced (the table
+    /// is made when a comment is first saved). Returns number of rows written (update+insert).
     virtual std::expected<std::size_t, std::string> save_changes(TableSession& session) = 0;
 };
 

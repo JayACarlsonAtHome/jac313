@@ -904,11 +904,14 @@ struct JTextGui : TopWindow {
 	Label lSection;
 	DropList section;
 	bool fillingSections = false;
-	// One row per line of the record: number, marker, value. Created on demand (at least
-	// kDefaultFields, at most kMaxFields); rows past `visible` are hidden.
+	// One row per line of the record: number, marker, value, the line's comment. Created on
+	// demand (at least kDefaultFields, at most kMaxFields); rows past `visible` are hidden.
+	// The comment is its text alone: the comment character is the marker's, written only
+	// in the file.
 	Array<Label> num;
 	Array<FieldEdit> field;
 	Array<EditString> fieldMark;
+	Array<EditString> fieldComment;
 	LinesView lines;
 	int visible = 0;
 	Vector<int> lineOf;      // row -> field index (0 is the id); all lines, or the Lines list
@@ -1409,6 +1412,7 @@ struct JTextGui : TopWindow {
 					field[i] <<= ShowField(rec, f);
 					String mk = ShowMark(rec, f);
 					fieldMark[i] <<= TrimBoth(mk).IsEmpty() ? DefaultMarker() : mk;
+					fieldComment[i] <<= ShowComment(rec, f);
 				}
 			loading = false;
 			ShowFieldInfo();
@@ -1503,6 +1507,7 @@ struct JTextGui : TopWindow {
 	}
 
 	static constexpr int kRowStep = 30;   // pixels (unzoomed) from one line row to the next
+	static constexpr int kCommentWidth = 220;   // pixels (unzoomed): a line's comment box
 
 	// Create rows up to n (they stay hidden until SetVisibleRows shows them).
 	void EnsureRows(int n) {
@@ -1513,17 +1518,21 @@ struct JTextGui : TopWindow {
 			Label& lb = num.Add();
 			EditString& mk = fieldMark.Add();
 			FieldEdit& fd = field.Add();
+			EditString& cm = fieldComment.Add();
 			fd.WhenNull = [this, i] { SetRowNull(i); };
 			lb.SetText(i == 0 ? String("id") : Format("%3d.", i + 1));
 			lb.SetFont(mono);
 			mk.SetFont(mono);
 			mk.WhenAction = THISBACK(OnEdit);
 			fd.WhenAction = THISBACK(OnEdit);
+			cm.WhenAction = THISBACK(OnEdit);
+			cm.NullText("comment");
 			mk.NoWantFocus();
 			fd.WantFocus();
 			lines.content.Add(lb.LeftPosZ(8, 36).TopPosZ(yy, 22));
 			lines.content.Add(mk.LeftPosZ(48, 84).TopPosZ(yy - 2, 24));
-			lines.content.Add(fd.HSizePosZ(140, 8).TopPosZ(yy - 2, 24));
+			lines.content.Add(fd.HSizePosZ(140, kCommentWidth + 16).TopPosZ(yy - 2, 24));
+			lines.content.Add(cm.RightPosZ(8, kCommentWidth).TopPosZ(yy - 2, 24));
 		}
 	}
 
@@ -1536,6 +1545,7 @@ struct JTextGui : TopWindow {
 			num[i].Show(show);
 			fieldMark[i].Show(show);
 			field[i].Show(show);
+			fieldComment[i].Show(show);
 		}
 		visible = n;
 		lines.SetContentHeight(Zy(6 + n * kRowStep), Zy(kRowStep));
@@ -1560,6 +1570,7 @@ struct JTextGui : TopWindow {
 		loading = true;
 		field[i] <<= kNullShown;
 		fieldMark[i] <<= DefaultMarker();
+		fieldComment[i] <<= String();
 		loading = false;
 		field[i].SetFocus();
 		field[i].SetSelection();
@@ -1697,7 +1708,7 @@ struct JTextGui : TopWindow {
 
 	void OnRowFocus(Ctrl& c) {
 		for (int i = 0; i < visible; i++)
-			if (&c == &field[i] || &c == &fieldMark[i]) {
+			if (&c == &field[i] || &c == &fieldMark[i] || &c == &fieldComment[i]) {
 				focusRow = i;
 				ShowFieldInfo();
 				return;
@@ -1849,6 +1860,7 @@ struct JTextGui : TopWindow {
 		String def = DefaultMarker();
 		for (int i = 0; i < visible && i < lineOf.GetCount(); i++) {
 			const auto fi = (std::size_t)lineOf[i];   // the field this row edits
+			session.set_line_comment(row, fi, Std(TrimBoth(Field(fieldComment[i]))));
 			if (fi == 0) {
 				ApplyRecordId(row, def);
 				continue;
@@ -1876,6 +1888,12 @@ struct JTextGui : TopWindow {
 		}
 	}
 
+	// The comment on the line that starts at field f ("" when it has none).
+	static String ShowComment(const jtext_gui::Record& rec, int f) {
+		const auto it = rec.line_comments.find((std::size_t)f);
+		return it == rec.line_comments.end() ? String() : S(it->second);
+	}
+
 	void LoadRow(int index) {
 		if (index < 0 || index >= (int)session.rows.size()) return;
 		loading = true;
@@ -1893,6 +1911,7 @@ struct JTextGui : TopWindow {
 			if (TrimBoth(mk).IsEmpty())
 				mk = def;
 			fieldMark[i] <<= mk;
+			fieldComment[i] <<= ShowComment(rec, f);
 			SetRowLabel(i);
 		}
 		loaded = index;
@@ -2186,7 +2205,7 @@ struct JTextGui : TopWindow {
 			const jtext_gui::TableShape* use = shape.columns.empty() ? nullptr : &shape;
 			auto r = jtext_gui::jtext_save(out, session.rows,
 			                               shape.table.empty() ? "records" : shape.table, use,
-			                               session.case_sensitive);
+			                               session.case_sensitive, session.end_comments);
 			if (!r) Tell("Export failed:\n" + S(r.error()));
 			else Status("Exported to " + path +
 			            (use ? " with templates from the table." : ".") +

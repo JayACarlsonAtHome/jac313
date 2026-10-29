@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <format>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -100,6 +101,10 @@ struct Record {
     std::vector<std::string> field_markers = std::vector<std::string>(kDefaultFields);
     /// Original primary-key value at load (empty if new / unknown). Used for UPDATE.
     std::string original_key;
+    /// Comments (SPEC 3.2.1), by the field their line starts at (0-based): the comment on
+    /// that line, and the comment lines standing before it. Saving puts each back.
+    std::map<std::size_t, std::string> line_comments;
+    std::map<std::size_t, std::vector<std::string>> comment_lines;
 
     /// Fields every list covers. (A caller may brace-initialize fields alone, e.g.
     /// Record{"|#", {"1", "a"}}; the shortest list is what may be indexed.)

@@ -1,4 +1,5 @@
 #include "jtext_gui/core/table_store.hpp"
+#include "jtext_gui/core/comments_table.hpp"
 
 #include <sqlite3.h>
 
@@ -124,6 +125,9 @@ public:
             out.rows.push_back(std::move(rec));
         }
         sqlite3_finalize(st);
+        auto comments_sql = quote_table_ref(comments_table_of(table), SessionKind::Sqlite);
+        if (!comments_sql) return std::unexpected(comments_sql.error());
+        if (auto c = read_comments(*comments_sql, out); !c) return std::unexpected(c.error());
         return out;
     }
 
@@ -138,6 +142,15 @@ public:
         const std::string& key_col = session.key_column.empty() ? cols[0] : session.key_column;
         if (!is_safe_identifier(key_col))
             return std::unexpected("sqlite: bad key column");
+
+        const auto comment_changes_ = comment_changes(session);
+        if (!comment_changes_) return std::unexpected(comment_changes_.error());
+        const std::string comments = comments_table_of(session.table);
+        bool have_comments = comments_table_exists(comments);
+        if (!have_comments && any_comment_rows(*comment_changes_)) {
+            if (auto c = exec(create_comments_table_sql(comments)); !c) return std::unexpected(c.error());
+            have_comments = true;
+        }
 
         if (sqlite3_exec(db_, "BEGIN IMMEDIATE;", nullptr, nullptr, nullptr) != SQLITE_OK)
             return std::unexpected(sqlite3_errmsg(db_));
@@ -156,10 +169,10 @@ public:
                 session.changes.inserted.count(idx) > 0 || rec.original_key.empty();
 
             if (!is_insert) {
-                // UPDATE non-key columns WHERE key = original_key
+                // UPDATE every column WHERE key = original_key, so a changed key is saved too
                 std::string sql = std::format("UPDATE {} SET ", session.table);
                 bool first = true;
-                for (std::size_t c = 1; c < cols.size() && c < kMaxFields; ++c) {
+                for (std::size_t c = 0; c < cols.size() && c < kMaxFields; ++c) {
                     if (!is_safe_identifier(cols[c])) {
                         err = "unsafe column: " + cols[c];
                         break;
@@ -178,7 +191,7 @@ public:
                     break;
                 }
                 int p = 1;
-                for (std::size_t c = 1; c < cols.size() && c < kMaxFields; ++c) {
+                for (std::size_t c = 0; c < cols.size() && c < kMaxFields; ++c) {
                     if (field_is_null(rec, c)) sqlite3_bind_null(st, p++);
                     else sqlite3_bind_text(st, p++, field_text(rec, c).c_str(), -1, SQLITE_TRANSIENT);
                 }
@@ -231,6 +244,9 @@ public:
             sqlite3_finalize(st);
             ++written;
         }
+        if (err.empty() && have_comments) {
+            if (auto c = write_comments(comments, *comment_changes_); !c) err = c.error();
+        }
 
         if (!err.empty()) {
             rollback();
@@ -253,6 +269,82 @@ public:
     }
 
 private:
+    // One statement, no values.
+    std::expected<void, std::string> exec(const std::string& sql) {
+        debug_log("sqlite SQL: " + sql);
+        char* e = nullptr;
+        if (sqlite3_exec(db_, sql.c_str(), nullptr, nullptr, &e) != SQLITE_OK) {
+            std::string msg = e ? e : sqlite3_errmsg(db_);
+            sqlite3_free(e);
+            return std::unexpected(msg + "\nSQL: " + sql);
+        }
+        return {};
+    }
+
+    bool comments_table_exists(const std::string& table) {
+        sqlite3_stmt* st = nullptr;
+        const std::string sql = "SELECT 1 FROM " + table + " LIMIT 0";
+        const bool ok = sqlite3_prepare_v2(db_, sql.c_str(), -1, &st, nullptr) == SQLITE_OK;
+        sqlite3_finalize(st);
+        return ok;
+    }
+
+    // The pulled records' comments, and the comment lines at the end of the data.
+    std::expected<void, std::string> read_comments(const std::string& table, DbQueryResult& out) {
+        if (!comments_table_exists(table)) return {};
+        const std::string sql = "SELECT kind, record_id, position, seq, comment FROM " + table +
+                                " WHERE block = 'data'";
+        debug_log("sqlite SQL: " + sql);
+        sqlite3_stmt* st = nullptr;
+        if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &st, nullptr) != SQLITE_OK)
+            return std::unexpected(std::string(sqlite3_errmsg(db_)) + "\nSQL: " + sql);
+        std::vector<CommentRow> rows;
+        const auto text = [&](int c) {
+            const unsigned char* t = sqlite3_column_text(st, c);
+            return t ? std::string(reinterpret_cast<const char*>(t)) : std::string{};
+        };
+        while (sqlite3_step(st) == SQLITE_ROW)
+            rows.push_back({text(0), sqlite3_column_int64(st, 1), static_cast<unsigned>(sqlite3_column_int(st, 2)),
+                            static_cast<unsigned>(sqlite3_column_int(st, 3)), text(4)});
+        sqlite3_finalize(st);
+        place_comment_rows(out.rows, std::move(rows), out.end_comments);
+        return {};
+    }
+
+    // Each changed record's comment rows replaced (inside the save's transaction).
+    std::expected<void, std::string> write_comments(const std::string& table,
+                                                    const std::vector<CommentChange>& changes) {
+        const std::string del = "DELETE FROM " + table + " WHERE block = 'data' AND record_id = ?";
+        const std::string ins = "INSERT INTO " + table +
+                                " (block, kind, record_id, position, seq, comment) VALUES ('data', ?, ?, ?, ?, ?)";
+        auto run = [&](const std::string& sql, auto bind) -> std::expected<void, std::string> {
+            debug_log("sqlite SQL: " + sql);
+            sqlite3_stmt* st = nullptr;
+            if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &st, nullptr) != SQLITE_OK)
+                return std::unexpected(std::string(sqlite3_errmsg(db_)) + "\nSQL: " + sql);
+            bind(st);
+            const bool ok = sqlite3_step(st) == SQLITE_DONE;
+            sqlite3_finalize(st);
+            if (!ok) return std::unexpected(std::string(sqlite3_errmsg(db_)) + "\nSQL: " + sql);
+            return {};
+        };
+        for (const auto& change : changes) {
+            for (const auto id : change.replace_ids)
+                if (auto r = run(del, [&](sqlite3_stmt* st) { sqlite3_bind_int64(st, 1, id); }); !r) return r;
+            for (const auto& c : change.rows) {
+                auto r = run(ins, [&](sqlite3_stmt* st) {
+                    sqlite3_bind_text(st, 1, c.kind.c_str(), -1, SQLITE_TRANSIENT);
+                    sqlite3_bind_int64(st, 2, c.record_id);
+                    sqlite3_bind_int64(st, 3, c.position);
+                    sqlite3_bind_int64(st, 4, c.seq);
+                    sqlite3_bind_text(st, 5, c.text.c_str(), -1, SQLITE_TRANSIENT);
+                });
+                if (!r) return r;
+            }
+        }
+        return {};
+    }
+
     sqlite3* db_ = nullptr;
     std::string path_;
     std::string last_error_;

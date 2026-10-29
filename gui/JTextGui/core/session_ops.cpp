@@ -183,6 +183,7 @@ std::expected<void, std::string> session_open_jtext(TableSession& session,
     session.table = loaded->section_name;
     session.jtext_sections = std::move(loaded->sections);
     session.jtext_warnings = std::move(loaded->warnings);
+    session.end_comments = std::move(loaded->end_comments);
     session.column_names = std::move(loaded->field_names);
     session.field_defs = std::move(loaded->field_defs);
     session.rows = std::move(loaded->rows);
@@ -204,9 +205,10 @@ std::expected<void, std::string> session_save_jtext(TableSession& session,
     std::error_code ec;
     const bool from_file = !session.jtext_path.empty() && std::filesystem::exists(session.jtext_path, ec);
     auto r = from_file
-        ? jtext_save_section(session.jtext_path, out_path, session.table, session.rows)
+        ? jtext_save_section(session.jtext_path, out_path, session.table, session.rows,
+                             session.end_comments)
         : jtext_save(out_path, session.rows, session.table.empty() ? "records" : session.table,
-                     nullptr, session.case_sensitive);
+                     nullptr, session.case_sensitive, session.end_comments);
     if (!r) return std::unexpected(r.error());
 
     session.jtext_path = out_path;
@@ -243,6 +245,7 @@ std::expected<void, std::string> session_open_db(TableSession& session,
     session.columns = std::move(q->columns);
     session.key_column = q->key_column.empty() ? "id" : q->key_column;
     session.rows = std::move(q->rows);
+    session.end_comments = std::move(q->end_comments);
     session.case_sensitive = store.kind() != SessionKind::MariaDB;   // default collations
     session.changes.clear();
     return {};

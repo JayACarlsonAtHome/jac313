@@ -84,6 +84,9 @@ struct TableSession {
     std::vector<std::string> jtext_sections;
     /// What opening the jText file warned about (e.g. an older jText version).
     std::vector<std::string> jtext_warnings;
+    /// The comment lines at the end of the data (records keep their own): a jText
+    /// section's, or a table's, from its <table>_comments.
+    std::vector<std::string> end_comments;
 
     /// DB identity when kind is a database session
     std::string db_path_or_dsn;  ///< SQLite file path, or host label for network DBs
@@ -108,6 +111,7 @@ struct TableSession {
         jtext_path.clear();
         jtext_sections.clear();
         jtext_warnings.clear();
+        end_comments.clear();
         db_path_or_dsn.clear();
         table.clear();
         where_clause.clear();
@@ -173,6 +177,23 @@ struct TableSession {
         rows[row].ensure_size(field + 1);
         if (rows[row].field_markers[field] == marker) return true;
         rows[row].field_markers[field] = std::move(marker);
+        changes.mark_dirty(row);
+        return true;
+    }
+
+    /// The comment on the line that starts at field (SPEC 3.2.1); "" removes it. The text
+    /// only: the file's comment character is added when it is written.
+    bool set_line_comment(std::size_t row, std::size_t field, std::string text) {
+        if (row >= rows.size() || field >= kMaxFields) return false;
+        auto& comments = rows[row].line_comments;
+        const auto it = comments.find(field);
+        if (text.empty()) {
+            if (it == comments.end()) return true;
+            comments.erase(it);
+        } else {
+            if (it != comments.end() && it->second == text) return true;
+            comments[field] = std::move(text);
+        }
         changes.mark_dirty(row);
         return true;
     }

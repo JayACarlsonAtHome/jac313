@@ -1,4 +1,5 @@
 #include "jtext_gui/core/table_store.hpp"
+#include "jtext_gui/core/comments_table.hpp"
 
 #include <memory>
 #include <cstdlib>
@@ -172,6 +173,9 @@ public:
         }
         PQclear(res);
         adopt_columns(out, load_pg_columns(conn_, relid), SessionKind::PostgreSQL);
+        auto comments = quote_table_ref(comments_table_of(table), SessionKind::PostgreSQL);
+        if (!comments) return std::unexpected(comments.error());
+        if (auto c = read_comments(*comments, out); !c) return std::unexpected(c.error());
         return out;
     }
 
@@ -195,6 +199,12 @@ public:
         }
         auto key_name = ident(key);
         if (!key_name) return std::unexpected(key_name.error());
+        const auto comment_changes_ = comment_changes(session);
+        if (!comment_changes_) return std::unexpected(comment_changes_.error());
+        auto comments = quote_table_ref(comments_table_of(session.table), SessionKind::PostgreSQL);
+        if (!comments) return std::unexpected(comments.error());
+        auto have_comments = comments_table_exists(*comments);
+        if (!have_comments) return std::unexpected(have_comments.error());
 
         if (auto b = run("BEGIN", {}); !b) return std::unexpected(b.error());
         std::size_t written = 0;
@@ -227,6 +237,13 @@ public:
             }
             ++written;
         }
+        if (err.empty() && (*have_comments || any_comment_rows(*comment_changes_))) {
+            if (!*have_comments) {
+                if (auto c = run(create_comments_table_sql(*comments), {}); !c) err = c.error();
+            }
+            if (err.empty())
+                if (auto c = write_comments(*comments, *comment_changes_); !c) err = c.error();
+        }
         if (!err.empty()) {
             (void)run("ROLLBACK", {});
             return std::unexpected(err);
@@ -248,6 +265,63 @@ public:
 private:
     PGconn* conn_ = nullptr;
     std::string last_error_;
+
+    std::expected<bool, std::string> comments_table_exists(const std::string& table) {
+        auto r = select("SELECT to_regclass($1) IS NOT NULL", {table});
+        if (!r) return std::unexpected(r.error());
+        return PQntuples(r->get()) == 1 && PQgetvalue(r->get(), 0, 0)[0] == 't';
+    }
+
+    // The pulled records' comments, and the comment lines at the end of the data.
+    std::expected<void, std::string> read_comments(const std::string& table, DbQueryResult& out) {
+        auto exists = comments_table_exists(table);
+        if (!exists) return std::unexpected(exists.error());
+        if (!*exists) return {};
+        auto r = select("SELECT kind, record_id, position, seq, comment FROM " + table + " WHERE block = 'data'", {});
+        if (!r) return std::unexpected(r.error());
+        std::vector<CommentRow> rows;
+        PGresult* res = r->get();
+        for (int i = 0; i < PQntuples(res); ++i)
+            rows.push_back({PQgetvalue(res, i, 0), std::strtoll(PQgetvalue(res, i, 1), nullptr, 10),
+                            static_cast<unsigned>(std::strtoul(PQgetvalue(res, i, 2), nullptr, 10)),
+                            static_cast<unsigned>(std::strtoul(PQgetvalue(res, i, 3), nullptr, 10)),
+                            PQgetvalue(res, i, 4)});
+        place_comment_rows(out.rows, std::move(rows), out.end_comments);
+        return {};
+    }
+
+    // Each changed record's comment rows replaced (inside the save's transaction).
+    std::expected<void, std::string> write_comments(const std::string& table,
+                                                    const std::vector<CommentChange>& changes) {
+        const std::string del = "DELETE FROM " + table + " WHERE block = 'data' AND record_id = $1";
+        const std::string ins = "INSERT INTO " + table +
+                                " (block, kind, record_id, position, seq, comment) VALUES ('data', $1, $2, $3, $4, $5)";
+        for (const auto& change : changes) {
+            for (const auto id : change.replace_ids)
+                if (auto r = run(del, {std::to_string(id)}); !r) return std::unexpected(r.error());
+            for (const auto& c : change.rows)
+                if (auto r = run(ins, {c.kind, std::to_string(c.record_id), std::to_string(c.position),
+                                       std::to_string(c.seq), c.text});
+                    !r)
+                    return std::unexpected(r.error());
+        }
+        return {};
+    }
+
+    // A query, its values bound as $1, $2, ...; the rows it returned.
+    std::expected<std::unique_ptr<PGresult, decltype(&PQclear)>, std::string>
+    select(const std::string& sql, const std::vector<std::string>& params) {
+        debug_log("postgres SQL: " + sql);
+        std::vector<const char*> values;
+        for (const auto& p : params) values.push_back(p.c_str());
+        std::unique_ptr<PGresult, decltype(&PQclear)> r(
+            PQexecParams(conn_, sql.c_str(), static_cast<int>(values.size()), nullptr, values.data(),
+                         nullptr, nullptr, 0),
+            PQclear);
+        if (PQresultStatus(r.get()) != PGRES_TUPLES_OK)
+            return std::unexpected(std::string(PQerrorMessage(conn_)) + "\nSQL: " + sql);
+        return r;
+    }
 
     // A column name, quoted by libpq.
     std::expected<std::string, std::string> ident(std::string_view name)
@@ -482,6 +556,9 @@ public:
         auto catalog = load_maria_columns(mysql_, schema, org_table);
         adopt_columns(out, catalog.empty() ? std::move(fallback) : std::move(catalog),
                       SessionKind::MariaDB);
+        auto comments = quote_table_ref(comments_table_of(table), SessionKind::MariaDB);
+        if (!comments) return std::unexpected(comments.error());
+        if (auto c = read_comments(*comments, out); !c) return std::unexpected(c.error());
         return out;
     }
 
@@ -499,6 +576,17 @@ public:
         const auto value = [&](const Record& rec, std::size_t c) {
             return field_is_null(rec, c) ? std::string("NULL") : literal(field_text(rec, c));
         };
+        const auto comment_changes_ = comment_changes(session);
+        if (!comment_changes_) return std::unexpected(comment_changes_.error());
+        auto comments = quote_table_ref(comments_table_of(session.table), SessionKind::MariaDB);
+        if (!comments) return std::unexpected(comments.error());
+        auto have_comments = comments_table_exists(*comments);
+        if (!have_comments) return std::unexpected(have_comments.error());
+        // Made before the transaction: in MariaDB a CREATE TABLE commits the open one.
+        if (!*have_comments && any_comment_rows(*comment_changes_)) {
+            if (auto c = run(create_comments_table_sql(*comments)); !c) return std::unexpected(c.error());
+            *have_comments = true;
+        }
 
         if (auto b = run("START TRANSACTION"); !b) return std::unexpected(b.error());
         std::size_t written = 0;
@@ -527,6 +615,8 @@ public:
             }
             ++written;
         }
+        if (err.empty() && *have_comments)
+            if (auto c = write_comments(*comments, *comment_changes_); !c) err = c.error();
         if (!err.empty()) {
             (void)run("ROLLBACK");
             return std::unexpected(err);
@@ -548,6 +638,61 @@ public:
 private:
     MYSQL* mysql_ = nullptr;
     std::string last_error_;
+
+    // ER_NO_SUCH_TABLE (1146): the table is missing; any other error is an error.
+    std::expected<bool, std::string> comments_table_exists(const std::string& table) {
+        const std::string sql = "SELECT 1 FROM " + table + " LIMIT 0";
+        debug_log("mariadb SQL: " + sql);
+        if (mysql_query(mysql_, sql.c_str()) != 0) {
+            if (mysql_errno(mysql_) == 1146) return false;
+            return std::unexpected(std::string(mysql_error(mysql_)) + "\nSQL: " + sql);
+        }
+        if (MYSQL_RES* res = mysql_store_result(mysql_)) mysql_free_result(res);
+        return true;
+    }
+
+    // The pulled records' comments, and the comment lines at the end of the data.
+    std::expected<void, std::string> read_comments(const std::string& table, DbQueryResult& out) {
+        auto exists = comments_table_exists(table);
+        if (!exists) return std::unexpected(exists.error());
+        if (!*exists) return {};
+        const std::string sql = "SELECT kind, record_id, position, seq, comment FROM " + table +
+                                " WHERE block = 'data'";
+        debug_log("mariadb SQL: " + sql);
+        if (mysql_query(mysql_, sql.c_str()) != 0)
+            return std::unexpected(std::string(mysql_error(mysql_)) + "\nSQL: " + sql);
+        MYSQL_RES* res = mysql_store_result(mysql_);
+        if (!res) return std::unexpected(mysql_error(mysql_));
+        std::vector<CommentRow> rows;
+        MYSQL_ROW row;
+        while ((row = mysql_fetch_row(res)) != nullptr) {
+            const unsigned long* len = mysql_fetch_lengths(res);
+            rows.push_back({row[0] ? row[0] : "", row[1] ? std::strtoll(row[1], nullptr, 10) : 0,
+                            row[2] ? static_cast<unsigned>(std::strtoul(row[2], nullptr, 10)) : 0u,
+                            row[3] ? static_cast<unsigned>(std::strtoul(row[3], nullptr, 10)) : 0u,
+                            row[4] ? std::string(row[4], len[4]) : std::string{}});
+        }
+        mysql_free_result(res);
+        place_comment_rows(out.rows, std::move(rows), out.end_comments);
+        return {};
+    }
+
+    // Each changed record's comment rows replaced (inside the save's transaction).
+    std::expected<void, std::string> write_comments(const std::string& table,
+                                                    const std::vector<CommentChange>& changes) {
+        for (const auto& change : changes) {
+            for (const auto id : change.replace_ids)
+                if (auto r = run(std::format("DELETE FROM {} WHERE block = 'data' AND record_id = {}", table, id)); !r)
+                    return std::unexpected(r.error());
+            for (const auto& c : change.rows)
+                if (auto r = run(std::format("INSERT INTO {} (block, kind, record_id, position, seq, comment) "
+                                             "VALUES ('data', {}, {}, {}, {}, {})",
+                                             table, literal(c.kind), c.record_id, c.position, c.seq, literal(c.text)));
+                    !r)
+                    return std::unexpected(r.error());
+        }
+        return {};
+    }
 
     // A string literal, escaped by the client library for this connection's character
     // set and SQL mode (backslashes included, whatever NO_BACKSLASH_ESCAPES says).

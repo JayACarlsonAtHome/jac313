@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/src/core
 
-1. #|# 3|canonical_commit|2c24b2dd0fa0
+1. #|# 3|canonical_commit|4b7299a114b2
 
 1. #|# 4|canonical_dirty|No
 
@@ -58,17 +58,19 @@
 
 
 === Data ===
-1. #|# 1|connections_file.cpp|connections_file.cpp|d0f98e8351dc60d165f8fc593419ddbdc539bcc97337bea0be2cf6166a888519|d0f98e8351dc60d165f8fc593419ddbdc539bcc97337bea0be2cf6166a888519
+1. #|# 1|comments_table.cpp|comments_table.cpp|5b669e2128b65ba813b22ccd4e54e7262228d9bab288d7e30f624e578b8ccc95|5b669e2128b65ba813b22ccd4e54e7262228d9bab288d7e30f624e578b8ccc95
 
-1. #|# 2|jtext_store.cpp|jtext_store.cpp|b6f2b63233cfef2db7f9ed10e2e4b2ef4010adf2cd77172dc65955a2a32b2afa|b6f2b63233cfef2db7f9ed10e2e4b2ef4010adf2cd77172dc65955a2a32b2afa
+1. #|# 2|connections_file.cpp|connections_file.cpp|d0f98e8351dc60d165f8fc593419ddbdc539bcc97337bea0be2cf6166a888519|d0f98e8351dc60d165f8fc593419ddbdc539bcc97337bea0be2cf6166a888519
 
-1. #|# 3|maria_postgres_store.cpp|maria_postgres_store.cpp|5efba705f24593871d365788b6e99f89c544b5963be2bdf24f87427e2fa11739|5efba705f24593871d365788b6e99f89c544b5963be2bdf24f87427e2fa11739
+1. #|# 3|jtext_store.cpp|jtext_store.cpp|5bbac162b16beb41696fa4e7499bca6a4da0ce1d6c9f4b98c9df802400e4ebf6|5bbac162b16beb41696fa4e7499bca6a4da0ce1d6c9f4b98c9df802400e4ebf6
 
-1. #|# 4|session_ops.cpp|session_ops.cpp|4c492ab36ebce0fbc3b0b3f633cf0924559551260e8c4da8983944a9e5b07bc1|4c492ab36ebce0fbc3b0b3f633cf0924559551260e8c4da8983944a9e5b07bc1
+1. #|# 4|maria_postgres_store.cpp|maria_postgres_store.cpp|e89935a571d36df80d81b91b2f1dba16d668ad7f3144b0ca823627def04cee8b|e89935a571d36df80d81b91b2f1dba16d668ad7f3144b0ca823627def04cee8b
 
-1. #|# 5|spreadsheet.cpp|spreadsheet.cpp|6fb777554d7253ea3f58b6305242af22d4afc6e1a3f52985bdf3a97fc5af5270|6fb777554d7253ea3f58b6305242af22d4afc6e1a3f52985bdf3a97fc5af5270
+1. #|# 5|session_ops.cpp|session_ops.cpp|9c45f94eb3468c30a492b147389a4df7dc066d914101c61851006c2a06ff416e|9c45f94eb3468c30a492b147389a4df7dc066d914101c61851006c2a06ff416e
 
-1. #|# 6|sqlite_store.cpp|sqlite_store.cpp|d79c081ea2396a8eb9927244ecd89c9a096eca04cabdffd695dc800a7c3443eb|d79c081ea2396a8eb9927244ecd89c9a096eca04cabdffd695dc800a7c3443eb
+1. #|# 6|spreadsheet.cpp|spreadsheet.cpp|6fb777554d7253ea3f58b6305242af22d4afc6e1a3f52985bdf3a97fc5af5270|6fb777554d7253ea3f58b6305242af22d4afc6e1a3f52985bdf3a97fc5af5270
+
+1. #|# 7|sqlite_store.cpp|sqlite_store.cpp|74f2c6be48420210c38fa6916770849c72b2153fb5fb689894f6f99b130432c9|74f2c6be48420210c38fa6916770849c72b2153fb5fb689894f6f99b130432c9
 
 === End Data ===
 === End Section ===

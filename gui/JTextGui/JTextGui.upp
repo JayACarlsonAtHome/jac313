@@ -13,6 +13,7 @@ file
 	core/maria_postgres_store.cpp,
 	core/connections_file.cpp,
 	core/spreadsheet.cpp,
+	core/comments_table.cpp,
 	jText/jText.cpp,
 	jText/src/parser/line.cpp,
 	jText/src/parser/section.cpp,

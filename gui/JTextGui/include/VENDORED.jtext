@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/include
 
-1. #|# 3|canonical_commit|2c24b2dd0fa0
+1. #|# 3|canonical_commit|4b7299a114b2
 
 1. #|# 4|canonical_dirty|No
 
@@ -60,19 +60,21 @@
 === Data ===
 1. #|# 1|README.md|README.md|734fa4ea286f5b9c5dc0a23440ee8352aff920f253f5cfd45ccc851d2f75cdd8|734fa4ea286f5b9c5dc0a23440ee8352aff920f253f5cfd45ccc851d2f75cdd8
 
-1. #|# 2|jtext_gui/core/connection_info.hpp|jtext_gui/core/connection_info.hpp|a9f591d52a15e11fafe53d94689e5544bc71a8c17b4dbef9027bce92a50e9e7b|a9f591d52a15e11fafe53d94689e5544bc71a8c17b4dbef9027bce92a50e9e7b
+1. #|# 2|jtext_gui/core/comments_table.hpp|jtext_gui/core/comments_table.hpp|8527ef308c1fa3a0309d05a31015428bde88c6e8d021615f99919a149b3b23a4|8527ef308c1fa3a0309d05a31015428bde88c6e8d021615f99919a149b3b23a4
 
-1. #|# 3|jtext_gui/core/connections_file.hpp|jtext_gui/core/connections_file.hpp|39f97974bfac9c18bc70c7b55f699d1a39ad78e6f497c35522be97efe905c41a|39f97974bfac9c18bc70c7b55f699d1a39ad78e6f497c35522be97efe905c41a
+1. #|# 3|jtext_gui/core/connection_info.hpp|jtext_gui/core/connection_info.hpp|a9f591d52a15e11fafe53d94689e5544bc71a8c17b4dbef9027bce92a50e9e7b|a9f591d52a15e11fafe53d94689e5544bc71a8c17b4dbef9027bce92a50e9e7b
 
-1. #|# 4|jtext_gui/core/record.hpp|jtext_gui/core/record.hpp|c574ffa4d635270c0db6212f7c3179f90715d2df0533f04798a0c2e224264315|c574ffa4d635270c0db6212f7c3179f90715d2df0533f04798a0c2e224264315
+1. #|# 4|jtext_gui/core/connections_file.hpp|jtext_gui/core/connections_file.hpp|39f97974bfac9c18bc70c7b55f699d1a39ad78e6f497c35522be97efe905c41a|39f97974bfac9c18bc70c7b55f699d1a39ad78e6f497c35522be97efe905c41a
 
-1. #|# 5|jtext_gui/core/session.hpp|jtext_gui/core/session.hpp|4a1fa9d91ffd1df6296376f3327753fa48266f662ecb3c4934e4d23b95104cb9|4a1fa9d91ffd1df6296376f3327753fa48266f662ecb3c4934e4d23b95104cb9
+1. #|# 5|jtext_gui/core/record.hpp|jtext_gui/core/record.hpp|51b8b1b42604713e8ef538bd8218e369c599c433fdcff37678f695a186f67027|51b8b1b42604713e8ef538bd8218e369c599c433fdcff37678f695a186f67027
 
-1. #|# 6|jtext_gui/core/spreadsheet.hpp|jtext_gui/core/spreadsheet.hpp|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87
+1. #|# 6|jtext_gui/core/session.hpp|jtext_gui/core/session.hpp|ec6d17ec7c7b4a3def22c0d69a2f3aed980b362a5131b51281bf9b839c0459fc|ec6d17ec7c7b4a3def22c0d69a2f3aed980b362a5131b51281bf9b839c0459fc
 
-1. #|# 7|jtext_gui/core/table_store.hpp|jtext_gui/core/table_store.hpp|478971ce00c4f3bd4f1c9b6bede33cf5cc3021209f4a9ec4a3a4ac07af30d0a4|478971ce00c4f3bd4f1c9b6bede33cf5cc3021209f4a9ec4a3a4ac07af30d0a4
+1. #|# 7|jtext_gui/core/spreadsheet.hpp|jtext_gui/core/spreadsheet.hpp|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87
 
-1. #|# 8|jtext_gui/record.hpp|jtext_gui/record.hpp|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5
+1. #|# 8|jtext_gui/core/table_store.hpp|jtext_gui/core/table_store.hpp|a529f1de466e4a140fe8a6300e9acff37f9aefbadfe950bbff20f5b4b2648aed|a529f1de466e4a140fe8a6300e9acff37f9aefbadfe950bbff20f5b4b2648aed
+
+1. #|# 9|jtext_gui/record.hpp|jtext_gui/record.hpp|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5
 
 === End Data ===
 === End Section ===

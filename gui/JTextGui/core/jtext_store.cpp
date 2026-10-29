@@ -271,20 +271,84 @@ void write_template(std::ostream& out, std::string_view title, std::string body)
     out << '\n';
 }
 
+/// Comment lines (SPEC 3.2.1), as the library writes them: "// text", or "//" alone.
+void write_comment_lines(std::ostream& out, const std::vector<std::string>& texts) {
+    for (const auto& t : texts) out << (t.empty() ? "//" : "// " + t) << '\n';
+}
+
+/// The comment character of a marker (its second character); empty for a raw one.
+std::string comment_char(const std::string& marker) {
+    const std::string live = live_marker(marker);
+    if (marker_is_raw(live)) return {};
+    return live.substr(marker_splice(live).size());
+}
+
 /// One field's line. A value holding a newline is a multiline value: "[*" on the
-/// numbered line, its lines aligned under the "[*".
+/// numbered line (its comment after " # "), its lines aligned under the "[*".
 void write_marked_value(std::ostream& out, std::size_t number, std::size_t pad,
-                        const std::string& marker, const std::string& value) {
+                        const std::string& marker, const std::string& value,
+                        const std::string& comment) {
     jText::v001::write_jtext_line_number(out, number, pad);
     if (value.find('\n') != std::string::npos) {
-        out << "[*\n";
+        out << "[*";
+        if (!comment.empty()) out << " # " << comment;
+        out << '\n';
         write_value_lines(out, std::string(std::max(pad, std::to_string(number).size()) + 2, ' '), value);
         return;
     }
-    out << live_marker(marker) << ' ' << value << '\n';
+    out << live_marker(marker) << ' ' << value;
+    if (!comment.empty()) out << ' ' << comment_char(marker) << ' ' << comment;
+    out << '\n';
 }
 
-void write_data_rows(std::ostream& out, const std::vector<Record>& rows) {
+/// A record's comments, by the line they go back to. A comment whose line is not written
+/// (the field was emptied to a missing line, or a raw line, which holds no comment) goes
+/// before the next line written, as a comment line: no comment is lost.
+struct CommentPlacer {
+    const Record& row;
+    std::vector<std::string> carried;
+
+    /// The comment lines before the line starting at field f, and the comment on it.
+    std::string before_line(std::ostream& out, std::size_t f, bool line_takes_comment) {
+        if (auto it = row.comment_lines.find(f); it != row.comment_lines.end())
+            carried.insert(carried.end(), it->second.begin(), it->second.end());
+        std::string comment;
+        if (auto it = row.line_comments.find(f); it != row.line_comments.end()) {
+            if (line_takes_comment) comment = it->second;
+            else carried.push_back(it->second);
+        }
+        write_comment_lines(out, carried);
+        carried.clear();
+        return comment;
+    }
+
+    /// Field f has no line: its comments wait for the next one.
+    void skip(std::size_t f) {
+        if (auto it = row.comment_lines.find(f); it != row.comment_lines.end())
+            carried.insert(carried.end(), it->second.begin(), it->second.end());
+        if (auto it = row.line_comments.find(f); it != row.line_comments.end()) carried.push_back(it->second);
+    }
+
+    /// Comments of fields past the last line written, at the end of the record.
+    void finish(std::ostream& out, std::size_t from) {
+        for (const auto& [f, texts] : row.comment_lines)
+            if (f >= from) carried.insert(carried.end(), texts.begin(), texts.end());
+        for (const auto& [f, text] : row.line_comments)
+            if (f >= from) carried.push_back(text);
+        write_comment_lines(out, carried);
+        carried.clear();
+    }
+};
+
+/// True when a comment of `row` belongs to a line after its first: the record is then
+/// written a line per field, so that line exists to hold it.
+bool has_later_comments(const Record& row) {
+    const auto later = [](const auto& m) { return !m.empty() && m.rbegin()->first > 0; };
+    return later(row.line_comments) || later(row.comment_lines);
+}
+
+void write_data_rows(std::ostream& out, const std::vector<Record>& rows,
+                     const std::vector<std::string>& end_comments) {
     // Line numbers are padded to the widest record (at least kDefaultFields wide, so a
     // table of up to 10 fields keeps " 1." to "10.", as before).
     std::size_t widest = kDefaultFields;
@@ -298,21 +362,34 @@ void write_data_rows(std::ostream& out, const std::vector<Record>& rows) {
             if (!row.is_null[f]) last = f + 1;
         for (std::size_t f = 0; f < last; ++f)
             if (row.is_null[f]) hole = true;
-        if (last == 0) continue;
+        CommentPlacer comments{row, {}};
+        if (last == 0) {
+            comments.finish(out, 0);   // a record with no values left keeps its comments
+            continue;
+        }
         const std::string record_mark = live_marker(row.marker);
         // A raw record has no splice, and a multiline value has its own lines, so
         // then each present field is its own line.
         const bool multiline = std::any_of(row.fields.begin(), row.fields.end(),
             [](const std::string& v) { return v.find('\n') != std::string::npos; });
-        if (has_field_markers(row) || hole || marker_is_raw(record_mark) || multiline) {
+        if (has_field_markers(row) || hole || marker_is_raw(record_mark) || multiline ||
+            has_later_comments(row)) {
             // A Null field that has its line is written {NULL}; one without a line stays
             // out (a missing line is an empty value, SPEC 2.6.1).
             for (std::size_t f = 0; f < row.size(); ++f) {
-                if (row.is_null[f] && !row.has_line[f]) continue;
-                write_marked_value(out, f + 1, pad, field_marker(row, f),
-                                   row.is_null[f] ? std::string{jtext::kNullValue} : row.fields[f]);
+                if (row.is_null[f] && !row.has_line[f]) {
+                    comments.skip(f);
+                    continue;
+                }
+                const std::string& mark = field_marker(row, f);
+                const bool multiline_value = row.fields[f].find('\n') != std::string::npos;
+                const std::string comment = comments.before_line(out, f, multiline_value || !marker_is_raw(mark));
+                write_marked_value(out, f + 1, pad, mark,
+                                   row.is_null[f] ? std::string{jtext::kNullValue} : row.fields[f], comment);
             }
+            comments.finish(out, row.size());
         } else {
+            const std::string comment = comments.before_line(out, 0, true);
             const std::string sep = marker_separator(record_mark);
             jText::v001::write_jtext_line_number(out, 1, pad);   // two columns, like every line (SPEC 3.7)
             out << record_mark << ' ';
@@ -320,10 +397,13 @@ void write_data_rows(std::ostream& out, const std::vector<Record>& rows) {
                 if (f) out << sep;
                 out << row.fields[f];
             }
+            if (!comment.empty()) out << ' ' << comment_char(record_mark) << ' ' << comment;
             out << '\n';
+            comments.finish(out, last);
         }
         out << '\n';
     }
+    write_comment_lines(out, end_comments);
 }
 
 /// Full profile. The // header is write_file_comment_header, not text pasted here.
@@ -331,7 +411,8 @@ std::expected<void, std::string> write_full_jtext(std::string_view path,
                                                   const std::vector<Record>& rows,
                                                   std::string_view table_label,
                                                   const TableShape& shape,
-                                                  bool case_sensitive) {
+                                                  bool case_sensitive,
+                                                  const std::vector<std::string>& end_comments) {
     TableShape use = shape;
     if (use.table.empty()) use.table = std::string(table_label.empty() ? "records" : table_label);
     debug_log(std::format("save jtext {} columns={} dialect={}", path, use.columns.size(),
@@ -386,7 +467,7 @@ std::expected<void, std::string> write_full_jtext(std::string_view path,
     out << "=== End Fields ===\n\n";
 
     out << "=== Data ===\n";
-    write_data_rows(out, rows);
+    write_data_rows(out, rows, end_comments);
     out << "=== End Data ===\n=== End Section ===\n=== End File ===\n";
     if (!out) return std::unexpected("cannot write " + std::string(path));
     return {};
@@ -444,9 +525,29 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path, st
         after_multiline = false;
     };
 
+    // Comment lines stand before entries[before]: each goes to the record and field of the
+    // next line (past blank lines), or to the end of the data when no line follows.
+    std::vector<std::string> pending;
+    std::size_t next_comment = 0;
+    const auto& comment_lines = sec->comments;
+    auto take_comments = [&](std::size_t before) {
+        for (; next_comment < comment_lines.size() && comment_lines[next_comment].before <= before; ++next_comment)
+            pending.push_back(comment_lines[next_comment].text);
+    };
+    auto keep_comments = [&](const jText::v001::JTextEntry& e) {
+        const std::size_t f = e.number - 1;
+        if (!pending.empty()) {
+            auto& lines = cur.comment_lines[f];
+            lines.insert(lines.end(), pending.begin(), pending.end());
+            pending.clear();
+        }
+        if (!e.comment.empty()) cur.line_comments[f] = e.comment;
+    };
+
     const auto& entries = sec->entries;
     for (std::size_t ei = 0; ei < entries.size(); ++ei) {
         const auto& e = entries[ei];
+        take_comments(ei);
         if (e.number < 1 || e.number > kMaxFields) continue;
         std::string marker = marker_for(e);
         if (marker.empty()) marker = open ? cur.marker : std::string(kDefaultMarker);
@@ -476,6 +577,7 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path, st
                 open = true;
             }
             assign_compact(cur, e);
+            keep_comments(e);
             last_num = static_cast<int>(e.number + e.fields.size() - 1);
             after_multiline = false;
             continue;
@@ -487,10 +589,13 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path, st
             open = true;
         }
         assign_one_field(cur, e, marker);
+        keep_comments(e);
         last_num = static_cast<int>(e.number);
         after_multiline = is_multiline_entry(e);
     }
     flush();
+    take_comments(entries.size());
+    result.end_comments = std::move(pending);
 
     if (result.rows.empty())
         return std::unexpected("no records found in jText file (unsupported layout or empty)");
@@ -732,7 +837,8 @@ namespace {
 std::expected<void, std::string> write_light_jtext(std::string_view path,
                                                    const std::vector<Record>& rows,
                                                    std::string_view table_label,
-                                                   bool case_sensitive) {
+                                                   bool case_sensitive,
+                                                   const std::vector<std::string>& end_comments) {
     std::ofstream out{std::string(path), std::ios::trunc};
     if (!out) return std::unexpected("cannot write " + std::string(path));
     const std::string table = table_label.empty() ? std::string("records") : std::string(table_label);
@@ -745,7 +851,7 @@ std::expected<void, std::string> write_light_jtext(std::string_view path,
                                          table);
     out << '\n';
     jText::v001::write_light_section_banner(out, table);
-    write_data_rows(out, rows);
+    write_data_rows(out, rows, end_comments);
     out << "-- End " << table << " --\n";   // every block closes, like XML
     out << "-- EOF --\n";
     if (!out) return std::unexpected("cannot write " + std::string(path));
@@ -757,7 +863,8 @@ std::expected<void, std::string> write_light_jtext(std::string_view path,
 std::expected<void, std::string> jtext_save_section(std::string_view source_path,
                                                     std::string_view out_path,
                                                     std::string_view section,
-                                                    const std::vector<Record>& rows) {
+                                                    const std::vector<Record>& rows,
+                                                    const std::vector<std::string>& end_comments) {
     for (std::size_t i = 0; i < rows.size(); ++i) {
         if (!record_id_of(rows[i]))
             return std::unexpected(std::format(
@@ -769,7 +876,7 @@ std::expected<void, std::string> jtext_save_section(std::string_view source_path
     in.close();
 
     std::ostringstream data;
-    write_data_rows(data, rows);
+    write_data_rows(data, rows, end_comments);
     auto replaced = jtext::replace_section_data(text, section, data.str());
     if (!replaced)
         return std::unexpected(std::format("cannot save section '{}' of {}: {}", section, source_path,
@@ -792,15 +899,16 @@ std::expected<void, std::string> jtext_save(std::string_view path,
                                             const std::vector<Record>& rows,
                                             std::string_view table_label,
                                             const TableShape* shape,
-                                            bool case_sensitive) {
+                                            bool case_sensitive,
+                                            const std::vector<std::string>& end_comments) {
     for (std::size_t i = 0; i < rows.size(); ++i) {
         if (!record_id_of(rows[i]))
             return std::unexpected(std::format(
                 "record {} is missing an integer record id in field 1", i + 1));
     }
     if (shape && !shape->columns.empty())
-        return write_full_jtext(path, rows, table_label, *shape, case_sensitive);
-    return write_light_jtext(path, rows, table_label, case_sensitive);
+        return write_full_jtext(path, rows, table_label, *shape, case_sensitive, end_comments);
+    return write_light_jtext(path, rows, table_label, case_sensitive, end_comments);
 }
 
 } // namespace jtext_gui
