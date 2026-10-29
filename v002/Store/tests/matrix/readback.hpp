@@ -307,14 +307,16 @@ inline std::vector<std::vector<std::string>> jtext_rows(const std::string& path,
     if (file->sections.size() != 1) { err = std::format("{}: {} sections, expected 1", path, file->sections.size()); return out; }
     std::vector<std::string> record;
     for (const auto& pl : file->sections[0].data_lines) {
-        if (pl.number == 0) {   // a blank line ends the record
+        // A blank line ends the record, and a line for field 1 starts the next: rows
+        // that each hold a whole record follow one another directly (SPEC 2.6).
+        if (pl.number == 0 || (pl.number == 1 && !record.empty())) {
             if (!record.empty()) out.push_back(std::move(record));
             record.clear();
-            continue;
+            if (pl.number == 0) continue;
         }
         const size_t first = pl.number - 1;
-        if (record.size() < first + pl.hierarchy.size()) record.resize(first + pl.hierarchy.size());
-        for (size_t k = 0; k < pl.hierarchy.size(); ++k) record[first + k] = pl.hierarchy[k];
+        if (record.size() < first + pl.values.size()) record.resize(first + pl.values.size());
+        for (size_t k = 0; k < pl.values.size(); ++k) record[first + k] = pl.values[k];
     }
     if (!record.empty()) out.push_back(std::move(record));
     return out;

@@ -1,11 +1,11 @@
 //File:    persist_keeper.jtext
-//Date:    2026-10-28
+//Date:    2026-10-29
 //Purpose: jText Data File
 //Related: type=ts_store table=persist_keeper
 //
 === jText File ===
  1. ▮▌ persist_keeper.jtext
- 2. ▮▌ 2026-10-28
+ 2. ▮▌ 2026-10-29
  3. ▮▌ ts_store split event log (main)
  4. ▮▌ 0.8
  5. ▮▌ Insensitive
@@ -34,26 +34,16 @@
 === <#include#> Fields: ../../../tests/jtext_includes/ts_store_main_fields.jtFlds ===
 === End Fields ===
 === Data ===
- 1. ▮▌ 40▮0▮0▮0x0000000000050002▮NET▮Not Set, default payload 😎▮819
-
- 1. ▮▌ 41▮0▮1▮0x0000000000150002▮NET▮Trace processing request 😎▮823
-
- 1. ▮▌ 42▮0▮2▮0x0000000000150002▮NET▮Debug processing request 😎▮825
-
- 1. ▮▌ 43▮0▮3▮0x0000000000150002▮NET▮Info processing request 😊▮826
-
- 1. ▮▌ 44▮0▮4▮0x0000000000150002▮NET▮Warning in processing notification 😕▮828
-
- 1. ▮▌ 45▮0▮5▮0x0000000000150002▮NET▮Error in processing notification 😣▮829
-
- 1. ▮▌ 46▮0▮6▮0x0000000000150002▮NET▮Critical processing request 😣▮831
-
- 1. ▮▌ 47▮0▮7▮0x0000000000150002▮NET▮Fatal error in processing notification 💀▮833
-
- 1. ▮▌ 48▮0▮8▮0x0000000000150002▮NET▮Not Set, default payload 😎▮835
-
- 1. ▮▌ 49▮0▮9▮0x0000000000150002▮NET▮Trace processing request 😎▮836
-
+ 1. ▮▌ 0▮0▮0▮0x0000000000050002▮NET▮Not Set, default payload 😎▮21440
+ 1. ▮▌ 1▮0▮1▮0x0000000000150002▮NET▮Trace processing request 😎▮21462
+ 1. ▮▌ 2▮0▮2▮0x0000000000150002▮NET▮Debug processing request 😎▮21466
+ 1. ▮▌ 3▮0▮3▮0x0000000000150002▮NET▮Info processing request 😊▮21470
+ 1. ▮▌ 4▮0▮4▮0x0000000000150002▮NET▮Warning in processing notification 😕▮21471
+ 1. ▮▌ 5▮0▮5▮0x0000000000150002▮NET▮Error in processing notification 😣▮21473
+ 1. ▮▌ 8▮0▮6▮0x0000000000150002▮NET▮Critical processing request 😣▮21476
+ 1. ▮▌ 15▮0▮7▮0x0000000000150002▮NET▮Fatal error in processing notification 💀▮21484
+ 1. ▮▌ 18▮0▮8▮0x0000000000150002▮NET▮Not Set, default payload 😎▮21486
+ 1. ▮▌ 20▮0▮9▮0x0000000000150002▮NET▮Trace processing request 😎▮21488
 === End Data ===
 === End Section ===
 

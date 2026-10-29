@@ -26,13 +26,18 @@
 // then emits the templates with basic substitution
 // and writes the result to <output_file>.
 
+#include <jac313/jText/v002.hpp>
 #include "parser/section.hpp"
 #include "validator/validator.hpp"
+#include "export/xml_export.hpp"   // jtext::section_comments
 
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <string_view>
 #include <vector>
 #include <chrono>
@@ -69,6 +74,14 @@ static auto sql_string_literal(const std::string& v) -> std::string
     return out;
 }
 
+// A plain SQL identifier: a letter or '_', then letters, digits and '_'; at most 63.
+static auto is_safe_identifier(std::string_view s) -> bool
+{
+    if (s.empty() || s.size() > 63) return false;
+    if (!(std::isalpha(static_cast<unsigned char>(s[0])) || s[0] == '_')) return false;
+    return std::ranges::all_of(s, [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; });
+}
+
 // Is the whole string a plain base-10 integer (optionally signed)? Used to
 // decide whether a Number field can be emitted unquoted.
 static auto is_plain_integer(const std::string& v) -> bool
@@ -82,44 +95,40 @@ static auto is_plain_integer(const std::string& v) -> bool
 }
 
 // Produce the SQL literal for one field value, driven by the field's declared
-// TYPE (not by column position). This is schema-agnostic and injection-safe:
-//   - String : missing(nullopt) -> NULL; empty -> '' (preserved); else quoted+escaped.
-//   - Number : missing/empty -> NULL; a plain integer is emitted unquoted; any
-//              other text is quoted+escaped defensively (the validator normally
-//              rejects non-numeric Number values before we get here).
-//   - Date / DateTime / GST : missing/empty -> NULL; always quoted+escaped (never raw).
-//   - Integer: like Number (a plain integer unquoted; anything else quoted).
-//   - Bool   : missing/empty -> NULL; a Bool value -> TRUE / FALSE (SQL standard
-//              boolean literals); anything else quoted+escaped defensively.
-static auto sql_literal(jtext::field_type type, const std::optional<std::string>& val) -> std::string
+// TYPE (not by column position). This is schema-agnostic and injection-safe. A file
+// holds no nulls (SPEC 2.6.1): {NULL} is the one value that becomes SQL NULL, for
+// every type, and an empty value is ''.
+//   - String : quoted+escaped.
+//   - Number / Integer: a plain integer is emitted unquoted; any other text is
+//              quoted+escaped defensively (the validator normally rejects
+//              non-numeric values before we get here).
+//   - Date / DateTime / GST : quoted+escaped (a date field always holds a date:
+//              the validator refuses an empty one before we get here).
+//   - Bool   : a Bool value -> TRUE / FALSE (SQL standard boolean literals);
+//              anything else quoted+escaped defensively.
+static auto sql_literal(const jtext::field& f, const std::string& val) -> std::string
 {
-    switch (type) {
+    if (val == jtext::kNullValue) return "NULL";
+    switch (f.type) {
     case jtext::field_type::bool_type: {
-        if (!val.has_value() || val->empty()) return "NULL";
-        const auto b = jtext::parse_bool_value(*val);
-        return b ? (*b ? "TRUE" : "FALSE") : sql_string_literal(*val);
+        const auto b = jtext::parse_bool_value(val);
+        return b ? (*b ? "TRUE" : "FALSE") : sql_string_literal(val);
     }
     case jtext::field_type::integer_type:
     case jtext::field_type::number_type:
-        if (!val.has_value() || val->empty()) return "NULL";
-        return is_plain_integer(*val) ? *val : sql_string_literal(*val);
+        return is_plain_integer(val) ? val : sql_string_literal(val);
     case jtext::field_type::date_type:
     case jtext::field_type::datetime_type:
     case jtext::field_type::gst_type:
-        if (!val.has_value() || val->empty()) return "NULL";
-        return sql_string_literal(*val);
     case jtext::field_type::string_type:
     default:
-        if (!val.has_value()) return "NULL";   // missing field
-        if (val->empty())     return "''";     // deliberate empty string for Nullable String
-        return sql_string_literal(*val);
+        return sql_string_literal(val);
     }
 }
 
 // Substitute {1}..{N} in the template body with correctly quoted literals.
 // Field types come from the validated section schema; value position i maps to
-// field i (1-based via {i+1}). Positions beyond the declared fields default to
-// String quoting (safe).
+// field i (1-based via {i+1}).
 static auto substitute_record(const std::string& tmpl,
                               const jtext::record& rec,
                               const std::vector<jtext::field>& fields) -> std::string
@@ -127,10 +136,10 @@ static auto substitute_record(const std::string& tmpl,
     std::string out = tmpl;
 
     for (std::size_t i = 0; i < rec.values.size(); ++i) {
-        const jtext::field_type type =
-            (i < fields.size()) ? fields[i].type : jtext::field_type::string_type;
+        static const jtext::field kStringField{};   // past the declared fields: String quoting (safe)
+        const jtext::field& f = i < fields.size() ? fields[i] : kStringField;
         std::string placeholder = "{" + std::to_string(i + 1) + "}";
-        std::string replacement = sql_literal(type, rec.values[i]);
+        std::string replacement = sql_literal(f, rec.values[i]);
 
         std::string::size_type pos = 0;
         while ((pos = out.find(placeholder, pos)) != std::string::npos) {
@@ -193,54 +202,78 @@ int main(int argc, char** argv)
         return 4;
     }
 
-    // Find the "SQL Insert" template (first one for now)
-    std::string insert_template_body;
-    for (const auto& sec : result.file.sections) {
-        for (const auto& tpl : sec.templates) {
-            if (tpl.name == "SQL Insert") {
-                insert_template_body = tpl.body;
-                break;
-            }
-        }
-        if (!insert_template_body.empty()) break;
-    }
-
-    if (insert_template_body.empty()) {
-        std::cerr << "No 'SQL Insert' template found in file.\n";
-        return 5;
-    }
-
-    // Emit one INSERT per record using the template
-    std::string output_sql;
-    auto now = std::chrono::system_clock::now();
-    auto today = std::chrono::floor<std::chrono::days>(now);
-    std::string date_str = std::format("{:%Y-%m-%d}", today);
-    output_sql += "//File:    " + std::string(base) + ".sql\n";
-    output_sql += "//Date:    " + date_str + "\n";
-    output_sql += "//Purpose: SQL Data File\n";
+    // The header block as SQL comments, so the file runs as written (SPEC 2.1).
     // If the source jText carried table_name, emit the compact Related form.
     std::string rel_table = base;
     auto it = result.file.header.find("table_name");
     if (it != result.file.header.end() && !it->second.empty()) {
         rel_table = it->second;
     }
-    if (!rel_table.empty()) {
-        output_sql += "//Related: type=jText table=" + rel_table + "\n";
-    }
-    output_sql += "//\n";
+    std::ostringstream header;
+    jac313::jText::v002::write_sql_comment_header(header, out_path.string(), "SQL Data File",
+                                          rel_table.empty() ? "" : "type=jText table=" + rel_table);
+    std::string output_sql = header.str();
     output_sql += "-- Generated from " + std::string(base) + ".jtFull\n";
     output_sql += "-- by jtext_xtox_sql\n";
-    output_sql += "-- Note: Identity/auto columns are controlled by the templates in the jText file.\n\n";
+    output_sql += "-- Note: Identity/auto columns are controlled by the templates in the jText file.\n";
 
-    bool first = true;
-    for (const auto& sec : result.file.sections) {
-        for (const auto& rec : sec.records) {
-            if (!first) output_sql += "\n";
-            first = false;
-            // The record id is field 1 of every record (SPEC 2.6.4), so the
-            // template's {1} already carries it; no id is synthesized here.
-            output_sql += substitute_record(insert_template_body, rec, sec.fields);
+    // Each section is one table (SPEC 2.3), with its own templates: "Create Table" once,
+    // "SQL Insert" per record, and its comments in <table>_comments (SPEC 4.3).
+    std::size_t inserts = 0;
+    for (std::size_t s = 0; s < result.file.sections.size(); ++s) {
+        const auto& sec = result.file.sections[s];
+        const auto find = [&](std::string_view name) -> const std::string* {
+            for (const auto& tpl : sec.templates)
+                if (tpl.name == name) return &tpl.body;
+            return nullptr;
+        };
+        const std::string* insert = find("SQL Insert");
+        if (!insert) continue;
+        // The data table's name names its comments table: the header's table_name for a
+        // one-section file (as the templates use it), else the section's name; lower-cased,
+        // as PostgreSQL folds an unquoted name.
+        const bool one = result.file.sections.size() == 1;
+        const bool header_table = one && it != result.file.header.end() && is_safe_identifier(it->second);
+        std::string table = header_table ? it->second : is_safe_identifier(sec.name) ? sec.name : "";
+        if (table.empty()) {
+            std::cerr << "ERROR: section '" << sec.name << "' has no table name usable for its "
+                      << "comments table (the header's table_name in a one-section file, or the "
+                      << "section name, must be a plain SQL identifier)\n";
+            return 5;
         }
+        std::ranges::transform(table, table.begin(), [](unsigned char c) { return std::tolower(c); });
+
+        output_sql += std::format("\n-- Section: {}\n", sec.name);
+        if (const std::string* create = find("Create Table")) output_sql += *create + "\n";
+        output_sql += std::format(
+            "CREATE TABLE IF NOT EXISTS {}_comments (\n"
+            "    block     TEXT    NOT NULL,\n"
+            "    kind      TEXT    NOT NULL,\n"
+            "    record_id INTEGER NOT NULL,\n"
+            "    position  INTEGER NOT NULL,\n"
+            "    seq       INTEGER NOT NULL,\n"
+            "    comment   TEXT    NOT NULL\n"
+            ");\n", table);
+
+        for (const auto& rec : sec.records) {
+            // The record id is field 1 of every record (SPEC 2.4.3), so the
+            // template's {1} already carries it; no id is synthesized here.
+            output_sql += "\n" + substitute_record(*insert, rec, sec.fields);
+            ++inserts;
+        }
+        for (const auto& c : jtext::section_comments(pf_or_err->sections[s])) {
+            output_sql += std::format(
+                "\nINSERT INTO {}_comments (block, kind, record_id, position, seq, comment) "
+                "VALUES ({}, {}, {}, {}, {}, {});", table, sql_string_literal(c.block),
+                sql_string_literal(c.kind), c.record_id, c.position, c.seq, sql_string_literal(c.text));
+        }
+        output_sql += "\n";
+    }
+    if (inserts == 0 && std::ranges::none_of(result.file.sections, [](const auto& sec) {
+            return std::ranges::any_of(sec.templates, [](const auto& t) { return t.name == "SQL Insert"; });
+        })) {
+        std::cerr << "No 'SQL Insert' template found in file.\n";
+        return 5;
     }
 
     // Write output
@@ -252,7 +285,6 @@ int main(int argc, char** argv)
     }
     out << output_sql;
 
-    std::cout << "Success. Wrote " << result.file.sections[0].records.size()
-              << " INSERT statement(s) to " << out_path << "\n";
+    std::cout << "Success. Wrote " << inserts << " INSERT statement(s) to " << out_path << "\n";
     return 0;
 }
