@@ -36,3 +36,23 @@
    fun:store
    ...
 }
+
+# libp11-kit (Ubuntu/Mint; pulled in by libpq -> gnutls / krb5) destroys, in its library
+# destructor at process exit, mutexes it never locked. Helgrind reports "pthread_mutex_destroy
+# with invalid argument" and DRD "is not a mutex": system-library exit cleanup, no jac313 code
+# on the stack. Scoped to pthread_mutex_destroy called directly from libp11-kit (helgrind's
+# top frame is its unsymbolized preload wrapper, so it is anchored on that object).
+{
+   jac313-helgrind-libp11-kit-exit-mutex-destroy
+   Helgrind:Misc
+   obj:*/vgpreload_helgrind-*.so
+   obj:*/libp11-kit.so*
+   ...
+}
+{
+   jac313-drd-libp11-kit-exit-mutex-destroy
+   drd:MutexErr
+   fun:pthread_mutex_destroy*
+   obj:*/libp11-kit.so*
+   ...
+}
