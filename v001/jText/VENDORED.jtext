@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText/v001
 
-1. #|# 3|canonical_commit|652af3ffcd38
+1. #|# 3|canonical_commit|173da0b4ed1c
 
 1. #|# 4|canonical_dirty|No
 
@@ -128,17 +128,17 @@
 
 1. #|# 35|tools/common/record_lines.hpp|tools/common/record_lines.hpp|77d76b33723603912a3c14655f0cc5a979295a5968978faaad2e2a0c7a5b4ff6|c8e08a51d238a6ec076f4d81d8f544c263acb810b7072e3cc25c847187edd0cc
 
-1. #|# 36|tools/from_sql/mariadb.cpp|tools/from_sql/mariadb.cpp|5dab8964de794a36d6b11cd4533b5808c31b20b4c1ce312b8dcea4f3ec28bc30|f94d1a0abe021315d647642fff392fb6ce1144f30d8452c0490770e8cddd9690
+1. #|# 36|tools/from_sql/mariadb.cpp|tools/from_sql/mariadb.cpp|b1b9efb7554c652fb6fc4b9ef4a2f4e473b3d04c140d671797acef947e5d3ea0|fd5020aa2c4bae8b763360432b9658780ad2311538bb2423982c7ab3ef981a6c
 
 1. #|# 37|tools/from_sql/mariadb_none.cpp|tools/from_sql/mariadb_none.cpp|5bfb3fa0e3cb2ba6cf4e7570f68be8ae4617c0fab3ab7c0c46bf606c29823547|5bfb3fa0e3cb2ba6cf4e7570f68be8ae4617c0fab3ab7c0c46bf606c29823547
 
-1. #|# 38|tools/from_sql/postgres.cpp|tools/from_sql/postgres.cpp|6288a4daaecc13967d7fbe1bd59dfdb7e4150873f8579890b79381ee771b5fd0|514b7040a70ce571f61f3b2a16fdc22fd59bb8bc5ea899f6ca6bad2b6ff05c48
+1. #|# 38|tools/from_sql/postgres.cpp|tools/from_sql/postgres.cpp|b708ee3b76acbf17448817f620c15b5b84232fa54311584fc6236766b2c64213|056d7a986f2a55c964977f2ec63ebbed98095cc9a0b5c6da4aa84a2c2761e8af
 
 1. #|# 39|tools/from_sql/postgres_none.cpp|tools/from_sql/postgres_none.cpp|6dd0aaaf6b2aa1416d79b60d9d2822a915e90b2fa5c39db22943d4d3d5e4980e|6dd0aaaf6b2aa1416d79b60d9d2822a915e90b2fa5c39db22943d4d3d5e4980e
 
-1. #|# 40|tools/from_sql/source.hpp|tools/from_sql/source.hpp|07c57c3dde96c67f1762fd74b1a0ea324a15e2fc9fd7c76e5d4ada1db28b8eaf|8ba2c53ba4aa1325d97efa97731efcf18f73e0585038df05f44d5616d97794ab
+1. #|# 40|tools/from_sql/source.hpp|tools/from_sql/source.hpp|0ca5d2cbdfd7b3231b3b5e8fa6711406a3045507c37d6aad25266ae34fa2159a|b55a3c147ead4f9d77f4a23bf609a88e2050cbb25bfffceec3aacdb4fcbc1b24
 
-1. #|# 41|tools/from_sql/sqlite.cpp|tools/from_sql/sqlite.cpp|ee137d89fc85b6c381307078c7a4cea1cd6ee0c0f4f0cad9fa7a79bd2bc1de2b|06013d88a21161f198a1d88ad6905b516fb07b23651a7cd586b47ab3b433158a
+1. #|# 41|tools/from_sql/sqlite.cpp|tools/from_sql/sqlite.cpp|d5e61388b2a980b527e07e24495247b06c31d38410c925355a213064337bb931|a3c4a08d4bb1ecad4963cc0a6a00e714f883a16f089145b289658d266cca44cc
 
 1. #|# 42|tools/from_sql/sqlite_none.cpp|tools/from_sql/sqlite_none.cpp|f24dd2856e5dab7d822e10a140bbfe29cb04066c497eab2616c293ddfe9d2931|f24dd2856e5dab7d822e10a140bbfe29cb04066c497eab2616c293ddfe9d2931
 
@@ -148,13 +148,13 @@
 
 1. #|# 45|tools/jtext_from_ods.cpp|tools/jtext_from_ods.cpp|01883d579534ea5949f7dab0f5d16c95473313376e2570277ce58cc48b5f26f7|b99f2c140e7a47e7e314b32e8bf4cd841666a967db663032225d4452775ecbf0
 
-1. #|# 46|tools/jtext_from_sql.cpp|tools/jtext_from_sql.cpp|d85b6fd550c2b1873613db4d7612ef942efa640c2a4515980e528c4f5b7480b9|dcf5da45e10280a183bbe528e6d81ada02e48ba53079ba53fb2cd31f7fc49a50
+1. #|# 46|tools/jtext_from_sql.cpp|tools/jtext_from_sql.cpp|1d7d274b40f6f01a0063869faeae3bd05e5b4db80a773f0fd0cfcf557334d8a3|6a372a42e826ebb61c27bd3db27c8867642a85a9c1ff4e9de8bf5624b142a6b1
 
 1. #|# 47|tools/jtext_to_ods.cpp|tools/jtext_to_ods.cpp|8b4ecb3d498ed519da3b3996c7511dda19c418de11ca86479443643f4aac356f|8b4ecb3d498ed519da3b3996c7511dda19c418de11ca86479443643f4aac356f
 
 1. #|# 48|tools/jtext_to_xml.cpp|tools/jtext_to_xml.cpp|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724
 
-1. #|# 49|tools/jtext_xtox_sql.cpp|tools/jtext_xtox_sql.cpp|c50c367b236b183abd94f0ac52c9c07320c612116195a2792091c2fc3e20fbb8|99447acb16067e4552e78a849406685f4c43f2326da32adf8c7f9e539ce0713e
+1. #|# 49|tools/jtext_xtox_sql.cpp|tools/jtext_xtox_sql.cpp|a983ae7a21c181e490f0cd1e01790ad8ec7bb5f7e45cc7aa5fa51731575ad41d|fa16e903554afd87b2c575a4f982fefdc7b64d581e22195d22b920d1f0d3cea7
 
 1. #|# 50|tools/ods/ods.cpp|tools/ods/ods.cpp|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2
 
