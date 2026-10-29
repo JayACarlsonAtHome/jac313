@@ -23,15 +23,15 @@
 
 1. #|# 2|canonical_dir|Qlite/v002/Qlite
 
-1. #|# 3|canonical_commit|029a500954d2
+1. #|# 3|canonical_commit|8d5e1961cf5e
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v002.006
+1. #|# 5|canonical_version|v002.009
 
 1. #|# 6|transform|jac313-prefix
 
-1. #|# 7|ported|2026-10-22
+1. #|# 7|ported|2026-10-28
 
 1. #|# 8|baseline|No
 
@@ -70,7 +70,7 @@
 
 1. #|# 6|tests/module/v002_module_test.cpp|tests/module/v002_module_test.cpp|e53e72267d2373de65176783053a1b8af7a09e1776cf349b276dd0f8669172dd|43610d50e90279206be2cdbdff5d65c2bb1573af2f6730f2fa0db4906e7fac47
 
-1. #|# 7|tests/v002_test.cpp|tests/v002_test.cpp|bf62a1426fa15f72695528f2d876c8f91bb375e5305b392fae13fe3dc55503e7|77ce97d9d82df61d2f64c8d0cd7041ceb82474063ad1bf43df7600a33822059c
+1. #|# 7|tests/v002_test.cpp|tests/v002_test.cpp|6c2303898916353d97ee0ef66b02d3bd67dec577e2b2a325ddb5a1794bf901dd|5391c5993c0a47013ebadb758aa3723c0e2b06f6d8e211464c0b2c43922f84a5
 
 === End Data ===
 === End Section ===
