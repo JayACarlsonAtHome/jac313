@@ -124,6 +124,9 @@ public:
             auto declared = catalog(schema, org_table);
             adopt_columns(out, declared.empty() ? std::move(fallback) : std::move(declared), SessionKind::MariaDB);
             if (comments_exist(*comments)) qlite_store::read_comments(*db_, kMariaDB, *comments, out);
+            auto fields = quote_table_ref(fields_table_of(table), SessionKind::MariaDB);
+            if (!fields) return std::unexpected(fields.error());
+            qlite_store::read_declarations(*db_, kMariaDB, comments_exist(*fields) ? *fields : std::string{}, out);
         } catch (const Qlite::v001::Error& e) {
             return std::unexpected(e.what());
         }

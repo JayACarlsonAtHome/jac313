@@ -85,6 +85,8 @@ struct DbQueryResult {
     /// The comment lines at the end of the data, from <table>_comments (the records'
     /// own comments are on the records).
     std::vector<std::string> end_comments;
+    /// Each column's declaration, as <table>_fields stores it, else from the column.
+    std::vector<std::vector<std::string>> declarations;
 };
 
 /// Attach catalog columns to a pull. An empty catalog becomes TEXT columns

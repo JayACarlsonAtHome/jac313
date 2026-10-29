@@ -11,6 +11,7 @@
 
 #include <cstdint>
 #include <expected>
+#include <map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -41,6 +42,22 @@ struct CommentRow {
 /// lines stand in `seq` order.
 void place_comment_rows(std::vector<Record>& rows, std::vector<CommentRow> comments,
                         std::vector<std::string>& end);
+
+/// The declarations table of `table` (SPEC 4.3): each field's declaration as written, part
+/// by part ("items" -> "items_fields", like comments_table_of).
+[[nodiscard]] std::string fields_table_of(std::string_view table);
+
+/// CREATE TABLE IF NOT EXISTS for it; `quoted` is the name as the dialect writes it.
+[[nodiscard]] std::string create_fields_table_sql(std::string_view quoted);
+
+/// A declaration's parts from a column: name/Type[/length]/Not Null|Nullable.
+[[nodiscard]] std::vector<std::string> declaration_of(const ColumnDef& col);
+
+/// Each column's declaration: `stored` (position -> parts, from <table>_fields) when it
+/// names the same field at that position (a database may fold a name's case), else
+/// declaration_of the column.
+[[nodiscard]] std::vector<std::vector<std::string>> declarations_for(
+    const std::vector<ColumnDef>& cols, const std::map<unsigned, std::vector<std::string>>& stored);
 
 /// What saving one changed record does to <table>_comments: delete the rows of
 /// `replace_ids` (its record id before the edit, and now), then insert `rows`.

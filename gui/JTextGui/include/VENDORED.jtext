@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/include
 
-1. #|# 3|canonical_commit|f01a5be57cf1
+1. #|# 3|canonical_commit|549a94c4d562
 
 1. #|# 4|canonical_dirty|No
 
@@ -60,7 +60,7 @@
 === Data ===
 1. #|# 1|README.md|README.md|734fa4ea286f5b9c5dc0a23440ee8352aff920f253f5cfd45ccc851d2f75cdd8|734fa4ea286f5b9c5dc0a23440ee8352aff920f253f5cfd45ccc851d2f75cdd8
 
-1. #|# 2|jtext_gui/core/comments_table.hpp|jtext_gui/core/comments_table.hpp|8527ef308c1fa3a0309d05a31015428bde88c6e8d021615f99919a149b3b23a4|8527ef308c1fa3a0309d05a31015428bde88c6e8d021615f99919a149b3b23a4
+1. #|# 2|jtext_gui/core/comments_table.hpp|jtext_gui/core/comments_table.hpp|f97af87f6fc3f5fe2b99e5b7912b6bcd6095db8e4976b98c80c8de4853019931|f97af87f6fc3f5fe2b99e5b7912b6bcd6095db8e4976b98c80c8de4853019931
 
 1. #|# 3|jtext_gui/core/connection_info.hpp|jtext_gui/core/connection_info.hpp|a9f591d52a15e11fafe53d94689e5544bc71a8c17b4dbef9027bce92a50e9e7b|a9f591d52a15e11fafe53d94689e5544bc71a8c17b4dbef9027bce92a50e9e7b
 
@@ -68,11 +68,11 @@
 
 1. #|# 5|jtext_gui/core/record.hpp|jtext_gui/core/record.hpp|b11ec94d1ec2138b0c1186b62dbfd19a810d4c76ecdefe7e5cbeb3dd6e7eea15|b11ec94d1ec2138b0c1186b62dbfd19a810d4c76ecdefe7e5cbeb3dd6e7eea15
 
-1. #|# 6|jtext_gui/core/session.hpp|jtext_gui/core/session.hpp|262fe419c122f1554b5a2e0e05671edebcc15e1b68d2f912c7802a2d1e2a5861|262fe419c122f1554b5a2e0e05671edebcc15e1b68d2f912c7802a2d1e2a5861
+1. #|# 6|jtext_gui/core/session.hpp|jtext_gui/core/session.hpp|d561ed200881a559dbf531cf1c8a0ad2f5407c10a3a9dd8a68b5137590d4a7e0|d561ed200881a559dbf531cf1c8a0ad2f5407c10a3a9dd8a68b5137590d4a7e0
 
 1. #|# 7|jtext_gui/core/spreadsheet.hpp|jtext_gui/core/spreadsheet.hpp|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87
 
-1. #|# 8|jtext_gui/core/table_store.hpp|jtext_gui/core/table_store.hpp|a529f1de466e4a140fe8a6300e9acff37f9aefbadfe950bbff20f5b4b2648aed|a529f1de466e4a140fe8a6300e9acff37f9aefbadfe950bbff20f5b4b2648aed
+1. #|# 8|jtext_gui/core/table_store.hpp|jtext_gui/core/table_store.hpp|be8e91ca2d5db01a64175608cdf0ff9e96f3a89eae3f657c7b1e5811b9ef3bc3|be8e91ca2d5db01a64175608cdf0ff9e96f3a89eae3f657c7b1e5811b9ef3bc3
 
 1. #|# 9|jtext_gui/record.hpp|jtext_gui/record.hpp|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5
 

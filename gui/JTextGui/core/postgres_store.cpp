@@ -81,6 +81,9 @@ public:
             if (auto r = qlite_store::read_records(st, out); !r) return std::unexpected(r.error());
             adopt_columns(out, catalog(*table_sql), SessionKind::PostgreSQL);
             if (comments_exist(*comments)) qlite_store::read_comments(*db_, kPostgres, *comments, out);
+            auto fields = quote_table_ref(fields_table_of(table), SessionKind::PostgreSQL);
+            if (!fields) return std::unexpected(fields.error());
+            qlite_store::read_declarations(*db_, kPostgres, comments_exist(*fields) ? *fields : std::string{}, out);
         } catch (const Qlite::v001::Error& e) {
             return std::unexpected(e.what());
         }

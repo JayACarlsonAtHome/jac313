@@ -38,6 +38,8 @@ struct TableShape {
     std::string table;
     SessionKind dialect = SessionKind::None;
     std::vector<ColumnDef> columns;
+    /// The Fields block as declared (parts per column); empty: from `columns`.
+    std::vector<std::vector<std::string>> declarations;
 };
 
 inline const char* session_kind_name(SessionKind k) {
@@ -97,6 +99,9 @@ struct TableSession {
     std::string key_column = "id";  ///< first column used as PK for mergesert
     std::vector<std::string> column_names;
     std::vector<ColumnDef> columns;  ///< empty for a jText file; filled on a database pull
+    /// A database session's field declarations (parts), one per column: from <table>_fields
+    /// (Not Empty, NullDate(...), auto designations), else from the column.
+    std::vector<std::vector<std::string>> declarations;
     /// A jText file's Fields block (name, type, length, Not Null), for display only;
     /// a database session describes its lines with `columns` instead.
     std::vector<ColumnDef> field_defs;
@@ -120,6 +125,7 @@ struct TableSession {
         key_column = "id";
         column_names.clear();
         columns.clear();
+        declarations.clear();
         field_defs.clear();
         rows.clear();
         changes.clear();

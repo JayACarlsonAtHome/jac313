@@ -51,27 +51,13 @@ bool null_token(const std::optional<std::string>& v) {
     return v && *v == jtext::kNullValue;
 }
 
-std::string joined_value(const jText::v001::JTextEntry& e) {
-    if (e.fields.empty()) return {};
-    const std::string sep = jtext::encode_utf8(e.level_sep == 0 ? U'|' : e.level_sep);
-    std::string out;
-    for (std::size_t i = 0; i < e.fields.size(); ++i) {
-        if (i) out += sep;
-        if (e.fields[i]) out += *e.fields[i];
-    }
-    return out;
-}
-
 void blank_record(Record& cur, const std::string& marker) {
     cur = Record{};
     cur.marker = marker.empty() ? std::string(kDefaultMarker) : marker;
     cur.mark_all_absent();
 }
 
-/// A numbered line is one field, even when its marker splits the text
-/// (category "Hand Tools/Hammers/Claw" with /#). A compact row is one line
-/// that carries the whole record ("1. |# a|b|c") and is not followed by a
-/// higher field number. A [] line is the field text unchanged, including a
+/// A line with one value: that field. A [] line is the field text unchanged, including a
 /// literal NULL and trailing spaces.
 void assign_one_field(Record& cur, const jText::v001::JTextEntry& e, const std::string& marker) {
     const std::size_t i = e.number - 1;
@@ -91,7 +77,7 @@ void assign_one_field(Record& cur, const jText::v001::JTextEntry& e, const std::
         return;
     }
     cur.is_null[i] = false;
-    cur.fields[i] = e.fields.size() > 1 ? joined_value(e) : field_value(e, 0);
+    cur.fields[i] = field_value(e, 0);
 }
 
 void assign_compact(Record& cur, const jText::v001::JTextEntry& e) {
@@ -467,6 +453,14 @@ std::expected<void, std::string> write_full_jtext(std::string_view path,
 
     out << "=== Fields ===\n";
     for (std::size_t i = 0; i < use.columns.size(); ++i) {
+        if (i < use.declarations.size() && !use.declarations[i].empty()) {   // as declared
+            jText::v001::write_jtext_line_number(out, i + 1, pad);
+            out << "/\xE2\x96\x8C ";
+            for (std::size_t k = 0; k < use.declarations[i].size(); ++k)
+                out << (k ? "/" : "") << use.declarations[i][k];
+            out << '\n';
+            continue;
+        }
         const bool record_id = i == 0 && use.columns[i].jtext_type == "Integer";
         write_field_line(out, i + 1, pad, use.columns[i], record_id);
     }
@@ -520,7 +514,6 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path, st
     Record cur;
     bool open = false;
     int last_num = 0;
-    bool after_multiline = false;   // the last line was a multiline value
     std::size_t lines = 0;          // the open record's lines so far
     auto flush = [&] {
         if (!open) return;
@@ -529,7 +522,6 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path, st
         cur = Record{};
         open = false;
         last_num = 0;
-        after_multiline = false;
         lines = 0;
     };
 
@@ -560,48 +552,21 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path, st
         std::string marker = marker_for(e);
         if (marker.empty()) marker = open ? cur.marker : std::string(kDefaultMarker);
 
-        std::size_t next_num = 0;
-        for (std::size_t j = ei + 1; j < entries.size(); ++j) {
-            if (entries[j].number < 1) continue;
-            next_num = entries[j].number;
-            break;
-        }
-        const bool next_continues = next_num > e.number;
-
-        // A line with several values is a compact row (SPEC 2.6.3) when it is a whole
-        // record, when the next line is the field after its last value, or when it
-        // continues a record after a multiline field. Otherwise the values are the
-        // levels of one field ("Hand Tools/Hammers/Claw").
-        const bool multi = e.fields.size() > 1 && !marker_is_raw(marker);
-        const bool starts_new = !open || static_cast<int>(e.number) <= last_num;
-        const bool compact = multi &&
-            ((starts_new && !next_continues) ||
-             (next_continues && next_num == e.number + e.fields.size()) ||
-             (!starts_new && after_multiline));
-        if (compact) {
-            if (starts_new) {
-                if (open) flush();
-                blank_record(cur, marker);
-                open = true;
-            }
-            assign_compact(cur, e);
-            keep_comments(e);
-            cur.vertical = ++lines > 1;
-            last_num = static_cast<int>(e.number + e.fields.size() - 1);
-            after_multiline = false;
-            continue;
-        }
-
+        // A line for a field at or before the last one read starts a new record (a line
+        // for field 1 always does). A line with several values is a multifield line: the
+        // marker's splice is in its data, and its values go to the fields from its number
+        // on (SPEC 2.6.3).
         if (open && static_cast<int>(e.number) <= last_num) flush();
         if (!open) {
             blank_record(cur, marker);
             open = true;
         }
-        assign_one_field(cur, e, marker);
+        const bool multifield = e.fields.size() > 1 && !marker_is_raw(marker);
+        if (multifield) assign_compact(cur, e);
+        else assign_one_field(cur, e, marker);
         keep_comments(e);
         cur.vertical = ++lines > 1;
-        last_num = static_cast<int>(e.number);
-        after_multiline = is_multiline_entry(e);
+        last_num = static_cast<int>(e.number + (multifield ? e.fields.size() - 1 : 0));
     }
     flush();
     take_comments(entries.size());

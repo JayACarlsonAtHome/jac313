@@ -565,11 +565,11 @@ struct RecordsWindow : TopWindow {
 	void CloseNow() { TopWindow::Close(); }
 };
 
-// A line's value field: Ctrl+N (any case) asks for NULL.
+// A line's value field: Ctrl+Shift+N asks for NULL (Ctrl+N is File > New Form).
 struct FieldEdit : EditString {
 	Event<> WhenNull;
 	bool Key(dword key, int rep) override {
-		if (key == (K_CTRL|K_N) || key == (K_SHIFT|K_CTRL|K_N)) {
+		if (key == (K_SHIFT|K_CTRL|K_N)) {
 			WhenNull();
 			return true;
 		}
@@ -582,12 +582,12 @@ struct FieldEdit : EditString {
 //   Cell mode (the grid has the focus, the current cell is highlighted = its whole value
 //   selected): arrows/Enter/Tab/PageUp/PageDown move; typing starts editing with the typed
 //   text replacing the value; Delete/Backspace empties it; Ctrl+C copies the value; Ctrl+V
-//   pastes one value over it; Ctrl+N (any case) makes it NULL; Ctrl+Z undoes the last saved
+//   pastes one value over it; Ctrl+Shift+N makes it NULL; Ctrl+Z undoes the last saved
 //   cell change.
 //   Edit mode (an editor on the cell; F2, Home, End, typing, or a click on the current
 //   cell): Left/Right move letter by letter and, at the text's start or end, save and go to
 //   the next cell; Up/Down/Enter/Tab save and move; Esc drops the typing; Ctrl+Z drops the
-//   typing (else undoes the last saved change); Ctrl+N saves NULL.
+//   typing (else undoes the last saved change); Ctrl+Shift+N saves NULL.
 // Paste takes one value: text with tabs or line breaks (a row, a column or a block) is
 // refused. A locked cell (the record id, until unlocked) can only be copied.
 // Cell mode selects nothing in a text field on purpose: a text selection becomes the
@@ -819,7 +819,6 @@ struct CellGrid : Ctrl {
 			Refresh();
 			return true;
 		}
-		case K_CTRL|K_N:
 		case K_SHIFT|K_CTRL|K_N:
 			if (!LockedHere()) Commit(cr, cc, String(), true);
 			Refresh();
@@ -860,7 +859,6 @@ struct CellGrid : Ctrl {
 		case K_ESCAPE:
 			EndEdit(false);
 			return true;
-		case K_CTRL|K_N:
 		case K_SHIFT|K_CTRL|K_N:
 			EndEdit(false);
 			Commit(cr, cc, String(), true);
@@ -1052,6 +1050,7 @@ struct JTextGui : TopWindow {
 			Maximize();
 		menu.Set([this](Bar& bar) {
 			bar.Sub("File", [this](Bar& bar) {
+				bar.Add("New Form", THISBACK(NewForm)).Key(K_CTRL_N);
 				bar.Add("Open jText..", THISBACK(OpenJText)).Key(K_CTRL_O);
 				bar.Add("Save jText", THISBACK(SaveJText)).Key(K_CTRL_S);
 				bar.Add("Save jText As..", THISBACK(SaveJTextAs)).Key(K_SHIFT|K_CTRL_S);
@@ -1259,7 +1258,7 @@ struct JTextGui : TopWindow {
 	// --- --self-test: drive the grid with real key events, then check -------------------
 	// Run on a file whose grid shows every cell (e.g. --lines 2-99). Every cell is visited
 	// in a slightly random order (row by row, shuffled in windows of 8; fixed seed), reached
-	// with arrow keys, and given a new value by typing + Enter. Mixed in: Ctrl+N (NULL),
+	// with arrow keys, and given a new value by typing + Enter. Mixed in: Ctrl+Shift+N (NULL),
 	// Delete (empty string), F2 + append, Ctrl+Z right after an edit, a one-value paste,
 	// a refused block paste, and typing into the locked id. Then every cell is checked in the
 	// session, the file is saved, reloaded with the core library and checked again.
@@ -1327,8 +1326,8 @@ struct JTextGui : TopWindow {
 			GoToCell(r, c);
 			const int f = gridCols[c];
 			String want;
-			if (i % 50 == 7) {           // Ctrl+N: NULL
-				Press(K_CTRL|K_N);
+			if (i % 50 == 7) {           // Ctrl+Shift+N: NULL
+				Press(K_SHIFT|K_CTRL|K_N);
 				want = "\x01";
 				nulls++;
 			}
@@ -1403,7 +1402,7 @@ struct JTextGui : TopWindow {
 		const int badFile = back ? check(back->rows, "file") : -1;
 		printf("self-test: %d records x %d lines (%d cells edited by keys) in %.1f s\n", rows, cols,
 		       edits, msecs(t0) / 1000.0);
-		printf("  typed %d, Ctrl+N %d, Delete %d, F2+append %d, Ctrl+Z %d, paste %d\n",
+		printf("  typed %d, Ctrl+Shift+N %d, Delete %d, F2+append %d, Ctrl+Z %d, paste %d\n",
 		       edits - nulls - empties - appends - pastes, nulls, empties, appends, undos, pastes);
 		printf("  locked id kept: %s; block paste refused: %s\n", idKept ? "yes" : "NO", blockRefused ? "yes" : "NO");
 		printf("  session mismatches: %d; saved file mismatches: %d\n", badSession, badFile);
@@ -1523,7 +1522,7 @@ struct JTextGui : TopWindow {
 		grid.Refresh();
 	}
 
-	// Ctrl+N in a line field on the right: that line becomes NULL.
+	// Ctrl+Shift+N in a line field on the right: that line becomes NULL.
 	void SetRowNull(int i) {
 		if (i >= visible || i >= lineOf.GetCount()) return;
 		if (lineOf[i] == 0) {
@@ -1972,6 +1971,39 @@ struct JTextGui : TopWindow {
 		OpenPath(S(session.jtext_path), want);
 	}
 
+	// File > New Form (Ctrl+N): an empty jText
+	// form, one record with id 1. Unsaved changes are offered for saving first; the first
+	// Save jText asks where the new file goes.
+	void NewForm() {
+		SaveCurrent();
+		if (session.is_dirty()) {
+			const int answer = PromptSaveDontSaveCancel("Save changes before starting a new form?");
+			if (answer == 1) {
+				if (jtext_gui::is_database_session(session.kind))
+					Mergesert();
+				else
+					SaveJText();
+				if (session.is_dirty()) return;
+			} else if (answer != 0) {
+				return;
+			}
+		}
+		session.clear();   // kind None: Save jText asks for a path, then it is a jText file
+		session.table = "records";
+		jtext_gui::Record first;
+		first.mark_all_absent();
+		first.fields[0] = "1";
+		first.is_null[0] = false;
+		first.has_line[0] = true;
+		session.append_row(std::move(first));
+		session.changes.clear();   // nothing typed yet
+		store.reset();
+		connStatus.SetText("New form (not saved yet)");
+		table <<= "records";
+		ClearTemplates();
+		FinishLoad("New form. Type the first record; Save jText asks where to save it.");
+	}
+
 	void FinishLoad(const String& note) {
 		FillSections();
 		undo.Clear();   // grid undo belongs to the records that were loaded before
@@ -2364,6 +2396,7 @@ struct JTextGui : TopWindow {
 			if (shape.table.empty()) shape.table = session.table;
 			shape.dialect = session.kind;
 			shape.columns = session.columns;
+			shape.declarations = session.declarations;
 			const jtext_gui::TableShape* use = shape.columns.empty() ? nullptr : &shape;
 			auto r = jtext_gui::jtext_save(out, session.rows,
 			                               shape.table.empty() ? "records" : shape.table, use,

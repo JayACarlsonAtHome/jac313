@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <expected>
 #include <format>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -104,10 +105,26 @@ void read_comments(D& db, const Dialect& d, const std::string& table, DbQueryRes
     place_comment_rows(out.rows, std::move(rows), out.end_comments);
 }
 
+/// The column declarations: those <table>_fields (`table`, which exists) stores, and the
+/// rest from the columns. With no such table, `table` is empty: all from the columns.
+template<Qlite::v001::Database D>
+void read_declarations(D& db, const Dialect& d, const std::string& table, DbQueryResult& out) {
+    std::map<unsigned, std::vector<std::string>> stored;
+    if (!table.empty()) {
+        const std::string sql = "SELECT position, level, text FROM " + table + " ORDER BY position, level";
+        debug_log(std::format("{} SQL: {}", d.log, sql));
+        auto st = db.prepare(sql);
+        for (auto& [position, level, text] : st.template get_all<std::int64_t, std::int64_t, std::string>())
+            stored[static_cast<unsigned>(position)].push_back(std::move(text));
+    }
+    out.declarations = declarations_for(out.columns, stored);
+}
+
 /// Mergesert, in one transaction: each changed record is an UPDATE of every column by its
 /// original key (so a changed key is saved too), else (a new record, or no row had that
 /// key) an INSERT. Then each changed record's rows in the comments table are replaced; the
-/// table is made, before the transaction, when the first comment is saved.
+/// table is made, before the transaction, when the first comment is saved. A table with no
+/// <table>_fields gets one, with the session's declarations (SPEC 4.3).
 /// `comments_exist(table)` tells whether the comments table is there.
 template<Qlite::v001::Database D, class Exists>
 std::expected<std::size_t, std::string> save(D& db, const Dialect& d, TableSession& session,
@@ -116,6 +133,8 @@ std::expected<std::size_t, std::string> save(D& db, const Dialect& d, TableSessi
     if (!table) return std::unexpected(table.error());
     auto comments = quote_table_ref(comments_table_of(session.table), d.kind);
     if (!comments) return std::unexpected(comments.error());
+    auto fields = quote_table_ref(fields_table_of(session.table), d.kind);
+    if (!fields) return std::unexpected(fields.error());
     const auto& cols = session.column_names;
     if (cols.empty()) return std::unexpected(std::string(d.log) + ": no columns (open the table again)");
     const std::string key = d.ident(session.key_column.empty() ? cols[0] : session.key_column);
@@ -143,6 +162,8 @@ std::expected<std::size_t, std::string> save(D& db, const Dialect& d, TableSessi
     std::size_t written = 0;
     bool open = false;
     try {
+        const bool write_fields = !session.declarations.empty() && !comments_exist(*fields);
+        if (write_fields) run(db, d, create_fields_table_sql(*fields));
         bool have_comments = comments_exist(*comments);
         if (!have_comments && (any_comment_rows(*changes) || (end_changed && !session.end_comments.empty()))) {
             run(db, d, create_comments_table_sql(*comments));
@@ -150,6 +171,13 @@ std::expected<std::size_t, std::string> save(D& db, const Dialect& d, TableSessi
         }
         run(db, d, d.begin);
         open = true;
+        if (write_fields) {
+            const std::string add = std::format("INSERT INTO {} (position, level, text) VALUES ({}, {}, {})", *fields,
+                                                d.placeholder(1), d.placeholder(2), d.placeholder(3));
+            for (std::size_t p = 0; p < session.declarations.size(); ++p)
+                for (std::size_t level = 0; level < session.declarations[p].size(); ++level)
+                    run(db, d, add, {std::to_string(p + 1), std::to_string(level + 1), session.declarations[p][level]});
+        }
         for (std::size_t idx : session.changes.dirty_rows) {
             if (idx >= session.rows.size()) continue;
             const Record& rec = session.rows[idx];

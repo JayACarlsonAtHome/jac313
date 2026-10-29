@@ -81,6 +81,9 @@ public:
             if (auto r = qlite_store::read_records(st, out); !r) return std::unexpected(r.error());
             out.columns = std::move(catalog);
             if (comments_exist(*comments)) qlite_store::read_comments(*db_, kSqlite, *comments, out);
+            auto fields = quote_table_ref(fields_table_of(table), SessionKind::Sqlite);
+            if (!fields) return std::unexpected(fields.error());
+            qlite_store::read_declarations(*db_, kSqlite, comments_exist(*fields) ? *fields : std::string{}, out);
         } catch (const Qlite::v001::Error& e) {
             return std::unexpected(e.what());
         }

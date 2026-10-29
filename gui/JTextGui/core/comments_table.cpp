@@ -1,6 +1,7 @@
 #include "jtext_gui/core/comments_table.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <format>
 #include <tuple>
 
@@ -22,6 +23,42 @@ std::string create_comments_table_sql(std::string_view quoted) {
                        "    seq       INTEGER NOT NULL,\n"
                        "    comment   TEXT    NOT NULL\n"
                        ")", quoted);
+}
+
+std::string fields_table_of(std::string_view table) {
+    std::string out(table);
+    if (!out.empty() && out.back() == ']') out.insert(out.size() - 1, "_fields");
+    else out += "_fields";
+    return out;
+}
+
+std::string create_fields_table_sql(std::string_view quoted) {
+    return std::format("CREATE TABLE IF NOT EXISTS {} (\n"
+                       "    position  INTEGER NOT NULL,\n"
+                       "    level     INTEGER NOT NULL,\n"
+                       "    text      TEXT    NOT NULL\n"
+                       ")", quoted);
+}
+
+std::vector<std::string> declaration_of(const ColumnDef& col) {
+    std::vector<std::string> d{col.name, col.jtext_type.empty() ? std::string("String") : col.jtext_type};
+    if (col.length > 0 && d[1] == "String") d.push_back(std::to_string(col.length));
+    d.emplace_back(col.not_null ? "Not Null" : "Nullable");
+    return d;
+}
+
+std::vector<std::vector<std::string>> declarations_for(const std::vector<ColumnDef>& cols,
+                                                       const std::map<unsigned, std::vector<std::string>>& stored) {
+    const auto same = [](std::string_view a, std::string_view b) {
+        return std::ranges::equal(a, b, [](unsigned char x, unsigned char y) { return std::tolower(x) == std::tolower(y); });
+    };
+    std::vector<std::vector<std::string>> out;
+    for (std::size_t i = 0; i < cols.size(); ++i) {
+        const auto it = stored.find(static_cast<unsigned>(i + 1));
+        const bool use = it != stored.end() && !it->second.empty() && same(it->second[0], cols[i].name);
+        out.push_back(use ? it->second : declaration_of(cols[i]));
+    }
+    return out;
 }
 
 std::vector<CommentRow> comment_rows_of(const Record& rec, std::int64_t record_id) {

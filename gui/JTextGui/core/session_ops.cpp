@@ -243,6 +243,7 @@ std::expected<void, std::string> session_open_db(TableSession& session,
     session.where_clause = std::string(where);
     session.column_names = std::move(q->column_names);
     session.columns = std::move(q->columns);
+    session.declarations = std::move(q->declarations);
     session.key_column = q->key_column.empty() ? "id" : q->key_column;
     session.rows = std::move(q->rows);
     session.end_comments = std::move(q->end_comments);
