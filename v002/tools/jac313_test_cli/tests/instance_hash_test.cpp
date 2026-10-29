@@ -2,19 +2,20 @@
 
 #include <iostream>
 #include <string>
+#include <source_location>
+#include <string_view>
+#include <cstdlib>
 
 namespace {
 
 int failures = 0;
 
-#define CHECK(cond)                                                            \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::cerr << "FAIL: " #cond " at " << __FILE__ << ":" << __LINE__  \
-                      << "\n";                                                  \
-            ++failures;                                                        \
-        }                                                                      \
-    } while (0)
+// A failed check says what and where, and counts toward failures.
+void check(bool ok, std::string_view what, std::source_location at = std::source_location::current()) {
+    if (ok) return;
+    std::cerr << "FAIL: " << what << " at " << at.file_name() << ":" << at.line() << "\n";
+    ++failures;
+}
 
 void check_eq(const std::string& got, const std::string& want, const char* label) {
     if (got != want) {
@@ -35,7 +36,7 @@ int main() {
     check_eq(jac313::results::sha256_hex_lower("fedora-vm"),
              jac313::results::sha256_hex_lower("fedora-vm"),
              "stable");
-    CHECK(jac313::results::sha256_hex_lower("fedora-vm").size() == 64);
+    check(jac313::results::sha256_hex_lower("fedora-vm").size() == 64, "jac313::results::sha256_hex_lower(\"fedora-vm\").size() == 64");
 
     if (failures == 0) {
         std::cout << "instance_hash — sha256_hex_lower known vectors\n";

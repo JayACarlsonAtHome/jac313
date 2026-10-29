@@ -12,6 +12,9 @@
 #include <cstdint>
 #include <iostream>
 #include <string>
+#include <source_location>
+#include <string_view>
+#include <cstdlib>
 
 using jac313::Qlite::v002::Sqlite;
 using namespace jac313::test_cli;
@@ -20,14 +23,12 @@ namespace {
 
 int failures = 0;
 
-#define CHECK(cond)                                                            \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::cerr << "FAIL: " #cond " at " << __FILE__ << ":" << __LINE__  \
-                      << "\n";                                                  \
-            ++failures;                                                        \
-        }                                                                      \
-    } while (0)
+// A failed check says what and where, and counts toward failures.
+void check(bool ok, std::string_view what, std::source_location at = std::source_location::current()) {
+    if (ok) return;
+    std::cerr << "FAIL: " << what << " at " << at.file_name() << ":" << at.line() << "\n";
+    ++failures;
+}
 
 std::int64_t count_rows(Sqlite& db) {
     auto s = db.prepare("SELECT COUNT(*) FROM runs");
@@ -65,18 +66,18 @@ int main() {
     insert(db, 2, {"rhel-10.2", "gcc15", "Debug", "xssd", "Smoke", "textual"});
 
     dedup_for(db, 1);                 // finalize the rhel-9.8 run
-    CHECK(count_rows(db) == 2);       // rhel-10.2 must NOT be clobbered (the bug)
+    check(count_rows(db) == 2, "count_rows(db) == 2");       // rhel-10.2 must NOT be clobbered (the bug)
 
     // A second rhel-9.8 run with the SAME identity must replace the first.
     insert(db, 3, {"rhel-9.8", "gcc15", "Debug", "xssd", "Smoke", "textual"});
     dedup_for(db, 3);
-    CHECK(count_rows(db) == 2);       // row 1 gone, rows 2 (10.2) and 3 (9.8) remain
+    check(count_rows(db) == 2, "count_rows(db) == 2");       // row 1 gone, rows 2 (10.2) and 3 (9.8) remain
 
     auto s = db.prepare("SELECT id FROM runs ORDER BY id");
     std::int64_t first = 0;
-    CHECK(s.step());
+    check(s.step(), "s.step()");
     s.get(first);
-    CHECK(first == 2);                // row 1 (same identity as 3) was removed
+    check(first == 2, "first == 2");                // row 1 (same identity as 3) was removed
 
     if (failures == 0) {
         std::cout << "identity dedup — OS distinguishes runs; same-identity dedups\n";

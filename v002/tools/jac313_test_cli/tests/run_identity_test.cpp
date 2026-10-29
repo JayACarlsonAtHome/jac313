@@ -7,6 +7,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <source_location>
+#include <string_view>
+#include <cstdlib>
 
 using namespace jac313::test_cli;
 
@@ -14,41 +17,37 @@ namespace {
 
 int failures = 0;
 
-#define CHECK(cond)                                                            \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            std::cerr << "FAIL: " #cond " at " << __FILE__ << ":" << __LINE__  \
-                      << "\n";                                                  \
-            ++failures;                                                        \
-        }                                                                      \
-    } while (0)
+// A failed check says what and where, and counts toward failures.
+void check(bool ok, std::string_view what, std::source_location at = std::source_location::current()) {
+    if (ok) return;
+    std::cerr << "FAIL: " << what << " at " << at.file_name() << ":" << at.line() << "\n";
+    ++failures;
+}
 
-#define CHECK_EQ(got, want)                                                    \
-    do {                                                                       \
-        const auto g_ = (got);                                                 \
-        const auto w_ = (want);                                                \
-        if (g_ != w_) {                                                        \
-            std::cerr << "FAIL at " << __FILE__ << ":" << __LINE__             \
-                      << "\n  got:  " << g_ << "\n  want: " << w_ << "\n";      \
-            ++failures;                                                        \
-        }                                                                      \
-    } while (0)
+// A failed equality check shows both values.
+template <class Got, class Want>
+void check_eq(const Got& got, const Want& want, std::source_location at = std::source_location::current()) {
+    if (!(got != want)) return;
+    std::cerr << "FAIL at " << at.file_name() << ":" << at.line() << "\n  got:  " << got << "\n  want: " << want
+              << "\n";
+    ++failures;
+}
 
 void test_columns_order() {
     const std::vector<std::string> expected = {
         "os", "compiler", "build_type", "disk_type", "size_label", "modules"};
-    CHECK(run_identity_columns() == expected);
+    check(run_identity_columns() == expected, "run_identity_columns() == expected");
 }
 
 void test_sql_clauses() {
-    CHECK_EQ(identity_select_list(),
+    check_eq(identity_select_list(),
              std::string("os, compiler, build_type, disk_type, size_label, modules"));
-    CHECK_EQ(identity_select_list("r"),
+    check_eq(identity_select_list("r"),
              std::string("r.os, r.compiler, r.build_type, r.disk_type, r.size_label, r.modules"));
-    CHECK_EQ(identity_group_by("r"), identity_select_list("r"));
-    CHECK_EQ(identity_where_eq(),
+    check_eq(identity_group_by("r"), identity_select_list("r"));
+    check_eq(identity_where_eq(),
              std::string("os=? AND compiler=? AND build_type=? AND disk_type=? AND size_label=? AND modules=?"));
-    CHECK_EQ(identity_join_on("r", "latest"),
+    check_eq(identity_join_on("r", "latest"),
              std::string("r.os = latest.os AND r.compiler = latest.compiler"
                          " AND r.build_type = latest.build_type"
                          " AND r.disk_type = latest.disk_type"
@@ -59,36 +58,36 @@ void test_sql_clauses() {
 void test_values_order_matches_columns() {
     RunIdentity id{"rhel-10.2", "gcc15", "Release", "xssd", "Smoke", "textual"};
     const auto vals = identity_values(id);
-    CHECK(vals.size() == run_identity_columns().size());
-    CHECK_EQ(vals[0], std::string("rhel-10.2"));   // os
-    CHECK_EQ(vals[1], std::string("gcc15"));        // compiler
-    CHECK_EQ(vals[2], std::string("Release"));      // build_type
-    CHECK_EQ(vals[3], std::string("xssd"));         // disk_type
-    CHECK_EQ(vals[4], std::string("Smoke"));        // size_label
-    CHECK_EQ(vals[5], std::string("textual"));      // modules
+    check(vals.size() == run_identity_columns().size(), "vals.size() == run_identity_columns().size()");
+    check_eq(vals[0], std::string("rhel-10.2"));   // os
+    check_eq(vals[1], std::string("gcc15"));        // compiler
+    check_eq(vals[2], std::string("Release"));      // build_type
+    check_eq(vals[3], std::string("xssd"));         // disk_type
+    check_eq(vals[4], std::string("Smoke"));        // size_label
+    check_eq(vals[5], std::string("textual"));      // modules
 }
 
 void test_path() {
     RunIdentity id{"rhel-10.2", "gcc15", "Release", "xssd", "Smoke", "textual"};
-    CHECK_EQ(identity_path("/proj", id).generic_string(),
+    check_eq(identity_path("/proj", id).generic_string(),
              std::string("/proj/test-results/rhel-10.2/gcc15/Release/xssd/Smoke/textual"));
 }
 
 void test_os_key_parsing() {
-    CHECK_EQ(os_key_from_release("ID=rhel\nVERSION_ID=\"10.2\"\n"),
+    check_eq(os_key_from_release("ID=rhel\nVERSION_ID=\"10.2\"\n"),
              std::string("rhel-10.2"));
-    CHECK_EQ(os_key_from_release("NAME=\"Linux Mint\"\nID=linuxmint\nVERSION_ID=22\n"),
+    check_eq(os_key_from_release("NAME=\"Linux Mint\"\nID=linuxmint\nVERSION_ID=22\n"),
              std::string("linuxmint-22"));
-    CHECK_EQ(os_key_from_release("ID=\"rhel\"\nVERSION_ID=\"9.8\"\n"),
+    check_eq(os_key_from_release("ID=\"rhel\"\nVERSION_ID=\"9.8\"\n"),
              std::string("rhel-9.8"));
-    CHECK_EQ(os_key_from_release("ID=Fedora\nVERSION_ID=42\n"),
+    check_eq(os_key_from_release("ID=Fedora\nVERSION_ID=42\n"),
              std::string("fedora-42"));               // lowercased
-    CHECK_EQ(os_key_from_release("ID=arch\n"),
+    check_eq(os_key_from_release("ID=arch\n"),
              std::string("arch"));                    // no version -> id only
-    CHECK_EQ(os_key_from_release(""), std::string("unknown"));
+    check_eq(os_key_from_release(""), std::string("unknown"));
     // 10.1 vs 10.2 are distinct — the whole point.
-    CHECK(os_key_from_release("ID=rhel\nVERSION_ID=10.1\n")
-          != os_key_from_release("ID=rhel\nVERSION_ID=10.2\n"));
+    check(os_key_from_release("ID=rhel\nVERSION_ID=10.1\n")
+          != os_key_from_release("ID=rhel\nVERSION_ID=10.2\n"), "os_key_from_release(\"ID=rhel\\nVERSION_ID=10.1\\n\") != os_key_from_release(\"ID=rhel\\nVERSION_ID=10.2\\n\")");
 }
 
 } // namespace
