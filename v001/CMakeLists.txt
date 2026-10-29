@@ -44,6 +44,22 @@ option(JAC313_STRICT_WERROR "With JAC313_STRICT: treat those warnings as errors"
 # -ftrivial-auto-var-init=zero hides the uninitialized reads memcheck exists to find.
 option(JAC313_HARDENED "Runtime hardening: libstdc++ assertions, zero-init locals, stack/CF protection" OFF)
 
+# Contracts (the vendored jText's JTEXT_ and Qlite's QLITE_ PRE/POST/ASSERT). v001 is C++23,
+# so there are no native C++26 contracts: the macros are runtime checks that print and abort
+# (enforce), or are compiled out (ignore). Setup/contracts.jtext lists these modes per OS and toolchain.
+set(JAC313_CONTRACTS "enforce" CACHE STRING "Contract evaluation: enforce | ignore (v001 has no native contracts)")
+set_property(CACHE JAC313_CONTRACTS PROPERTY STRINGS enforce ignore)
+if(JAC313_CONTRACTS STREQUAL "ignore")
+    add_compile_definitions(JTEXT_CONTRACTS_ENABLED=0 QLITE_CONTRACTS_ENABLED=0)
+elseif(NOT JAC313_CONTRACTS STREQUAL "enforce")
+    message(FATAL_ERROR "JAC313_CONTRACTS=${JAC313_CONTRACTS}: v001 (C++23) has enforce or ignore")
+endif()
+if(JAC313_CONTRACTS STREQUAL "enforce")
+    set(JAC313_CONTRACTS_TERMINATE ON)   # the death tests hold only when violations terminate
+else()
+    set(JAC313_CONTRACTS_TERMINATE OFF)
+endif()
+
 if(JAC313_STRICT)
     # -Wnull-dereference is left out: on gcc 15 it fires only inside libstdc++ <streambuf>.
     add_compile_options(

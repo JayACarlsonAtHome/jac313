@@ -12,3 +12,6 @@ add_test(NAME jac313_jtext_v001_parser_validator_test COMMAND jac313_jtext_v001_
 add_executable(jac313_jtext_v001_contracts_test contracts_test.cpp)
 target_link_libraries(jac313_jtext_v001_contracts_test PRIVATE jac313::jText)
 add_test(NAME jac313_jtext_v001_contracts_test COMMAND jac313_jtext_v001_contracts_test)
+if(NOT JAC313_CONTRACTS_TERMINATE)   # observe / ignore: a violation does not end the program
+    set_tests_properties(jac313_jtext_v001_contracts_test PROPERTIES DISABLED TRUE)
+endif()

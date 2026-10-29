@@ -509,6 +509,10 @@ struct Runner : TopWindow {
 	Label     lRoot, lVersion, lComp, lType, lFront, lSize, lDb, lFiles, lMaxRuns, lMaxRec, lMax, lDefRuns, lDefRec, lDefRows, lRb, lPg, lCmd, lInfo;
 	Label     lFormat;   // the format checks every build has (not an option)
 	Label     lCompVer;  // "gcc 16.2.1, clang 22.1.8": what gcc / clang mean on this machine
+	Label     lContracts;
+	Switch    contracts;    // enforce | observe | quick_enforce | ignore (only the compiler's are enabled)
+	Index<String> gccModes, clangModes;   // the contract modes gcc / clang have here (compiler-versions)
+	void   EnableContracts();
 	String    compVerFor;   // the version dir lCompVer was filled for
 	EditString root;
 	Button    browse;
@@ -757,6 +761,17 @@ Runner::Runner()
 	              "(ctest/smoke builds; not bench or valgrind)");
 	Place(s1p.body, bStrict, 420, y + 18 + 26, 130, 22);
 	Place(s1p.body, bHardened, 560, y + 18 + 26, 100, 22);
+	lContracts.SetText("Contracts:");
+	contracts.Add("enforce", "enforce").Add("observe", "observe")
+	         .Add("quick_enforce", "quick_enforce").Add("ignore", "ignore");
+	contracts.Tip("--contracts (ctest/smoke builds): enforce, a violation prints and ends the program; "
+	              "observe, prints and goes on; quick_enforce, ends it at once without a message; "
+	              "ignore, not checked. Only the modes the chosen compiler has on this OS can be "
+	              "picked (Setup/contracts.jtext): all four with native C++26 contracts (GCC 16, "
+	              "v002), enforce and ignore elsewhere.");
+	Place(s1p.body, lContracts, 420, y + 18 + 52, 80, 22);
+	Place(s1p.body, contracts, 500, y + 18 + 52, 380, 22);
+	comp.WhenAction << THISBACK(EnableContracts);
 	lFormat.SetText("Always on: -Wformat=2 -Werror=format");
 	lFormat.Tip("Every build (any compiler, type or option) treats a printf-style call whose "
 	            "arguments do not match its format, such as a 64-bit value given to %d, as an error.");
@@ -923,7 +938,7 @@ Runner::Runner()
 	SetMinSize(minsz);
 
 	Ctrl *live[] = { &version, &comp, &type, &front, &size, &rb, &pg, &gCtest, &gSmoke, &gBench, &gVerifyLite,
-	                 &gVerify, &bStrict, &bHardened, &pSql, &pPgL, &pPgR, &pJt, &pBin, &pJson, &pHtml, &pgHost, &pgPort, &pgDb, &pgUser, &connFile, &maxRuns, &maxRecords, &maxRows };
+	                 &gVerify, &bStrict, &bHardened, &contracts, &pSql, &pPgL, &pPgR, &pJt, &pBin, &pJson, &pHtml, &pgHost, &pgPort, &pgDb, &pgUser, &connFile, &maxRuns, &maxRecords, &maxRows };
 	for(Ctrl *c : live)
 		c->WhenAction << THISBACK(UpdateCommand);
 	// ticking a PG box tests that server; a failed test unticks it again
@@ -1100,6 +1115,7 @@ void Runner::FromOptions()
 	type <<= opt.buildType;
 	bStrict <<= opt.strict;
 	bHardened <<= opt.hardened;
+	contracts <<= opt.contracts;
 	front <<= opt.frontEnd;
 	size <<= opt.size;
 	pSql <<= opt.sqlite;
@@ -1133,6 +1149,7 @@ void Runner::ToOptions()
 	opt.buildType = AsString(~type);
 	opt.strict = bStrict;
 	opt.hardened = bHardened;
+	opt.contracts = AsString(~contracts);
 	opt.frontEnd = AsString(~front);
 	opt.size = AsString(~size);
 	opt.sqlite = pSql;
@@ -1231,9 +1248,14 @@ void Runner::ShowCompilerVersions()
 			out << chunk;
 		if(p.IsRunning())
 			p.Kill();
-		for(const String& line : Split(out, '\n')) {   // "gcc gcc16 16.2.1"
+		gccModes.Clear();
+		clangModes.Clear();
+		for(const String& line : Split(out, '\n')) {   // "gcc gcc16 16.2.1 enforce,observe,quick_enforce,ignore"
 			Vector<String> w = Split(line, ' ');
-			if(w.GetCount() == 3 && (w[0] == "gcc" || w[0] == "clang")) {
+			if(w.GetCount() >= 3 && (w[0] == "gcc" || w[0] == "clang")) {
+				Index<String>& modes = w[0] == "gcc" ? gccModes : clangModes;
+				for(const String& m : Split(w.GetCount() > 3 ? w[3] : String("enforce,ignore"), ','))
+					modes.FindAdd(m);
 				if(text.GetCount())
 					text << ",  ";
 				text << w[0] << " " << (w[2] == "-" ? String("not found") : w[2]);
@@ -1243,6 +1265,26 @@ void Runner::ShowCompilerVersions()
 	if(text.GetCount())   // asked again next time when the tool is missing or did not answer
 		compVerFor = dir;
 	lCompVer.SetText(text);
+	EnableContracts();
+}
+
+// Only the contract modes the chosen compiler has on this OS can be picked ("both": the modes
+// both have); ignore always can. A pick that is no longer there falls back to enforce.
+void Runner::EnableContracts()
+{
+	String c = AsString(~comp);
+	auto has = [&](const String& m) {
+		if(m == "ignore" || m == "enforce")
+			return true;
+		bool g = gccModes.Find(m) >= 0, k = clangModes.Find(m) >= 0;
+		return c == "gcc" ? g : c == "clang" ? k : g && k;
+	};
+	for(const char *m : { "enforce", "observe", "quick_enforce", "ignore" })
+		contracts.EnableValue(m, has(m));
+	if(!has(AsString(~contracts))) {
+		contracts <<= "enforce";
+		UpdateCommand();
+	}
 }
 
 void Runner::Browse()

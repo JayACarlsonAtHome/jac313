@@ -195,7 +195,7 @@ only with a root whose engine is safe to run.
 Working dir `<root>/<version>`, executable `<root>/<version>/jac313_test_cli`:
 
 ```
-jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc|--clang] [--release] [--strict] [--hardened] [--modules]
+jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc|--clang] [--release] [--strict] [--hardened] [--contracts MODE] [--modules]
                 [--size full] --persist <list> [--max-runs N] [--max-records N] [--max-persist-rows N]
                 --readback <sample|all>
                 --pg-cleanup <keep-last|delete> --summary-json <path>
@@ -236,6 +236,14 @@ jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc|
   192.168.122.x reaching a server on 192.168.1.x arrives as its host, so it needs 192.168.1.0/24). The
   script checks the address the server sees over ssh and stops, before changing anything, when
   `--allow` does not cover it.
+* **Contracts** (Screen 1, Build): `enforce` (the default, not passed), `observe`, `quick_enforce`
+  or `ignore`, passed as `--contracts MODE` (ctest/smoke builds; a non-default mode builds in
+  `build-<cc>-contracts-MODE` and is recorded as build type `Debug-contracts-MODE`). Only the modes
+  the chosen compiler has on this OS can be picked: `jac313_test_cli compiler-versions` lists them
+  (`gcc gcc16 16.2.1 enforce,observe,quick_enforce,ignore`) from the version's
+  `Setup/contracts.jtext`, a table of OS × toolchain × mode. With **both**, only the modes both
+  compilers have. `ignore` (and `enforce`) can always be picked; a pick the compiler does not have
+  falls back to `enforce`.
 * The `--persist` names are `sql` (SQLite), `pg-local`, `pg-remote`, `jtext`, `binary`, `json` and `html`.
 * With Compiler **both**, the command runs twice, gcc15 first and then clang. The summaries go to `runner_last_gcc15.json` and `runner_last_clang.json`.
 * With one compiler the summary goes to `<root>/<version>/test-summary/runner_last.json`.
@@ -246,14 +254,15 @@ jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc|
   readback{mode,count,checksum,sample,rows_checked}, dataset{backend,base}, log, dataset_cmd[]?}`.
   A missing field shows as `-`.
 * **Contract:** every summary carries `"contract": N` (written by the CLI; a summary without
-  it counts as 1). This GUI understands contracts 1 to 3 (`kRunnerContract` = 3 in `Model.h`; 2 added
-  `--pg-remote` / `--pg-local` and the summary's `pg_remote`, 3 added `--connections`) and refuses
+  it counts as 1). This GUI understands contracts 1 to 4 (`kRunnerContract` = 4 in `Model.h`; 2 added
+  `--pg-remote` / `--pg-local` and the summary's `pg_remote`, 3 added `--connections`, 4 added
+  `--contracts` and the modes in `compiler-versions`) and refuses
   a newer one with "rebuild the GUI". Any change to the flags above or the summary fields
   bumps the contract in the CLI's `summary.cpp` and in `Model.h` together.
 * Viewer data comes from `dataset_cmd` when the row has one. Otherwise it comes from
   `<root>/<version>/<build_dir>/Store/tests/matrix/jac313_store_dataset --backend B --base P --limit 1000`.
-  The build dir is `build-gcc15` or `build-clang` for Debug (plus `-strict` / `-hardened`
-  when the build type says so), and `build-bench-gcc15` or `build-bench-clang` for Release. The tool prints jText on stdout. Its last stderr line
+  The build dir is `build-gcc15` or `build-clang` for Debug (plus `-strict` / `-hardened` /
+  `-contracts-MODE` when the build type says so), and `build-bench-gcc15` or `build-bench-clang` for Release. The tool prints jText on stdout. Its last stderr line
   `VALIDATION errors=E warnings=W` becomes the validation line.
 
 ## jText reader (viewer only)

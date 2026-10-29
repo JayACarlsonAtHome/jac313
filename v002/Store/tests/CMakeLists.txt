@@ -8,6 +8,9 @@ if(JAC313_STORE_BUILD_TESTS)
     add_executable(jac313_store_contracts_test contracts_store_test.cpp)
     target_link_libraries(jac313_store_contracts_test PRIVATE jac313::Store)
     add_test(NAME jac313_store_contracts_test COMMAND jac313_store_contracts_test)
+    if(NOT JAC313_CONTRACTS_TERMINATE)   # observe / ignore: a violation does not end the program
+        set_tests_properties(jac313_store_contracts_test PROPERTIES DISABLED TRUE)
+    endif()
 
     add_executable(jac313_store_metric_view_test metric_view_test.cpp)
     target_link_libraries(jac313_store_metric_view_test PRIVATE jac313::Store)

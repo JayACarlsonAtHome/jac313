@@ -16,6 +16,7 @@ add_executable(jac313_test_cli
     jac313_test_cli/build_pipeline.cpp
     jac313_test_cli/summary.cpp
     jac313_test_cli/connections.cpp
+    jac313_test_cli/contract_modes.cpp
     jac313_test_cli/vendor.cpp
     jac313_test_cli/run_identity.cpp
 )
@@ -107,6 +108,9 @@ if(TARGET jac313::Setup)
     target_link_libraries(jac313_contracts_enforce_test PRIVATE jac313::Setup)
 endif()
 add_test(NAME jac313_contracts_enforce_test COMMAND jac313_contracts_enforce_test)
+if(NOT JAC313_CONTRACTS_TERMINATE)   # observe / ignore: a violation does not end the program
+    set_tests_properties(jac313_contracts_enforce_test PROPERTIES DISABLED TRUE)
+endif()
 # Native contracts on gcc16 come from the top-level CMakeLists.txt (-fcontracts on the whole tree).
 
 # jac313_wipe_all — standalone results.db reset tool (schema + testType enum kept;

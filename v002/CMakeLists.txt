@@ -66,15 +66,33 @@ if(JAC313_HARDENED)
         "$<$<NOT:$<CONFIG:Debug>>:-U_FORTIFY_SOURCE;-D_FORTIFY_SOURCE=3>")
 endif()
 
-# Contracts (jac313::contracts, Setup/include/jac313/Setup/contracts.hpp). GCC 16 builds the
-# whole tree with NATIVE ISO C++26 contracts (P2900): -fcontracts defines __cpp_contracts, so
-# JAC313_PRE/POST/ASSERT become contract_assert, under the 'enforce' semantic so a violated
-# contract terminates. clang and gcc15 have no native contracts and keep the macros' runtime
-# fail-fast checks. -fcontracts must be on the link line too, or gcc16 leaves the default
-# contract-violation handler out (undefined reference to handle_contract_violation).
+# Contracts (JAC313_ / JTEXT_ / QLITE_ PRE/POST/ASSERT). JAC313_CONTRACTS picks how they run;
+# Setup/contracts.jtext lists the modes each toolchain has on each OS, and jac313_test_cli
+# --contracts checks a choice against it. GCC 16 builds the whole tree with NATIVE ISO C++26
+# contracts (P2900): -fcontracts defines __cpp_contracts, so the macros become contract_assert
+# under -fcontract-evaluation-semantic=<mode>. -fcontracts must be on the link line too, or gcc16
+# leaves the default contract-violation handler out (undefined handle_contract_violation).
+# Other compilers have no native contracts: the macros are runtime checks that print and abort
+# (enforce), or are compiled out (ignore).
+set(JAC313_CONTRACTS "enforce" CACHE STRING "Contract evaluation: enforce | observe | quick_enforce | ignore")
+set_property(CACHE JAC313_CONTRACTS PROPERTY STRINGS enforce observe quick_enforce ignore)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
-    add_compile_options(-fcontracts -fcontract-evaluation-semantic=enforce)
+    if(NOT JAC313_CONTRACTS MATCHES "^(enforce|observe|quick_enforce|ignore)$")
+        message(FATAL_ERROR "JAC313_CONTRACTS=${JAC313_CONTRACTS}: use enforce, observe, quick_enforce or ignore")
+    endif()
+    add_compile_options(-fcontracts -fcontract-evaluation-semantic=${JAC313_CONTRACTS})
     add_link_options(-fcontracts)
+elseif(JAC313_CONTRACTS STREQUAL "ignore")
+    add_compile_definitions(JAC313_CONTRACTS_ENABLED=0 JTEXT_CONTRACTS_ENABLED=0 QLITE_CONTRACTS_ENABLED=0)
+elseif(NOT JAC313_CONTRACTS STREQUAL "enforce")
+    message(FATAL_ERROR "JAC313_CONTRACTS=${JAC313_CONTRACTS} needs native C++26 contracts (GCC 16); "
+                        "this compiler has enforce or ignore")
+endif()
+# The death tests (a violated contract must terminate) only hold when violations terminate.
+if(JAC313_CONTRACTS MATCHES "^(enforce|quick_enforce)$")
+    set(JAC313_CONTRACTS_TERMINATE ON)
+else()
+    set(JAC313_CONTRACTS_TERMINATE OFF)
 endif()
 
 if(JAC313_BUILD_STORE_TESTS)

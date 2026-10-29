@@ -316,6 +316,10 @@ BuildFeatures read_build_features(const fs::path& build_dir) {
         cmake_cache_bool(line, "JAC313_BUILD_MODULES", features.modules);
         cmake_cache_bool(line, "JAC313_STRICT", features.strict);
         cmake_cache_bool(line, "JAC313_HARDENED", features.hardened);
+        if (line.rfind("JAC313_CONTRACTS:", 0) == 0) {
+            if (const auto eq = line.find('='); eq != std::string::npos && eq + 1 < line.size())
+                features.contracts = line.substr(eq + 1);
+        }
         if (line.rfind("CMAKE_BUILD_TYPE:", 0) == 0) {
             if (const auto eq = line.find('='); eq != std::string::npos) {
                 std::string v = line.substr(eq + 1);
@@ -326,12 +330,17 @@ BuildFeatures read_build_features(const fs::path& build_dir) {
         }
     }
     features.pg_persist = pg_option && libpq_found;
-    features.build_type += build_flavor_suffix(features.strict, features.hardened);
+    features.build_type += build_flavor_suffix(features.strict, features.hardened, features.contracts);
     return features;
 }
 
-std::string build_flavor_suffix(bool strict, bool hardened) {
-    return std::string(strict ? "-strict" : "") + (hardened ? "-hardened" : "");
+std::string build_flavor_suffix(bool strict, bool hardened, const std::string& contracts) {
+    return std::string(strict ? "-strict" : "") + (hardened ? "-hardened" : "")
+           + (contracts == "enforce" ? std::string() : "-contracts-" + contracts);
+}
+
+bool is_contracts_mode(const std::string& mode) {
+    return mode == "enforce" || mode == "observe" || mode == "quick_enforce" || mode == "ignore";
 }
 
 bool scenario_matches_filter(const MatrixScenario& scen, const std::string& filter) {

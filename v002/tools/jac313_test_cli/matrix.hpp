@@ -70,14 +70,20 @@ struct BuildFeatures {
     bool pg_persist{false};           // PostgreSQL sink built (JAC313_STORE_PG_PERSIST + libpq found)
     bool modules{false};              // JAC313_BUILD_MODULES from the tree's CMakeCache
     std::string build_type{"Debug"};  // CMAKE_BUILD_TYPE from the tree's CMakeCache, plus
-                                      // "-strict" / "-hardened" when those options are ON, so
-                                      // such runs get their own results rows, logs and datasets
+                                      // "-strict" / "-hardened" / "-contracts-<mode>" when
+                                      // those options are set, so such runs get their own
+                                      // results rows, logs and datasets
     bool strict{false};               // JAC313_STRICT
     bool hardened{false};             // JAC313_HARDENED
+    std::string contracts{"enforce"}; // JAC313_CONTRACTS
 };
 
-// "-strict", "-hardened", "-strict-hardened" or "" (appended to the build type label).
-std::string build_flavor_suffix(bool strict, bool hardened);
+// "-strict", "-hardened", then "-contracts-<mode>" unless the mode is enforce (the default);
+// "" when none (appended to the build type label, and to the build dir name).
+std::string build_flavor_suffix(bool strict, bool hardened, const std::string& contracts = "enforce");
+
+// The contract evaluation modes (--contracts). Which a toolchain has on an OS: Setup/contracts.jtext.
+bool is_contracts_mode(const std::string& mode);
 
 BuildFeatures read_build_features(const std::filesystem::path& build_dir);
 bool scenario_matches_filter(const MatrixScenario& scen, const std::string& filter);

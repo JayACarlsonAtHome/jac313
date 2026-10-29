@@ -2,6 +2,7 @@
 // Discovers CTest entries from a build tree, runs them with captured output,
 // and prints a summary. No shell scripts required.
 
+#include "contract_modes.hpp"
 #include "build_pipeline.hpp"
 #include "compiler.hpp"
 #include "format.hpp"
@@ -126,6 +127,13 @@ void print_usage() {
         "                       protection (ctest/smoke builds; never bench or valgrind)\n"
         "                       Either one builds in build-<cc>-strict / -hardened and records the\n"
         "                       build type as Debug-strict / Debug-hardened / Debug-strict-hardened\n"
+        "  --contracts MODE     JAC313_CONTRACTS=MODE: how contracts run (ctest/smoke builds):\n"
+        "                       enforce (default; a violation prints and ends the program),\n"
+        "                       observe (prints, goes on), quick_enforce (ends it at once, silently),\n"
+        "                       ignore (not checked). The modes each toolchain has on each OS:\n"
+        "                       Setup/contracts.jtext (native C++26 contracts, GCC 16 on v002, have\n"
+        "                       all four; elsewhere enforce or ignore). Not enforce: builds in\n"
+        "                       build-<cc>-contracts-MODE, build type Debug-contracts-MODE\n"
         "  --no-store-tests     Disable JAC313_BUILD_STORE_TESTS\n\n"
         "Toolchains are data-driven: see tools/jac313_test_cli/compilers.conf\n"
         "(activation-aware — handles gcc-toolset via scl / env-launcher / source-script).\n"
@@ -396,6 +404,16 @@ bool apply_compiler_resolution(GlobalOptions& global,
         request.prefer_clang = configure_opts.prefer_clang;
 
         const CompilerSelection selection = resolve_compiler(request);
+        // --contracts: a mode this toolchain has on this OS (Setup/contracts.jtext)
+        const std::string os_family = jac313::Setup::v002::sense_host().os_family;
+        const auto modes = contract_modes(global.source_dir, os_family, selection.label);
+        if (std::find(modes.begin(), modes.end(), configure_opts.contracts) == modes.end()) {
+            std::string list;
+            for (const auto& m : modes) list += (list.empty() ? "" : ", ") + m;
+            std::cerr << "--contracts " << configure_opts.contracts << ": " << selection.label << " on "
+                      << os_family << " has " << list << " (Setup/contracts.jtext)\n";
+            return false;
+        }
         configure_opts.resolved_compiler = selection.cc_path;
         configure_opts.compiler_kind = selection.kind;
         configure_opts.scan_deps_candidates = selection.scan_deps;
@@ -2304,10 +2322,13 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
     if (configure_opts.modules) func_extra += " --modules";
     if (configure_opts.strict) func_extra += " --strict";
     if (configure_opts.hardened) func_extra += " --hardened";
-    // A strict / hardened tree is its own build dir, so the everyday trees never rebuild for it.
-    const std::string flavor = build_flavor_suffix(configure_opts.strict, configure_opts.hardened);
+    if (configure_opts.contracts != "enforce") func_extra += " --contracts " + configure_opts.contracts;
+    // A strict / hardened / contracts tree is its own build dir, so the everyday trees never
+    // rebuild for it.
+    const std::string flavor = build_flavor_suffix(configure_opts.strict, configure_opts.hardened,
+                                                   configure_opts.contracts);
     if (!flavor.empty() && (preset.bench || preset.verify || preset.verify_lite))
-        std::cout << "note: --strict / --hardened apply to the ctest/smoke builds only; "
+        std::cout << "note: --strict / --hardened / --contracts apply to the ctest/smoke builds only; "
                      "bench and valgrind builds stay as they are\n";
 
     std::vector<std::string> lines;
@@ -2412,7 +2433,8 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
                 return s.find("password") == std::string::npos ? s : std::string("(set; contains a password, not shown)");
             }()},
             {"build_type", configure_opts.build_type
-                           + build_flavor_suffix(configure_opts.strict, configure_opts.hardened)},
+                           + build_flavor_suffix(configure_opts.strict, configure_opts.hardened,
+                                                 configure_opts.contracts)},
             {"started_utc", started_utc},
             {"finished_utc", jac313::results::utc_now_iso()},
             {"command", script.string()},
@@ -2719,11 +2741,14 @@ int refuse_root_unless_allowed(int& argc, char** argv) {
 
 // `compiler-versions`: the gcc and the clang a run uses on this machine (pinned in
 // Setup/compilers.pin, else the newest installed), one line each: "gcc gcc16 16.2.1",
-// "clang clang 22.1.8" ("-" when missing). Jac313Runner shows them beside its choices.
+// "clang clang 22.1.8" ("-" when missing), then the contract modes it has on this OS
+// (Setup/contracts.jtext, e.g. "enforce,observe,quick_enforce,ignore"). Jac313Runner shows the versions
+// beside its choices and enables only those contract modes.
 int run_compiler_versions_command(const GlobalOptions& global) {
     const auto [gcc_label, clang_label] = pinned_or_highest_labels(global.source_dir);
     const auto probes = probe_compilers(global.source_dir);
     const std::regex number(R"((\d+\.\d+(\.\d+)?))");
+    const std::string os_family = jac313::Setup::v002::sense_host().os_family;
     const std::pair<std::string, std::string> kinds[] = {{"gcc", gcc_label}, {"clang", clang_label}};
     for (const auto& [kind, label] : kinds) {
         std::string version;
@@ -2732,8 +2757,11 @@ int run_compiler_versions_command(const GlobalOptions& global) {
             if (p.available && p.spec.label == label && std::regex_search(p.version_line, m, number))
                 version = m[1];
         }
+        std::string modes;
+        for (const auto& m : contract_modes(global.source_dir, os_family, label))
+            modes += (modes.empty() ? "" : ",") + m;
         std::cout << kind << ' ' << (label.empty() ? "-" : label) << ' '
-                  << (version.empty() ? "-" : version) << '\n';
+                  << (version.empty() ? "-" : version) << ' ' << modes << '\n';
     }
     return 0;
 }
@@ -3060,6 +3088,13 @@ int main(int argc, char** argv) {
                 configure_opts.strict = true;
             } else if (arg == "--hardened") {
                 configure_opts.hardened = true;
+            } else if (arg == "--contracts" && i + 1 < argc) {
+                configure_opts.contracts = argv[++i];
+                if (!is_contracts_mode(configure_opts.contracts)) {
+                    std::cerr << "--contracts " << configure_opts.contracts
+                              << ": use enforce, observe, quick_enforce or ignore\n";
+                    std::exit(2);
+                }
             } else if (arg == "--release") {
                 configure_opts.build_type = "Release";
             } else if (arg == "--debug") {

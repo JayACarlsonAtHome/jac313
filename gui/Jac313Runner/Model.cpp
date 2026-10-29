@@ -12,7 +12,7 @@ void RunOptions::Jsonize(JsonIO& io)
 {
 	io("root", root)("version", version)
 	  ("ctest", ctest)("smoke", smoke)("bench", bench)("verify_lite", verifyLite)("verify", verify)
-	  ("compiler", compiler)("build_type", buildType)("strict", strict)("hardened", hardened)("front_end", frontEnd)("size", size)
+	  ("compiler", compiler)("build_type", buildType)("strict", strict)("hardened", hardened)("contracts", contracts)("front_end", frontEnd)("size", size)
 	  ("sqlite", sqlite)("pg_local", pgLocal)("pg_remote", pgRemote)
 	  ("jtext", jtext)("binary", binary)("json", json)("html", html)
 	  ("max_runs", maxRuns)("max_records", maxRecords)("max_persist_rows", maxRows)("readback", readback)("pg_cleanup", pgCleanup)
@@ -38,6 +38,8 @@ bool LoadSettings(RunOptions& o)
 	s.buildType = OneOf(s.buildType, "Debug", "Release");
 	s.frontEnd  = OneOf(s.frontEnd, "textual", "modules");
 	s.size      = OneOf(s.size, "smoke", "full");
+	if(s.contracts != "observe" && s.contracts != "quick_enforce" && s.contracts != "ignore")
+		s.contracts = "enforce";
 	s.readback  = OneOf(s.readback, "sample", "all");
 	s.pgCleanup = OneOf(s.pgCleanup, "keep-last", "delete");
 	s.maxRuns = max(s.maxRuns, 0);
@@ -462,6 +464,7 @@ Array<RunPlan> BuildPlans(const RunOptions& opts, const String& root)
 			a << "--pg-remote" << RemoteConninfo(o);
 		if(o.strict)                 a << "--strict";
 		if(o.hardened)               a << "--hardened";
+		if(o.contracts != "enforce") a << "--contracts" << o.contracts;
 		if(o.frontEnd == "modules")  a << "--modules";
 		if(o.size == "full")         a << "--size" << "full";
 		String persist = PersistList(o);

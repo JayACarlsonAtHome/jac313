@@ -158,9 +158,24 @@ so one source builds on every v002 compiler:
 
 | Compiler | What the macros are | Set by |
 |---|---|---|
-| **GCC 16** | native C++26 `contract_assert` (P2900), `enforce` semantic: a violation terminates | v002 `CMakeLists.txt`: `-fcontracts -fcontract-evaluation-semantic=enforce` on the whole tree (compile and link) |
+| **GCC 16** | native C++26 `contract_assert` (P2900) under `-fcontract-evaluation-semantic=JAC313_CONTRACTS` | v002 `CMakeLists.txt`: `-fcontracts` on the whole tree (compile and link) |
 | clang (22 has no `__cpp_contracts`), gcc15 | runtime check + `std::abort()` with file/line | `contracts.hpp` fallback |
 | any, `-DJAC313_CONTRACTS_ENABLED=0` | no-ops | `contracts.hpp` |
+
+How they run: the CMake cache variable `JAC313_CONTRACTS` (`jac313_test_cli --contracts MODE`,
+the Runner's Contracts choice):
+
+| Mode | A violated contract | Where |
+|---|---|---|
+| `enforce` (default) | prints and ends the program | every compiler |
+| `observe` | prints, the program goes on | native (GCC 16) only |
+| `quick_enforce` | ends the program at once, no message | native (GCC 16) only |
+| `ignore` | not checked | every compiler (elsewhere: `JAC313_/JTEXT_/QLITE_CONTRACTS_ENABLED=0`) |
+
+`Setup/contracts.jtext` is the table of which modes each toolchain has on each OS (one row per
+OS and toolchain, a true/false column per mode); the CLI refuses a mode not marked there, and the
+Runner enables only those. Under `observe` and `ignore` the death tests are disabled (CTest
+reports them as Disabled), since a violation then does not end the program.
 
 Contracts in real code (programmer errors only; bad input from files keeps its own refusals):
 

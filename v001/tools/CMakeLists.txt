@@ -16,6 +16,7 @@ add_executable(jac313_test_cli
     jac313_test_cli/build_pipeline.cpp
     jac313_test_cli/summary.cpp
     jac313_test_cli/connections.cpp
+    jac313_test_cli/contract_modes.cpp
     jac313_test_cli/vendor.cpp
     jac313_test_cli/run_identity.cpp
 )

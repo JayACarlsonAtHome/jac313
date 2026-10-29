@@ -23,7 +23,8 @@ namespace jac313::test_cli {
 /// (only the options that were given), for commands generated into run_latest_config.sh.
 // Version of the CLI <-> Jac313Runner interface (flags + summary JSON fields), written as
 // "contract" in every summary. Must match kRunnerContract in <root>/gui/Jac313Runner/Model.h.
-inline constexpr int kRunnerContract = 3;   // 2: --pg-remote / --pg-local, summary "pg_remote"; 3: --connections
+inline constexpr int kRunnerContract = 4;   // 2: --pg-remote / --pg-local, summary "pg_remote"; 3: --connections;
+                                            // 4: --contracts, compiler-versions lists the contract modes
 
 std::string persist_cli_suffix(const GlobalOptions& global);
 

@@ -25,6 +25,10 @@ struct RunOptions {
 	String buildType  = "Debug";    // Debug | Release
 	bool   strict     = false;      // --strict   (extra compiler warnings)
 	bool   hardened   = false;      // --hardened (runtime hardening; ctest/smoke builds only)
+	// --contracts: how contract checks run (ctest/smoke builds only): enforce | observe |
+	// quick_enforce | ignore. The screen enables only the modes the chosen compiler has on this
+	// OS (the version's Setup/contracts.jtext, via jac313_test_cli compiler-versions).
+	String contracts  = "enforce";
 	String frontEnd   = "textual";  // textual | modules
 	String size       = "smoke";    // smoke | full
 	bool   sqlite     = true;
@@ -60,7 +64,8 @@ String          FindRootFromExe();              // walk up from the executable t
 
 // The summary JSON / CLI flags this GUI understands. The CLI writes "contract": N in every
 // summary; a summary with a newer contract is refused (rebuild the GUI). Bump both together.
-const int       kRunnerContract = 3;   // 2: --pg-remote / --pg-local, summary "pg_remote"; 3: --connections
+const int       kRunnerContract = 4;   // 2: --pg-remote / --pg-local, summary "pg_remote"; 3: --connections;
+                                       // 4: --contracts, compiler-versions lists the contract modes
 
 // ---- PostgreSQL connections file (jText; see the CLI's connections.hpp for the layout)
 struct ConnRow : Moveable<ConnRow> {

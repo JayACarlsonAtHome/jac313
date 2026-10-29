@@ -91,6 +91,7 @@ int run_configure_command(const GlobalOptions& global, const ConfigureOptions& o
     // Always explicit, so a tree configured once with --strict / --hardened is reset without them.
     args.push_back(std::string("-DJAC313_STRICT=") + (opts.strict ? "ON" : "OFF"));
     args.push_back(std::string("-DJAC313_HARDENED=") + (opts.hardened ? "ON" : "OFF"));
+    args.push_back("-DJAC313_CONTRACTS=" + opts.contracts);
 
     std::cout << "=== configure"
               << (opts.modules ? " (modules)" : " (no modules)") << " ===\n";
