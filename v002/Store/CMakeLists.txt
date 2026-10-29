@@ -20,6 +20,7 @@ add_library(jac313::Store ALIAS jac313_Store)
 
 target_include_directories(jac313_Store INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../Setup/include>   # header-only jac313/Setup/contracts.hpp
     $<INSTALL_INTERFACE:include>
 )
 target_compile_features(jac313_Store INTERFACE cxx_std_26)

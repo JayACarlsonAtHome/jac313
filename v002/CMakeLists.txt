@@ -66,6 +66,17 @@ if(JAC313_HARDENED)
         "$<$<NOT:$<CONFIG:Debug>>:-U_FORTIFY_SOURCE;-D_FORTIFY_SOURCE=3>")
 endif()
 
+# Contracts (jac313::contracts, Setup/include/jac313/Setup/contracts.hpp). GCC 16 builds the
+# whole tree with NATIVE ISO C++26 contracts (P2900): -fcontracts defines __cpp_contracts, so
+# JAC313_PRE/POST/ASSERT become contract_assert, under the 'enforce' semantic so a violated
+# contract terminates. clang and gcc15 have no native contracts and keep the macros' runtime
+# fail-fast checks. -fcontracts must be on the link line too, or gcc16 leaves the default
+# contract-violation handler out (undefined reference to handle_contract_violation).
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+    add_compile_options(-fcontracts -fcontract-evaluation-semantic=enforce)
+    add_link_options(-fcontracts)
+endif()
+
 if(JAC313_BUILD_STORE_TESTS)
     set(JAC313_STORE_BUILD_TESTS ON CACHE BOOL "" FORCE)
     set(JAC313_STORE_BUILD_MATRIX_TESTS ON CACHE BOOL "" FORCE)

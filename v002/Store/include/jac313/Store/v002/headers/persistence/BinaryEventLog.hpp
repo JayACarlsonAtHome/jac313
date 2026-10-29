@@ -25,6 +25,7 @@
 #include <stdexcept>
 
 #include "PersistCommon.hpp"
+#include <jac313/Setup/contracts.hpp>   // JAC313_PRE/POST (native contract_assert on gcc16)
 
 namespace jac313::Store::v002 {
 
@@ -132,6 +133,13 @@ public:
             return;
         }
 
+        // The record stores each length in 16 bits and the record size in 32: a longer field
+        // would write a truncated length ahead of the full bytes and corrupt the log.
+        JAC313_PRE(category.size() <= UINT16_MAX);
+        JAC313_PRE(payload.size() <= UINT16_MAX);
+        JAC313_PRE(ints.size() <= UINT16_MAX);
+        JAC313_PRE(dbls.size() <= UINT16_MAX);
+
         size_t record_size = sizeof(uint64_t) * 5
                            + sizeof(uint16_t) + category.size()
                            + sizeof(uint16_t) + payload.size()
@@ -192,6 +200,8 @@ public:
         uint16_t dc = static_cast<uint16_t>(dbls.size());
         std::memcpy(mapped_ + write_pos_, &dc, sizeof(dc)); write_pos_ += sizeof(dc);
         if (!dbls.empty()) { std::memcpy(mapped_ + write_pos_, dbls.data(), dbls.size()*sizeof(double)); write_pos_ += dbls.size()*sizeof(double); }
+
+        JAC313_POST(write_pos_ <= file_size_);   // the grow above made room for the whole record
 
         stats_.rows_written++;
         stats_.bytes_written += sizeof(uint32_t) + record_size;

@@ -31,7 +31,7 @@ jac313::Store::v002::ts_store<Config> store(threads, events_per_thread);
 store.save_event(0, 0, Config::ValueT("hello"), 0, Config::CategoryT("demo"));
 ```
 
-`jac313::Store::v002::version()` returns the package's `"major.minor"` version (`"v002.016"`
+`jac313::Store::v002::version()` returns the package's `"major.minor"` version (`"v002.017"`
 now): major is the `v002` API line, minor bumps on each small code change (a real break moves
 it to `"v003.001"`). The `version-check` pre-push gate enforces the bump
 (see the version's top-level README.md).
@@ -72,7 +72,8 @@ cmake -G Ninja -S . -B build -DCMAKE_CXX_COMPILER=g++-14 -DJAC313_STORE_BUILD_MO
 
 When built with `-DJAC313_BUILD_STORE_TESTS=ON` from the monorepo root:
 
-- **Unit** — `jac313_store_v002_test`, `jac313_store_binary_reader_test`
+- **Unit** — `jac313_store_v002_test`, `jac313_store_binary_reader_test`, `jac313_store_contracts_test`
+  (a store filled past capacity terminates: the `save_event` contract)
 - **Examples** — binary/jText/HTML/JSON/SQL/flag-routing persistence smokes (ctest)
 - **Matrix** — ported ts_store stress tests `001`–`008` (TS/XS) plus `flags`
 

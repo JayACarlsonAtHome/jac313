@@ -4,12 +4,12 @@
 //          provides them, and falls back to runtime fail-fast checks otherwise.
 //
 // Three modes, selected automatically:
-//   (A) NATIVE   : __cpp_contracts defined (e.g. gcc16 -std=c++26 -fcontracts).
-//                  Macros expand to `contract_assert(expr)` — a first-class C++26
-//                  contract assertion. Its evaluation semantic (ignore/observe/
-//                  enforce) is chosen by the build via -fcontract-evaluation-semantic.
+//   (A) NATIVE   : __cpp_contracts defined. v002's CMakeLists.txt builds the whole tree
+//                  with gcc16 -fcontracts -fcontract-evaluation-semantic=enforce, so on
+//                  gcc16 the macros expand to `contract_assert(expr)` — a first-class
+//                  C++26 contract assertion that terminates when violated.
 //   (B) RUNTIME  : contracts enabled but the compiler has no native contracts
-//                  (e.g. clang today). Macros do a runtime check + fail-fast abort.
+//                  (clang, gcc15). Macros do a runtime check + fail-fast abort.
 //   (C) DISABLED : JAC313_CONTRACTS_ENABLED == 0. Macros are zero-cost no-ops.
 //
 // WHY MACROS (and not native pre()/post() at the call sites): native pre()/post()

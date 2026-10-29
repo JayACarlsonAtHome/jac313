@@ -126,8 +126,8 @@ For more details on the project, see the docs in [docs/](docs/) (listed under Do
 (g++-15, modules + textual) and passed validation (smoke **116/116**; `matrix verify` **60/60**
 valgrind-clean), and records its per-platform results in `results.db` (rendered under
 [test-summary/](test-summary/)). The ISO **C++26** baseline is now in (`cxx_std_26`). We currently use a small number of C++26-era
-library facilities (via shims or workarounds) and a contracts shim that provides runtime checks
-today. Most new C++26 language features are not yet used in the main code. We expect to
+library facilities (via shims or workarounds) and contracts (`JAC313_PRE/POST/ASSERT`: native C++26
+`contract_assert` on GCC 16, runtime checks on clang and gcc15; see docs/Cpp26_Adoption.md). Most new C++26 language features are not yet used in the main code. We expect to
 re-evaluate and adopt more C++26 features within the next 12 months. v002 is staged and
 isolation-verified, continuing to diverge. The legacy repos (`jacQlite`, `jText`, `ts_store`)
 remain only as historical origin.

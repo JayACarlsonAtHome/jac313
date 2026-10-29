@@ -1,6 +1,6 @@
 // File:    docs/Cpp26_Adoption.md
 // Purpose: What C++26 is available on our toolchains, what v002 has adopted, and the
-//          migration plan for features that aren't compiler-ready yet (contracts).
+//          plan for the rest; contracts are native on GCC 16 (see Contracts).
 
 # C++26 Adoption — v002
 
@@ -19,7 +19,7 @@ The code compiles clean under `-std=c++26` on the toolchains below; this page re
 - We do use a few C++26 *library* facilities or behaviors:
   - Saturating arithmetic (via a portable shim that matches the C++26 semantics).
   - `std::runtime_format` (required as a workaround for changes in format string evaluation rules under C++26).
-  - A contracts shim (`jac313::contracts`) that provides `JAC313_PRE` / `JAC313_POST` / `JAC313_ASSERT`. These currently expand to runtime checks on our supported compilers. One test function exercises the native `pre (expr)` syntax when `__cpp_contracts` is available.
+  - Contracts (`jac313::contracts`): `JAC313_PRE` / `JAC313_POST` / `JAC313_ASSERT`. On GCC 16 the whole v002 tree builds with `-fcontracts` and they are native `contract_assert`; on clang and gcc15 they are runtime fail-fast checks. See [Contracts](#contracts).
 - Most of what enables "C++26 mode" today is preparation and a few targeted safety improvements rather than broad use of new language capabilities.
 
 ## Toolchains & feature availability (measured 2026-06)
@@ -32,7 +32,8 @@ compiles — **not** from memory.
 | system g++ 11.5 | ❌ | C++20 max — not used for v002 |
 | **gcc-toolset-15 (GCC 15.2.1)** | ✅ | `__cplusplus = 202400`; the standard build compiler |
 | **clang 21.1.8** | ⚠️ ✅ | second gate — builds **only after a workaround**; see [the dynamic-width `std::print` finding](#toolchain-finding-clang-rejects-dynamic-width-stdprint-in-c26) below |
-| gcc-toolset-16 / GCC 16 | n/a here | not packaged for RHEL 9 (Fedora-only); would add contracts/reflection |
+| **GCC 16.2.1** (Fedora 44 system g++) | ✅ | `-fcontracts` → `__cpp_contracts 202502L` (measured 2026-10-29); v002 builds with native contracts here |
+| clang 22.1.8 (Fedora 44) | ✅ | no `__cpp_contracts` (measured 2026-10-29) |
 
 **Available now (feature-test macros present on GCC 15.2):** `__cpp_pack_indexing`,
 `__cpp_placeholder_variables`, `__cpp_deleted_function` (`= delete("reason")`),
@@ -40,9 +41,9 @@ compiles — **not** from memory.
 `__cpp_structured_bindings = 202403`, `__cpp_lib_saturation_arithmetic`,
 `__cpp_lib_span` (`span::at`), `__cpp_lib_format/print/ranges`, `__cpp_lib_text_encoding`.
 
-**NOT available yet:** ISO **contracts** (P2900) — no `__cpp_contracts`; the
-`pre()/post()/contract_assert()` syntax errors on GCC 15.2 and clang 21. Needs GCC 16
-or a contracts-enabled build.
+**Contracts** (P2900): only GCC 16 with `-fcontracts`. GCC 15.2, clang 21 and clang 22 have no
+`__cpp_contracts` and reject the `pre()/post()/contract_assert()` syntax, which is why call sites
+use the `JAC313_*` macros (see [Contracts](#contracts)).
 
 ## Toolchain finding: clang rejects dynamic-width `std::print` in C++26
 
@@ -145,20 +146,34 @@ layer. We are not yet using most new C++26 language features in production code.
 3. **mmap grow fix** (`BinaryEventLog`): the write path grew by a single doubling,
    which **overflowed the mapping** for any record larger than the current file size —
    now grows in a loop (overflow-safe) until the record fits. *(Real buffer-overflow bug.)*
-4. **`jac313::contracts` shim** (`Setup/include/jac313/Setup/contracts.hpp`):
-   `JAC313_PRE/POST/ASSERT` with runtime fail-fast checks today, written to migrate to
-   native contracts without changing call sites.
+4. **Contracts** (`Setup/include/jac313/Setup/contracts.hpp`): `JAC313_PRE/POST/ASSERT`,
+   native `contract_assert` on GCC 16, runtime fail-fast checks on clang and gcc15.
 
 Each landed with a ctest regression test; the suite is **32/32 green** at C++26.
 
-## Current contracts situation
+## Contracts
 
-We ship a portable `jac313::contracts` shim (`JAC313_PRE` / `JAC313_POST` / `JAC313_ASSERT`).
-On current supported toolchains (GCC 15 toolset, clang 21) these expand to runtime checks.
-A small number of test functions exercise the native `pre (expr)` syntax when the compiler
-defines `__cpp_contracts` (currently only on GCC 16 builds).
+Call sites use the `jac313::contracts` macros (`JAC313_PRE` / `JAC313_POST` / `JAC313_ASSERT`)
+so one source builds on every v002 compiler:
 
-We are not expanding contract usage at this time.
+| Compiler | What the macros are | Set by |
+|---|---|---|
+| **GCC 16** | native C++26 `contract_assert` (P2900), `enforce` semantic: a violation terminates | v002 `CMakeLists.txt`: `-fcontracts -fcontract-evaluation-semantic=enforce` on the whole tree (compile and link) |
+| clang (22 has no `__cpp_contracts`), gcc15 | runtime check + `std::abort()` with file/line | `contracts.hpp` fallback |
+| any, `-DJAC313_CONTRACTS_ENABLED=0` | no-ops | `contracts.hpp` |
+
+Contracts in real code (programmer errors only; bad input from files keeps its own refusals):
+
+- `ts_store::save_event` — the event id must be inside the preallocated rows (a store filled
+  past `max_threads × events_per_thread` used to write past its buffer).
+- `ts_store::persisted_event` — `id < rows_.size()`.
+- `BinaryEventLog::append_event` — category, payload, ints and dbls each fit the record's
+  16-bit lengths (a longer field wrote a truncated length ahead of the full bytes), and the
+  write ends inside the mapping.
+
+Tests: `jac313_contracts_test`, `jac313_contracts_disabled_test`, `jac313_contracts_enforce_test`
+(native `pre()` on a declarator when `__cpp_contracts` is defined), and
+`jac313_store_contracts_test` (a store filled past capacity terminates).
 
 ## Future plans
 

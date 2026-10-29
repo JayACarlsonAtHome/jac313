@@ -20,6 +20,7 @@
 #include <utility>
 #include <cctype>
 #include <sys/sysinfo.h>
+#include <jac313/Setup/contracts.hpp>   // JAC313_PRE/POST/ASSERT (native contract_assert on gcc16)
 #include "ts_store_flags.hpp"
 #include "ansi_colors.hpp"
 #include "ts_store_config.hpp"

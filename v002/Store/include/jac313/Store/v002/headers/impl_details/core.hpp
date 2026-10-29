@@ -17,6 +17,8 @@ save_event(size_t thread_id,
 )
 {
     const size_t id = next_id_.fetch_add(1, std::memory_order_relaxed);
+    // More events than max_threads x events_per_thread would write past the preallocated rows.
+    JAC313_ASSERT(id < rows_.size());
 
     // Direct reference into the pre-sized + pre-reserved row slot.
     // Strings already have capacity reserved at construction; we write straight into them (no per-event alloc).
@@ -81,6 +83,7 @@ save_event(size_t thread_id,
 // against this. Precondition: id < rows_.size() and the row has been written.
 inline PersistedEvent persisted_event(size_t id) const
 {
+    JAC313_PRE(id < rows_.size());
     const auto& stored = rows_[id];
 
     PersistedEvent pe;

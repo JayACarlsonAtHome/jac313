@@ -77,9 +77,8 @@ target_include_directories(jac313_instance_hash_test PRIVATE ${CMAKE_SOURCE_DIR}
 target_compile_features(jac313_instance_hash_test PRIVATE cxx_std_26)
 add_test(NAME jac313_instance_hash_test COMMAND jac313_instance_hash_test)
 
-# C++26 contracts-style shim (jac313::contracts) — runtime pre/post/assert today,
-# migrates to native P2900 contracts when __cpp_contracts lands. Header-only; the
-# test just needs the Setup include path.
+# Contracts (jac313::contracts): native P2900 contract_assert on gcc16, runtime
+# pre/post/assert on clang/gcc15. Header-only; the test just needs the Setup include path.
 add_executable(jac313_contracts_test
     jac313_test_cli/tests/contracts_test.cpp
 )
@@ -108,22 +107,7 @@ if(TARGET jac313::Setup)
     target_link_libraries(jac313_contracts_enforce_test PRIVATE jac313::Setup)
 endif()
 add_test(NAME jac313_contracts_enforce_test COMMAND jac313_contracts_enforce_test)
-
-# On the gcc16 axis, build the contracts tests with NATIVE ISO C++26 contracts
-# (P2900): -fcontracts defines __cpp_contracts (so the shim maps to contract_assert
-# and the death-test's native pre() lights up), under the 'enforce' evaluation
-# semantic so a violated contract terminates. clang/gcc15 keep the runtime fallback.
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
-    set(_jac313_contract_flags -fcontracts -fcontract-evaluation-semantic=enforce)
-    target_compile_options(jac313_contracts_test          PRIVATE ${_jac313_contract_flags})
-    target_compile_options(jac313_contracts_disabled_test PRIVATE ${_jac313_contract_flags})
-    target_compile_options(jac313_contracts_enforce_test  PRIVATE ${_jac313_contract_flags})
-    # gcc16 links in the default contract-violation handler only when -fcontracts
-    # is on the LINK line too (otherwise: undefined reference handle_contract_violation).
-    target_link_options(jac313_contracts_test          PRIVATE -fcontracts)
-    target_link_options(jac313_contracts_disabled_test PRIVATE -fcontracts)
-    target_link_options(jac313_contracts_enforce_test  PRIVATE -fcontracts)
-endif()
+# Native contracts on gcc16 come from the top-level CMakeLists.txt (-fcontracts on the whole tree).
 
 # jac313_wipe_all — standalone results.db reset tool (schema + testType enum kept;
 # data + host_spec + current_host pin cleared). Built by bootstrap; symlinked at the v002 root.

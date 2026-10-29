@@ -4,6 +4,11 @@ if(JAC313_STORE_BUILD_TESTS)
     add_test(NAME jac313_store_v002_test COMMAND jac313_store_v002_test)
     set_tests_properties(jac313_store_v002_test PROPERTIES TIMEOUT 120)
 
+    # A store filled past its capacity must terminate (contract in save_event).
+    add_executable(jac313_store_contracts_test contracts_store_test.cpp)
+    target_link_libraries(jac313_store_contracts_test PRIVATE jac313::Store)
+    add_test(NAME jac313_store_contracts_test COMMAND jac313_store_contracts_test)
+
     add_executable(jac313_store_metric_view_test metric_view_test.cpp)
     target_link_libraries(jac313_store_metric_view_test PRIVATE jac313::Store)
     add_test(NAME jac313_store_metric_view_test COMMAND jac313_store_metric_view_test)
