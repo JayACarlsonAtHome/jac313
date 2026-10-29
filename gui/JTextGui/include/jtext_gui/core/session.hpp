@@ -56,15 +56,17 @@ struct ChangeSet {
     std::set<std::size_t> dirty_rows;   ///< indices into session.rows
     std::set<std::size_t> inserted;     ///< new rows (also in dirty)
     std::set<std::size_t> deleted;      ///< indices removed (optional; v1 may clear on reload)
+    bool end_comments = false;          ///< the comment lines at the end of the data changed
 
     void clear() {
         dirty_rows.clear();
         inserted.clear();
         deleted.clear();
+        end_comments = false;
     }
 
     [[nodiscard]] bool empty() const {
-        return dirty_rows.empty() && inserted.empty() && deleted.empty();
+        return dirty_rows.empty() && inserted.empty() && deleted.empty() && !end_comments;
     }
 
     void mark_dirty(std::size_t row) { dirty_rows.insert(row); }
@@ -153,6 +155,30 @@ struct TableSession {
         rec.field_markers[field].clear();
         changes.mark_dirty(row);
         return true;
+    }
+
+    /// The comment lines standing before the line that starts at field (SPEC 3.2.1), in
+    /// order; none removes them.
+    bool set_comment_lines(std::size_t row, std::size_t field, std::vector<std::string> lines) {
+        if (row >= rows.size() || field >= kMaxFields) return false;
+        auto& all = rows[row].comment_lines;
+        const auto it = all.find(field);
+        if (lines.empty()) {
+            if (it == all.end()) return true;
+            all.erase(it);
+        } else {
+            if (it != all.end() && it->second == lines) return true;
+            all[field] = std::move(lines);
+        }
+        changes.mark_dirty(row);
+        return true;
+    }
+
+    /// The comment lines at the end of the data.
+    void set_end_comments(std::vector<std::string> lines) {
+        if (lines == end_comments) return;
+        end_comments = std::move(lines);
+        changes.end_comments = true;
     }
 
     /// A {NULL} line: the field holds SQL NULL (SPEC 2.6.1; the file writes {NULL}). Not

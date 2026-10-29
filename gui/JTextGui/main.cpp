@@ -463,6 +463,77 @@ struct LinesView : ParentCtrl {
 	}
 };
 
+// The right side, scrolled as a whole when the window is shorter than it needs, so its
+// bottom (the comment lines, the line's description) is always within reach. The scroll
+// bar shows only then.
+struct FormScroll : ParentCtrl {
+	typedef FormScroll CLASSNAME;
+
+	ScrollBar sb;
+	Ctrl*     body = nullptr;
+	int       minCy = 0;
+
+	FormScroll() {
+		AddFrame(sb.Vert());
+		sb.AutoHide();
+		sb.WhenScroll = [this] { Place(); };
+	}
+
+	void Set(Ctrl& c, int min_cy) {
+		body = &c;
+		minCy = min_cy;
+		Add(c);
+		Layout();
+	}
+
+	void Layout() override {
+		const int cy = GetSize().cy;
+		sb.Set(sb.Get(), cy, max(cy, minCy));
+		Place();
+	}
+
+	void Place() {
+		if (!body) return;
+		const Size sz = GetSize();
+		body->SetRect(0, -sb.Get(), sz.cx, max(sz.cy, minCy));
+	}
+
+	void MouseWheel(Point, int zdelta, dword) override { sb.Wheel(zdelta); }
+
+	// A control that gets the focus is scrolled into view.
+	void ChildGotFocus() override {
+		Ctrl* f = GetFocusCtrl();
+		if (f && body) {
+			Rect r = f->GetScreenRect();
+			r.Offset(-body->GetScreenRect().TopLeft());
+			sb.ScrollInto(max(r.top - 4, 0), r.Height() + 8);
+		}
+		ParentCtrl::ChildGotFocus();
+	}
+};
+
+// Comment lines as the editor shows them: one per line of text (a trailing empty line is
+// the box's last newline, not a comment line).
+std::vector<std::string> SplitCommentLines(const String& text) {
+	std::vector<std::string> out;
+	for (const String& line : Split(text, '\n', false)) {
+		String l = line;
+		l.TrimEnd("\r");
+		out.push_back(Std(l));
+	}
+	while (!out.empty() && out.back().empty()) out.pop_back();
+	return out;
+}
+
+String JoinCommentLines(const std::vector<std::string>& lines) {
+	String out;
+	for (std::size_t i = 0; i < lines.size(); i++) {
+		if (i) out << "\n";
+		out << S(lines[i]);
+	}
+	return out;
+}
+
 // Where things were left, restored at the next start: the main window, the splitter, and
 // whether the Records list was in its own window (and that window's place).
 // Saved as JSON in U++'s config folder (JTextGui.json).
@@ -948,6 +1019,11 @@ struct JTextGui : TopWindow {
 	int splitPos = 4000;      // the splitter's place while the list is detached
 	GuiSettings settings;
 	ParentCtrl fields;
+	FormScroll form;          // the right side (fields), scrolled when the window is short
+	// The comment lines standing before the line being edited (SPEC 3.2.1), one per line.
+	Label lCommentLines;
+	DocEdit commentLines;
+	int commentRow = -1, commentField = -1;   // the record and field the box shows
 	jtext_gui::TableSession session;
 	jtext_gui::ConnectionInfo conn;
 	std::unique_ptr<jtext_gui::IDbStore> store;
@@ -984,6 +1060,7 @@ struct JTextGui : TopWindow {
 				bar.Add("Import Excel (.xlsx)..", THISBACK(ImportXlsx));
 				bar.Separator();
 				bar.Add("Templates..", THISBACK(ShowTemplates));
+				bar.Add("Comment Lines at the End of the Data..", THISBACK(EditEndComments));
 				bar.Separator();
 				bar.Add("Exit", [this] { Close(); });
 			});
@@ -1084,8 +1161,15 @@ struct JTextGui : TopWindow {
 		fieldInfo.SetReadOnly();
 		fieldInfo.NoWantFocus();
 		fieldInfo.SetFont(mono);
-		fields.Add(lines.HSizePosZ(0, 0).VSizePosZ(66, 34));
+		fields.Add(lines.HSizePosZ(0, 0).VSizePosZ(66, 34 + kCommentBoxCy));
+		fields.Add(lCommentLines.HSizePosZ(8, 8).BottomPosZ(34 + kCommentBoxCy - 22, 20));
+		fields.Add(commentLines.HSizePosZ(8, 8).BottomPosZ(36, kCommentBoxCy - 26));
 		fields.Add(fieldInfo.HSizePosZ(8, 8).BottomPosZ(6, 24));
+		commentLines.SetFont(mono);
+		commentLines.NoWantFocus();   // Tab stays in the line fields; click to type here
+		commentLines.WhenAction = THISBACK(OnCommentLines);
+		lCommentLines.SetText("Comment lines");
+		form.Set(fields, Zy(66 + 4 * kRowStep + kCommentBoxCy + 40));
 		lines.WhenRowFocus = THISBACK(OnRowFocus);
 		for (int i = 0; i < (int)jtext_gui::kDefaultFields; i++)
 			lineOf.Add(i);
@@ -1107,7 +1191,7 @@ struct JTextGui : TopWindow {
 		recordsWin.Title("jText GUI - Records").Sizeable().Zoomable();
 		recordsWin.WhenClose = [this] { Attach(); };
 		splitPos = settings.split > 0 && settings.split < 10000 ? settings.split : 4000;
-		split.Set(listPane, fields);
+		split.Set(listPane, form);
 		split.SetPos(splitPos);   // the Records list gets 40% of the width (drag the bar to change)
 
 		connect.WhenAction = THISBACK(Connect);
@@ -1491,7 +1575,7 @@ struct JTextGui : TopWindow {
 		KeepListWindowPlace();
 		listPane.Remove();
 		recordsWin.CloseNow();
-		split.Set(listPane, fields);
+		split.Set(listPane, form);
 		split.SetPos(splitPos);
 		detachBtn.SetLabel("Detach");
 		detachBtn.Tip("Move the Records list into a window of its own (e.g. on another monitor)");
@@ -1526,6 +1610,7 @@ struct JTextGui : TopWindow {
 
 	static constexpr int kRowStep = 30;   // pixels (unzoomed) from one line row to the next
 	static constexpr int kCommentWidth = 220;   // pixels (unzoomed): a line's comment box
+	static constexpr int kCommentBoxCy = 100;   // pixels (unzoomed): the comment lines, with their label
 
 	// Create rows up to n (they stay hidden until SetVisibleRows shows them).
 	void EnsureRows(int n) {
@@ -1734,7 +1819,61 @@ struct JTextGui : TopWindow {
 	}
 
 	// The bottom box: "24 - name | String(80), Not Null | value: 7 characters".
+	// The comment-lines box follows the line being edited.
+	void ShowCommentLines() {
+		const int f = focusRow >= 0 && focusRow < visible && focusRow < lineOf.GetCount() ? lineOf[focusRow] : -1;
+		const int row = f >= 0 && loaded >= 0 && loaded < (int)session.rows.size() ? loaded : -1;
+		if (row == commentRow && f == commentField) return;
+		commentRow = row;
+		commentField = row < 0 ? -1 : f;
+		const bool was = loading;
+		loading = true;
+		if (commentRow < 0) {
+			commentLines <<= String();
+			lCommentLines.SetText("Comment lines");
+		} else {
+			const auto& all = session.rows[(std::size_t)row].comment_lines;
+			const auto it = all.find((std::size_t)f);
+			commentLines <<= it == all.end() ? String() : JoinCommentLines(it->second);
+			lCommentLines.SetText(Format("Comment lines before line %d (one per line; saved as // lines)", f + 1));
+		}
+		commentLines.Enable(commentRow >= 0);
+		loading = was;
+	}
+
+	void OnCommentLines() {
+		if (loading || commentRow < 0 || commentRow >= (int)session.rows.size()) return;
+		session.set_comment_lines((std::size_t)commentRow, (std::size_t)commentField,
+		                          SplitCommentLines(commentLines.Get()));
+		NoteEdit();
+	}
+
+	// File > Comment Lines at the End of the Data: the comment lines after the last record.
+	void EditEndComments() {
+		TopWindow dlg;
+		Label l;
+		DocEdit ed;
+		Button ok, cancel;
+		dlg.Title("Comment Lines at the End of the Data").Sizeable();
+		dlg.SetRect(0, 0, Zx(560), Zy(300));
+		l.SetText("One comment line per line. They stand after the last record (saved as // lines).");
+		ed.SetFont(Monospace(StdFont().GetHeight()));
+		ed <<= JoinCommentLines(session.end_comments);
+		ok.SetLabel("OK");
+		cancel.SetLabel("Cancel");
+		dlg.Add(l.HSizePosZ(8, 8).TopPosZ(8, 20));
+		dlg.Add(ed.HSizePosZ(8, 8).VSizePosZ(32, 42));
+		dlg.Add(ok.RightPosZ(96, 80).BottomPosZ(8, 26));
+		dlg.Add(cancel.RightPosZ(8, 80).BottomPosZ(8, 26));
+		ok.Ok() << dlg.Acceptor(IDOK);
+		cancel.Cancel() << dlg.Rejector(IDCANCEL);
+		if (dlg.Execute() != IDOK) return;
+		session.set_end_comments(SplitCommentLines(ed.Get()));
+		NoteEdit();
+	}
+
 	void ShowFieldInfo() {
+		ShowCommentLines();
 		if (focusRow < 0 || focusRow >= visible || focusRow >= lineOf.GetCount()) {
 			fieldInfo <<= String();
 			return;
@@ -1918,6 +2057,7 @@ struct JTextGui : TopWindow {
 
 	void LoadRow(int index) {
 		if (index < 0 || index >= (int)session.rows.size()) return;
+		commentRow = -1;   // the comment-lines box reloads for this record
 		loading = true;
 		const auto& rec = session.rows[(std::size_t)index];
 		if (TrimBoth(Field(marker)).IsEmpty())

@@ -122,6 +122,7 @@ std::expected<std::size_t, std::string> save(D& db, const Dialect& d, TableSessi
     const std::size_t width = std::min(cols.size(), kMaxFields);
     const auto changes = comment_changes(session);
     if (!changes) return std::unexpected(changes.error());
+    const bool end_changed = session.changes.end_comments;
 
     std::string update = "UPDATE " + *table + " SET ";
     std::string insert = "INSERT INTO " + *table + " (";
@@ -143,7 +144,7 @@ std::expected<std::size_t, std::string> save(D& db, const Dialect& d, TableSessi
     bool open = false;
     try {
         bool have_comments = comments_exist(*comments);
-        if (!have_comments && any_comment_rows(*changes)) {
+        if (!have_comments && (any_comment_rows(*changes) || (end_changed && !session.end_comments.empty()))) {
             run(db, d, create_comments_table_sql(*comments));
             have_comments = true;
         }
@@ -173,6 +174,12 @@ std::expected<std::size_t, std::string> save(D& db, const Dialect& d, TableSessi
                 for (const auto& c : change.rows)
                     run(db, d, ins, {c.kind, std::to_string(c.record_id), std::to_string(c.position),
                                      std::to_string(c.seq), c.text});
+            }
+            if (end_changed) {   // the comment lines at the end of the data: position 0
+                run(db, d, std::format("DELETE FROM {} WHERE block = 'data' AND position = 0", *comments));
+                std::size_t seq = 0;
+                for (const auto& text : session.end_comments)
+                    run(db, d, ins, {"comment-line", "0", "0", std::to_string(++seq), text});
             }
         }
         run(db, d, "COMMIT");
