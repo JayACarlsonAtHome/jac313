@@ -1,6 +1,9 @@
 #include "jtext_gui/core/table_store.hpp"
 
 #include <memory>
+#include <cstdlib>
+#include <vector>
+#include <optional>
 #include <string>
 
 // MariaDB and PostgreSQL stores: same IDbStore contract as SQLite.
@@ -173,115 +176,65 @@ public:
     }
 
     std::expected<std::size_t, std::string> save_changes(TableSession& session) override {
-        // v1: full mergesert of dirty rows via simple SQL (parameterized values)
+        // Mergesert, in one transaction: each changed row is an UPDATE of every column by
+        // its original key (so a changed key is saved too), else (a new row, or no row had
+        // that key) an INSERT. Every value is a bound parameter ($1, $2, ...; a Null field
+        // is NULL): none is ever part of the SQL text.
         if (!is_connected()) return std::unexpected("postgres: not connected");
         auto table_sql = quote_table_ref(session.table, SessionKind::PostgreSQL);
         if (!table_sql) return std::unexpected(table_sql.error());
-        if (session.column_names.empty())
-            return std::unexpected("postgres: no columns");
-
-        // Transaction
-        PGresult* b = PQexec(conn_, "BEGIN");
-        if (PQresultStatus(b) != PGRES_COMMAND_OK) {
-            std::string e = PQerrorMessage(conn_);
-            PQclear(b);
-            return std::unexpected(e);
+        const auto& cols = session.column_names;
+        if (cols.empty()) return std::unexpected("postgres: no columns");
+        const std::string key = session.key_column.empty() ? cols[0] : session.key_column;
+        const std::size_t width = std::min(cols.size(), kMaxFields);
+        std::vector<std::string> names;
+        for (std::size_t c = 0; c < width; ++c) {
+            auto n = ident(cols[c]);
+            if (!n) return std::unexpected(n.error());
+            names.push_back(std::move(*n));
         }
-        PQclear(b);
+        auto key_name = ident(key);
+        if (!key_name) return std::unexpected(key_name.error());
 
+        if (auto b = run("BEGIN", {}); !b) return std::unexpected(b.error());
         std::size_t written = 0;
         std::string err;
-        const auto& cols = session.column_names;
-        const std::string key = session.key_column.empty() ? cols[0] : session.key_column;
-
         for (std::size_t idx : session.changes.dirty_rows) {
             if (idx >= session.rows.size()) continue;
             const Record& rec = session.rows[idx];
-            const bool is_insert =
-                session.changes.inserted.count(idx) || rec.original_key.empty();
-
+            std::vector<std::optional<std::string>> values;
+            for (std::size_t c = 0; c < width; ++c)
+                values.push_back(field_is_null(rec, c) ? std::nullopt
+                                                       : std::optional<std::string>(field_text(rec, c)));
+            const bool is_insert = session.changes.inserted.count(idx) || rec.original_key.empty();
             if (!is_insert) {
                 std::string sql = "UPDATE " + *table_sql + " SET ";
-                for (std::size_t c = 1; c < cols.size() && c < kMaxFields; ++c) {
-                    if (c > 1) sql += ", ";
-                    // literal escape for v1 — improve with PQexecParams later
-                    sql += cols[c];
-                    sql += " = ";
-                    if (field_is_null(rec, c)) {
-                        sql += "NULL";
-                    } else {
-                        sql += "'";
-                        for (char ch : field_text(rec, c)) {
-                            if (ch == '\'') sql += "''";
-                            else sql += ch;
-                        }
-                        sql += "'";
-                    }
-                }
-                sql += std::format(" WHERE {} = '", key);
-                for (char ch : rec.original_key) {
-                    if (ch == '\'') sql += "''";
-                    else sql += ch;
-                }
-                sql += "'";
-                PGresult* r = PQexec(conn_, sql.c_str());
-                if (PQresultStatus(r) != PGRES_COMMAND_OK) {
-                    err = PQerrorMessage(conn_);
-                    PQclear(r);
-                    break;
-                }
-                const char* n = PQcmdTuples(r);
-                PQclear(r);
-                if (n && n[0] != '0') {
-                    ++written;
-                    continue;
-                }
+                for (std::size_t c = 0; c < width; ++c) sql += std::format("{}{} = ${}", c ? ", " : "", names[c], c + 1);
+                sql += std::format(" WHERE {} = ${}", *key_name, width + 1);
+                auto params = values;
+                params.emplace_back(rec.original_key);
+                auto n = run(sql, params);
+                if (!n) { err = n.error(); break; }
+                if (*n > 0) { ++written; continue; }
             }
-
             std::string sql = "INSERT INTO " + *table_sql + " (";
-            for (std::size_t c = 0; c < cols.size() && c < kMaxFields; ++c) {
-                if (c) sql += ",";
-                sql += cols[c];
-            }
+            for (std::size_t c = 0; c < width; ++c) sql += (c ? ", " : "") + names[c];
             sql += ") VALUES (";
-            for (std::size_t c = 0; c < cols.size() && c < kMaxFields; ++c) {
-                if (c) sql += ",";
-                if (field_is_null(rec, c)) {
-                    sql += "NULL";
-                } else {
-                    sql += "'";
-                    for (char ch : field_text(rec, c)) {
-                        if (ch == '\'') sql += "''";
-                        else sql += ch;
-                    }
-                    sql += "'";
-                }
-            }
-            sql += ")";
-            PGresult* r = PQexec(conn_, sql.c_str());
-            if (PQresultStatus(r) != PGRES_COMMAND_OK) {
-                err = PQerrorMessage(conn_);
-                PQclear(r);
+            for (std::size_t c = 0; c < width; ++c) sql += std::format("{}${}", c ? ", " : "", c + 1);
+            if (auto n = run(sql + ")", values); !n) {
+                err = n.error();
                 break;
             }
-            PQclear(r);
             ++written;
         }
-
         if (!err.empty()) {
-            PGresult* rb = PQexec(conn_, "ROLLBACK");
-            PQclear(rb);
+            (void)run("ROLLBACK", {});
             return std::unexpected(err);
         }
-        PGresult* c = PQexec(conn_, "COMMIT");
-        if (PQresultStatus(c) != PGRES_COMMAND_OK) {
-            std::string e = PQerrorMessage(conn_);
-            PQclear(c);
-            PGresult* rb = PQexec(conn_, "ROLLBACK");
-            PQclear(rb);
-            return std::unexpected(e);
+        if (auto c = run("COMMIT", {}); !c) {
+            (void)run("ROLLBACK", {});
+            return std::unexpected(c.error());
         }
-        PQclear(c);
 
         for (std::size_t idx : session.changes.dirty_rows)
             if (idx < session.rows.size())
@@ -295,6 +248,32 @@ public:
 private:
     PGconn* conn_ = nullptr;
     std::string last_error_;
+
+    // A column name, quoted by libpq.
+    std::expected<std::string, std::string> ident(std::string_view name)
+    {
+        std::unique_ptr<char, decltype(&PQfreemem)> q(PQescapeIdentifier(conn_, name.data(), name.size()),
+                                                      PQfreemem);
+        if (!q) return std::unexpected(std::string("postgres: ") + PQerrorMessage(conn_));
+        return std::string(q.get());
+    }
+
+    // One statement, its values bound as $1, $2, ... (nullopt: NULL); the rows it changed.
+    std::expected<long, std::string> run(const std::string& sql,
+                                         const std::vector<std::optional<std::string>>& params)
+    {
+        debug_log("postgres SQL: " + sql);
+        std::vector<const char*> values;
+        for (const auto& p : params) values.push_back(p ? p->c_str() : nullptr);
+        std::unique_ptr<PGresult, decltype(&PQclear)> r(
+            PQexecParams(conn_, sql.c_str(), static_cast<int>(values.size()), nullptr, values.data(),
+                         nullptr, nullptr, 0),
+            PQclear);
+        if (PQresultStatus(r.get()) != PGRES_COMMAND_OK)
+            return std::unexpected(std::string(PQerrorMessage(conn_)) + "\nSQL: " + sql);
+        const char* n = PQcmdTuples(r.get());
+        return n && *n ? std::strtol(n, nullptr, 10) : 0L;
+    }
 };
 #endif
 
