@@ -23,11 +23,11 @@
 
 1. #|# 2|canonical_dir|jText/v001
 
-1. #|# 3|canonical_commit|ab200fc8d526
+1. #|# 3|canonical_commit|8f2f572eecfe
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v001.015
+1. #|# 5|canonical_version|v001.016
 
 1. #|# 6|transform|jac313-prefix
 
@@ -62,13 +62,13 @@
 
 1. #|# 2|include/jac313/jText/v001.hpp|include/jText/v001.hpp|50fa0c094772ea9628f53c827a5cef50ad76b5f4623bae28e8a19305ef40f210|06af37f1fcbf98aaa653f9e6500d7edd4d1ae8cf226ca88844a5fe2aca621814
 
-1. #|# 3|jText.api.inc|jText.api.inc|aefcf1c7b4ba2b247168d730b851492515abfa1060aecdce4264cd8a14bbb9ae|e7ddd6c80c17556d5526235616ad609906037ebdc8b5c4036120fe59826d5d12
+1. #|# 3|jText.api.inc|jText.api.inc|96223f16e9af1e80dc6975b644f21258b7c861546b74e66debaf8db73ff68735|1023617eaf73c0b58f7d6a966e4ca3ecce514295fb81f031bd3521f70df2a831
 
 1. #|# 4|jText.cpp|jText.cpp|3e372209d20eb7fc59cede93e7a72c20b1d0b3117179560dae7c146fcadd78e2|bbc62b9b071e5127e11a7f5bd69f3a30d117009b7979647875f4cdc016c9d9f1
 
 1. #|# 5|jText.h|jText.h|23d46b3021b64b2dc39ca1fdcde7125ee5a469ce4c2602a103859525f5b04a6a|9217f50b76606e082704203a44d1bcede9ff6c04ee2469b86e67da1d8541ed53
 
-1. #|# 6|jText.impl.inc|jText.impl.inc|2e0b7817133c2a25e29b8b6f338dffe755ffa190db62cfd58cf704b5a1bb9a51|2b350d3ba53a8f2703b17d0e9d8dbf106a014ac1d7ed0d5955cd7dafd3dc7c62
+1. #|# 6|jText.impl.inc|jText.impl.inc|0e40109869d4487fcea48bd05255c6c04c44eb02e0b10e272db1109c4d827fd3|18d0e9f47e0327fa801e8e9e30223571a5962d77782a82f4df12b767b5386f1f
 
 1. #|# 7|modules/jac313.jtext.v001.core.cppm|modules/jText.v001.core.cppm|0c87a2cf765a7d0b7ae089211776a7ea7c957da1a85a2dd7e0006d9e60fd66c5|47edff4b5ff75cb402c39fc1c80e1a9d4a83de7a59eb6369915aa3cc6b5dd684
 
@@ -86,23 +86,23 @@
 
 1. #|# 14|src/parser/line.hpp|src/parser/line.hpp|265a2be65b4f5124c98ea825e674aa0300787ae79fdb00494fd56a4671573227|265a2be65b4f5124c98ea825e674aa0300787ae79fdb00494fd56a4671573227
 
-1. #|# 15|src/parser/section.cpp|src/parser/section.cpp|a1232ea47940f09947e93e0c7b0e0fda99daf4954e9bf93eed08a3ace241a3f5|a1232ea47940f09947e93e0c7b0e0fda99daf4954e9bf93eed08a3ace241a3f5
+1. #|# 15|src/parser/section.cpp|src/parser/section.cpp|9326aacbfd64926effa9d99b4505d1b3e065e761e9e1cb5d41e81d1eace67169|9326aacbfd64926effa9d99b4505d1b3e065e761e9e1cb5d41e81d1eace67169
 
-1. #|# 16|src/parser/section.hpp|src/parser/section.hpp|d81142e9eddd8562de22bd1f2a4290d2e9e19b71f12dfd6b3495fcf9f589c0b5|d81142e9eddd8562de22bd1f2a4290d2e9e19b71f12dfd6b3495fcf9f589c0b5
+1. #|# 16|src/parser/section.hpp|src/parser/section.hpp|b24a7f7941018a9d682f6906bbad739eb8687edd30711e70fa0c11ea57577f80|b24a7f7941018a9d682f6906bbad739eb8687edd30711e70fa0c11ea57577f80
 
 1. #|# 17|src/parser/unicode_ps_table.hpp|src/parser/unicode_ps_table.hpp|d6f16f5a1fde668861fd3acee4d660b02e9858dccdc0a95de323070299fad4d9|d6f16f5a1fde668861fd3acee4d660b02e9858dccdc0a95de323070299fad4d9
 
 1. #|# 18|src/parser/utf8.hpp|src/parser/utf8.hpp|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea
 
-1. #|# 19|src/validator/validator.cpp|src/validator/validator.cpp|c88f537882b3fdb465ef77c58b62b50745c36083ce7767031b0cfe9b2b627f98|c88f537882b3fdb465ef77c58b62b50745c36083ce7767031b0cfe9b2b627f98
+1. #|# 19|src/validator/validator.cpp|src/validator/validator.cpp|5419a5e6b9969eec56d15d86e7770ecd2043289a233b53c73ddc5eb2d4a89028|5419a5e6b9969eec56d15d86e7770ecd2043289a233b53c73ddc5eb2d4a89028
 
-1. #|# 20|src/validator/validator.hpp|src/validator/validator.hpp|e70bf732b984442a9bbee2b8b2332bef96e659c4a1208520c5bb8bbb4bbe0981|e70bf732b984442a9bbee2b8b2332bef96e659c4a1208520c5bb8bbb4bbe0981
+1. #|# 20|src/validator/validator.hpp|src/validator/validator.hpp|15582e6964d5c9ae347d1c59d9162cb3b87048e83f624048411156b3438b3c0d|15582e6964d5c9ae347d1c59d9162cb3b87048e83f624048411156b3438b3c0d
 
 1. #|# 21|tests/module/v001_module_test.cpp|tests/module/v001_module_test.cpp|11c7e5d9b6252404c6a369183bf2a89cbebaf01e89ce7edabedcc34a10d22b30|2fdef3b8d27962566e12d8266967301eb1c934ec622c29ab829c10c9989fc7fc
 
-1. #|# 22|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|916bc18c025ab1ca3e2b2dc6bb7e96534b04f90c2e3d69dbe24c35d2a748e821|b207939ea7bf2dbc0f179a69931f12a3de6a5950979a72e32e4f1e5f675c5db3
+1. #|# 22|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|6292c7469bd82995fa19563c546be962ee4cd13e50523af63ace8ffee6f7e9cb|aba80ee353fc2a1a861d0bf3a89a976303a2a39544fedd5ef7abc090216a7622
 
-1. #|# 23|tests/v001_test.cpp|tests/v001_test.cpp|9fbc0f602f41dded8d952beb6655ea96e16bd91ae386d3e2617445d1ff7b5bf7|bdc68b812b7030334e1d7fd93953346bc6aad22e68c42f1f20863a7e3e95ef76
+1. #|# 23|tests/v001_test.cpp|tests/v001_test.cpp|b5bc294341edb34c20be9e39d8613d132d4db87ec8ac7f64c151104d7051e383|b7f58660c69e2b9923d7cf566e7329272ea9a48670ec7cbd238331c961711f97
 
 1. #|# 24|tools/gen_unicode_ps_table.py|tools/gen_unicode_ps_table.py|20102028964ecc54e2f2da488fa1085b6a8f5fd9ebdfb05bd2f1b363956429c1|20102028964ecc54e2f2da488fa1085b6a8f5fd9ebdfb05bd2f1b363956429c1
 
