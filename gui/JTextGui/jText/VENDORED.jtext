@@ -23,11 +23,11 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/jText
 
-1. #|# 3|canonical_commit|8e01c7b21b31
+1. #|# 3|canonical_commit|5a070f34b02c
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v001.020
+1. #|# 5|canonical_version|v001.021
 
 1. #|# 6|transform|none
 
@@ -58,7 +58,7 @@
 
 
 === Data ===
-1. #|# 1|jText.api.inc|jText.api.inc|286fda177d2c6d131381cbcfb0184f901607d5f4664ea3186ad3f292ff95cd50|286fda177d2c6d131381cbcfb0184f901607d5f4664ea3186ad3f292ff95cd50
+1. #|# 1|jText.api.inc|jText.api.inc|bf29e3e570eafb831be815b3dda8d06ad01f1ef50124beb4fd6a7eb1fa9384ed|bf29e3e570eafb831be815b3dda8d06ad01f1ef50124beb4fd6a7eb1fa9384ed
 
 1. #|# 2|jText.cpp|jText.cpp|3e372209d20eb7fc59cede93e7a72c20b1d0b3117179560dae7c146fcadd78e2|3e372209d20eb7fc59cede93e7a72c20b1d0b3117179560dae7c146fcadd78e2
 
@@ -86,9 +86,9 @@
 
 1. #|# 14|src/parser/utf8.hpp|src/parser/utf8.hpp|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea
 
-1. #|# 15|src/validator/validator.cpp|src/validator/validator.cpp|533c396d2d20678fdfa0961ffc732c8541f24b24714dc551ff94763be466ac9b|533c396d2d20678fdfa0961ffc732c8541f24b24714dc551ff94763be466ac9b
+1. #|# 15|src/validator/validator.cpp|src/validator/validator.cpp|ee314d49ac7ceba1f0c08ef4fb5ff6c743d2b84aac511fd32372f253694ace0c|ee314d49ac7ceba1f0c08ef4fb5ff6c743d2b84aac511fd32372f253694ace0c
 
-1. #|# 16|src/validator/validator.hpp|src/validator/validator.hpp|075807cbaae18d34e757057b1bd452ad2175e03628cc30a2120945ee0d3c7149|075807cbaae18d34e757057b1bd452ad2175e03628cc30a2120945ee0d3c7149
+1. #|# 16|src/validator/validator.hpp|src/validator/validator.hpp|668f8a8fbc754a57255419b8840f3cf9c55b5bff8f77c222d5aa5b73924d759c|668f8a8fbc754a57255419b8840f3cf9c55b5bff8f77c222d5aa5b73924d759c
 
 === End Data ===
 === End Section ===
