@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText/v001
 
-1. #|# 3|canonical_commit|0e3686122f00
+1. #|# 3|canonical_commit|dc1f3ec48419
 
 1. #|# 4|canonical_dirty|No
 
@@ -102,7 +102,7 @@
 
 1. #|# 22|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|916bc18c025ab1ca3e2b2dc6bb7e96534b04f90c2e3d69dbe24c35d2a748e821|b207939ea7bf2dbc0f179a69931f12a3de6a5950979a72e32e4f1e5f675c5db3
 
-1. #|# 23|tests/v001_test.cpp|tests/v001_test.cpp|ed65babe7f6225ac9a07f3c51d5bd8958fdc0b984150da34cb28c65094857f02|6f33580339245298f569260ff2fc57e1ba1f699c07f9b79b716ed76da9ba4d8c
+1. #|# 23|tests/v001_test.cpp|tests/v001_test.cpp|5ec3974f41d28bee2c49e0538ad809a333d34b09a186c37ff8a4c97afc71e1cb|ca291ffc692390757e3c3658ee20d51f14e1bd670a0083b306b770cf2b1aec3c
 
 1. #|# 24|tools/gen_unicode_ps_table.py|tools/gen_unicode_ps_table.py|20102028964ecc54e2f2da488fa1085b6a8f5fd9ebdfb05bd2f1b363956429c1|20102028964ecc54e2f2da488fa1085b6a8f5fd9ebdfb05bd2f1b363956429c1
 
