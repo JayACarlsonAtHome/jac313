@@ -2,9 +2,11 @@
 # Round-trip helpers so jText <-> SQL works out of the box:
 #   jtext_xtox_sql : jText -> SQL. Parses + validates a .jtFull/.jtext file and
 #                    emits SQL by {N} template substitution (parser+validator via jac313::jText).
-#   jtext_from_sql : DB -> jText. Reads a PostgreSQL table/query (through psql) and
-#                    generates the four jText component files. std-only.
-# Tests for the tools are deferred (none here yet).
+#   jtext_to_xml   : the canonical XML export (XML_EXPORT.md), the compare standard
+#                    for every round trip.
+#   jtext_from_sql : DB -> jText. Reads a PostgreSQL (libpq), SQLite or MariaDB table
+#                    and generates the four jText component files, every row and comment.
+# Tests for the tools live in canonical jText (tools/tests is not ported).
 
 if(JAC313_JTEXT_BUILD_TOOLS)
     add_executable(jtext_xtox_sql jtext_xtox_sql.cpp)
@@ -12,7 +14,38 @@ if(JAC313_JTEXT_BUILD_TOOLS)
     target_compile_features(jtext_xtox_sql PRIVATE cxx_std_23)
     set_target_properties(jtext_xtox_sql PROPERTIES CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
 
+    add_executable(jtext_to_xml jtext_to_xml.cpp)
+    target_link_libraries(jtext_to_xml PRIVATE jac313::jText)
+    target_compile_features(jtext_to_xml PRIVATE cxx_std_23)
+    set_target_properties(jtext_to_xml PROPERTIES CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+
+    # jtext_from_sql reads each database through its client library (never a text dump).
+    # A backend whose library is installed is built from from_sql/<db>.cpp; one whose
+    # library is missing from from_sql/<db>_none.cpp, which says so when asked.
     add_executable(jtext_from_sql jtext_from_sql.cpp)
+    target_include_directories(jtext_from_sql PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(jtext_from_sql PRIVATE jac313::jText)
     target_compile_features(jtext_from_sql PRIVATE cxx_std_23)
     set_target_properties(jtext_from_sql PROPERTIES CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+    find_package(PostgreSQL QUIET)
+    find_package(SQLite3 QUIET)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(JTEXT_MARIADB QUIET IMPORTED_TARGET libmariadb)
+    endif()
+    foreach(db postgres sqlite mariadb)
+        if(db STREQUAL "postgres")
+            set(lib PostgreSQL::PostgreSQL)
+        elseif(db STREQUAL "sqlite")
+            set(lib SQLite::SQLite3)
+        else()
+            set(lib PkgConfig::JTEXT_MARIADB)
+        endif()
+        if(TARGET ${lib})
+            target_sources(jtext_from_sql PRIVATE from_sql/${db}.cpp)
+            target_link_libraries(jtext_from_sql PRIVATE ${lib})
+        else()
+            target_sources(jtext_from_sql PRIVATE from_sql/${db}_none.cpp)
+        endif()
+    endforeach()
 endif()

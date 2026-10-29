@@ -8,7 +8,7 @@
 // Package version, "major.minor": major = the v001 API line, minor = the revision. Bump on
 // each small code change (edit the minor); v001 stays until a real (breaking) change, then
 // this becomes "v001.001". Enforced by `jac313_test_cli version-check` (pre-push).
-[[nodiscard]] constexpr std::string_view version() noexcept { return "v001.016"; }
+[[nodiscard]] constexpr std::string_view version() noexcept { return "v001.020"; }
 
 enum class CaseMode { Insensitive, Sensitive };
 
@@ -36,14 +36,23 @@ struct JTextEntry {
     char32_t delimiter = 0;       // the comment character; 0 = the writer picks (U+258C unless the data holds it)
     char32_t level_sep = 0;       // the separator; 0 = the writer picks (U+25AE unless the data holds it), otherwise
                                   // (any Unicode punctuation or symbol, e.g. U'|' or U'\u25AE')
-    std::vector<std::optional<std::string>> fields;  // nullopt = null value; for compact ts_store, null is encoded as \x1F when writing
+    // The values, as text. A file holds no nulls (SPEC 2.6.1): a field given no value
+    // (nullopt) is written as {NULL}, and the reader returns {NULL} as that text.
+    std::vector<std::optional<std::string>> fields;
     std::string comment;
-    bool is_null = false;  // legacy per-entry
+};
+
+// A whole comment line (SPEC 3.2.1): a line of its own, kept where it stands, before
+// entries[before] (entries.size(): at the end). `text` is without the leading "#" or "//".
+struct JTextComment {
+    std::size_t before = 0;
+    std::string text;
 };
 
 struct JTextSection {
     std::string name;
     std::vector<JTextEntry> entries;
+    std::vector<JTextComment> comments;   // the comment lines among the entries
 };
 
 class JTextFile {
@@ -63,6 +72,8 @@ public:
     std::vector<std::string> warnings;
 
     std::vector<JTextSection> sections;
+    // Comment lines in the file header; written after the header lines.
+    std::vector<std::string> header_comments;
 
     auto write(std::string_view filepath) const -> std::expected<void, std::string>;
     auto read_full(std::string_view filepath) -> std::expected<void, std::string>;
@@ -164,7 +175,14 @@ public:
     // Append a complete entry
     void append_entry(const JTextEntry& entry);
 
-    // End the record just written: the blank line that separates it from the next.
+    // A whole comment line (SPEC 3.2.1), written "// text" where it is called. A text
+    // with line breaks is several comment lines.
+    void write_comment_line(std::string_view text);
+
+    // End the record just written. A record written as lines of its own (one per field,
+    // or broken by a multiline value) ends with a blank line. A record that is one
+    // multifield row from field 1 needs none: the next row's "1." starts the next
+    // record, so rows follow one another directly (SPEC 2.6).
     void end_record();
 
     // Batch append — recommended for high-volume use (ts_store, double-buffering, etc.)
@@ -244,6 +262,11 @@ private:
 
     BadRowPolicy bad_row_policy_ = BadRowPolicy::Terminate;
     std::size_t skipped_rows_ = 0;
+    // The record being written (see end_record): its lines so far, and whether its one
+    // line is a whole multifield row from field 1.
+    std::size_t record_lines_ = 0;
+    bool record_is_row_ = false;
+    void count_record_line(std::size_t number, std::size_t field_count, bool multiline);
     std::string section_;   // current section, for error messages
     bool section_open_ = false;   // a section waits for its closer
     JTextProfile profile_ = JTextProfile::Light;
@@ -286,13 +309,14 @@ void write_light_section_banner(std::ostream& out, std::string_view section_name
 void write_fields_include_line(std::ostream& out, std::string_view jtflds_path);
 
 // Writes the required standardized leading // comment header for
-// self-describing files (jText data, jText field lists, SQL schemas, binary data, etc).
-// Always uses // comments. Call this before writing any data or jText's own # headers.
+// self-describing files (jText data, jText field lists, binary data, etc). A file of
+// SQL (.sql, .jschma) takes write_sql_comment_header instead, the same block as "-- "
+// comments. Call this before writing any data or jText's own # headers.
 // The produced block is (keys chosen for brevity + colons for consistency; values aligned):
 //
 //   //File:    <the file's name: never a path, which goes stale when the file moves>
 //   //Date:    YYYY-MM-DD
-//   //Purpose: jText Data File | jText Field List File | SQL Schema File | SQL Data File | ...
+//   //Purpose: jText Data File | jText Field List File | ...
 //   //Related: type=PostgreSQL table=workshop_tools   (optional, if origin known)
 //
 // The leading // lines are comments and are skipped by parsers when looking for
@@ -306,3 +330,15 @@ void write_file_comment_header(std::ostream& os,
                                std::string_view path,
                                std::string_view purpose,
                                std::string_view related = {});
+
+// The same block for a file of SQL (.sql, .jschma), as SQL comments, so psql, sqlite3
+// and mysql can run the file as written (MySQL and MariaDB need the space after "--"):
+//   -- File:    <the file's name>
+//   -- Date:    YYYY-MM-DD
+//   -- Purpose: <purpose>
+//   -- Related: <related>        (only when given)
+//   --
+void write_sql_comment_header(std::ostream& os,
+                              std::string_view path,
+                              std::string_view purpose,
+                              std::string_view related = {});

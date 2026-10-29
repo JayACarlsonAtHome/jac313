@@ -55,16 +55,17 @@ int main() {
     check(file->sections.size() == 1, "one section");
     check(file->sections[0].templates.size() == 2, "two templates");
 
-    // Records are separated by blank lines; each line carries the values from its position on.
+    // A blank line ends a record and a line for field 1 starts one (SPEC 2.6); each line
+    // carries the values from its position on.
     std::vector<std::vector<std::string>> records(1);
     for (const auto& pl : file->sections[0].data_lines) {
-        if (pl.number == 0) {
+        if (pl.number == 0 || (pl.number == 1 && !records.back().empty())) {
             if (!records.back().empty()) records.emplace_back();
-            continue;
+            if (pl.number == 0) continue;
         }
         auto& r = records.back();
-        if (r.size() < pl.number - 1 + pl.hierarchy.size()) r.resize(pl.number - 1 + pl.hierarchy.size());
-        for (std::size_t k = 0; k < pl.hierarchy.size(); ++k) r[pl.number - 1 + k] = pl.hierarchy[k];
+        if (r.size() < pl.number - 1 + pl.values.size()) r.resize(pl.number - 1 + pl.values.size());
+        for (std::size_t k = 0; k < pl.values.size(); ++k) r[pl.number - 1 + k] = pl.values[k];
     }
     if (records.back().empty()) records.pop_back();
     check(records.size() == events.size(), "one record per event");

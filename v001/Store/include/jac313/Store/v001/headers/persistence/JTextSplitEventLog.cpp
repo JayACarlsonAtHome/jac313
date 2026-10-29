@@ -225,7 +225,7 @@ void JTextSplitEventLog::write_sql_companions(
         std::string sql_path = std::format("{}.sql", base_name);
         std::ofstream sql(sql_path);
         std::string rel = std::format("type=ts_store table={}", table_name);
-        write_file_comment_header(sql, sql_path, "SQL Schema File", rel);
+        write_sql_comment_header(sql, sql_path, "SQL Schema File", rel);
         sql << "CREATE TABLE IF NOT EXISTS " << table_name << " (\n"
             << "    id BIGINT PRIMARY KEY\n"
             << "  , thread_id BIGINT\n"
@@ -242,7 +242,7 @@ void JTextSplitEventLog::write_sql_companions(
         std::string sql_path = std::format("{}_Ints.sql", base_name);
         std::ofstream sql(sql_path);
         std::string rel = std::format("type=ts_store table={}", tname_i);
-        write_file_comment_header(sql, sql_path, "SQL Schema File", rel);
+        write_sql_comment_header(sql, sql_path, "SQL Schema File", rel);
         sql << "CREATE TABLE IF NOT EXISTS " << tname_i << " (\n"
             << "    id BIGINT PRIMARY KEY\n";
         for (size_t i = 0; i < int_count; ++i) {
@@ -256,7 +256,7 @@ void JTextSplitEventLog::write_sql_companions(
         std::string sql_path = std::format("{}_Floats.sql", base_name);
         std::ofstream sql(sql_path);
         std::string rel = std::format("type=ts_store table={}", tname_f);
-        write_file_comment_header(sql, sql_path, "SQL Schema File", rel);
+        write_sql_comment_header(sql, sql_path, "SQL Schema File", rel);
         sql << "CREATE TABLE IF NOT EXISTS " << tname_f << " (\n"
             << "    id BIGINT PRIMARY KEY\n";
         for (size_t i = 0; i < dbl_count; ++i) {
