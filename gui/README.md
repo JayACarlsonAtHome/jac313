@@ -241,9 +241,10 @@ jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc|
   `build-<cc>-contracts-MODE` and is recorded as build type `Debug-contracts-MODE`). Only the modes
   the chosen compiler has on this OS can be picked: `jac313_test_cli compiler-versions` lists them
   (`gcc gcc16 16.2.1 enforce,observe,quick_enforce,ignore`) from the version's
-  `Setup/contracts.jtext`, a table of OS × toolchain × mode. With **both**, only the modes both
-  compilers have. `ignore` (and `enforce`) can always be picked; a pick the compiler does not have
-  falls back to `enforce`.
+  `Setup/contracts.jtext`, a table of OS × toolchain × mode. With **both**, the modes either compiler
+  has; each run passes the pick only when its compiler has it and otherwise runs with `enforce`
+  (both + observe: the gcc16 run gets `--contracts observe`, the clang run none). `ignore` and
+  `enforce` can always be picked; a pick the compiler does not have falls back to `enforce`.
 * The `--persist` names are `sql` (SQLite), `pg-local`, `pg-remote`, `jtext`, `binary`, `json` and `html`.
 * With Compiler **both**, the command runs twice, gcc15 first and then clang. The summaries go to `runner_last_gcc15.json` and `runner_last_clang.json`.
 * With one compiler the summary goes to `<root>/<version>/test-summary/runner_last.json`.

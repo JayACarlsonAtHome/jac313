@@ -464,7 +464,10 @@ Array<RunPlan> BuildPlans(const RunOptions& opts, const String& root)
 			a << "--pg-remote" << RemoteConninfo(o);
 		if(o.strict)                 a << "--strict";
 		if(o.hardened)               a << "--hardened";
-		if(o.contracts != "enforce") a << "--contracts" << o.contracts;
+		// a mode this compiler lacks (with "both", observe on clang) runs it with enforce instead
+		Vector<String> has = Split(c == "clang" ? o.clangContracts : o.gccContracts, ',');
+		String mode = (has.IsEmpty() || FindIndex(has, o.contracts) >= 0) ? o.contracts : String("enforce");
+		if(mode != "enforce")        a << "--contracts" << mode;
 		if(o.frontEnd == "modules")  a << "--modules";
 		if(o.size == "full")         a << "--size" << "full";
 		String persist = PersistList(o);

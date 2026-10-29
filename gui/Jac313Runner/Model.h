@@ -29,6 +29,10 @@ struct RunOptions {
 	// quick_enforce | ignore. The screen enables only the modes the chosen compiler has on this
 	// OS (the version's Setup/contracts.jtext, via jac313_test_cli compiler-versions).
 	String contracts  = "enforce";
+	// The modes gcc / clang have here, e.g. "enforce,observe,quick_enforce,ignore" (filled from
+	// compiler-versions by the window, not saved; "" = not known, the choice goes through as it
+	// is). With "both" a mode one compiler lacks runs that compiler with enforce instead.
+	String gccContracts, clangContracts;
 	String frontEnd   = "textual";  // textual | modules
 	String size       = "smoke";    // smoke | full
 	bool   sqlite     = true;

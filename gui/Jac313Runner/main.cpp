@@ -1150,6 +1150,8 @@ void Runner::ToOptions()
 	opt.strict = bStrict;
 	opt.hardened = bHardened;
 	opt.contracts = AsString(~contracts);
+	opt.gccContracts = Join(gccModes.GetKeys(), ",");
+	opt.clangContracts = Join(clangModes.GetKeys(), ",");
 	opt.frontEnd = AsString(~front);
 	opt.size = AsString(~size);
 	opt.sqlite = pSql;
@@ -1265,11 +1267,14 @@ void Runner::ShowCompilerVersions()
 	if(text.GetCount())   // asked again next time when the tool is missing or did not answer
 		compVerFor = dir;
 	lCompVer.SetText(text);
+	opt.gccContracts = Join(gccModes.GetKeys(), ",");
+	opt.clangContracts = Join(clangModes.GetKeys(), ",");
 	EnableContracts();
 }
 
-// Only the contract modes the chosen compiler has on this OS can be picked ("both": the modes
-// both have); ignore always can. A pick that is no longer there falls back to enforce.
+// Only the contract modes the chosen compiler has on this OS can be picked; with "both", the modes
+// either has (BuildPlans runs the other one with enforce). enforce and ignore always can. A pick
+// that is no longer there falls back to enforce.
 void Runner::EnableContracts()
 {
 	String c = AsString(~comp);
@@ -1277,7 +1282,7 @@ void Runner::EnableContracts()
 		if(m == "ignore" || m == "enforce")
 			return true;
 		bool g = gccModes.Find(m) >= 0, k = clangModes.Find(m) >= 0;
-		return c == "gcc" ? g : c == "clang" ? k : g && k;
+		return c == "gcc" ? g : c == "clang" ? k : g || k;
 	};
 	for(const char *m : { "enforce", "observe", "quick_enforce", "ignore" })
 		contracts.EnableValue(m, has(m));
