@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/include
 
-1. #|# 3|canonical_commit|e7d5fa2f9238
+1. #|# 3|canonical_commit|fac5fb5ea964
 
 1. #|# 4|canonical_dirty|No
 
@@ -68,7 +68,7 @@
 
 1. #|# 5|jtext_gui/core/record.hpp|jtext_gui/core/record.hpp|b11ec94d1ec2138b0c1186b62dbfd19a810d4c76ecdefe7e5cbeb3dd6e7eea15|b11ec94d1ec2138b0c1186b62dbfd19a810d4c76ecdefe7e5cbeb3dd6e7eea15
 
-1. #|# 6|jtext_gui/core/session.hpp|jtext_gui/core/session.hpp|ec6d17ec7c7b4a3def22c0d69a2f3aed980b362a5131b51281bf9b839c0459fc|ec6d17ec7c7b4a3def22c0d69a2f3aed980b362a5131b51281bf9b839c0459fc
+1. #|# 6|jtext_gui/core/session.hpp|jtext_gui/core/session.hpp|92e81292d1e3d3261c2a45dfa8520d3011118e103875947fc998efc1838fa4d4|92e81292d1e3d3261c2a45dfa8520d3011118e103875947fc998efc1838fa4d4
 
 1. #|# 7|jtext_gui/core/spreadsheet.hpp|jtext_gui/core/spreadsheet.hpp|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87
 

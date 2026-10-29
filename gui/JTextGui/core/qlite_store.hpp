@@ -62,7 +62,7 @@ std::int64_t run(D& db, const Dialect& d, const std::string& sql,
     return db.changes();
 }
 
-/// The rows of a SELECT as records, each column a line (SQL NULL: a missing line).
+/// The rows of a SELECT as records, each column a line (SQL NULL: a {NULL} line).
 template<class Statement>
 std::expected<void, std::string> read_records(Statement& st, DbQueryResult& out) {
     const int ncols = st.column_count();
@@ -76,10 +76,10 @@ std::expected<void, std::string> read_records(Statement& st, DbQueryResult& out)
         rec.mark_all_absent();
         for (int c = 0; c < ncols; ++c) {
             auto v = st.template get_at<std::optional<std::string>>(c);
-            if (!v) continue;
             const auto col = static_cast<std::size_t>(c);
-            rec.is_null[col] = false;
             rec.has_line[col] = true;
+            if (!v) continue;   // NULL: is_null stays set
+            rec.is_null[col] = false;
             rec.fields[col] = std::move(*v);
         }
         rec.original_key = rec.is_null[0] ? std::string{} : rec.fields[0];

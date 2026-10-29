@@ -155,6 +155,20 @@ struct TableSession {
         return true;
     }
 
+    /// A {NULL} line: the field holds SQL NULL (SPEC 2.6.1; the file writes {NULL}). Not
+    /// the same as a missing line (set_null), which is an empty value.
+    bool set_null_value(std::size_t row, std::size_t field) {
+        if (row >= rows.size() || field >= kMaxFields) return false;
+        auto& rec = rows[row];
+        rec.ensure_size(field + 1);
+        if (rec.is_null[field] && rec.has_line[field]) return true;
+        rec.is_null[field] = true;
+        rec.has_line[field] = true;
+        rec.fields[field].clear();
+        changes.mark_dirty(row);
+        return true;
+    }
+
     bool set_marker(std::size_t row, std::string marker) {
         if (row >= rows.size()) return false;
         marker = marker.empty() ? std::string(kDefaultMarker) : live_marker(marker);

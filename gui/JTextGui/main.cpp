@@ -24,12 +24,20 @@ String Field(const EditString& e) { return ~e; }
 // "Unexpected end of text" instead of the real message.
 void Tell(const String& text) { Exclamation(DeQtfLf(text)); }
 
-// How a field shows a NULL (no line) and an empty string (a line with no text).
-constexpr const char* kNullShown = "{Null}";
+// How a field shows SQL NULL (a {NULL} line, as the file writes it) and an empty string
+// (a line with no text). A missing line is an empty value too (SPEC 2.6.1): an empty box,
+// with the record's marker beside it.
+constexpr const char* kNullShown = "{NULL}";
 constexpr const char* kEmptyShown = "{No Value or Empty String}";
+
+// A field the record has no line for.
+bool FieldMissing(const jtext_gui::Record& r, std::size_t n) {
+	return !jtext_gui::field_has_line(r, n);
+}
 
 String ShowField(const jtext_gui::Record& r, int i) {
 	const auto n = (std::size_t)i;
+	if (FieldMissing(r, n)) return String();
 	if (jtext_gui::field_is_null(r, n)) return kNullShown;
 	if (jtext_gui::field_text(r, n).empty()) return kEmptyShown;
 	return S(r.fields[n]);
@@ -1271,7 +1279,9 @@ struct JTextGui : TopWindow {
 			edits++;
 			if (i % 97 == 3) {           // Ctrl+Z right away: the cell gets its old value back
 				// (the cursor is on the next cell, with nothing typed, so this undoes the save)
-				const String prev = undo.GetCount() ? (undo.Top().was_null ? String("\x01") : String(undo.Top().text.c_str())) : want;
+				const String prev = undo.GetCount() ? (undo.Top().was_null && undo.Top().had_line ? String("\x01")
+				                                                                                : String(undo.Top().text.c_str()))
+				                                    : want;
 				Press(K_CTRL|K_Z);
 				expected[r][c] = prev;
 				ops[r][c] << "Z ";
@@ -1286,14 +1296,16 @@ struct JTextGui : TopWindow {
 		Press(K_ENTER);
 		const bool blockRefused = (keep == "\x01" ? grid.GetCell(0, 1).kind == CellGrid::NUL : grid.GetCell(0, 1).text == keep);
 
-		auto show = [](const String& v) { return v == "\x01" ? String("{Null}") : "\"" + v + "\""; };
+		auto show = [](const String& v) { return v == "\x01" ? String(kNullShown) : "\"" + v + "\""; };
 		auto check = [&](const std::vector<jtext_gui::Record>& rowsNow, const char* what) {
 			int bad = 0;
 			for (int r = 0; r < rows; r++)
 				for (int c = 0; c < cols; c++) {
 					const auto& rec = rowsNow[(std::size_t)shown[r]];
 					const auto f = (std::size_t)gridCols[c];
-					const String got = jtext_gui::field_is_null(rec, f) ? String("\x01") : S(jtext_gui::field_text(rec, f));
+					// NULL is a {NULL} line; a missing line is an empty value
+					const String got = jtext_gui::field_is_null(rec, f) && jtext_gui::field_has_line(rec, f)
+					                       ? String("\x01") : S(jtext_gui::field_text(rec, f));
 					if (got != expected[r][c] && bad++ < 5)
 						printf("  %s mismatch: record %d line %d: want %s got %s (ops: %s)\n", what, shown[r] + 1,
 						       (int)f + 1, ~show(expected[r][c]), ~show(got), ~ops[r][c]);
@@ -1331,7 +1343,9 @@ struct JTextGui : TopWindow {
 			CellGrid::Cell cell;
 			const auto& rec = session.rows[(std::size_t)shown[r]];
 			const auto f = (std::size_t)gridCols[c];
-			if (jtext_gui::field_is_null(rec, f))
+			if (FieldMissing(rec, f))
+				;   // an empty cell
+			else if (jtext_gui::field_is_null(rec, f))
 				cell.kind = CellGrid::NUL;
 			else if (jtext_gui::field_text(rec, f).empty())
 				cell.kind = CellGrid::EMPTY;
@@ -1367,6 +1381,8 @@ struct JTextGui : TopWindow {
 			Status("Line 1 is the record id. It has to be an integer.");
 			return false;
 		}
+		if (!null && value.empty() && FieldMissing(rec, (std::size_t)f))
+			return true;   // an empty cell left empty: still no line
 		UndoStep& u = undo.Add();
 		u.row = row;
 		u.field = f;
@@ -1374,7 +1390,7 @@ struct JTextGui : TopWindow {
 		u.had_line = jtext_gui::field_has_line(rec, (std::size_t)f);
 		u.text = jtext_gui::field_text(rec, (std::size_t)f);
 		if (null)
-			session.set_null((std::size_t)row, (std::size_t)f);
+			session.set_null_value((std::size_t)row, (std::size_t)f);
 		else
 			session.set_field((std::size_t)row, (std::size_t)f, value);
 		AfterGridChange(row, f);
@@ -1387,8 +1403,10 @@ struct JTextGui : TopWindow {
 		const UndoStep u = undo.Top();
 		undo.Drop();
 		if (u.row >= (int)session.rows.size()) return false;
-		if (u.was_null)   // NULL, whether or not the file had a NULL line for it
-			session.set_null((std::size_t)u.row, (std::size_t)u.field);
+		if (!u.had_line)
+			session.set_null((std::size_t)u.row, (std::size_t)u.field);   // missing again
+		else if (u.was_null)
+			session.set_null_value((std::size_t)u.row, (std::size_t)u.field);
 		else
 			session.set_field((std::size_t)u.row, (std::size_t)u.field, u.text);
 		const int gr = FindIndex(shown, u.row), gc = FindIndex(gridCols, u.field);
@@ -1568,13 +1586,13 @@ struct JTextGui : TopWindow {
 		SetVisibleRows(visible + 1);
 		SetRowLabel(i);
 		loading = true;
-		field[i] <<= kNullShown;
+		field[i] <<= String();
 		fieldMark[i] <<= DefaultMarker();
 		fieldComment[i] <<= String();
 		loading = false;
 		field[i].SetFocus();
 		field[i].SetSelection();
-		Status(Format("Line %d added. Type its value; left as {NULL} it is not saved.", i + 1));
+		Status(Format("Line %d added. Type its value; left empty it is not saved.", i + 1));
 	}
 
 	// Row i's number label: "id" for line 1, else the line number.
@@ -1740,6 +1758,9 @@ struct JTextGui : TopWindow {
 		text << "  |  value: ";
 		if (raw == kNullShown)
 			text << "NULL";
+		else if (raw.IsEmpty() && loaded >= 0 && loaded < (int)session.rows.size() &&
+		         FieldMissing(session.rows[(std::size_t)loaded], (std::size_t)f))
+			text << "no line (an empty value)";
 		else if (raw == kEmptyShown || raw.IsEmpty())
 			text << "empty string";
 		else {
@@ -1867,10 +1888,11 @@ struct JTextGui : TopWindow {
 			}
 			String raw = Field(field[i]);
 			if (raw == kNullShown) {
-				if (!jtext_gui::field_is_null(session.rows[row], fi))
-					session.set_null(row, fi);
+				session.set_null_value(row, fi);
 				continue;
 			}
+			if (raw.IsEmpty() && FieldMissing(session.rows[row], fi))
+				continue;   // an empty box with no line: still no line
 			String mk = TrimBoth(Field(fieldMark[i]));
 			if (mk.IsEmpty()) {
 				const auto& rec = session.rows[row];
