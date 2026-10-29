@@ -4,6 +4,7 @@
 #                    emits SQL by {N} template substitution (parser+validator via jac313::jText).
 #   jtext_to_xml   : the canonical XML export (XML_EXPORT.md), the compare standard
 #                    for every round trip.
+#   jtext_to_ods / jtext_from_ods : jText <-> OpenDocument spreadsheet (ODS.md).
 #   jtext_from_sql : DB -> jText. Reads a PostgreSQL (libpq), SQLite or MariaDB table
 #                    and generates the four jText component files, every row and comment.
 # Tests for the tools live in canonical jText (tools/tests is not ported).
@@ -48,4 +49,22 @@ if(JAC313_JTEXT_BUILD_TOOLS)
             target_sources(jtext_from_sql PRIVATE from_sql/${db}_none.cpp)
         endif()
     endforeach()
+
+    # jtext_to_ods / jtext_from_ods (ODS.md): the archive through libzip, content.xml
+    # through libxml2; built where both are installed (libzip-devel, libxml2-devel).
+    find_package(LibXml2 QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(JTEXT_LIBZIP QUIET IMPORTED_TARGET libzip)
+    endif()
+    if(TARGET LibXml2::LibXml2 AND TARGET PkgConfig::JTEXT_LIBZIP)
+        add_library(jtext_ods STATIC ods/ods.cpp)
+        target_include_directories(jtext_ods PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+        target_link_libraries(jtext_ods PUBLIC jac313::jText LibXml2::LibXml2 PkgConfig::JTEXT_LIBZIP)
+        target_compile_features(jtext_ods PUBLIC cxx_std_23)
+        foreach(tool jtext_to_ods jtext_from_ods)
+            add_executable(${tool} ${tool}.cpp)
+            target_link_libraries(${tool} PRIVATE jtext_ods)
+            set_target_properties(${tool} PROPERTIES CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+        endforeach()
+    endif()
 endif()
