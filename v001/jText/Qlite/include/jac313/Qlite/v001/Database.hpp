@@ -18,6 +18,8 @@
 #include <string_view>
 #include <utility>
 
+#include "jac313/Qlite/v001/contracts.hpp"   // QLITE_PRE/POST/ASSERT, used by the bodies
+
 namespace jac313::Qlite::v001 {
 
 #include "jac313/Qlite/v001/Database.body.hpp"
