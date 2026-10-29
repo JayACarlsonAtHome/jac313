@@ -190,6 +190,10 @@ install_upp() {  # U++ into $UPP_DIR via upp_basefix; keeps an existing install 
     git -C "$UPP_BASEFIX_SRC" pull -q --ff-only || echo "(git pull failed — offline or local changes; going on with the clone as it is)"
   fi
   export UPP_BASEFIX_FROM=jac313   # upp_basefix then skips its "Next: ..." hint for a person
+  # upp_basefix's gcc is the RHEL toolset path in its bm/GCC15.bm, else plain g++ — on Ubuntu/Mint
+  # that is g++ 13, which has no -std=c++26. Hand it the g++ found above (g++-15) when it needs no
+  # activation prefix; under a toolset the bm/ path is the right one.
+  [ -z "$ACT" ] && [ -z "${UPP_BASEFIX_GCC:-}" ] && export UPP_BASEFIX_GCC="$CXX"
   # its bootstrap: the pinned U++ from GitHub, umk built from it, the patches; it lists the
   # system packages U++ needs and installs them only when asked (sudo). A yes to the GUI
   # libraries above already covers these, so the user is asked once.
