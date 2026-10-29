@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/src/core
 
-1. #|# 3|canonical_commit|4b7299a114b2
+1. #|# 3|canonical_commit|a2f9a97eb28c
 
 1. #|# 4|canonical_dirty|No
 
@@ -31,7 +31,7 @@
 
 1. #|# 6|transform|none
 
-1. #|# 7|ported|2026-10-28
+1. #|# 7|ported|2026-10-29
 
 1. #|# 8|baseline|No
 
@@ -62,15 +62,27 @@
 
 1. #|# 2|connections_file.cpp|connections_file.cpp|d0f98e8351dc60d165f8fc593419ddbdc539bcc97337bea0be2cf6166a888519|d0f98e8351dc60d165f8fc593419ddbdc539bcc97337bea0be2cf6166a888519
 
-1. #|# 3|jtext_store.cpp|jtext_store.cpp|5bbac162b16beb41696fa4e7499bca6a4da0ce1d6c9f4b98c9df802400e4ebf6|5bbac162b16beb41696fa4e7499bca6a4da0ce1d6c9f4b98c9df802400e4ebf6
+1. #|# 3|db_store.cpp|db_store.cpp|5a911e7cc9213d9e67abe98499afb596771970103a5735160d81ef0817a19ac3|5a911e7cc9213d9e67abe98499afb596771970103a5735160d81ef0817a19ac3
 
-1. #|# 4|maria_postgres_store.cpp|maria_postgres_store.cpp|e89935a571d36df80d81b91b2f1dba16d668ad7f3144b0ca823627def04cee8b|e89935a571d36df80d81b91b2f1dba16d668ad7f3144b0ca823627def04cee8b
+1. #|# 4|db_stores.hpp|db_stores.hpp|5749f39037f48fc7d7d23aafc977aac961abb7991719f249f75ab27c6df7e4c3|5749f39037f48fc7d7d23aafc977aac961abb7991719f249f75ab27c6df7e4c3
 
-1. #|# 5|session_ops.cpp|session_ops.cpp|9c45f94eb3468c30a492b147389a4df7dc066d914101c61851006c2a06ff416e|9c45f94eb3468c30a492b147389a4df7dc066d914101c61851006c2a06ff416e
+1. #|# 5|jtext_store.cpp|jtext_store.cpp|5bbac162b16beb41696fa4e7499bca6a4da0ce1d6c9f4b98c9df802400e4ebf6|5bbac162b16beb41696fa4e7499bca6a4da0ce1d6c9f4b98c9df802400e4ebf6
 
-1. #|# 6|spreadsheet.cpp|spreadsheet.cpp|6fb777554d7253ea3f58b6305242af22d4afc6e1a3f52985bdf3a97fc5af5270|6fb777554d7253ea3f58b6305242af22d4afc6e1a3f52985bdf3a97fc5af5270
+1. #|# 6|mariadb_none.cpp|mariadb_none.cpp|67b4ff32678799d1bd88d3d1d70e246594a268eea17c47b66955e03a9ff06ee8|67b4ff32678799d1bd88d3d1d70e246594a268eea17c47b66955e03a9ff06ee8
 
-1. #|# 7|sqlite_store.cpp|sqlite_store.cpp|74f2c6be48420210c38fa6916770849c72b2153fb5fb689894f6f99b130432c9|74f2c6be48420210c38fa6916770849c72b2153fb5fb689894f6f99b130432c9
+1. #|# 7|mariadb_store.cpp|mariadb_store.cpp|005e8423903428ffa8a3fc9c6088a61d818e01e226b6a85c259c6b9d5c1c5bc1|005e8423903428ffa8a3fc9c6088a61d818e01e226b6a85c259c6b9d5c1c5bc1
+
+1. #|# 8|postgres_none.cpp|postgres_none.cpp|14d7bf34b1467f4b07b55c246c02623b881264064ab141b0bc12973cbe4c5dae|14d7bf34b1467f4b07b55c246c02623b881264064ab141b0bc12973cbe4c5dae
+
+1. #|# 9|postgres_store.cpp|postgres_store.cpp|0cf7bd0dec18f99c236f036982879e28887ad4518d4836a8ab6e9da680547d5a|0cf7bd0dec18f99c236f036982879e28887ad4518d4836a8ab6e9da680547d5a
+
+1. #|# 10|qlite_store.hpp|qlite_store.hpp|285de7ff46b7de2795d91877e30d0b80bced7fac6a940d199571381be1f81b99|285de7ff46b7de2795d91877e30d0b80bced7fac6a940d199571381be1f81b99
+
+1. #|# 11|session_ops.cpp|session_ops.cpp|9c45f94eb3468c30a492b147389a4df7dc066d914101c61851006c2a06ff416e|9c45f94eb3468c30a492b147389a4df7dc066d914101c61851006c2a06ff416e
+
+1. #|# 12|spreadsheet.cpp|spreadsheet.cpp|6fb777554d7253ea3f58b6305242af22d4afc6e1a3f52985bdf3a97fc5af5270|6fb777554d7253ea3f58b6305242af22d4afc6e1a3f52985bdf3a97fc5af5270
+
+1. #|# 13|sqlite_store.cpp|sqlite_store.cpp|4ed096396c911903b0d585cae620a4b55d3e057adb26d640edd0fa9c40eb4a8b|4ed096396c911903b0d585cae620a4b55d3e057adb26d640edd0fa9c40eb4a8b
 
 === End Data ===
 === End Section ===

@@ -9,8 +9,10 @@ file
 	main.cpp,
 	core/jtext_store.cpp,
 	core/session_ops.cpp,
+	core/db_store.cpp,
 	core/sqlite_store.cpp,
-	core/maria_postgres_store.cpp,
+	core/postgres_store.cpp,
+	core/mariadb_store.cpp,
 	core/connections_file.cpp,
 	core/spreadsheet.cpp,
 	core/comments_table.cpp,
@@ -22,7 +24,7 @@ file
 	jText/src/export/xml_export.cpp;
 
 options
-	"-Iinclude -IjText -IjText/src -I/usr/pgsql-18/include -I/usr/include/mysql -DJTEXT_HAS_POSTGRESQL -DJTEXT_HAS_MARIADB";
+	"-Iinclude -IjText -IjText/src -IjText/Qlite/include -I/usr/pgsql-18/include -I/usr/include/mysql";
 
 library
 	sqlite3,
