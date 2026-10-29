@@ -779,13 +779,16 @@ std::expected<ImportSummary, std::string> import_sheet(TableSession& s, const Sh
         } else {
             ++sum.records_added;
             if (apply) {
+                // Every field absent, then the id and the sheet's non-empty cells: an empty
+                // cell of a new record is a missing line (an empty value, SPEC 2.6.1).
                 Record rec;
+                rec.mark_all_absent();
                 rec.fields[0] = std::to_string(*id);
                 rec.is_null[0] = false;
                 rec.has_line[0] = true;
                 const std::size_t row = s.append_row(std::move(rec));
                 for (std::size_t c = 0; c < target.size(); ++c)
-                    if (target[c] && *target[c] != 0) s.set_field(row, *target[c], cell(c));
+                    if (target[c] && *target[c] != 0 && !cell(c).empty()) s.set_field(row, *target[c], cell(c));
                 by_id.emplace(*id, row);
             }
             added.insert(*id);
