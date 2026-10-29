@@ -2818,7 +2818,7 @@ int main(int argc, char** argv) {
         // else $HOME/u++/{umk,uppsrc}. No fixed drive paths: the repository can be anywhere.
         fs::path src = fs::current_path();
         std::vector<std::string> packages;
-        std::string method = "GCC";   // a U++ build method (GCC uses the g++ on PATH; CLANG uses clang++)
+        std::string method = "GCC";   // a U++ build method: the GCC.bm / CLANG.bm beside umk when there is one
         bool clean = false;            // rebuild every package (umk -a): U++ shares one object cache
         for (int i = 2; i < argc; ++i) {
             const std::string a = argv[i];
@@ -2856,6 +2856,14 @@ int main(int argc, char** argv) {
             std::cerr << "gui-build: no umk + uppsrc pair found (looked in $UPP_DIR, $HOME/upp_basefix and $HOME/u++);\n"
                          "  ./bsir.sh installs U++ (upp_basefix)\n";
             return 1;
+        }
+        // umk looks a method name up in its config dirs before the folder it sits in, and writes a
+        // default theide/GCC.bm there (plain g++, -std=c++17) on its first run, which would shadow
+        // the install's GCC.bm. So pass the .bm beside umk by path when there is one.
+        {
+            std::error_code ec;
+            const fs::path bm = umk.parent_path() / (method + ".bm");
+            if (method.find('/') == std::string::npos && fs::is_regular_file(bm, ec)) method = bm.string();
         }
         int rc = 0;
         for (const auto& pkg : packages) {
