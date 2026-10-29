@@ -23,11 +23,11 @@
 
 1. #|# 2|canonical_dir|jText/v002
 
-1. #|# 3|canonical_commit|e2732d152a65
+1. #|# 3|canonical_commit|ea112b97c684
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v002.020
+1. #|# 5|canonical_version|v002.021
 
 1. #|# 6|transform|jac313-prefix
 
@@ -62,7 +62,7 @@
 
 1. #|# 2|include/jac313/jText/v002.hpp|include/jText/v002.hpp|3b0b42253b9287078698f9fc97e6aea14b740b3d059a15d970dd3f68b69748a9|4d8477911f65c529a9abcef74a6cf2c8922300b4004996e8608cfcecd9c5dab5
 
-1. #|# 3|jText.api.inc|jText.api.inc|d63112c41c06071c1ca9f74924ff1763d17cf4f932a7ab99a561bc997431f8ae|eb927b72a6cb9d48a32a271c0d2635c0fb711a7d811d95e2c14a4afb285d05a4
+1. #|# 3|jText.api.inc|jText.api.inc|7430c971fcc67abcb11fc72b0f55d887380f5bcb71307e2947a810c24b3beeb9|a517ba2b3cc8c61e8ecfbcdadf55765cc260ada81334b7aa4b800ea8cacbf58f
 
 1. #|# 4|jText.cpp|jText.cpp|c50d6711d29ec46de90fef053604bfab3aeaeaa4082e4fbaef731d827d70b075|a2462e21dcfbec6c09d905cdfec6735ca8be508fcb821869691e6eb6a1a2923a
 
@@ -98,39 +98,49 @@
 
 1. #|# 20|src/parser/utf8.hpp|src/parser/utf8.hpp|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea
 
-1. #|# 21|src/validator/validator.cpp|src/validator/validator.cpp|533c396d2d20678fdfa0961ffc732c8541f24b24714dc551ff94763be466ac9b|533c396d2d20678fdfa0961ffc732c8541f24b24714dc551ff94763be466ac9b
+1. #|# 21|src/validator/validator.cpp|src/validator/validator.cpp|ee314d49ac7ceba1f0c08ef4fb5ff6c743d2b84aac511fd32372f253694ace0c|ee314d49ac7ceba1f0c08ef4fb5ff6c743d2b84aac511fd32372f253694ace0c
 
-1. #|# 22|src/validator/validator.hpp|src/validator/validator.hpp|075807cbaae18d34e757057b1bd452ad2175e03628cc30a2120945ee0d3c7149|075807cbaae18d34e757057b1bd452ad2175e03628cc30a2120945ee0d3c7149
+1. #|# 22|src/validator/validator.hpp|src/validator/validator.hpp|668f8a8fbc754a57255419b8840f3cf9c55b5bff8f77c222d5aa5b73924d759c|668f8a8fbc754a57255419b8840f3cf9c55b5bff8f77c222d5aa5b73924d759c
 
 1. #|# 23|tests/module/v002_module_test.cpp|tests/module/v002_module_test.cpp|7c2d3fc4efcd67195ee1e51f8101d0f78ab48163a2ec3bf7b5910edd29df39c4|045c35793aca4068213e04a3573e4a0ae8aed5c6c87f076cf771975273161d53
 
 1. #|# 24|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|31274214e52fa8c1a3a02cd13f5f20a629f14c940456f496247ec4e73829e329|afb6a46eae1f8f70b2da563a77cb4c2461f797e31b9ed0e92eab2909231687f4
 
-1. #|# 25|tests/v002_test.cpp|tests/v002_test.cpp|2ba0a2fdfea9dafadbdfca20d44264640e28a0de352af58e27690de32879e85f|368f6d0a79266b8f2787ae53b4c3ce473917a8e5073bc08089cef1b7dff899d7
+1. #|# 25|tests/v002_test.cpp|tests/v002_test.cpp|c6d0623707dc418b0136991eadceeb7542719a461aed265597afa60bf4ff7d08|9589fad5f6f8632ce9468e00e55b99daec58b4b2089ee44825d1d580b9b000df
 
-1. #|# 26|tools/from_sql/mariadb.cpp|tools/from_sql/mariadb.cpp|8fd82b53d95bec15c42309152db8470dbb1856761dcd53d810f5492608717b13|8fd82b53d95bec15c42309152db8470dbb1856761dcd53d810f5492608717b13
+1. #|# 26|tools/common/record_lines.hpp|tools/common/record_lines.hpp|28b77d7aeacf51d8ba3150a4a1f92bb2540250d1ba3441828905dac82e108dc6|97289be2126eda4303b20de6bca338743afd1181d2b950568d166e188fbafdc5
 
-1. #|# 27|tools/from_sql/mariadb_none.cpp|tools/from_sql/mariadb_none.cpp|5bfb3fa0e3cb2ba6cf4e7570f68be8ae4617c0fab3ab7c0c46bf606c29823547|5bfb3fa0e3cb2ba6cf4e7570f68be8ae4617c0fab3ab7c0c46bf606c29823547
+1. #|# 27|tools/from_sql/mariadb.cpp|tools/from_sql/mariadb.cpp|8fd82b53d95bec15c42309152db8470dbb1856761dcd53d810f5492608717b13|8fd82b53d95bec15c42309152db8470dbb1856761dcd53d810f5492608717b13
 
-1. #|# 28|tools/from_sql/postgres.cpp|tools/from_sql/postgres.cpp|0225998f01e98a1c37672e6adcc1de7da85872afc989504c48fa85b2bf856d07|0225998f01e98a1c37672e6adcc1de7da85872afc989504c48fa85b2bf856d07
+1. #|# 28|tools/from_sql/mariadb_none.cpp|tools/from_sql/mariadb_none.cpp|5bfb3fa0e3cb2ba6cf4e7570f68be8ae4617c0fab3ab7c0c46bf606c29823547|5bfb3fa0e3cb2ba6cf4e7570f68be8ae4617c0fab3ab7c0c46bf606c29823547
 
-1. #|# 29|tools/from_sql/postgres_none.cpp|tools/from_sql/postgres_none.cpp|6dd0aaaf6b2aa1416d79b60d9d2822a915e90b2fa5c39db22943d4d3d5e4980e|6dd0aaaf6b2aa1416d79b60d9d2822a915e90b2fa5c39db22943d4d3d5e4980e
+1. #|# 29|tools/from_sql/postgres.cpp|tools/from_sql/postgres.cpp|0225998f01e98a1c37672e6adcc1de7da85872afc989504c48fa85b2bf856d07|0225998f01e98a1c37672e6adcc1de7da85872afc989504c48fa85b2bf856d07
 
-1. #|# 30|tools/from_sql/source.hpp|tools/from_sql/source.hpp|6b167d1c9f4559d08462e45c39c8cfd5e36ea0c642809a0f109df449d57c3ad8|6b167d1c9f4559d08462e45c39c8cfd5e36ea0c642809a0f109df449d57c3ad8
+1. #|# 30|tools/from_sql/postgres_none.cpp|tools/from_sql/postgres_none.cpp|6dd0aaaf6b2aa1416d79b60d9d2822a915e90b2fa5c39db22943d4d3d5e4980e|6dd0aaaf6b2aa1416d79b60d9d2822a915e90b2fa5c39db22943d4d3d5e4980e
 
-1. #|# 31|tools/from_sql/sqlite.cpp|tools/from_sql/sqlite.cpp|7f567737d8fedb6144175258f86c4292a0ace480ed77278100db8142c173e581|7f567737d8fedb6144175258f86c4292a0ace480ed77278100db8142c173e581
+1. #|# 31|tools/from_sql/source.hpp|tools/from_sql/source.hpp|6b167d1c9f4559d08462e45c39c8cfd5e36ea0c642809a0f109df449d57c3ad8|6b167d1c9f4559d08462e45c39c8cfd5e36ea0c642809a0f109df449d57c3ad8
 
-1. #|# 32|tools/from_sql/sqlite_none.cpp|tools/from_sql/sqlite_none.cpp|f24dd2856e5dab7d822e10a140bbfe29cb04066c497eab2616c293ddfe9d2931|f24dd2856e5dab7d822e10a140bbfe29cb04066c497eab2616c293ddfe9d2931
+1. #|# 32|tools/from_sql/sqlite.cpp|tools/from_sql/sqlite.cpp|7f567737d8fedb6144175258f86c4292a0ace480ed77278100db8142c173e581|7f567737d8fedb6144175258f86c4292a0ace480ed77278100db8142c173e581
 
-1. #|# 33|tools/gen_unicode_ps_table.py|tools/gen_unicode_ps_table.py|20102028964ecc54e2f2da488fa1085b6a8f5fd9ebdfb05bd2f1b363956429c1|20102028964ecc54e2f2da488fa1085b6a8f5fd9ebdfb05bd2f1b363956429c1
+1. #|# 33|tools/from_sql/sqlite_none.cpp|tools/from_sql/sqlite_none.cpp|f24dd2856e5dab7d822e10a140bbfe29cb04066c497eab2616c293ddfe9d2931|f24dd2856e5dab7d822e10a140bbfe29cb04066c497eab2616c293ddfe9d2931
 
-1. #|# 34|tools/jtext_close.cpp|tools/jtext_close.cpp|102984021adaceea362be74ab81f0dd7e621da9715fdb1cacb3df09aff806e85|102984021adaceea362be74ab81f0dd7e621da9715fdb1cacb3df09aff806e85
+1. #|# 34|tools/gen_unicode_ps_table.py|tools/gen_unicode_ps_table.py|20102028964ecc54e2f2da488fa1085b6a8f5fd9ebdfb05bd2f1b363956429c1|20102028964ecc54e2f2da488fa1085b6a8f5fd9ebdfb05bd2f1b363956429c1
 
-1. #|# 35|tools/jtext_from_sql.cpp|tools/jtext_from_sql.cpp|c0c56367b732c19ce6ed397865b3eb41d9555f1e0a89c660b261c1d82d0c2bc8|101a41b96ad13bb1bab7fd44e37da94b21c783ec1d9b0f3085622b3b2c988e1c
+1. #|# 35|tools/jtext_close.cpp|tools/jtext_close.cpp|102984021adaceea362be74ab81f0dd7e621da9715fdb1cacb3df09aff806e85|102984021adaceea362be74ab81f0dd7e621da9715fdb1cacb3df09aff806e85
 
-1. #|# 36|tools/jtext_to_xml.cpp|tools/jtext_to_xml.cpp|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724
+1. #|# 36|tools/jtext_from_ods.cpp|tools/jtext_from_ods.cpp|5f66e4746b2c88c1f851dbb53d0d6c3002bdc509ea56689cb6015243d586b605|01d45584b5cdb2b949f022ceebdf871b7d8b94c7f5a61207dd4532a8867b7d84
 
-1. #|# 37|tools/jtext_xtox_sql.cpp|tools/jtext_xtox_sql.cpp|6157febbaba1c3d214839dfc1472072e4fccd706339d9d30a34eb4ff483815d9|9e4af3bad17ad77f6dc67505729e1d3462e9b81ea705ce41690fc1314ee74e3b
+1. #|# 37|tools/jtext_from_sql.cpp|tools/jtext_from_sql.cpp|dff244df2269ccc520768e29a7311ea8bcc55a9c9c21426dd0a9f0ad02ee5689|46529a97ff9952f55c36515d89e6954815237deb0bfbcbe8fb083647d2173bb4
+
+1. #|# 38|tools/jtext_to_ods.cpp|tools/jtext_to_ods.cpp|8b4ecb3d498ed519da3b3996c7511dda19c418de11ca86479443643f4aac356f|8b4ecb3d498ed519da3b3996c7511dda19c418de11ca86479443643f4aac356f
+
+1. #|# 39|tools/jtext_to_xml.cpp|tools/jtext_to_xml.cpp|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724
+
+1. #|# 40|tools/jtext_xtox_sql.cpp|tools/jtext_xtox_sql.cpp|6157febbaba1c3d214839dfc1472072e4fccd706339d9d30a34eb4ff483815d9|9e4af3bad17ad77f6dc67505729e1d3462e9b81ea705ce41690fc1314ee74e3b
+
+1. #|# 41|tools/ods/ods.cpp|tools/ods/ods.cpp|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2
+
+1. #|# 42|tools/ods/ods.hpp|tools/ods/ods.hpp|83484d569dfc4f885d796a6c9b8076878bff1b9a10efd78b7dbbdd5e1fa833f3|83484d569dfc4f885d796a6c9b8076878bff1b9a10efd78b7dbbdd5e1fa833f3
 
 === End Data ===
 === End Section ===
