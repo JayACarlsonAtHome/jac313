@@ -161,7 +161,8 @@ struct JSection {
 
 struct JDoc {
 	Array<JSection> sections;
-	Vector<String>  notes;         // problems: a parse error (no sections then), an unresolved include
+	Vector<String>  notes;         // problems: a parse error (no sections then), an unresolved
+	                               // include, a missing, older or newer jText version
 	void Parse(const String& text, const String& baseDir);
 	int  MainSection() const;      // first section with rows, else first, else -1
 };

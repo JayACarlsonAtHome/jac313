@@ -31,6 +31,9 @@ struct JTextLoadResult {
     /// The file's Case setting. Values are kept as written either way; Case only
     /// decides how they compare (the Filter, lookups), like a database collation.
     bool case_sensitive = false;
+    /// What the read warned about but read past, such as a missing or older jText
+    /// version (saving upgrades it).
+    std::vector<std::string> warnings;
 };
 
 /// Load with the canonical jText library (jText::v001). Field values stay as written.

@@ -182,6 +182,7 @@ std::expected<void, std::string> session_open_jtext(TableSession& session,
     session.jtext_path = std::string(path);
     session.table = loaded->section_name;
     session.jtext_sections = std::move(loaded->sections);
+    session.jtext_warnings = std::move(loaded->warnings);
     session.column_names = std::move(loaded->field_names);
     session.field_defs = std::move(loaded->field_defs);
     session.rows = std::move(loaded->rows);

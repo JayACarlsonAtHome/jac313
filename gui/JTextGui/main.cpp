@@ -2062,6 +2062,8 @@ struct JTextGui : TopWindow {
 		String note = "Opened " + path;
 		if (session.jtext_sections.size() > 1)
 			note << ", section " << S(session.table);
+		for (const auto& w : session.jtext_warnings)
+			note << ". Warning: " << S(w);
 		if (templateNames.GetCount())
 			note << ". " << templateNames.GetCount() << " templates — use Templates to read them.";
 		FinishLoad(note);

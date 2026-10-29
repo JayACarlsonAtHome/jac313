@@ -350,7 +350,7 @@ std::expected<void, std::string> write_full_jtext(std::string_view path,
     // Header lines (SPEC 2.3): filename, date, purpose, jtext_version, case, dialect, table.
     out << "=== jText File ===\n";
     const std::string header[] = {filename.empty() ? std::string(path) : filename, date,
-                                  "Saved by jText_GUI", "0.8",
+                                  "Saved by jText_GUI", std::string(jtext::kFormatVersion),
                                   case_sensitive ? "Sensitive" : "Insensitive",
                                   std::string(dialect_label(use.dialect)), use.table};
     for (std::size_t i = 0; i < std::size(header); ++i) {
@@ -417,6 +417,7 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path, st
     JTextLoadResult result;
     for (const auto& s : file.sections) result.sections.push_back(s.name);
     result.case_sensitive = file.case_mode == jText::v001::CaseMode::Sensitive;
+    result.warnings = file.warnings;
     result.section_name = (sec && !sec->name.empty()) ? sec->name
                          : (!file.table_name.empty() ? file.table_name : "records");
     if (sec) collect_field_names(path, sec->name, result.field_names, &result.field_defs);

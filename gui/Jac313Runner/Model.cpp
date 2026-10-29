@@ -824,6 +824,8 @@ void JDoc::Parse(const String& text, const String& baseDir)
 		notes.Add(Format("line %d: %s", (int)file.error().line_no, ToUpp(file.error().message)));
 		return;
 	}
+	if(std::string w = jtext::version_warning(jtext::declared_version(*file)); !w.empty())
+		notes.Add(ToUpp(w));
 	for(const jtext::parsed_section& ps : file->sections) {
 		JSection& s = sections.Add();
 		s.name = ps.name.empty() ? String("(unnamed)") : ToUpp(ps.name);

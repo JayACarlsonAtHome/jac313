@@ -2,6 +2,7 @@
 //Purpose: Jac313Runner viewer sample — compact rows, one NULL (Unit Separator)
 //
 === jText File ===
+ 4. #?# 0.8
 # Case: INSENSITIVE
 
 === Section: persist_keeper_ints ===

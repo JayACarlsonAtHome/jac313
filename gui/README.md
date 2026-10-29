@@ -261,7 +261,8 @@ jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc|
 The viewer reads files with the jText library's parser (`parse_file_structure`), compiled from
 the editor's snapshot in `JTextGui/jText/src/parser`. A file that does not parse shows no
 table, and the parser's error (line and reason) is the note; `jtext_close` adds the closers an
-older file is missing. On top of the parser, the viewer:
+older file is missing. A file that declares an older, newer or no jText version (header line 4)
+still shows, with the library's version warning as a note. On top of the parser, the viewer:
 
 * names column N from Fields line `N. #/# name/Type/...`. A `Fields` include is resolved
   relative to the file's folder, and when it cannot be found the columns are named 1..N.
