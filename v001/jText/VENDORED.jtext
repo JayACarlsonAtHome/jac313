@@ -23,11 +23,11 @@
 
 1. #|# 2|canonical_dir|jText/v001
 
-1. #|# 3|canonical_commit|ea112b97c684
+1. #|# 3|canonical_commit|8d1d32adc49f
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v001.021
+1. #|# 5|canonical_version|v001.022
 
 1. #|# 6|transform|jac313-prefix
 
@@ -35,7 +35,7 @@
 
 1. #|# 8|baseline|No
 
-1. #|# 9|local|CMakeLists.txt,README.md,VENDORED.jtext
+1. #|# 9|local|CMakeLists.txt,README.md,VENDORED.jtext,Qlite/CMakeLists.txt
 
 1. #|# 10|exclude|build,build-*,tools/tests
 
@@ -58,89 +58,107 @@
 
 
 === Data ===
-1. #|# 1|examples/v001_example.cpp|examples/v001_example.cpp|71eef80b8fa4666d58af2383b09c9843c28e925d9271e9708e74f369b3ef080c|646ff7759d63f6702851c1afa399e0809d1611c4920e844cace03c7cf769aa9b
+1. #|# 1|Qlite/include/jac313/Qlite/v001.hpp|Qlite/include/Qlite/v001.hpp|508364a7249356abdb2d5b6a0423802ff8a2ed340038a10d0bd3739dbb7c34e8|bff4a5659079ebdf12e293902ee6c19295e3b7d8b89912e7ff241ad94036c28c
 
-1. #|# 2|include/jac313/jText/v001.hpp|include/jText/v001.hpp|50fa0c094772ea9628f53c827a5cef50ad76b5f4623bae28e8a19305ef40f210|06af37f1fcbf98aaa653f9e6500d7edd4d1ae8cf226ca88844a5fe2aca621814
+1. #|# 2|Qlite/include/jac313/Qlite/v001/Database.body.hpp|Qlite/include/Qlite/v001/Database.body.hpp|f7007b28877b3d70ac50084fabc9fc446363e52433133d14603a377f02ed72ce|921c08239cdf355aefb454fa3d8b02d8c586f9bcca46d062a14d6ede8e3aec89
 
-1. #|# 3|jText.api.inc|jText.api.inc|bf29e3e570eafb831be815b3dda8d06ad01f1ef50124beb4fd6a7eb1fa9384ed|0af5541e5988608cd2b4e6caff5ddb0d871d6afc8cb023f3b5e6244d44eee8b8
+1. #|# 3|Qlite/include/jac313/Qlite/v001/Database.hpp|Qlite/include/Qlite/v001/Database.hpp|3f487892b991c87c9c57d5a22583fb17bc941f5310d2bc79015fe2b8c2fa5168|8a99d0d05420b3f78d0a4a410a8e809c14d38db6efe00d63a7fad1264b2a61a7
 
-1. #|# 4|jText.cpp|jText.cpp|3e372209d20eb7fc59cede93e7a72c20b1d0b3117179560dae7c146fcadd78e2|bbc62b9b071e5127e11a7f5bd69f3a30d117009b7979647875f4cdc016c9d9f1
+1. #|# 4|Qlite/include/jac313/Qlite/v001/MariaDB.body.hpp|Qlite/include/Qlite/v001/MariaDB.body.hpp|3b02775931ca8816f8c3f98d0a78f16360fa9d9c1d897f37ff3c734dc8624948|2f58f0ced6ffda812f8d0d9165a5cc675cfc3b9a66763d6ccc76c9aa1e178288
 
-1. #|# 5|jText.h|jText.h|23d46b3021b64b2dc39ca1fdcde7125ee5a469ce4c2602a103859525f5b04a6a|9217f50b76606e082704203a44d1bcede9ff6c04ee2469b86e67da1d8541ed53
+1. #|# 5|Qlite/include/jac313/Qlite/v001/MariaDB.hpp|Qlite/include/Qlite/v001/MariaDB.hpp|60c826942c1e35a2996d92eb28aabe719f1c27823c66f9bbee49a0d8249c2642|74ec80e7be50a38614fe70b5835677be0e3e6499186926dc4cc92d440934e9bc
 
-1. #|# 6|jText.impl.inc|jText.impl.inc|8b6811af102d1fc34c4440597f20126642061285e1728ef76ae9e7447bd56845|1955def82ac7a5c780301e3a5f6a6c47d7287a428fbf491ddbcf7a8d69af93fc
+1. #|# 6|Qlite/include/jac313/Qlite/v001/Postgres.body.hpp|Qlite/include/Qlite/v001/Postgres.body.hpp|275dd263eda4af8415e86b580b98189058b65f5fc89453c136c61b78c7e6bab3|faa9d4088cc137a41aa754bc0fe407af0d3e1c3e4d3de2f06bd0d8cbf559380a
 
-1. #|# 7|modules/jac313.jtext.v001.core.cppm|modules/jText.v001.core.cppm|0c87a2cf765a7d0b7ae089211776a7ea7c957da1a85a2dd7e0006d9e60fd66c5|47edff4b5ff75cb402c39fc1c80e1a9d4a83de7a59eb6369915aa3cc6b5dd684
+1. #|# 7|Qlite/include/jac313/Qlite/v001/Postgres.hpp|Qlite/include/Qlite/v001/Postgres.hpp|9c16a709f179f9713c63343834ef85b27b35478e638962af5ebe860b2b98deba|e8cf7e61d90267d81114daead9f6cd62f299b835ef6114cc133794b3b5f50e3e
 
-1. #|# 8|modules/jac313.jtext.v001.cppm|modules/jText.v001.cppm|fb38bd043b45f76f30dfc6efe4f6ab7a306541c47ad229c161fc8c515bf402aa|48f8a167640603a20174399b7678a60bf1127de845bc7eb611b94f0fb1499309
+1. #|# 8|Qlite/include/jac313/Qlite/v001/Sqlite.body.hpp|Qlite/include/Qlite/v001/Sqlite.body.hpp|695ae0cbc4ced7247b99118ff836ac776c103793d92d4ad4cfcd0cf94b516ba4|664a991f7fe67377dd580d4afccbb7dd6b92ba1c3668f8ddf053124aeb65dec9
 
-1. #|# 9|modules/jac313.jtext.v001.reader.cppm|modules/jText.v001.reader.cppm|81bdf88e9869f0f6cfadf8ba48ca8dbb6b16dd784cccd269eb9fe85f5b020928|9f352e3bbc242f9ea93b406d66660732ad76b1dbff4bad9a3501cd84ac8e5d28
+1. #|# 9|Qlite/include/jac313/Qlite/v001/Sqlite.hpp|Qlite/include/Qlite/v001/Sqlite.hpp|1009abcc91c9e163d325eccc601e4e58324b78ed53975f27ea4e107b129960a3|40f02a1c55fa7016852030c8c9781b1c237d651bb7066d02f4cd1e3cfd52cf24
 
-1. #|# 10|modules/jac313.jtext.v001.writer.cppm|modules/jText.v001.writer.cppm|1f149b94f6fbef19b630321ee982cbf5ca58a9e197f8e311cd0968635cc380e8|1a3a599bed56ed82570df4d66459c2ef76594b22976ff35050fd8ff1e6efd4cc
+1. #|# 10|examples/v001_example.cpp|examples/v001_example.cpp|71eef80b8fa4666d58af2383b09c9843c28e925d9271e9708e74f369b3ef080c|646ff7759d63f6702851c1afa399e0809d1611c4920e844cace03c7cf769aa9b
 
-1. #|# 11|src/export/xml_export.cpp|src/export/xml_export.cpp|cb4310c54314adac53a3ad4077b3b12d4ff8841d553c0a8074b7c0df623470f7|cb4310c54314adac53a3ad4077b3b12d4ff8841d553c0a8074b7c0df623470f7
+1. #|# 11|include/jac313/jText/v001.hpp|include/jText/v001.hpp|50fa0c094772ea9628f53c827a5cef50ad76b5f4623bae28e8a19305ef40f210|06af37f1fcbf98aaa653f9e6500d7edd4d1ae8cf226ca88844a5fe2aca621814
 
-1. #|# 12|src/export/xml_export.hpp|src/export/xml_export.hpp|16cb0f2f81e56ca41746b46e3b04c793dc6e9d10945c96e46b191c6e21c8fda3|16cb0f2f81e56ca41746b46e3b04c793dc6e9d10945c96e46b191c6e21c8fda3
+1. #|# 12|jText.api.inc|jText.api.inc|b598016b080ca1f99a6bceadb9fe45ad463e81cd807d522ba7cfd630d019b97c|d218da58137d0a8505f5a68b711e72091eed4a8399cdb3a2101c6202905810b6
 
-1. #|# 13|src/parser/close.cpp|src/parser/close.cpp|c4774b3d137ad8002d179b4fe3873d46b87bd586c688aec9d691f86121337cfd|c4774b3d137ad8002d179b4fe3873d46b87bd586c688aec9d691f86121337cfd
+1. #|# 13|jText.cpp|jText.cpp|3e372209d20eb7fc59cede93e7a72c20b1d0b3117179560dae7c146fcadd78e2|bbc62b9b071e5127e11a7f5bd69f3a30d117009b7979647875f4cdc016c9d9f1
 
-1. #|# 14|src/parser/close.hpp|src/parser/close.hpp|4c7b26baf1477e4672019a2e15d633b381a8e937179472e01ec46b9ef306259e|4c7b26baf1477e4672019a2e15d633b381a8e937179472e01ec46b9ef306259e
+1. #|# 14|jText.h|jText.h|23d46b3021b64b2dc39ca1fdcde7125ee5a469ce4c2602a103859525f5b04a6a|9217f50b76606e082704203a44d1bcede9ff6c04ee2469b86e67da1d8541ed53
 
-1. #|# 15|src/parser/line.cpp|src/parser/line.cpp|9fbbf4e1f07a497aa1b9dc0cd0d5aabed118920619470f6153b718c2f08b68a2|9fbbf4e1f07a497aa1b9dc0cd0d5aabed118920619470f6153b718c2f08b68a2
+1. #|# 15|jText.impl.inc|jText.impl.inc|8b6811af102d1fc34c4440597f20126642061285e1728ef76ae9e7447bd56845|1955def82ac7a5c780301e3a5f6a6c47d7287a428fbf491ddbcf7a8d69af93fc
 
-1. #|# 16|src/parser/line.hpp|src/parser/line.hpp|290197ccb1091457d142d32a3abd6780713c1777d7f3e1f0d310fcf380bcf147|290197ccb1091457d142d32a3abd6780713c1777d7f3e1f0d310fcf380bcf147
+1. #|# 16|modules/jac313.jtext.v001.core.cppm|modules/jText.v001.core.cppm|0c87a2cf765a7d0b7ae089211776a7ea7c957da1a85a2dd7e0006d9e60fd66c5|47edff4b5ff75cb402c39fc1c80e1a9d4a83de7a59eb6369915aa3cc6b5dd684
 
-1. #|# 17|src/parser/section.cpp|src/parser/section.cpp|163fcb9e2e4ebd60aa4bad1a58e333ec0e4a695c1fe1f3957059712b0864376d|163fcb9e2e4ebd60aa4bad1a58e333ec0e4a695c1fe1f3957059712b0864376d
+1. #|# 17|modules/jac313.jtext.v001.cppm|modules/jText.v001.cppm|fb38bd043b45f76f30dfc6efe4f6ab7a306541c47ad229c161fc8c515bf402aa|48f8a167640603a20174399b7678a60bf1127de845bc7eb611b94f0fb1499309
 
-1. #|# 18|src/parser/section.hpp|src/parser/section.hpp|d42c2af1e82cf6b47453e4c5bf156f6d17648644ae1603c5a0bce0a726e4473a|d42c2af1e82cf6b47453e4c5bf156f6d17648644ae1603c5a0bce0a726e4473a
+1. #|# 18|modules/jac313.jtext.v001.reader.cppm|modules/jText.v001.reader.cppm|81bdf88e9869f0f6cfadf8ba48ca8dbb6b16dd784cccd269eb9fe85f5b020928|9f352e3bbc242f9ea93b406d66660732ad76b1dbff4bad9a3501cd84ac8e5d28
 
-1. #|# 19|src/parser/unicode_ps_table.hpp|src/parser/unicode_ps_table.hpp|d6f16f5a1fde668861fd3acee4d660b02e9858dccdc0a95de323070299fad4d9|d6f16f5a1fde668861fd3acee4d660b02e9858dccdc0a95de323070299fad4d9
+1. #|# 19|modules/jac313.jtext.v001.writer.cppm|modules/jText.v001.writer.cppm|1f149b94f6fbef19b630321ee982cbf5ca58a9e197f8e311cd0968635cc380e8|1a3a599bed56ed82570df4d66459c2ef76594b22976ff35050fd8ff1e6efd4cc
 
-1. #|# 20|src/parser/utf8.hpp|src/parser/utf8.hpp|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea
+1. #|# 20|src/export/xml_export.cpp|src/export/xml_export.cpp|cb4310c54314adac53a3ad4077b3b12d4ff8841d553c0a8074b7c0df623470f7|cb4310c54314adac53a3ad4077b3b12d4ff8841d553c0a8074b7c0df623470f7
 
-1. #|# 21|src/validator/validator.cpp|src/validator/validator.cpp|ee314d49ac7ceba1f0c08ef4fb5ff6c743d2b84aac511fd32372f253694ace0c|ee314d49ac7ceba1f0c08ef4fb5ff6c743d2b84aac511fd32372f253694ace0c
+1. #|# 21|src/export/xml_export.hpp|src/export/xml_export.hpp|16cb0f2f81e56ca41746b46e3b04c793dc6e9d10945c96e46b191c6e21c8fda3|16cb0f2f81e56ca41746b46e3b04c793dc6e9d10945c96e46b191c6e21c8fda3
 
-1. #|# 22|src/validator/validator.hpp|src/validator/validator.hpp|668f8a8fbc754a57255419b8840f3cf9c55b5bff8f77c222d5aa5b73924d759c|668f8a8fbc754a57255419b8840f3cf9c55b5bff8f77c222d5aa5b73924d759c
+1. #|# 22|src/parser/close.cpp|src/parser/close.cpp|c4774b3d137ad8002d179b4fe3873d46b87bd586c688aec9d691f86121337cfd|c4774b3d137ad8002d179b4fe3873d46b87bd586c688aec9d691f86121337cfd
 
-1. #|# 23|tests/module/v001_module_test.cpp|tests/module/v001_module_test.cpp|11c7e5d9b6252404c6a369183bf2a89cbebaf01e89ce7edabedcc34a10d22b30|2fdef3b8d27962566e12d8266967301eb1c934ec622c29ab829c10c9989fc7fc
+1. #|# 23|src/parser/close.hpp|src/parser/close.hpp|4c7b26baf1477e4672019a2e15d633b381a8e937179472e01ec46b9ef306259e|4c7b26baf1477e4672019a2e15d633b381a8e937179472e01ec46b9ef306259e
 
-1. #|# 24|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|31274214e52fa8c1a3a02cd13f5f20a629f14c940456f496247ec4e73829e329|afb6a46eae1f8f70b2da563a77cb4c2461f797e31b9ed0e92eab2909231687f4
+1. #|# 24|src/parser/line.cpp|src/parser/line.cpp|9fbbf4e1f07a497aa1b9dc0cd0d5aabed118920619470f6153b718c2f08b68a2|9fbbf4e1f07a497aa1b9dc0cd0d5aabed118920619470f6153b718c2f08b68a2
 
-1. #|# 25|tests/v001_test.cpp|tests/v001_test.cpp|7a624432762ae08bfa67f317ae71ab62003a8d62ac2bff9d19bf63a9ee801770|c6d51234b77989b74ffd2e26ca044afcda4ded3f6c2af9451ac929799d6f2f88
+1. #|# 25|src/parser/line.hpp|src/parser/line.hpp|290197ccb1091457d142d32a3abd6780713c1777d7f3e1f0d310fcf380bcf147|290197ccb1091457d142d32a3abd6780713c1777d7f3e1f0d310fcf380bcf147
 
-1. #|# 26|tools/common/record_lines.hpp|tools/common/record_lines.hpp|77d76b33723603912a3c14655f0cc5a979295a5968978faaad2e2a0c7a5b4ff6|c8e08a51d238a6ec076f4d81d8f544c263acb810b7072e3cc25c847187edd0cc
+1. #|# 26|src/parser/section.cpp|src/parser/section.cpp|163fcb9e2e4ebd60aa4bad1a58e333ec0e4a695c1fe1f3957059712b0864376d|163fcb9e2e4ebd60aa4bad1a58e333ec0e4a695c1fe1f3957059712b0864376d
 
-1. #|# 27|tools/from_sql/mariadb.cpp|tools/from_sql/mariadb.cpp|8fd82b53d95bec15c42309152db8470dbb1856761dcd53d810f5492608717b13|8fd82b53d95bec15c42309152db8470dbb1856761dcd53d810f5492608717b13
+1. #|# 27|src/parser/section.hpp|src/parser/section.hpp|d42c2af1e82cf6b47453e4c5bf156f6d17648644ae1603c5a0bce0a726e4473a|d42c2af1e82cf6b47453e4c5bf156f6d17648644ae1603c5a0bce0a726e4473a
 
-1. #|# 28|tools/from_sql/mariadb_none.cpp|tools/from_sql/mariadb_none.cpp|5bfb3fa0e3cb2ba6cf4e7570f68be8ae4617c0fab3ab7c0c46bf606c29823547|5bfb3fa0e3cb2ba6cf4e7570f68be8ae4617c0fab3ab7c0c46bf606c29823547
+1. #|# 28|src/parser/unicode_ps_table.hpp|src/parser/unicode_ps_table.hpp|d6f16f5a1fde668861fd3acee4d660b02e9858dccdc0a95de323070299fad4d9|d6f16f5a1fde668861fd3acee4d660b02e9858dccdc0a95de323070299fad4d9
 
-1. #|# 29|tools/from_sql/postgres.cpp|tools/from_sql/postgres.cpp|0225998f01e98a1c37672e6adcc1de7da85872afc989504c48fa85b2bf856d07|0225998f01e98a1c37672e6adcc1de7da85872afc989504c48fa85b2bf856d07
+1. #|# 29|src/parser/utf8.hpp|src/parser/utf8.hpp|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea
 
-1. #|# 30|tools/from_sql/postgres_none.cpp|tools/from_sql/postgres_none.cpp|6dd0aaaf6b2aa1416d79b60d9d2822a915e90b2fa5c39db22943d4d3d5e4980e|6dd0aaaf6b2aa1416d79b60d9d2822a915e90b2fa5c39db22943d4d3d5e4980e
+1. #|# 30|src/validator/validator.cpp|src/validator/validator.cpp|ee314d49ac7ceba1f0c08ef4fb5ff6c743d2b84aac511fd32372f253694ace0c|ee314d49ac7ceba1f0c08ef4fb5ff6c743d2b84aac511fd32372f253694ace0c
 
-1. #|# 31|tools/from_sql/source.hpp|tools/from_sql/source.hpp|6b167d1c9f4559d08462e45c39c8cfd5e36ea0c642809a0f109df449d57c3ad8|6b167d1c9f4559d08462e45c39c8cfd5e36ea0c642809a0f109df449d57c3ad8
+1. #|# 31|src/validator/validator.hpp|src/validator/validator.hpp|668f8a8fbc754a57255419b8840f3cf9c55b5bff8f77c222d5aa5b73924d759c|668f8a8fbc754a57255419b8840f3cf9c55b5bff8f77c222d5aa5b73924d759c
 
-1. #|# 32|tools/from_sql/sqlite.cpp|tools/from_sql/sqlite.cpp|7f567737d8fedb6144175258f86c4292a0ace480ed77278100db8142c173e581|7f567737d8fedb6144175258f86c4292a0ace480ed77278100db8142c173e581
+1. #|# 32|tests/module/v001_module_test.cpp|tests/module/v001_module_test.cpp|11c7e5d9b6252404c6a369183bf2a89cbebaf01e89ce7edabedcc34a10d22b30|2fdef3b8d27962566e12d8266967301eb1c934ec622c29ab829c10c9989fc7fc
 
-1. #|# 33|tools/from_sql/sqlite_none.cpp|tools/from_sql/sqlite_none.cpp|f24dd2856e5dab7d822e10a140bbfe29cb04066c497eab2616c293ddfe9d2931|f24dd2856e5dab7d822e10a140bbfe29cb04066c497eab2616c293ddfe9d2931
+1. #|# 33|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|31274214e52fa8c1a3a02cd13f5f20a629f14c940456f496247ec4e73829e329|afb6a46eae1f8f70b2da563a77cb4c2461f797e31b9ed0e92eab2909231687f4
 
-1. #|# 34|tools/gen_unicode_ps_table.py|tools/gen_unicode_ps_table.py|20102028964ecc54e2f2da488fa1085b6a8f5fd9ebdfb05bd2f1b363956429c1|20102028964ecc54e2f2da488fa1085b6a8f5fd9ebdfb05bd2f1b363956429c1
+1. #|# 34|tests/v001_test.cpp|tests/v001_test.cpp|02383d6b1437f1cfcf2321e09d49e5f4d889469a63f3daf40fb2a0a3c9f1ebad|ccf7c739163c02e13abffa3deef7964712c1b9ea3c60cffc6418ab903ccea28d
 
-1. #|# 35|tools/jtext_close.cpp|tools/jtext_close.cpp|102984021adaceea362be74ab81f0dd7e621da9715fdb1cacb3df09aff806e85|102984021adaceea362be74ab81f0dd7e621da9715fdb1cacb3df09aff806e85
+1. #|# 35|tools/common/record_lines.hpp|tools/common/record_lines.hpp|77d76b33723603912a3c14655f0cc5a979295a5968978faaad2e2a0c7a5b4ff6|c8e08a51d238a6ec076f4d81d8f544c263acb810b7072e3cc25c847187edd0cc
 
-1. #|# 36|tools/jtext_from_ods.cpp|tools/jtext_from_ods.cpp|01883d579534ea5949f7dab0f5d16c95473313376e2570277ce58cc48b5f26f7|b99f2c140e7a47e7e314b32e8bf4cd841666a967db663032225d4452775ecbf0
+1. #|# 36|tools/from_sql/mariadb.cpp|tools/from_sql/mariadb.cpp|5dab8964de794a36d6b11cd4533b5808c31b20b4c1ce312b8dcea4f3ec28bc30|f94d1a0abe021315d647642fff392fb6ce1144f30d8452c0490770e8cddd9690
 
-1. #|# 37|tools/jtext_from_sql.cpp|tools/jtext_from_sql.cpp|39124df65ff6301815fa2a632157b784ce6d7975bebe974a668b8778d3dada92|8f13a31c03e0516692e591c0a968300f5a373081dd40e2ee1e95e4dea660e60e
+1. #|# 37|tools/from_sql/mariadb_none.cpp|tools/from_sql/mariadb_none.cpp|5bfb3fa0e3cb2ba6cf4e7570f68be8ae4617c0fab3ab7c0c46bf606c29823547|5bfb3fa0e3cb2ba6cf4e7570f68be8ae4617c0fab3ab7c0c46bf606c29823547
 
-1. #|# 38|tools/jtext_to_ods.cpp|tools/jtext_to_ods.cpp|8b4ecb3d498ed519da3b3996c7511dda19c418de11ca86479443643f4aac356f|8b4ecb3d498ed519da3b3996c7511dda19c418de11ca86479443643f4aac356f
+1. #|# 38|tools/from_sql/postgres.cpp|tools/from_sql/postgres.cpp|6288a4daaecc13967d7fbe1bd59dfdb7e4150873f8579890b79381ee771b5fd0|514b7040a70ce571f61f3b2a16fdc22fd59bb8bc5ea899f6ca6bad2b6ff05c48
 
-1. #|# 39|tools/jtext_to_xml.cpp|tools/jtext_to_xml.cpp|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724
+1. #|# 39|tools/from_sql/postgres_none.cpp|tools/from_sql/postgres_none.cpp|6dd0aaaf6b2aa1416d79b60d9d2822a915e90b2fa5c39db22943d4d3d5e4980e|6dd0aaaf6b2aa1416d79b60d9d2822a915e90b2fa5c39db22943d4d3d5e4980e
 
-1. #|# 40|tools/jtext_xtox_sql.cpp|tools/jtext_xtox_sql.cpp|c50c367b236b183abd94f0ac52c9c07320c612116195a2792091c2fc3e20fbb8|99447acb16067e4552e78a849406685f4c43f2326da32adf8c7f9e539ce0713e
+1. #|# 40|tools/from_sql/source.hpp|tools/from_sql/source.hpp|07c57c3dde96c67f1762fd74b1a0ea324a15e2fc9fd7c76e5d4ada1db28b8eaf|8ba2c53ba4aa1325d97efa97731efcf18f73e0585038df05f44d5616d97794ab
 
-1. #|# 41|tools/ods/ods.cpp|tools/ods/ods.cpp|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2
+1. #|# 41|tools/from_sql/sqlite.cpp|tools/from_sql/sqlite.cpp|ee137d89fc85b6c381307078c7a4cea1cd6ee0c0f4f0cad9fa7a79bd2bc1de2b|06013d88a21161f198a1d88ad6905b516fb07b23651a7cd586b47ab3b433158a
 
-1. #|# 42|tools/ods/ods.hpp|tools/ods/ods.hpp|83484d569dfc4f885d796a6c9b8076878bff1b9a10efd78b7dbbdd5e1fa833f3|83484d569dfc4f885d796a6c9b8076878bff1b9a10efd78b7dbbdd5e1fa833f3
+1. #|# 42|tools/from_sql/sqlite_none.cpp|tools/from_sql/sqlite_none.cpp|f24dd2856e5dab7d822e10a140bbfe29cb04066c497eab2616c293ddfe9d2931|f24dd2856e5dab7d822e10a140bbfe29cb04066c497eab2616c293ddfe9d2931
+
+1. #|# 43|tools/gen_unicode_ps_table.py|tools/gen_unicode_ps_table.py|20102028964ecc54e2f2da488fa1085b6a8f5fd9ebdfb05bd2f1b363956429c1|20102028964ecc54e2f2da488fa1085b6a8f5fd9ebdfb05bd2f1b363956429c1
+
+1. #|# 44|tools/jtext_close.cpp|tools/jtext_close.cpp|102984021adaceea362be74ab81f0dd7e621da9715fdb1cacb3df09aff806e85|102984021adaceea362be74ab81f0dd7e621da9715fdb1cacb3df09aff806e85
+
+1. #|# 45|tools/jtext_from_ods.cpp|tools/jtext_from_ods.cpp|01883d579534ea5949f7dab0f5d16c95473313376e2570277ce58cc48b5f26f7|b99f2c140e7a47e7e314b32e8bf4cd841666a967db663032225d4452775ecbf0
+
+1. #|# 46|tools/jtext_from_sql.cpp|tools/jtext_from_sql.cpp|d85b6fd550c2b1873613db4d7612ef942efa640c2a4515980e528c4f5b7480b9|dcf5da45e10280a183bbe528e6d81ada02e48ba53079ba53fb2cd31f7fc49a50
+
+1. #|# 47|tools/jtext_to_ods.cpp|tools/jtext_to_ods.cpp|8b4ecb3d498ed519da3b3996c7511dda19c418de11ca86479443643f4aac356f|8b4ecb3d498ed519da3b3996c7511dda19c418de11ca86479443643f4aac356f
+
+1. #|# 48|tools/jtext_to_xml.cpp|tools/jtext_to_xml.cpp|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724
+
+1. #|# 49|tools/jtext_xtox_sql.cpp|tools/jtext_xtox_sql.cpp|c50c367b236b183abd94f0ac52c9c07320c612116195a2792091c2fc3e20fbb8|99447acb16067e4552e78a849406685f4c43f2326da32adf8c7f9e539ce0713e
+
+1. #|# 50|tools/ods/ods.cpp|tools/ods/ods.cpp|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2
+
+1. #|# 51|tools/ods/ods.hpp|tools/ods/ods.hpp|83484d569dfc4f885d796a6c9b8076878bff1b9a10efd78b7dbbdd5e1fa833f3|83484d569dfc4f885d796a6c9b8076878bff1b9a10efd78b7dbbdd5e1fa833f3
 
 === End Data ===
 === End Section ===

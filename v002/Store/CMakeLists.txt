@@ -95,14 +95,14 @@ if(JAC313_STORE_SQL_PERSIST)
     )
     target_compile_features(jac313_store_sql_persist PUBLIC cxx_std_26)
     target_link_libraries(jac313_store_sql_persist PUBLIC jac313_Store)
-    # In-tree jac313::Qlite (built first in the monorepo) provides the header + SQLite3.
-    # Standalone store build: fall back to the sibling Qlite include dir + system SQLite3.
+    # jac313::Qlite (brought in by jText, built first in the monorepo) provides the header + SQLite3.
+    # Standalone store build: fall back to jText's Qlite include dir + system SQLite3.
     if(TARGET jac313_Qlite)
         target_link_libraries(jac313_store_sql_persist PUBLIC jac313_Qlite)
     else()
         find_package(SQLite3 REQUIRED)
         target_include_directories(jac313_store_sql_persist
-            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../Qlite/include)
+            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../jText/Qlite/include)
         target_link_libraries(jac313_store_sql_persist PUBLIC SQLite::SQLite3)
     endif()
     message(STATUS "jac313::Store SQLite persistence ENABLED")

@@ -3,7 +3,7 @@
 The jac313 **logging feature** — a high-throughput time-series event store. A consumer logs
 events carrying **integers and floats in the exact count they need** (fixed at compile time),
 through a lock-free hot path out to pluggable persistence. It **uses [jText](../jText/README.md)**
-for human-readable logs and **[Qlite](../Qlite/README.md)** for SQL persistence.
+for human-readable logs and **[Qlite](../jText/README.md)** for SQL persistence.
 
 Implementation lives **in this package** under `jac313::Store::v001` (migrated from the legacy `jac::ts_store::inline_v001` repo — no sibling checkout needed).
 
@@ -31,7 +31,7 @@ jac313::Store::v001::ts_store<Config> store(threads, events_per_thread);
 store.save_event(0, 0, Config::ValueT("hello"), 0, Config::CategoryT("demo"));
 ```
 
-`jac313::Store::v001::version()` returns the package's `"major.minor"` version (`"v001.010"`
+`jac313::Store::v001::version()` returns the package's `"major.minor"` version (`"v001.011"`
 now): major is the `v001` API line, minor bumps on each small code change (a real break moves
 it to `"v002.001"`). The `version-check` pre-push gate enforces the bump
 (see the version's top-level README.md).

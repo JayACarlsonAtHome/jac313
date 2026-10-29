@@ -11,8 +11,8 @@ this is the detail.
 ```
 jac313/
 ├── CMakeLists.txt            # build all or pick packages
-├── Qlite/                    # SQLite wrapper umbrella  (jac313::Qlite::v002)
 ├── jText/                    # structured-text umbrella (jac313::jText::v002)
+│   └── Qlite/                # SQL wrapper jText brings in (jac313::Qlite::v002)
 ├── Store/                    # time-series logging store (jac313::Store::v002)
 ├── Setup/                    # toolchain sensing + provisioning (jac313::Setup)
 ├── tools/jac313_test_cli/    # local C++ test runner / matrix orchestrator (no shell scripts)
@@ -59,7 +59,6 @@ flowchart TB
             ST[jac313::Store::v002]
         end
         subgraph modules [Optional C++23 modules]
-            QM[jac313.qlite.v002]
             JM[jac313.jtext.v002]
             SM[jac313.store.v002]
         end

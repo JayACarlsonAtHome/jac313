@@ -24,7 +24,7 @@ The whole is bigger than the parts — and it shows in both the engineering and 
 
 | Package | What it is | One line |
 |---------|------------|----------|
-| [**Qlite**](Qlite/README.md) | header-only **SQLite wrapper** (`jac313::Qlite::v001`) | RAII connection + variadic bind/column over `sqlite3`; Store uses it for SQL persistence |
+| [**Qlite**](jText/README.md) (in jText) | header-only **SQLite wrapper** (`jac313::Qlite::v001`) | RAII connection + variadic bind/column over `sqlite3`; Store uses it for SQL persistence |
 | [**jText**](jText/README.md) | compiled **structured-text** library (`jac313::jText::v001`) | a self-describing text log format (light/full profiles) + streaming `JTextWriter`; Store uses it for human-readable logs |
 | [**Store**](Store/README.md) | time-series **logging store** (`jac313::Store::v001`) | the headline feature — see below |
 
@@ -120,7 +120,7 @@ For more details on the project, see the docs in [docs/](docs/) (listed under Do
 | [docs/Maturity.md](docs/Maturity.md) | Honest self-assessment on a 12-level scale — where jac313 sits (7.5), and why that's a deliberate ceiling |
 | [docs/Benchmarks.md](docs/Benchmarks.md) | **How to run the throughput suite** — `--bench --report` (the curated `store_bench` suite), the configs, `--dry-run` copy-paste commands, and a sample report |
 | [docs/Results.md](docs/Results.md) | What a clean build + test run actually produces, **per platform** — Linux Mint (116/116, ~2.9M events/s, ~611 MB), RHEL 9.8 (116/116, up to ~24.3M ops/s; CMake 3.31.8-vs-4.3.3 import-std comparison), and RHEL 10.2 (116/116 on **both g++-15 and clang**, up to ~24.3M ops/s, on a 7200 RPM HDD) |
-| Package READMEs | [Qlite](Qlite/README.md) · [jText](jText/README.md) · [Store](Store/README.md) |
+| Package READMEs | [jText](jText/README.md) · [Store](Store/README.md) |
 
 **Status:** all three packages in-tree (no sibling repos); ctest + 116/116 smoke matrix green on
 GCC and Clang on **Linux Mint**, **RHEL 9.8**, and **RHEL 10.2** — on **both RHEL 9.8 and RHEL 10.2,

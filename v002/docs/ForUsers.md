@@ -48,17 +48,16 @@ Everything is **in-tree** (no sibling checkouts) and exposed as a namespaced CMa
 external dependency is **system SQLite3**, and only if you use Qlite (or Store's SQL persistence).
 
 ```cmake
-add_subdirectory(jac313/v002/Qlite)         # or jText / Store
+add_subdirectory(jac313/v002/jText)         # brings in jac313::Qlite; or Store
 target_link_libraries(your_app PRIVATE jac313::Qlite)
 ```
 ```cpp
-#include <jac313/Qlite/v002.hpp>             // textual front-end (always works)
-// ...or `import jac313.qlite.v002;`         // the C++23 module front-end (gcc-15 / clang-21)
+#include <jac313/Qlite/v002.hpp>             // header-only, in jText/Qlite (no module)
 auto db = jac313::Qlite::v002::Sqlite("app.db");
 ```
 
 Each package ships **standalone examples** you can copy from — see `Store/examples/`,
-`jText/examples/`, `Qlite/examples/`. Header front-end works everywhere; the module
+`jText/examples/`. Header front-end works everywhere; the module
 front-end is validated on **GNU (g++-15) and Clang (clang-21)** (see [Modules.md](Modules.md)).
 
 ## What a *user* might want next (consumer-facing ideas)

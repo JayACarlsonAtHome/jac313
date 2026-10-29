@@ -77,6 +77,10 @@ if(JAC313_JTEXT_BUILD_EXAMPLES)
 endif()
 
 if(JAC313_JTEXT_BUILD_TOOLS)
+
+# Qlite, as jText brings it in: the jac313::Qlite target (Qlite/CMakeLists.txt).
+add_subdirectory(Qlite)
+
     add_subdirectory(tools)
 endif()
 

@@ -14,7 +14,7 @@ inline std::filesystem::path detect_harness_source_root(std::filesystem::path st
     std::error_code ec;
     for (fs::path dir = fs::absolute(start, ec); !ec && !dir.empty(); dir = dir.parent_path()) {
         if (fs::exists(dir / "CMakeLists.txt", ec) && fs::exists(dir / "Store", ec)
-            && fs::exists(dir / "Qlite", ec)) {
+            && fs::exists(dir / "jText", ec)) {
             return dir;
         }
         if (dir == dir.parent_path()) {

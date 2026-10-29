@@ -2,7 +2,7 @@
 
 Where logged events go for durability — the `IEventSink` interface, four backends, the
 double-buffered drain, and how [jText](../../jText/README.md) and
-[Qlite](../../Qlite/README.md) are *used by* Store.
+[Qlite](../../jText/README.md) (brought in by jText) are *used by* Store.
 
 ← [Store docs index](../../Store/README.md) · [main README](../../README.md) ·
 related: [logging](logging.md) · [bitmaps/flags](bitmaps.md) · [reporting](reporting.md)
@@ -39,7 +39,7 @@ Amortized O(1) per event, and the logger never blocks on sink I/O.
 | **jText** (`JTextEventSink` / `JTextSplitEventLog`) | three `.jtext` files: **main** + **`_Ints`** + **`_Floats`** | [jac313::jText](../../jText/README.md) `JTextWriter` | human-readable; metrics split out so slow-changing events don't bloat metric tables |
 | **HTML** (`HtmlEventSink` / `HtmlSplitEventLog`) | three `.html` files: **main** + **`_Ints`** + **`_Floats`** | — (no external deps) | browser-viewable tables; writer only (no reader) |
 | **JSON** (`JsonEventSink` / `JsonSplitEventLog`) | three NDJSON files: **main** + **`_Ints`** + **`_Floats`** (one object per line) | — (no external deps) | machine-readable text; read back with `JsonEventLogReader` |
-| **SQL** (`SqlEventSink`) | three tables: **main** + **`_ints`** + **`_floats`** (dynamic metric columns), `INSERT OR IGNORE` in transactions | [jac313::Qlite](../../Qlite/README.md) `Sqlite` | queryable; optional debug `.sql` of textual INSERTs |
+| **SQL** (`SqlEventSink`) | three tables: **main** + **`_ints`** + **`_floats`** (dynamic metric columns), `INSERT OR IGNORE` in transactions | [jac313::Qlite](../../jText/README.md) `Sqlite` | queryable; optional debug `.sql` of textual INSERTs |
 | **Flag-routing** (`FlagRoutingEventSink`) | composite — multiplexes a batch across two inner sinks by per-event flags | — | the file-vs-SQL split; see [bitmaps](bitmaps.md) |
 
 **Binary record layout:** 5× `uint64_t` (ids/flags/timestamp), then length-prefixed category,

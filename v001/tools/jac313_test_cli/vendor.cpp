@@ -347,6 +347,57 @@ std::string transform_path(const std::string& transform, const std::string& lib,
     return p;
 }
 
+// ---------------------------------------------------------------- nested libraries
+
+namespace {
+
+// A library the canonical copy itself brings in: a sub-folder with its own VENDORED.jtext
+// (jText carries Qlite at jText/vNNN/Qlite). Its paths are renamed for it, and every
+// source file of the copy is prefixed for it as well as for the outer library, so a
+// consumer's names stay jac313::Qlite inside its copy of jText. The nested manifest is the
+// canonical's own bookkeeping and is never copied.
+struct Nested {
+    std::string dir;   // its folder, relative to the canonical copy
+    std::string lib;   // its canonical_repo
+};
+
+std::vector<Nested> nested_libs(const fs::path& canon) {
+    std::vector<Nested> out;
+    std::error_code ec;
+    for (const auto& e : fs::directory_iterator(canon, ec)) {
+        if (!e.is_directory(ec) || !fs::exists(e.path() / "VENDORED.jtext", ec)) continue;
+        Manifest inner;
+        std::string err;
+        if (read_manifest(e.path() / "VENDORED.jtext", inner, err) && !inner.get("canonical_repo").empty())
+            out.push_back({e.path().filename().generic_string(), inner.get("canonical_repo")});
+    }
+    return out;
+}
+
+const Nested* nested_of(const std::vector<Nested>& nested, const std::string& rel) {
+    for (const auto& n : nested)
+        if (rel.rfind(n.dir + "/", 0) == 0) return &n;
+    return nullptr;
+}
+
+// Where a canonical file goes in the copy: renamed for the library it belongs to.
+std::string copy_path(const std::string& transform, const std::string& lib, const std::vector<Nested>& nested,
+                      const std::string& rel) {
+    if (const Nested* n = nested_of(nested, rel))
+        return n->dir + "/" + transform_path(transform, n->lib, rel.substr(n->dir.size() + 1));
+    return transform_path(transform, lib, rel);
+}
+
+// A canonical file's content in the copy: prefixed for the outer library and every nested one.
+std::string copy_content(const std::string& transform, const std::string& lib, const std::vector<Nested>& nested,
+                         const std::string& rel, std::string content) {
+    content = transform_content(transform, lib, rel, content);
+    for (const auto& n : nested) content = transform_content(transform, n.lib, rel, content);
+    return content;
+}
+
+} // namespace
+
 // ---------------------------------------------------------------- check
 
 namespace {
@@ -421,7 +472,9 @@ void check_one(const fs::path& manifest_path, Findings& f) {
         for (const auto& rel : walk(canon)) {
             if (canon_listed.count(rel) || matches_any(exclude, rel)) continue;
             // the consumer's own files (CMakeLists.txt, README.md) are not drift
-            if (matches_any(local, transform_path(m.get("transform"), m.get("canonical_repo"), rel))) continue;
+            if (matches_any(local, copy_path(m.get("transform"), m.get("canonical_repo"), nested_libs(canon), rel)))
+                continue;
+            if (const Nested* n = nested_of(nested_libs(canon), rel); n && rel == n->dir + "/VENDORED.jtext") continue;
             changed.push_back(rel + " (new)");
         }
         if (!changed.empty()) {
@@ -452,7 +505,7 @@ int run_vendor_check(int argc, char** argv, int first_arg) {
         if (a == "--strict") strict = true;
         else if (a == "--help" || a == "-h") {
             std::cout << "vendor-check [--strict] [VENDORED.jtext...]\n"
-                         "  Drift of the vendored copies (jText, Qlite): edited in place, files not from\n"
+                         "  Drift of the vendored copies (jText, with its Qlite): edited in place, files not from\n"
                          "  canonical, canonical moved ahead. Warnings only: exit 0 (1 with --strict).\n";
             return 0;
         } else manifests.push_back(a);
@@ -471,6 +524,7 @@ namespace {
 
 struct Planned {
     std::string canonical_path, path, content, canonical_sha;
+    bool nested = false;   // a file of a library the canonical brings in
 };
 
 // The canonical files (minus exclude), transformed. from_head: read the committed content.
@@ -480,6 +534,7 @@ std::vector<Planned> plan(const Manifest& m, const fs::path& canon, bool from_he
     const auto exclude = m.list("exclude");
     const auto local = m.list("local");
     const std::string lib = m.get("canonical_repo"), transform = m.get("transform");
+    const auto nested = nested_libs(canon);
     std::vector<std::string> files;
     std::string prefix;
     if (from_head) {   // the committed tree of canonical_dir
@@ -493,6 +548,8 @@ std::vector<Planned> plan(const Manifest& m, const fs::path& canon, bool from_he
     }
     for (const auto& rel : files) {
         if (matches_any(exclude, rel)) continue;
+        const Nested* n = nested_of(nested, rel);
+        if (n && rel == n->dir + "/VENDORED.jtext") continue;
         std::string content;
         if (from_head) {
             const auto r = run_process({"git", "-C", repo.string(), "show", "HEAD:" + prefix + "/" + rel}, 60, "");
@@ -501,9 +558,10 @@ std::vector<Planned> plan(const Manifest& m, const fs::path& canon, bool from_he
         } else {
             content = slurp(canon / rel);
         }
-        const std::string vpath = transform_path(transform, lib, rel);
+        const std::string vpath = copy_path(transform, lib, nested, rel);
         if (matches_any(local, vpath)) continue;
-        out.push_back({rel, vpath, transform_content(transform, lib, rel, content), sha256_hex(content)});
+        const std::string sha = sha256_hex(content);
+        out.push_back({rel, vpath, copy_content(transform, lib, nested, rel, std::move(content)), sha, n != nullptr});
     }
     return out;
 }
@@ -518,6 +576,7 @@ std::string declared_version(const std::vector<Planned>& files) {
                std::all_of(v.begin() + 5, v.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)); });
     };
     for (const auto& p : files) {
+        if (p.nested) continue;   // a nested library's version() is its own, not the copy's
         std::istringstream in(p.content);
         for (std::string line; std::getline(in, line);) {
             if (line.find("version()") == std::string::npos || line.find("return") == std::string::npos) continue;

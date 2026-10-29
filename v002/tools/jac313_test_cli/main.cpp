@@ -66,7 +66,7 @@ void print_usage() {
         "  compilers   Sense toolchains from the registry (writes FileCheckList.txt)\n"
         "  setup       Sense readiness; name anything ./bsir.sh still has to install\n"
         "  version-check  check each package owes a version() bump (git, no build)\n"
-        "  vendor-check   drift of the vendored jText / Qlite copies (warnings only)\n"
+        "  vendor-check   drift of the vendored jText copy (and the Qlite it brings in) (warnings only)\n"
         "  vendor-sync    forward-port canonical into a vendored copy (dry run; --write)\n"
         "  vendor-baseline  a starting-line VENDORED.jtext for an existing copy\n"
         "  note        note RUN_ID [\"TEXT\"]: add a note to a run in results.db, or list its notes\n"
@@ -143,7 +143,7 @@ void print_usage() {
 
 fs::path detect_source_dir(const fs::path& start) {
     for (fs::path dir = fs::absolute(start);; dir = dir.parent_path()) {
-        if (fs::exists(dir / "CMakeLists.txt") && fs::exists(dir / "Store") && fs::exists(dir / "Qlite")) {
+        if (fs::exists(dir / "CMakeLists.txt") && fs::exists(dir / "Store") && fs::exists(dir / "jText")) {
             return dir;
         }
         if (dir == dir.parent_path()) {
@@ -246,7 +246,7 @@ void write_package_versions(jac313::Qlite::v002::Sqlite& db, std::int64_t gid,
     struct Pkg { const char* name; const char* file; };
     static const Pkg pkgs[] = {
         {"Store", "Store/include/jac313/Store/v002/headers/ts_store_config.hpp"},
-        {"Qlite", "Qlite/include/jac313/Qlite/v002/Sqlite.body.hpp"},
+        {"Qlite", "jText/Qlite/include/jac313/Qlite/v002/Database.body.hpp"},
         {"jText", "jText/jText.api.inc"},
     };
     for (const auto& p : pkgs) {
@@ -2158,7 +2158,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
 int run_version_check_command(const GlobalOptions& global) {
     struct Pkg { std::string name; std::string version_file; std::vector<std::string> source; };
     const std::vector<Pkg> pkgs = {
-        {"Qlite", "Qlite/include/jac313/Qlite/v002/Sqlite.body.hpp", {"Qlite/include"}},
+        {"Qlite", "jText/Qlite/include/jac313/Qlite/v002/Database.body.hpp", {"jText/Qlite/include"}},
         {"jText", "jText/jText.api.inc",
             {"jText/include", "jText/src", "jText/jText.h", "jText/jText.cpp",
              "jText/jText.api.inc", "jText/jText.impl.inc"}},

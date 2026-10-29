@@ -7,11 +7,10 @@ How jac313 uses C++23 modules, and the module friction it surfaced.
 ## Modules: headers first, modules second
 
 Headers remain the compatibility layer; modules are **additive**. Each package ships an
-optional C++23 module that re-exports the same public API:
+optional C++23 module (Qlite, header-only inside jText, has none) that re-exports the same public API:
 
 | Module | `g++-14` | `g++-15` | `clang++-20` |
 |--------|----------|----------|--------------|
-| `jac313.qlite.v002` | yes | yes | yes\* |
 | `jac313.jtext.v002` | yes | yes | yes\* |
 | `jac313.store.v002` | yes | yes | yes\* |
 

@@ -23,7 +23,7 @@ The whole is bigger than the parts — and it shows.
 
 | Package | What it is | One line |
 |---------|------------|----------|
-| [**Qlite**](Qlite/README.md) | header-only **SQLite wrapper** (`jac313::Qlite::v002`) | RAII connection, variadic bind/column, stmt cache, transactions, `get_one_*` helpers; Store uses it for SQL persistence |
+| [**Qlite**](jText/README.md) (in jText) | header-only **SQLite wrapper** (`jac313::Qlite::v002`) | RAII connection, variadic bind/column, stmt cache, transactions, `get_one_*` helpers; Store uses it for SQL persistence |
 | [**jText**](jText/README.md) | compiled **structured-text** library (`jac313::jText::v002`) | a self-describing text log format (light/full profiles) + streaming `JTextWriter`; Store uses it for human-readable logs |
 | [**Store**](Store/README.md) | time-series **logging store** (`jac313::Store::v002`) | the headline feature — see below |
 
@@ -120,7 +120,7 @@ For more details on the project, see the docs in [docs/](docs/) (listed under Do
 | [docs/Maturity.md](docs/Maturity.md) | Honest self-assessment on a 12-level scale — where jac313 sits (7.5), and why that's a deliberate ceiling |
 | [docs/Benchmarks.md](docs/Benchmarks.md) | **How to run the throughput suite** — `store_bench --suite` / `--report`, the curated 14 configs, the `--dry-run` command list, and a DB-backed [results page](test-summary/) |
 | [docs/Results.md](docs/Results.md) | v002 results — recorded per-platform in `results.db` and rendered under [test-summary/](test-summary/) (median + low–high band) |
-| Package READMEs | [Qlite](Qlite/README.md) · [jText](jText/README.md) · [Store](Store/README.md) |
+| Package READMEs | [jText](jText/README.md) · [Store](Store/README.md) |
 
 **Status:** v002 is a **faithful copy of v001**, rebranded to `jac313::*::v002`. It builds clean
 (g++-15, modules + textual) and passed validation (smoke **116/116**; `matrix verify` **60/60**
