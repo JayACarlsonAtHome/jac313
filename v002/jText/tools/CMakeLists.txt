@@ -5,6 +5,7 @@
 #   jtext_to_xml   : the canonical XML export (XML_EXPORT.md), the compare standard
 #                    for every round trip.
 #   jtext_to_ods / jtext_from_ods : jText <-> OpenDocument spreadsheet (ODS.md).
+#   jtext_from_xml : the XML export back into jText (either scope).
 #   jtext_from_sql : DB -> jText. Reads a PostgreSQL (libpq), SQLite or MariaDB table
 #                    and generates the four jText component files, every row and comment.
 # Tests for the tools live in canonical jText (tools/tests is not ported).
@@ -66,5 +67,14 @@ if(JAC313_JTEXT_BUILD_TOOLS)
             target_link_libraries(${tool} PRIVATE jtext_ods)
             set_target_properties(${tool} PROPERTIES CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
         endforeach()
+    endif()
+
+    # jtext_from_xml (XML_EXPORT.md): the XML export back into jText, through libxml2.
+    if(TARGET LibXml2::LibXml2)
+        add_executable(jtext_from_xml jtext_from_xml.cpp)
+        target_include_directories(jtext_from_xml PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+        target_link_libraries(jtext_from_xml PRIVATE jac313::jText LibXml2::LibXml2)
+        target_compile_features(jtext_from_xml PRIVATE cxx_std_26)
+        set_target_properties(jtext_from_xml PROPERTIES CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
     endif()
 endif()
