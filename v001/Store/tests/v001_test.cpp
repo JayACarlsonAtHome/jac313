@@ -4,14 +4,15 @@ static_assert(jac313::Store::v001::version() == "v001.010", "v001 version");
 
 #include <cstdlib>
 #include <iostream>
+#include <source_location>
+#include <string_view>
 
-#define CHECK(cond) \
-    do { \
-        if (!(cond)) { \
-            std::cerr << "FAIL: " #cond " at " << __FILE__ << ":" << __LINE__ << "\n"; \
-            return EXIT_FAILURE; \
-        } \
-    } while (0)
+// A failed check says what and where, and ends the test.
+void check(bool ok, std::string_view what, std::source_location at = std::source_location::current()) {
+    if (ok) return;
+    std::cerr << "FAIL: " << what << " at " << at.file_name() << ":" << at.line() << "\n";
+    std::exit(EXIT_FAILURE);
+}
 
 int main() {
     using Config = jac313::Store::v001::ts_store_config<true, 6, 20, 43, 2, 2, false>;
@@ -23,11 +24,11 @@ int main() {
         0,
         Config::CategoryT("test"));
 
-    CHECK(ok);
-    CHECK(slot < 8);
+    check(ok, "ok");
+    check(slot < 8, "slot < 8");
 
     jac313::Store::v001::bounded_string<16> label("store");
-    CHECK(label.view() == "store");
+    check(label.view() == "store", "label.view() == \"store\"");
 
     std::cout << "jac313::Store::v001 core store OK\n";
     return EXIT_SUCCESS;
