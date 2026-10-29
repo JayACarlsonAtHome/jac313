@@ -14,6 +14,7 @@
 #include <mysql.h>
 #endif
 
+#include <algorithm>
 #include <cstdio>
 #include <format>
 
@@ -402,8 +403,13 @@ public:
         mysql_ = mysql_init(nullptr);
         if (!mysql_) return false;
         const unsigned port = info.port.empty() ? 3306u : static_cast<unsigned>(std::stoul(info.port));
+        // utf8mb4, so every character survives a pull and a save. CLIENT_FOUND_ROWS: an
+        // UPDATE reports the rows it matched, not only those whose values changed, so a
+        // saved row that was already up to date is not taken for a missing one.
+        mysql_optionsv(mysql_, MYSQL_SET_CHARSET_NAME, "utf8mb4");
         if (!mysql_real_connect(mysql_, info.host.c_str(), info.username.c_str(),
-                                info.password.c_str(), info.database.c_str(), port, nullptr, 0)) {
+                                info.password.c_str(), info.database.c_str(), port, nullptr,
+                                CLIENT_FOUND_ROWS)) {
             last_error_ = mysql_ ? mysql_error(mysql_) : "mariadb: connect failed";
             if (mysql_) mysql_close(mysql_);
             mysql_ = nullptr;
@@ -501,14 +507,94 @@ public:
     }
 
     std::expected<std::size_t, std::string> save_changes(TableSession& session) override {
-        // Symmetric to Postgres v1 path — implement fully when MariaDB is in regular use
+        // Mergesert, in one transaction: each changed row is an UPDATE of every column by
+        // its original key (so a changed key is saved too), else (a new row, or no row had
+        // that key) an INSERT. A Null field is SQL NULL.
         if (!mysql_) return std::unexpected("mariadb: not connected");
-        return std::unexpected("mariadb: save_changes not fully implemented yet (reader works)");
+        auto table_sql = quote_table_ref(session.table, SessionKind::MariaDB);
+        if (!table_sql) return std::unexpected(table_sql.error());
+        const auto& cols = session.column_names;
+        if (cols.empty()) return std::unexpected("mariadb: no columns");
+        const std::string key = session.key_column.empty() ? cols[0] : session.key_column;
+        const std::size_t width = std::min(cols.size(), kMaxFields);
+        const auto value = [&](const Record& rec, std::size_t c) {
+            return field_is_null(rec, c) ? std::string("NULL") : literal(field_text(rec, c));
+        };
+
+        if (auto b = run("START TRANSACTION"); !b) return std::unexpected(b.error());
+        std::size_t written = 0;
+        std::string err;
+        for (std::size_t idx : session.changes.dirty_rows) {
+            if (idx >= session.rows.size()) continue;
+            const Record& rec = session.rows[idx];
+            const bool is_insert = session.changes.inserted.count(idx) || rec.original_key.empty();
+            if (!is_insert) {
+                std::string sql = "UPDATE " + *table_sql + " SET ";
+                for (std::size_t c = 0; c < width; ++c)
+                    sql += (c ? ", " : "") + ident(cols[c]) + " = " + value(rec, c);
+                sql += " WHERE " + ident(key) + " = " + literal(rec.original_key);
+                auto n = run(sql);
+                if (!n) { err = n.error(); break; }
+                if (*n > 0) { ++written; continue; }
+            }
+            std::string names, values;
+            for (std::size_t c = 0; c < width; ++c) {
+                names += (c ? ", " : "") + ident(cols[c]);
+                values += (c ? ", " : "") + value(rec, c);
+            }
+            if (auto n = run("INSERT INTO " + *table_sql + " (" + names + ") VALUES (" + values + ")"); !n) {
+                err = n.error();
+                break;
+            }
+            ++written;
+        }
+        if (!err.empty()) {
+            (void)run("ROLLBACK");
+            return std::unexpected(err);
+        }
+        if (auto c = run("COMMIT"); !c) {
+            (void)run("ROLLBACK");
+            return std::unexpected(c.error());
+        }
+
+        for (std::size_t idx : session.changes.dirty_rows)
+            if (idx < session.rows.size())
+                session.rows[idx].original_key = session.rows[idx].is_null[0]
+                                                     ? std::string{}
+                                                     : session.rows[idx].fields[0];
+        session.changes.clear();
+        return written;
     }
 
 private:
     MYSQL* mysql_ = nullptr;
     std::string last_error_;
+
+    // A string literal, escaped by the client library for this connection's character
+    // set and SQL mode (backslashes included, whatever NO_BACKSLASH_ESCAPES says).
+    std::string literal(std::string_view text) const
+    {
+        std::string out(text.size() * 2 + 1, '\0');
+        out.resize(mysql_real_escape_string(mysql_, out.data(), text.data(), text.size()));
+        return "'" + out + "'";
+    }
+
+    // A column name, quoted with backticks (a backtick in it doubled).
+    static std::string ident(std::string_view name)
+    {
+        std::string out = "`";
+        for (const char c : name) out += c == '`' ? std::string("``") : std::string(1, c);
+        return out + "`";
+    }
+
+    // One statement; the rows it matched.
+    std::expected<my_ulonglong, std::string> run(const std::string& sql)
+    {
+        debug_log("mariadb SQL: " + sql);
+        if (mysql_real_query(mysql_, sql.data(), sql.size()) != 0)
+            return std::unexpected(std::string(mysql_error(mysql_)) + "\nSQL: " + sql);
+        return mysql_affected_rows(mysql_);
+    }
 };
 #endif
 

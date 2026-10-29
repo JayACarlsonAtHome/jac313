@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/src/core
 
-1. #|# 3|canonical_commit|5a070f34b02c
+1. #|# 3|canonical_commit|2af3b702b0c6
 
 1. #|# 4|canonical_dirty|No
 
@@ -62,7 +62,7 @@
 
 1. #|# 2|jtext_store.cpp|jtext_store.cpp|b6f2b63233cfef2db7f9ed10e2e4b2ef4010adf2cd77172dc65955a2a32b2afa|b6f2b63233cfef2db7f9ed10e2e4b2ef4010adf2cd77172dc65955a2a32b2afa
 
-1. #|# 3|maria_postgres_store.cpp|maria_postgres_store.cpp|38edcbdda97a9e50fd223989de2942f9ca5aa918c47cc7296530158a835d6e3b|38edcbdda97a9e50fd223989de2942f9ca5aa918c47cc7296530158a835d6e3b
+1. #|# 3|maria_postgres_store.cpp|maria_postgres_store.cpp|c602c7f10a98970622ade6e5ed003842dd507abf12f65f64cf642249a1b351d2|c602c7f10a98970622ade6e5ed003842dd507abf12f65f64cf642249a1b351d2
 
 1. #|# 4|session_ops.cpp|session_ops.cpp|4c492ab36ebce0fbc3b0b3f633cf0924559551260e8c4da8983944a9e5b07bc1|4c492ab36ebce0fbc3b0b3f633cf0924559551260e8c4da8983944a9e5b07bc1
 

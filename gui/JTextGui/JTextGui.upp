@@ -21,11 +21,12 @@ file
 	jText/src/export/xml_export.cpp;
 
 options
-	"-Iinclude -IjText -IjText/src -I/usr/pgsql-18/include -DJTEXT_HAS_POSTGRESQL";
+	"-Iinclude -IjText -IjText/src -I/usr/pgsql-18/include -I/usr/include/mysql -DJTEXT_HAS_POSTGRESQL -DJTEXT_HAS_MARIADB";
 
 library
 	sqlite3,
 	pq,
+	mariadb,
 	z;
 
 link
