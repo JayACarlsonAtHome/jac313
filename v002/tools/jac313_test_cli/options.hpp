@@ -34,6 +34,11 @@ struct GlobalOptions {
     std::string pg_remote;               // --pg-remote "host=.. dbname=.. user=..": sets $JAC313_PG_REMOTE
     std::string pg_local;                // --pg-local  "...": sets $JAC313_PG_LOCAL (default localhost)
     std::filesystem::path connections;   // --connections FILE (jText; see connections.hpp)
+    // store_bench axes for the bench gate (0 = the suite's own value):
+    std::size_t bench_threads{0};            // --threads N
+    std::size_t bench_events_per_thread{0};  // --events-per-thread N
+    std::size_t bench_runs{0};               // --runs N
+    std::size_t bench_batch{0};              // --batch N (instead of the calibrated io_best_fit batch)
 };
 
 inline std::string harness_version(const GlobalOptions& global) {
@@ -75,6 +80,7 @@ struct RunOptions {
     bool list_only{false};
     bool include_missing{false};
     std::optional<int> failsafe_sec; // unset = auto (smoke 30s, full 900s); 0 = off
+    std::filesystem::path source_dir; // where tests/test_limits.jtext lives (set by the run command)
 };
 
 inline int effective_failsafe_sec(const RunOptions& opts, const std::string& matrix_size = {})

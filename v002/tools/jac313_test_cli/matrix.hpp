@@ -28,7 +28,9 @@ struct MatrixScenario {
 struct MatrixRunOptions {
     bool verbose{false};
     bool fail_fast{false};
-    int failsafe_sec{kDefaultFailsafeSec};
+    int failsafe_sec{kDefaultFailsafeSec};   // a scenario without a testControl timeout; 0 = off
+    bool timeouts_off{false};                 // --failsafe 0: no timeout at all, testControl included
+    TestControls controls;                    // per-test timeout / memory (testControl)
     bool keep_logs{false};
     std::filesystem::path version_root;  // v001/v002 source root (for default kept-logs path)
     std::filesystem::path keep_logs_root;  // empty -> <version>/kept-logs

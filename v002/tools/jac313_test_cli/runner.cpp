@@ -2,6 +2,7 @@
 #include "format.hpp"
 #include "options.hpp"
 #include "process.hpp"
+#include "settings.hpp"
 
 #include <jac313/Qlite/v002.hpp>
 #include <array>
@@ -182,6 +183,32 @@ TestResult run_test_with_args(const fs::path& command,
     return execute_command(command, args, verbose, failsafe_sec, memory_mb);
 }
 
+TestControls load_test_controls(const std::filesystem::path& source_dir) {
+    TestControls c;
+    // Shared results DB — resolved once by main() (same process), read here by name.
+    const std::string& dbp = jac313::results::JAC313_RESULTS_DB;
+    std::error_code ec;
+    if (dbp.empty() || !std::filesystem::exists(dbp, ec)) return c;
+    try {
+        jac313::Qlite::v002::Sqlite db(dbp);
+        jac313::results::ensure_schema(db);
+        const std::filesystem::path limits = source_dir / "tests" / "test_limits.jtext";
+        if (!source_dir.empty() && std::filesystem::exists(limits, ec))
+            for (const TestLimit& t : load_test_limits(limits))
+                if (t.timeout_sec > 0) jac313::results::upsert_test_control(db, t.test, t.timeout_sec, t.memory_mb);
+        auto st = db.prepare("SELECT name, timeout_sec, memory_mb FROM testControl");
+        while (st.step()) {
+            std::string nm; std::int64_t secs = 0, mem = 0;
+            st.get(nm, secs, mem);
+            if (secs > 0) c.timeout_sec[nm] = static_cast<int>(secs);
+            if (mem > 0) c.memory_mb[nm] = static_cast<int>(mem);
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "warning: test limits not read: " << e.what() << '\n';
+    }
+    return c;
+}
+
 std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
                                   const RunOptions& opts,
                                   bool verbose,
@@ -217,26 +244,16 @@ std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
     for (const auto& t : selected) if (t.name.size() > name_w) name_w = t.name.size();
     const std::size_t idx_w = format_count(total).size();
 
-    // Load per-test control values (timeouts + memory limits) from the DB if available.
-    // The DB testControl table is the runtime store for these "parameter values that control the testing".
-    std::map<std::string, int> db_test_timeouts;
-    std::map<std::string, int> db_test_memory;
-    try {
-        // Shared results DB — resolved once by main() (same process), read here by name.
-        const std::string& dbp = jac313::results::JAC313_RESULTS_DB;
-        if (std::filesystem::exists(dbp)) {
-            jac313::Qlite::v002::Sqlite db(dbp);
-            jac313::results::ensure_schema(db);
-            // Load all known controls for this run (cheap for small number of tests).
-            auto st = db.prepare("SELECT name, timeout_sec, memory_mb FROM testControl");
-            while (st.step()) {
-                std::string nm; std::int64_t secs = 0, mem = 0;
-                st.get(nm, secs, mem);
-                if (secs > 0) db_test_timeouts[nm] = static_cast<int>(secs);
-                if (mem > 0) db_test_memory[nm] = static_cast<int>(mem);
-            }
-        }
-    } catch (...) {}
+    // Per-test control values (timeouts + memory limits) from the DB testControl table.
+    const TestControls controls = load_test_controls(opts.source_dir);
+    // --failsafe N (> 0) caps every test without a testControl timeout; --failsafe 0 turns every
+    // timeout off (testControl, the heuristic and the failsafe); unset = testControl, else the heuristic.
+    if (opts.failsafe_sec.has_value() && *opts.failsafe_sec == 0)
+        std::cout << "Timeout:   off (--failsafe 0)\n";
+    else if (opts.failsafe_sec.has_value())
+        std::cout << "Timeout:   testControl, else --failsafe " << *opts.failsafe_sec << "s\n";
+    else
+        std::cout << "Timeout:   testControl, else the name heuristic (30s / " << kSmokeFailsafeSec << "s)\n";
 
     for (const auto& test : selected) {
         ++index;
@@ -253,16 +270,17 @@ std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
         }
 
         int per_test_sec = 0;
-        auto it = db_test_timeouts.find(test.name);
-        if (it != db_test_timeouts.end()) per_test_sec = it->second;
-        if (per_test_sec <= 0) {
-            per_test_sec = get_test_timeout(test.name);  // heuristic fallback
+        if (!(opts.failsafe_sec.has_value() && *opts.failsafe_sec == 0)) {
+            if (auto it = controls.timeout_sec.find(test.name); it != controls.timeout_sec.end())
+                per_test_sec = it->second;
+            else if (opts.failsafe_sec.has_value())
+                per_test_sec = *opts.failsafe_sec;
+            else
+                per_test_sec = get_test_timeout(test.name);  // heuristic fallback
         }
-        if (per_test_sec <= 0) per_test_sec = effective_failsafe_sec(opts);
 
         int per_test_mem = 0;
-        auto mit = db_test_memory.find(test.name);
-        if (mit != db_test_memory.end()) per_test_mem = mit->second;
+        if (auto mit = controls.memory_mb.find(test.name); mit != controls.memory_mb.end()) per_test_mem = mit->second;
 
         TestResult result = run_test(test, verbose, per_test_sec, per_test_mem);
 

@@ -54,7 +54,7 @@ target_compile_features(jac313_store_bench PRIVATE cxx_std_26)
 target_include_directories(jac313_store_bench PRIVATE ${CMAKE_SOURCE_DIR}/shared)   # jac313_results_db.hpp
 jac313_store_link_matrix_target(jac313_store_bench)
 add_test(NAME jac313_store_bench_smoke
-         COMMAND jac313_store_bench --threads 4 --events-per-thread 200 --runs 3 --persist none)
+         COMMAND jac313_store_bench --threads 4 --events-per-thread 200 --runs 3 --persist none --no-record)
 
 # Each test persists under its own base name: ctest runs them in parallel in this one folder,
 # and a shared name lets one test overwrite another's files while they are being written.

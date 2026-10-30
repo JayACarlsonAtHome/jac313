@@ -721,6 +721,65 @@ void apply_axis(Params& p, const std::string& axis, std::size_t v) {
     else if (axis == "batch")   p.batch = v;
 }
 
+// Every reason a measured config was not written to results.db (no --db, no host pin, a DB error).
+// main() prints one "NOT RECORDED: ..." line per distinct reason on stdout and exits non-zero, so a
+// run that recorded nothing never looks successful.
+std::vector<std::string> g_not_recorded;
+void not_recorded(const std::string& why) {
+    std::cerr << "[results] not recorded: " << why << "\n";
+    if (std::find(g_not_recorded.begin(), g_not_recorded.end(), why) == g_not_recorded.end())
+        g_not_recorded.push_back(why);
+}
+
+// The repository root: the parent of the version dir (the one holding CMakeLists.txt, Store and jText)
+// whose test-summary/README.md marks the shared results store. Searched up from `start`.
+std::filesystem::path find_repo_root(const std::filesystem::path& start) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    for (fs::path d = fs::absolute(start, ec).lexically_normal(); !d.empty(); d = d.parent_path()) {
+        if (fs::exists(d / "CMakeLists.txt", ec) && fs::exists(d / "Store", ec) && fs::exists(d / "jText", ec)
+            && fs::exists(d.parent_path() / "test-summary" / "README.md", ec))
+            return d.parent_path();
+        if (d == d.parent_path()) break;
+    }
+    return {};
+}
+
+// --db, made safe: a relative path resolves against the repository root (found up from the working
+// directory, else from this binary), never against the build dir the bench runs in. The bench writes
+// <dir of --db>/results.db, so that dir must be a test-summary/ directory, and a results.db that does
+// not exist yet may only be the shared one (<root>/test-summary/results.db). Returns the absolute
+// results.db path, or "" with `err` set.
+std::string resolve_bench_db(const std::string& given, std::string& err) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    fs::path root = find_repo_root(fs::current_path(ec));
+    if (root.empty()) root = find_repo_root(fs::read_symlink("/proc/self/exe", ec).parent_path());
+    fs::path p(given);
+    if (p.is_relative()) {
+        if (root.empty()) {
+            err = "--db " + given + ": a relative path needs the repository root (test-summary/README.md "
+                  "above the working directory or this binary); pass an absolute path";
+            return {};
+        }
+        p = root / p;
+    }
+    p = fs::weakly_canonical(p, ec);
+    const fs::path db = p.parent_path() / "results.db";   // what store_bench writes (results_db_path)
+    if (p.parent_path().filename() != "test-summary") {
+        err = "--db " + p.string() + " is not under a test-summary/ directory (the shared results.db is "
+              + (root.empty() ? std::string("<root>/test-summary/results.db") : (root / "test-summary" / "results.db").string()) + ")";
+        return {};
+    }
+    const fs::path shared = root.empty() ? fs::path() : fs::weakly_canonical(root / "test-summary" / "results.db", ec);
+    if (!fs::exists(db, ec) && db != shared) {
+        err = "--db " + p.string() + " would create a new results.db outside the shared one"
+              + (shared.empty() ? std::string() : " (" + shared.string() + ")");
+        return {};
+    }
+    return db.string();
+}
+
 #ifdef JAC313_STORE_HAS_SQL_PERSIST
 // ---- the results DB (receiver): one append-only row per run, written via Qlite ----
 int set_flag_count(std::uint64_t f) { int n = 0; for (int i = 0; i < 7; ++i) if (f & (1ull << i)) ++n; return n; }
@@ -852,7 +911,7 @@ std::string readback_field(const std::string& line, const std::string& key) {
 // Write one normalized testRun fact (resolving run / parameter / testList / testType) into results.db.
 // A production config also writes its hot-path ops/sec and the three drain times (`prod`).
 void record_to_results_db(const Params& p, const BenchSummary& s, const ProdSummary* prod) {
-    if (p.db_path.empty()) return;
+    if (p.db_path.empty()) { not_recorded("no --db given"); return; }
     try {
         jac313::Qlite::v001::Sqlite db(results_db_path(p.db_path).string());
         ensure_results_schema(db);
@@ -861,8 +920,8 @@ void record_to_results_db(const Params& p, const BenchSummary& s, const ProdSumm
         // here, per run, like every recorded run.
         const std::int64_t machine_id = jac313::results::current_host(db, bench_harness_version());
         if (machine_id == 0) {
-            std::cerr << "[results] no current_host pinned (run a CLI gate or ./bsir.sh first) — "
-                         "not recording bench rows.\n";
+            not_recorded("no current_host pin in " + results_db_path(p.db_path).string()
+                         + " (run `jac313_test_cli host` or ./bsir.sh first)");
             return;
         }
         const std::int64_t run_id = (p.run_id != 0) ? p.run_id : results_next_run_id(db);
@@ -944,7 +1003,7 @@ void record_to_results_db(const Params& p, const BenchSummary& s, const ProdSumm
         jac313::results::rebuild_safeness(db);   // refresh the safeness summary (read by report + verdict)
         tx.commit();
     } catch (const std::exception& e) {
-        std::cerr << "[results] record failed: " << e.what() << "\n";
+        not_recorded(std::string("record failed: ") + e.what());
     }
 }
 
@@ -953,7 +1012,9 @@ void record_to_db(const Params& p, const BenchSummary& s, const ProdSummary* pro
     record_to_results_db(p, s, prod);
 }
 #else
-void record_to_db(const Params&, const BenchSummary&, const ProdSummary* = nullptr) {}   // built without SQL persist -> no DB
+void record_to_db(const Params&, const BenchSummary&, const ProdSummary* = nullptr) {   // built without SQL persist -> no DB
+    not_recorded("this store_bench was built without SQL persistence (no results.db writer)");
+}
 #endif
 
 // Two-phase batch schedule: fine resolution where the curve actually moves (small batches), coarse
@@ -997,6 +1058,7 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
     } catch (const std::exception& e) { std::cerr << "[calibrate] DB error: " << e.what() << "\n"; return 1; }
     if (mid == 0) {
         std::cerr << "[calibrate] no current_host pinned (run ./bsir.sh or a CLI gate first)\n";
+        std::cout << "NOT RECORDED: calibration: no current_host pin in " << results_db_path(base.db_path).string() << "\n";
         return 1;
     }
 
@@ -1067,7 +1129,11 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
                 static_cast<std::int64_t>(low_b), static_cast<std::int64_t>(high_b),
                 static_cast<std::int64_t>(best_batch), static_cast<std::int64_t>(best_median),
                 static_cast<std::int64_t>(use));
-        } catch (const std::exception& e) { std::cerr << "[calibrate] record failed: " << e.what() << "\n"; return 1; }
+        } catch (const std::exception& e) {
+            std::cerr << "[calibrate] record failed: " << e.what() << "\n";
+            std::cout << "NOT RECORDED: calibration: " << e.what() << "\n";
+            return 1;
+        }
     }
 
     std::cout << "\n===============================================================\n";
@@ -1191,8 +1257,13 @@ void append_bench_part(const Params& p, const char* status, const BenchSummary* 
     if (out) out << obj << "\n";
 }
 
-int run_suite(Params base, bool dry, bool smoke) {
-    base.threads = 50;                                 // curated suite is opinionated about threads
+// The suite table supplies threads (50), events per thread and runs per config; --threads,
+// --events-per-thread and --runs, when given, replace those defaults for every config. --batch, when
+// given, replaces the calibrated batch (io_best_fit.useThis) of every durable config.
+struct SuiteAxes { bool threads = false, events = false, runs = false, batch = false; };
+
+int run_suite(Params base, bool dry, bool smoke, SuiteAxes given) {
+    if (!given.threads) base.threads = 50;             // the suite's default thread count
     struct Cfg { std::string persist; int flags; std::string label; std::size_t evt, runs; };
     std::vector<Cfg> cfgs;
     // The production run first: the user's keeper + database sinks and the replay log, flags routed.
@@ -1244,6 +1315,18 @@ int run_suite(Params base, bool dry, bool smoke) {
     for (int n : {0, 2, 4, 6})
         cfgs.push_back({"none", n, std::to_string(n) + " flags, non-durable", 200000, 10});
 
+    // --threads / --events-per-thread / --runs given: every config uses them (its label says so).
+    if (given.threads || given.events || given.runs) {
+        std::string tag;
+        if (given.threads) tag += "threads=" + std::to_string(base.threads);
+        if (given.events)  tag += (tag.empty() ? "" : " ") + std::string("events/thread=") + std::to_string(base.events_per_thread);
+        if (given.runs)    tag += (tag.empty() ? "" : " ") + std::string("runs=") + std::to_string(base.runs);
+        for (auto& cf : cfgs) {
+            if (given.events) cf.evt = base.events_per_thread;
+            if (given.runs)   cf.runs = base.runs;
+            cf.label += " [" + tag + "]";
+        }
+    }
     // --max-runs / --max-records: lower runs and events per run (never raise them).
     for (auto& cf : cfgs) {
         bool capped = false;
@@ -1281,6 +1364,7 @@ int run_suite(Params base, bool dry, bool smoke) {
             if (cf.persist == "production") std::cout << " --production " << base.prod.spec();
             else std::cout << " --persist " << cf.persist;
             if (cf.persist == "none") std::cout << " --flag-count " << cf.flags;
+            else if (given.batch) std::cout << " --batch " << base.batch;
             std::cout << "   # " << cf.label << "\n";
         }
         return 0;
@@ -1316,10 +1400,13 @@ int run_suite(Params base, bool dry, bool smoke) {
     // Announce the calibrated persistence batch sizes (io_best_fit.useThis) this run will use per durable
     // backend — so the recorded numbers are tied to a visible batch (falls back to the default if a
     // backend isn't calibrated yet; run --calibrate to populate io_best_fit).
-    std::cout << "durable batch (io_best_fit.useThis):";
-    for (const char* ty : {"sql", "binary", "jtext", "html", "json"})
-        std::cout << "  " << ty << "=" << bench_group_thousands(
-            static_cast<std::uint64_t>(calibrated_use(base.db_path, ty, static_cast<std::int64_t>(base.batch))));
+    if (given.batch) std::cout << "durable batch (--batch): " << bench_group_thousands(base.batch);
+    else {
+        std::cout << "durable batch (io_best_fit.useThis):";
+        for (const char* ty : {"sql", "binary", "jtext", "html", "json"})
+            std::cout << "  " << ty << "=" << bench_group_thousands(
+                static_cast<std::uint64_t>(calibrated_use(base.db_path, ty, static_cast<std::int64_t>(base.batch))));
+    }
     std::cout << std::endl;   // flush: surface the chosen batches promptly (before the long runs)
     for (const auto& cf : cfgs) {
         Params p = base;
@@ -1330,7 +1417,8 @@ int run_suite(Params base, bool dry, bool smoke) {
         // falls back to the default batch when uncalibrated. Non-durable has no writer, so batch is moot.
         // The production run's three sinks share one batch: its database sink's (usually the slowest).
         const std::string batch_of = cf.persist == "production" ? base.prod.database : cf.persist;
-        if (cf.persist != "none") p.batch = static_cast<std::size_t>(calibrated_use(base.db_path, batch_of, static_cast<std::int64_t>(base.batch)));
+        if (cf.persist != "none" && !given.batch)
+            p.batch = static_cast<std::size_t>(calibrated_use(base.db_path, batch_of, static_cast<std::int64_t>(base.batch)));
         std::cout << "\n=== " << cf.label << " ===";
         if (cf.persist != "none") std::cout << "  (batch " << bench_group_thousands(p.batch) << ")";
         std::cout << "\n";
@@ -1373,16 +1461,18 @@ int main(int argc, char** argv) {
     // Default: 250,500,750,1000, then 1500..5000:500 — fine where the curve moves, coarse in the flat tail.
     std::size_t cal_lo = 250, cal_knee = 1000, cal_step = 250, cal_step2 = 500, cal_hi = 5000;
     std::size_t cal_tol = 3;                          // plateau = within cal_tol% of peak (band -> middle = useThis)
-    bool threads_set = false, runs_set = false;      // so --calibrate can apply its own defaults
+    bool threads_set = false, runs_set = false;      // so --calibrate and --suite can apply their own defaults
+    bool events_set = false, batch_set = false;      // --events-per-thread / --batch given (the suite honours them)
+    bool no_record = false;                          // --no-record: measure only, on purpose (the ctest smoke)
     bool production_set = false;                     // --production given (selects it outside --suite)
 
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         auto next = [&]() -> std::string { return (i + 1 < argc) ? argv[++i] : std::string{}; };
         if (a == "--threads") { p.threads = std::stoull(next()); threads_set = true; }
-        else if (a == "--events-per-thread") p.events_per_thread = std::stoull(next());
+        else if (a == "--events-per-thread") { p.events_per_thread = std::stoull(next()); events_set = true; }
         else if (a == "--runs") { p.runs = std::stoull(next()); runs_set = true; }
-        else if (a == "--batch") p.batch = std::stoull(next());
+        else if (a == "--batch") { p.batch = std::stoull(next()); batch_set = true; }
         else if (a == "--persist") p.persist = next();
         else if (a == "--production") {
             // the production run's mix; on its own (not --suite) it also selects that run
@@ -1406,6 +1496,7 @@ int main(int argc, char** argv) {
         else if (a == "--single-run") single_run = true;              // worker mode (one workload, no stats/DB)
         else if (a == "--verify") verify_flag = true;                 // worker: structural-verify this run
         else if (a == "--db") p.db_path = next();
+        else if (a == "--no-record") no_record = true;
         else if (a == "--label") p.label = next();
         else if (a == "--keep-logs") p.keep_logs = true;
         else if (a == "--keep-logs-dir") p.keep_logs_dir = next();
@@ -1430,6 +1521,19 @@ int main(int argc, char** argv) {
     }
 
     if (production_set) p.persist = "production";
+    if (no_record && !p.db_path.empty()) { std::cerr << "--no-record and --db exclude each other\n"; return 2; }
+    if (!p.db_path.empty() && !single_run) {
+        std::string err;
+        p.db_path = resolve_bench_db(p.db_path, err);
+        if (p.db_path.empty()) { std::cerr << "store_bench: " << err << "\n"; return 2; }
+    }
+    // The end of a recording run: one "NOT RECORDED: ..." line per reason and a non-zero exit when
+    // any measured config was not written to results.db.
+    const auto finish = [&](int rc) {
+        if (no_record) { std::cout << "not recorded (--no-record)\n"; return rc; }
+        for (const auto& why : g_not_recorded) std::cout << "NOT RECORDED: " << why << "\n";
+        return (rc == 0 && !g_not_recorded.empty()) ? 1 : rc;
+    };
 
     // Worker mode: do exactly one workload and exit. The parent (run_one) times this whole
     // process from fork to exit, so nothing is printed and nothing is recorded here.
@@ -1451,7 +1555,10 @@ int main(int argc, char** argv) {
         return run_calibration(p, schedule, cal_tol, desc);
     }
 
-    if (do_suite)  return run_suite(p, dry, smoke);
+    if (do_suite) {
+        const int rc = run_suite(p, dry, smoke, SuiteAxes{threads_set, events_set, runs_set, batch_set});
+        return (dry || smoke) ? rc : finish(rc);   // dry-run and the smoke gate record nothing by design
+    }
 
     if (!sweep) {
         // single config — one measurement set
@@ -1468,8 +1575,8 @@ int main(int argc, char** argv) {
         emit_bench_stats(durations, total);
         std::optional<ProdSummary> prod;
         if (prod_run) prod = summarize_production(p, prod_runs, total);
-        record_to_db(p, compute_bench_summary(durations, total), prod ? &*prod : nullptr);
-        return 0;
+        if (!no_record) record_to_db(p, compute_bench_summary(durations, total), prod ? &*prod : nullptr);
+        return finish(0);
     }
 
     // sweep — find the per-machine peak along the chosen axis

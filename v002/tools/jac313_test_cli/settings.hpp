@@ -56,9 +56,12 @@ std::vector<jac313::Setup::v002::Toolchain> load_toolchains(const std::filesyste
 std::vector<jac313::Setup::v002::ProvisionRecipe> load_recipes(const std::filesystem::path& source_dir);
 
 // ---- compiler pin (Setup/compilers.pin.jtext): committed, per-machine {gcc, clang} labels ----
+// A row is keyed on the machine (cpu, cores, ram_gb, disk); os is information only. A row written
+// before the disk column ('' disk) matches the machine on cpu, cores and ram_gb.
 struct CompilerPinRow {
     std::string label, cpu, os, gcc_label, clang_label;
     int cores = 0, ram_gb = 0;
+    std::string disk;
 };
 std::filesystem::path compiler_pin_path(const std::filesystem::path& source_dir);
 // The pins, in table order; none when the file does not exist.

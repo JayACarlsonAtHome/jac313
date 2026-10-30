@@ -5,6 +5,7 @@
 
 #include <chrono>
 #include <filesystem>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -35,5 +36,13 @@ std::vector<TestResult> run_tests(const std::vector<TestEntry>& tests,
                                   bool verbose);
 
 bool matches_filter(const std::string& name, const std::string& filter);
+
+// Per-test timeouts and memory limits from results.db testControl (seeded from tests/test_limits.jtext).
+struct TestControls {
+    std::map<std::string, int> timeout_sec;   // only rows with a timeout > 0
+    std::map<std::string, int> memory_mb;     // only rows with a limit > 0
+};
+// Seed testControl from <source_dir>/tests/test_limits.jtext (when both exist), then read it back.
+TestControls load_test_controls(const std::filesystem::path& source_dir);
 
 } // namespace jac313::test_cli

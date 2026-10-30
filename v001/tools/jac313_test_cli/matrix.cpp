@@ -554,7 +554,15 @@ std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scena
         run.log_path = paths.log_path;
         run.persist_base = paths.persist_base;
 
-        run.result = run_test_with_args(scen.entry.command, args, opts.verbose, opts.failsafe_sec, 0);
+        // testControl's timeout and memory limit for this test when it has a row, else the failsafe.
+        int scen_sec = opts.failsafe_sec;
+        if (auto it = opts.controls.timeout_sec.find(scen.entry.name); it != opts.controls.timeout_sec.end())
+            scen_sec = it->second;
+        if (opts.timeouts_off) scen_sec = 0;
+        int scen_mem = 0;
+        if (auto it = opts.controls.memory_mb.find(scen.entry.name); it != opts.controls.memory_mb.end())
+            scen_mem = it->second;
+        run.result = run_test_with_args(scen.entry.command, args, opts.verbose, scen_sec, scen_mem);
         run.result.entry = scen.entry;
         run.readback = parse_readback_line(run.result.stdout_tail);
         // A failed read-back makes the scenario fail even if the test's own exit path missed it.
@@ -585,7 +593,7 @@ std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scena
             std::cout << "FAIL — " << run.result.message
                       << " (" << format_count_padded(run.result.duration.count()) << " ms)\n";
             if (run.result.message.find("failsafe timeout") != std::string::npos) {
-                std::cout << "  (killed — exceeded failsafe " << format_count(opts.failsafe_sec)
+                std::cout << "  (killed — exceeded failsafe " << format_count(scen_sec)
                           << "s)\n";
             }
             break;

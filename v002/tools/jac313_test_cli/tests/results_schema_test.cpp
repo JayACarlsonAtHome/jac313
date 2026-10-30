@@ -1,5 +1,5 @@
 // results.db schema: versioned (PRAGMA user_version), every column NOT NULL, the parameter UNIQUE
-// really dedupes, ensure_schema is idempotent, and a DB of another schema version is rebuilt.
+// really dedupes, ensure_schema is idempotent, a DB of an older schema version is rebuilt and a newer one refused.
 
 #include "jac313_results_db.hpp"
 
@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <iostream>
 #include <source_location>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <unistd.h>
@@ -208,11 +209,26 @@ int main() {
         check(one_int(db, "SELECT id FROM machine") == 5, "the row is now machine 5");
     }
 
-    // Another schema version (here 99) plus a stray table: rebuilt from scratch on open.
+    // A NEWER schema version (here 99): refused with both versions named, the file untouched.
     {
         Sqlite db(path.string());
         db.exec("CREATE TABLE stray (x INTEGER NOT NULL DEFAULT 0)");
         db.exec("PRAGMA user_version = 99");
+    }
+    {
+        Sqlite db(path.string());
+        std::string msg;
+        try { R::ensure_schema(db); } catch (const std::exception& e) { msg = e.what(); }
+        check(msg == "results.db is schema 99; this program knows schema " + std::to_string(R::kResultsSchemaVersion)
+                     + ": rebuild this program", "newer schema refused with both versions named");
+        check(one_int(db, "PRAGMA user_version") == 99, "newer schema: user_version untouched");
+        check(one_int(db, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='stray'") == 1, "newer schema: tables untouched");
+    }
+
+    // An OLDER schema version (here 1) plus a stray table: rebuilt from scratch on open.
+    {
+        Sqlite db(path.string());
+        db.exec("PRAGMA user_version = 1");
     }
     {
         Sqlite db(path.string());

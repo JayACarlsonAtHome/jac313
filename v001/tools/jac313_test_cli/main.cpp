@@ -106,6 +106,12 @@ void print_usage() {
         "                                smoke/<compiler>/<test>/<option>/ (e.g. jtext_output_on)\n"
         "  --keep-logs-dir <p>  root for kept output (default: kept-logs; needs ~12+ GB for full run)\n"
         "  --wipe-logs          delete test-results/ + kept-logs/ (keeps README.md); alone or before a run\n"
+        "  --threads N, --events-per-thread N, --runs N, --batch N\n"
+        "                       bench: replace the suite's 50 threads / per-config events and runs /\n"
+        "                       the calibrated durable batch for every config\n"
+        "  Every flag given to a preset is forwarded to each step that takes it; a step that cannot\n"
+        "  take one says so in a comment line of run_latest_config.sh. A recorder that could not write\n"
+        "  results.db prints \"NOT RECORDED: ...\" and the command exits non-zero.\n"
         "  (every gate auto-records + renders the report at the end. everyday: --ctest --smoke ;\n"
         "   bench: --bench ; render: --report ; full battery: --run-everything ;\n"
         "   full battery + retained captures: --run-everything --keep-logs)\n\n"
@@ -116,6 +122,9 @@ void print_usage() {
         "  --failsafe <sec>     Kill stuck test/compile after N seconds (smoke: "
         + std::to_string(kSmokeFailsafeSec) + ", full: " + std::to_string(kFullFailsafeSec)
         + ", 0=off)\n"
+        "                       tests/test_limits.jtext (testControl) timeouts win over N; 0 turns\n"
+        "                       every timeout off, testControl included\n"
+        "  -j N                 parallel build jobs\n"
         "  --report <path>      Write summary file (tab-separated)\n\n"
         "Configure options:\n"
         "  --compiler <cxx>     Explicit compiler: registry label, name, or path\n"
@@ -128,13 +137,13 @@ void print_usage() {
         "  --pg-local \"...\"     the local server for pg-local (default host=localhost dbname=jac313 user=jac313)\n"
         "  --connections FILE   both servers from a jText connections file kept outside git (default:\n"
         "                       <projects>/SQL_Secrets/jac313_connections.jtext; see `connections`)\n"
-        "  --strict             JAC313_STRICT=ON: -Wall -Wextra -Wpedantic and friends (ctest/smoke builds)\n"
+        "  --strict             JAC313_STRICT=ON: -Wall -Wextra -Wpedantic and friends (ctest/smoke, bench, verify)\n"
         "                       (format checks, -Wformat=2 -Werror=format, are on in every build)\n"
         "  --hardened           JAC313_HARDENED=ON: libstdc++ assertions, zero-init locals, stack/CF\n"
-        "                       protection (ctest/smoke builds; never bench or valgrind)\n"
+        "                       protection (ctest/smoke, bench and verify builds)\n"
         "                       Either one builds in build-<cc>-strict / -hardened and records the\n"
         "                       build type as Debug-strict / Debug-hardened / Debug-strict-hardened\n"
-        "  --contracts MODE     JAC313_CONTRACTS=MODE: how contracts run (ctest/smoke builds):\n"
+        "  --contracts MODE     JAC313_CONTRACTS=MODE: how contracts run (ctest/smoke, bench, verify):\n"
         "                       enforce (default; a violation prints and ends the program),\n"
         "                       observe (prints, goes on), quick_enforce (ends it at once, silently),\n"
         "                       ignore (not checked). The modes each toolchain has on each OS:\n"
@@ -172,6 +181,15 @@ fs::path detect_source_dir(const fs::path& start) {
 // wipe tools + store_bench share ONE definition. Surface them unqualified here.
 using jac313::results::JAC313_RESULTS_DB;
 using jac313::results::resolve_results_db;
+
+// A recorder that could not write its rows (no test-summary/, no host pin, a DB error) says so here;
+// main() then prints one "NOT RECORDED: ..." line per reason on stdout and exits non-zero, so a run
+// that recorded nothing can never look successful.
+std::vector<std::string> g_not_recorded;
+void not_recorded(const std::string& gate, const std::string& why) {
+    std::cerr << "[results] " << gate << " not recorded: " << why << '\n';
+    g_not_recorded.push_back(gate + ": " + why);
+}
 
 int run_list_command(const GlobalOptions& global) {
     const auto tests = discover_tests(global.build_dir);
@@ -217,7 +235,7 @@ void seed_test_catalog(const fs::path& /*source_dir*/, const std::vector<TestEnt
 }
 
 // Defined further down (next to the other results.db recorders); declared here for run_tests_command.
-std::int64_t record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
+std::int64_t record_ctest_results(const GlobalOptions& global, const fs::path& build_dir,
                                   const std::vector<TestResult>& results);
 // A recorded run's machine ("jac313-004") and OS ("Fedora Linux 44 · 7.2.13-..."), "" when unknown.
 struct RunWhere { std::string host, os; };
@@ -319,22 +337,6 @@ int run_tests_command(const GlobalOptions& global, const RunOptions& opts,
     }
     seed_test_catalog(global.source_dir, tests);   // record the discovered names in testList
 
-    // Seed/refresh the testControl table in results.db from tests/test_limits.jtext (if present).
-    // This makes the per-test timeouts/failsafes authoritative in the DB, not in source code.
-    try {
-        const fs::path db_path = JAC313_RESULTS_DB;
-        const fs::path limits = global.source_dir / "tests" / "test_limits.jtext";
-        if (fs::exists(db_path) && fs::exists(limits)) {
-            const auto rows = load_test_limits(limits);
-            jac313::Qlite::v001::Sqlite db(db_path.string());
-            jac313::results::ensure_schema(db);
-            for (const TestLimit& t : rows)
-                if (t.timeout_sec > 0) jac313::results::upsert_test_control(db, t.test, t.timeout_sec, t.memory_mb);
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "warning: test limits not seeded: " << e.what() << '\n';
-    }
-
     if (opts.list_only) {
         return run_list_command(global);
     }
@@ -346,14 +348,16 @@ int run_tests_command(const GlobalOptions& global, const RunOptions& opts,
     }
     std::cout << '\n';
 
-    const auto results = run_tests(tests, opts, global.verbose);
+    RunOptions run_opts = opts;   // the runner seeds testControl from <source>/tests/test_limits.jtext
+    run_opts.source_dir = global.source_dir;
+    const auto results = run_tests(tests, run_opts, global.verbose);
     if (results.empty()) {
         return 1;
     }
     const auto summary = summarize(results);
     print_summary(summary, results, summary_context_line(global));
 
-    const std::int64_t ctest_run = record_ctest_results(global.source_dir, global.build_dir, results);   // capture into results.db
+    const std::int64_t ctest_run = record_ctest_results(global, global.build_dir, results);   // capture into results.db
     if (!global.summary_json.empty()) {
         const RunWhere where = run_where(ctest_run);
         const std::string cc = compiler_label_from_build(global.build_dir);
@@ -1567,12 +1571,12 @@ std::int64_t exe_size_in_tree(const fs::path& build_dir, const std::string& targ
 // build records its times for free. Front-end (headers/modules) is read from the tree unless
 // overridden. Machine-scoped upsert: a prior row for the same (this machine, config, test) is replaced;
 // other machines' rows (same config, different machine_id) are left intact.
-void capture_build_times(const fs::path& source_dir, const fs::path& build_dir,
+void capture_build_times(const GlobalOptions& global, const fs::path& build_dir,
                          const std::string& modules_override = "",
                          const std::string& import_std_override = "") {
     const fs::path db_path = JAC313_RESULTS_DB;
     std::error_code ec;
-    if (!fs::exists(db_path.parent_path(), ec)) return;
+    if (!fs::exists(db_path.parent_path(), ec)) { not_recorded("build-times", "no " + db_path.parent_path().string()); return; }
     std::vector<std::string> names;
     for (const auto& t : discover_tests(build_dir)) names.push_back(t.name);
     // jac313_store_bench is a real build target but NOT a ctest test, so discover_tests misses it.
@@ -1583,8 +1587,7 @@ void capture_build_times(const fs::path& source_dir, const fs::path& build_dir,
     const auto times = parse_ninja_build_times(build_dir, names);
     try {
         jac313::Qlite::v001::Sqlite db(db_path.string());
-        GlobalOptions rec; rec.source_dir = source_dir;
-        const std::int64_t run_id  = cli_begin_run(db, rec);   // one run for the whole capture batch
+        const std::int64_t run_id  = cli_begin_run(db, global);   // one run for the whole capture batch
         std::int64_t mid = 0;
         { auto st = db.prepare("SELECT machine_id FROM run WHERE run_id=?"); st.bind(run_id); if (st.step()) st.get(mid); }
         const std::int64_t type_id = cli_results_id(db, "SELECT id FROM testType WHERE name=?", std::string("build"));
@@ -1611,7 +1614,7 @@ void capture_build_times(const fs::path& source_dir, const fs::path& build_dir,
                   << jac313::results::host_label(mid) << " " << read_compiler_info(build_dir).name
                   << "·" << fe << " (run " << run_id << ")\n";
     } catch (const std::exception& e) {
-        std::cerr << "[results] build-times capture failed: " << e.what() << "\n";
+        not_recorded("build-times", e.what());
     }
 }
 
@@ -1619,7 +1622,7 @@ void capture_build_times(const fs::path& source_dir, const fs::path& build_dir,
 // run_build_command wherever the CLI builds the test tree, so a normal run records times for free.
 int build_and_capture(const GlobalOptions& global, const BuildOptions& build_opts) {
     const int rc = run_build_command(global, build_opts);
-    if (rc == 0) capture_build_times(global.source_dir, global.build_dir);
+    if (rc == 0) capture_build_times(global, global.build_dir);
     return rc;
 }
 
@@ -1763,7 +1766,7 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
             std::cout << "  " << c.label << ": BUILD FAILED (what did build is recorded)\n";
             ++failed;
         }
-        capture_build_times(source_dir, dir, c.mod, c.istd);
+        { GlobalOptions rec; rec.source_dir = source_dir; capture_build_times(rec, dir, c.mod, c.istd); }
         built_total += static_cast<int>(missing.size());
         safe_rmdir(source_dir, dir);
     }
@@ -1775,16 +1778,15 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
 }
 
 // Record one testRun row per ctest unit test into results.db.
-std::int64_t record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
+std::int64_t record_ctest_results(const GlobalOptions& global, const fs::path& build_dir,
                                   const std::vector<TestResult>& results) {
     if (results.empty()) return 0;
     const fs::path db_path = JAC313_RESULTS_DB;
     std::error_code ec;
-    if (!fs::exists(db_path.parent_path(), ec)) return 0;
+    if (!fs::exists(db_path.parent_path(), ec)) { not_recorded("ctest", "no " + db_path.parent_path().string()); return 0; }
     try {
         jac313::Qlite::v001::Sqlite db(db_path.string());
-        GlobalOptions rec; rec.source_dir = source_dir;
-        const std::int64_t run_id = cli_begin_run(db, rec);
+        const std::int64_t run_id = cli_begin_run(db, global);   // with --claim / --assign-new when given
         for (const auto& r : results) {
             db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", r.entry.name);
         }
@@ -1807,23 +1809,22 @@ std::int64_t record_ctest_results(const fs::path& source_dir, const fs::path& bu
                   << db_path.string() << '\n';
         return run_id;
     } catch (const std::exception& e) {
-        std::cerr << "[results] ctest record failed: " << e.what() << '\n';
+        not_recorded("ctest", e.what());
     }
     return 0;
 }
 
 // Record one testRun row per scenario of a matrix (smoke) run into results.db.
-std::int64_t record_matrix_results(const fs::path& source_dir, const fs::path& build_dir,
+std::int64_t record_matrix_results(const GlobalOptions& global, const fs::path& build_dir,
                                    const std::vector<MatrixRunResult>& results, const std::string& size,
                                    std::int64_t max_persist_rows = 0) {
     if (results.empty()) return 0;
     const fs::path db_path = JAC313_RESULTS_DB;
     std::error_code ec;
-    if (!fs::exists(db_path.parent_path(), ec)) return 0;
+    if (!fs::exists(db_path.parent_path(), ec)) { not_recorded("smoke", "no " + db_path.parent_path().string()); return 0; }
     try {
         jac313::Qlite::v001::Sqlite db(db_path.string());
-        GlobalOptions rec; rec.source_dir = source_dir;
-        const std::int64_t run_id = cli_begin_run(db, rec);
+        const std::int64_t run_id = cli_begin_run(db, global);   // with --claim / --assign-new when given
         for (const auto& r : results) {
             db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", r.scenario.entry.name);
         }
@@ -1869,7 +1870,7 @@ std::int64_t record_matrix_results(const fs::path& source_dir, const fs::path& b
                   << db_path.string() << '\n';
         return run_id;
     } catch (const std::exception& e) {
-        std::cerr << "[results] matrix record failed: " << e.what() << '\n';
+        not_recorded("smoke", e.what());
     }
     return 0;
 }
@@ -1968,8 +1969,28 @@ int run_matrix_run_command(const GlobalOptions& global,
         std::cout << "Filter:  " << run_opts.filter << '\n';
     }
     const int failsafe_sec = effective_failsafe_sec(run_opts, params.size);
+    const bool timeouts_off = run_opts.failsafe_sec.has_value() && *run_opts.failsafe_sec == 0;
     if (failsafe_sec > 0) {
-        std::cout << "Failsafe: " << format_count(failsafe_sec) << "s per scenario\n";
+        std::cout << "Failsafe: " << format_count(failsafe_sec) << "s per scenario without a testControl timeout\n";
+    } else {
+        std::cout << "Failsafe: off (--failsafe 0: no scenario timeout, testControl included)\n";
+    }
+    // Per-test limits (testControl, seeded from tests/test_limits.jtext) for the tests in this run.
+    const TestControls controls = load_test_controls(global.source_dir);
+    {
+        std::set<std::string> shown;
+        for (const auto& sc : scenarios) {
+            const auto& n = sc.entry.name;
+            const auto t = controls.timeout_sec.find(n);
+            const auto m = controls.memory_mb.find(n);
+            if ((t == controls.timeout_sec.end() && m == controls.memory_mb.end()) || !shown.insert(n).second) continue;
+            std::cout << "Limit:   " << n << "  timeout "
+                      << (timeouts_off ? std::string("off")
+                                       : t == controls.timeout_sec.end() ? std::to_string(failsafe_sec) + "s (failsafe)"
+                                                                         : std::to_string(t->second) + "s")
+                      << "  memory " << (m == controls.memory_mb.end() ? std::string("none") : std::to_string(m->second) + " MB")
+                      << "  (testControl)\n";
+        }
     }
     std::cout << "Results: " << results_base.string() << '\n';
     std::cout << "Logs:    " << results_base.string() << "/…/*.log  (text only — safe to commit; see test-results/README.md)\n";
@@ -2019,6 +2040,8 @@ int run_matrix_run_command(const GlobalOptions& global,
     run_opts_matrix.verbose = global.verbose;
     run_opts_matrix.fail_fast = run_opts.fail_fast;
     run_opts_matrix.failsafe_sec = failsafe_sec;
+    run_opts_matrix.timeouts_off = timeouts_off;
+    run_opts_matrix.controls = controls;
     run_opts_matrix.global_done_before = global_before;
     run_opts_matrix.global_total = grand_total;
     run_opts_matrix.keep_logs = global.keep_logs;
@@ -2050,7 +2073,7 @@ int run_matrix_run_command(const GlobalOptions& global,
     std::cout << "\n\n";   // two blank lines after the smoke summary
 
     // Capture this smoke run into results.db (one testRun row per scenario).
-    const std::int64_t smoke_run = record_matrix_results(global.source_dir, global.build_dir, results, params.size,
+    const std::int64_t smoke_run = record_matrix_results(global, global.build_dir, results, params.size,
                           static_cast<std::int64_t>(global.max_persist_rows.value_or(0)));
     if (!global.summary_json.empty()) {
         const RunWhere where = run_where(smoke_run);
@@ -2141,7 +2164,9 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
     if (!apply_compiler_resolution(global, configure_opts, matrix_opts)) {
         return 1;
     }
-    global.build_dir = global.build_dir.string() + "-" + name;
+    global.build_dir = global.build_dir.string()
+                     + build_flavor_suffix(configure_opts.strict, configure_opts.hardened, configure_opts.contracts)
+                     + "-" + name;
     std::cout << "Build dir:  " << global.build_dir.string()
               << " (annotated: JAC313_STORE_HELGRIND_ANNOTATE=ON)\n\n";
     if (const int rc = run_configure_command(global, configure_opts); rc != 0) {
@@ -2380,6 +2405,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
     {
         const fs::path rpath = JAC313_RESULTS_DB;
         std::error_code rec;
+        if (!recs.empty() && !fs::exists(rpath.parent_path(), rec)) not_recorded(name, "no " + rpath.parent_path().string());
         if (!recs.empty() && fs::exists(rpath.parent_path(), rec)) {
             try {
                 jac313::Qlite::v001::Sqlite rdb(rpath.string());
@@ -2405,7 +2431,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
                 std::cout << "[results] recorded " << recs.size() << " " << name << " results (run " << use_run
                           << ") -> " << rpath.string() << '\n';
             } catch (const std::exception& e) {
-                std::cerr << "[results] verify record failed: " << e.what() << '\n';
+                not_recorded(name, e.what());
             }
         }
     }
@@ -2503,6 +2529,107 @@ struct PresetOptions {
     bool run_everything{false}; // the full battery on both compilers + matrix + report (C++ orchestrated)
 };
 
+// Single-quote a value for the generated shell lines (run_latest_config.sh, run-everything steps).
+std::string shell_quote(const std::string& s) {
+    std::string q = "'";
+    for (char c : s) q += (c == '\'') ? std::string("'\\''") : std::string(1, c);
+    return q + "'";
+}
+
+// Every flag the user gave a preset (--ctest/--smoke/--bench/--verify[-lite]) or --run-everything,
+// re-spelled for each generated step that takes it. A flag a step cannot take is never dropped
+// silently: `notes` holds one "# ..." comment line saying where it does not apply and why.
+struct StepFlags {
+    std::vector<std::string> labels;   // the compilers to run (pinned/highest; --compiler / --gcc / --clang narrow)
+    std::string flavor;                // build-dir suffix of a strict / hardened / contracts tree
+    std::string host;                  // "host --claim X" / "--assign-new N" step args ('' = none)
+    std::string configure;             // the ctest/smoke tree's configure flags
+    std::string build;                 // build flags (-j N)
+    std::string ctest;                 // `run` flags
+    std::string smoke;                 // `matrix run` flags (without --compiler: added per label)
+    std::string verify;                // `matrix verify[-lite]` flags (without --compiler)
+    std::string bench_configure;       // the Release bench tree's configure flags (without --compiler)
+    std::string bench;                 // store_bench flags
+    std::vector<std::string> notes;
+};
+
+StepFlags step_flags(const GlobalOptions& g, const ConfigureOptions& c, const BuildOptions& b,
+                     const RunOptions& r, const MatrixOptions& m, const std::string& gcc_label,
+                     const std::string& clang_label, bool want_ctest_smoke, bool want_verify, bool want_bench) {
+    StepFlags f;
+    if (c.compiler) f.labels = {*c.compiler};
+    else if (c.prefer_gcc && !c.prefer_clang) f.labels = {gcc_label};
+    else if (c.prefer_clang && !c.prefer_gcc) f.labels = {clang_label};
+    else f.labels = {gcc_label, clang_label};
+    f.flavor = build_flavor_suffix(c.strict, c.hardened, c.contracts);
+
+    if (!g.host_claim.empty()) f.host = " --claim " + shell_quote(g.host_claim);
+    else if (g.host_assign_new > 0) f.host = " --assign-new " + std::to_string(g.host_assign_new);
+
+    std::string flavor_flags;   // strict / hardened / contracts: every tree that is built takes them
+    if (c.strict) flavor_flags += " --strict";
+    if (c.hardened) flavor_flags += " --hardened";
+    if (c.contracts != "enforce") flavor_flags += " --contracts " + c.contracts;
+
+    if (c.build_type == "Release") f.configure += " --release";
+    if (c.modules) f.configure += " --modules";
+    f.configure += flavor_flags;
+    if (!c.store_tests) f.configure += " --no-store-tests";
+    if (b.jobs > 0) f.build = " -j " + std::to_string(b.jobs);
+
+    std::string pg;   // the servers (also exported at the top of the script / in the environment)
+    if (!g.connections.empty()) pg += " --connections " + shell_quote(fs::absolute(g.connections).string());
+    if (!g.pg_remote.empty()) pg += " --pg-remote " + shell_quote(g.pg_remote);
+    if (!g.pg_local.empty()) pg += " --pg-local " + shell_quote(g.pg_local);
+
+    std::string run_sel;   // test selection and time limits (ctest and smoke)
+    if (!r.filter.empty()) run_sel += " --filter " + shell_quote(r.filter);
+    if (r.fail_fast) run_sel += " --fail-fast";
+    if (r.failsafe_sec) run_sel += " --failsafe " + std::to_string(*r.failsafe_sec);
+
+    const std::string psfx = persist_cli_suffix(g);
+    f.ctest = run_sel + pg + psfx;
+    const bool params_given = m.params_file != MatrixOptions{}.params_file;
+    f.smoke = (params_given ? " --params " + shell_quote(m.params_file.string()) : std::string())
+            + run_sel + pg + keep_logs_cli_suffix(g) + psfx;
+    f.verify = flavor_flags + f.build;
+    f.bench_configure = flavor_flags;
+    f.bench = bench_persist_args(g);
+    if (g.bench_threads) f.bench += " --threads " + std::to_string(g.bench_threads);
+    if (g.bench_events_per_thread) f.bench += " --events-per-thread " + std::to_string(g.bench_events_per_thread);
+    if (g.bench_runs) f.bench += " --runs " + std::to_string(g.bench_runs);
+    if (g.bench_batch) f.bench += " --batch " + std::to_string(g.bench_batch);
+
+    // Where a given flag does not apply, and why (one comment line each).
+    auto note = [&](bool given, const std::string& flag, std::vector<std::pair<bool, std::string>> gates,
+                    const std::string& why) {
+        if (!given) return;
+        std::string where;
+        for (const auto& [active, name] : gates) if (active) where += (where.empty() ? "" : ", ") + name;
+        if (!where.empty()) f.notes.push_back("# " + flag + ": not applied to " + where + " (" + why + ")");
+    };
+    const bool vg = want_verify, bn = want_bench, cs = want_ctest_smoke;
+    note(c.build_type == "Release", "--release", {{vg, "verify"}}, "the valgrind gate builds Debug");
+    note(c.modules, "--modules", {{vg, "verify"}, {bn, "bench"}}, "verify and the bench build the textual front end");
+    note(!c.store_tests, "--no-store-tests", {{vg, "verify"}, {bn, "bench"}}, "they run the store tests / store_bench");
+    note(!r.filter.empty(), "--filter", {{vg, "verify"}, {bn, "bench"}}, "fixed test sets");
+    note(r.fail_fast, "--fail-fast", {{vg, "verify"}, {bn, "bench"}}, "a bench or valgrind gate runs every config");
+    note(r.failsafe_sec.has_value(), "--failsafe", {{vg, "verify"}, {bn, "bench"}}, "no per-test timeout there");
+    note(params_given, "--params", {{cs, "ctest"}, {vg, "verify"}, {bn, "bench"}}, "only the smoke matrix reads a params file");
+    note(!g.size_override.empty(), "--size", {{vg, "verify"}, {bn, "bench"}},
+         "verify runs the smoke scale; the bench scale is --max-records / --threads / --events-per-thread");
+    note(!g.persist_list.empty() || g.max_persist_rows || g.max_runs || g.max_records || !g.readback.empty()
+             || !g.pg_cleanup.empty(), "--persist/--max-*/--readback/--pg-cleanup", {{vg, "verify"}},
+         "the valgrind gate runs its fixed sink set");
+    note(g.bench_threads || g.bench_events_per_thread || g.bench_runs || g.bench_batch,
+         "--threads/--events-per-thread/--runs/--batch", {{cs, "ctest, smoke"}, {vg, "verify"}}, "store_bench axes");
+    note(!pg.empty(), "--pg-remote/--pg-local/--connections", {{vg, "verify"}, {bn, "bench"}},
+         "as flags; they reach every step through the JAC313_PG_* environment");
+    if (bn) f.notes.push_back("# bench: always a Release tree (a throughput number from a Debug tree means nothing)");
+    if (vg) f.notes.push_back("# verify: always a Debug, textual tree (the valgrind gate)");
+    return f;
+}
+
 // The bench's production run (store_bench --production): --production SPEC as given, else the
 // one row of tests/production.jtext (it serves the smoke, full and bench profiles). A file
 // without a valid row falls back to store_bench's defaults (jtext, sql, 10, 10, binary on), with
@@ -2519,7 +2646,8 @@ std::string resolve_production_spec(const GlobalOptions& global, const fs::path&
 }
 
 int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& configure_opts,
-                       const PresetOptions& preset)
+                       const BuildOptions& build_opts, const RunOptions& run_opts,
+                       const MatrixOptions& matrix_opts, const PresetOptions& preset)
 {
     // Max persisted in a run can never exceed Max records in a run (same rule as Jac313Runner).
     GlobalOptions global = global_in;
@@ -2555,17 +2683,17 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
 
     // Preset gates run BOTH compilers (gcc first, then clang), using THIS machine's pinned
     // labels from Setup/compilers.pin.jtext — or highest-available from compilers.jtext when unpinned
-    // (gcc16 on Fedora, gcc15 on RHEL/Mint, etc.). User --compiler/--gcc/--clang is ignored.
+    // (gcc16 on Fedora, gcc15 on RHEL/Mint, etc.). --gcc / --clang run just that one; --compiler L
+    // runs exactly L.
     const auto [gcc_label, clang_label] = pinned_or_highest_labels(root);
-    if (gcc_label.empty() || clang_label.empty()) {
+    if (!configure_opts.compiler && (gcc_label.empty() || clang_label.empty())) {
         std::cerr << "preset: could not resolve gcc/clang for this machine "
                      "(run `jac313_test_cli pin --ensure`)\n";
         return 1;
     }
-    // Both compilers by default; an explicit --gcc or --clang (Jac313Runner) runs just that one.
-    std::vector<std::string> preset_labels = {gcc_label, clang_label};
-    if (configure_opts.prefer_gcc && !configure_opts.prefer_clang) preset_labels = {gcc_label};
-    if (configure_opts.prefer_clang && !configure_opts.prefer_gcc) preset_labels = {clang_label};
+    const StepFlags sf = step_flags(global, configure_opts, build_opts, run_opts, matrix_opts, gcc_label, clang_label,
+                                    preset.ctest || preset.smoke, preset.verify || preset.verify_lite, preset.bench);
+    const std::vector<std::string>& preset_labels = sf.labels;
     std::cout << "preset compilers:";
     for (const auto& l : preset_labels) std::cout << ' ' << l;
     std::cout << "\n";
@@ -2575,21 +2703,9 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
         fs::remove(global.summary_json, rm_ec);
         fs::remove(summary_parts_path(global), rm_ec);
     }
-    const std::string psfx = persist_cli_suffix(global);
-
-    std::string func_extra;
-    if (configure_opts.build_type == "Release") func_extra += " --release";
-    if (configure_opts.modules) func_extra += " --modules";
-    if (configure_opts.strict) func_extra += " --strict";
-    if (configure_opts.hardened) func_extra += " --hardened";
-    if (configure_opts.contracts != "enforce") func_extra += " --contracts " + configure_opts.contracts;
     // A strict / hardened / contracts tree is its own build dir, so the everyday trees never
     // rebuild for it.
-    const std::string flavor = build_flavor_suffix(configure_opts.strict, configure_opts.hardened,
-                                                   configure_opts.contracts);
-    if (!flavor.empty() && (preset.bench || preset.verify || preset.verify_lite))
-        std::cout << "note: --strict / --hardened / --contracts apply to the ctest/smoke builds only; "
-                     "bench and valgrind builds stay as they are\n";
+    const std::string& flavor = sf.flavor;
 
     std::vector<std::string> lines;
     const auto emit = [&](std::string s) { lines.push_back(std::move(s)); };
@@ -2600,56 +2716,56 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
     emit("set -euo pipefail");
     emit("cd \"" + root.string() + "\"");
     // PostgreSQL servers chosen for this run (no passwords: libpq reads ~/.pgpass / $PGPASSFILE)
-    const auto shq = [](const std::string& s) {
-        std::string q = "'";
-        for (char c : s) q += (c == '\'') ? std::string("'\\''") : std::string(1, c);
-        return q + "'";
-    };
     // (and the connections-file row each came from, which names the server in results.db)
     for (const char* var : {"JAC313_PG_REMOTE", "JAC313_PG_LOCAL", "JAC313_PG_REMOTE_ID", "JAC313_PG_LOCAL_ID"})
-        if (const char* val = std::getenv(var); val && *val) emit(std::string("export ") + var + "=" + shq(val));
+        if (const char* val = std::getenv(var); val && *val) emit(std::string("export ") + var + "=" + shell_quote(val));
     emit("CLI=\"" + self.string() + "\"");
     // Every gate records into results.db; render the report pages ONCE at the end, also when a
     // gate failed (set -e), keeping the run's exit status.
     emit("# report pages — rendered from results.db when the run ends (pass or fail)");
     emit("trap 'rc=$?; \"$CLI\" --report || echo \"report pages: not rendered\"; exit $rc' EXIT");
+    for (const auto& n : sf.notes) emit(n);
     emit("");
+    if (!sf.host.empty()) {
+        emit("# pin this machine as asked (every gate below records under it)");
+        emit("\"$CLI\" host" + sf.host);
+        emit("");
+    }
 
     if (preset.ctest || preset.smoke) {
         for (const std::string& label : preset_labels) {
             const std::string dir = "build-" + label + flavor;
-            emit("# functional gate — " + dir + " (Debug, built once then run)");
-            emit("\"$CLI\" configure --build-dir " + dir + " --compiler " + label + func_extra);
-            emit("\"$CLI\" build --build-dir " + dir);
-            if (preset.ctest) emit("\"$CLI\" run --build-dir " + dir + psfx);         // ctest unit suite
-            if (preset.smoke) emit("\"$CLI\" matrix run --build-dir " + dir + keep_logs_cli_suffix(global) + psfx);
+            emit("# functional gate — " + dir + " (" + configure_opts.build_type + ", built once then run)");
+            emit("\"$CLI\" configure --build-dir " + dir + " --compiler " + label + sf.configure);
+            emit("\"$CLI\" build --build-dir " + dir + sf.build);
+            if (preset.ctest) emit("\"$CLI\" run --build-dir " + dir + sf.ctest);         // ctest unit suite
+            if (preset.smoke) emit("\"$CLI\" matrix run --build-dir " + dir + " --compiler " + label + sf.smoke);
         }
         emit("");
     }
 
     if (preset.verify_lite) {
-        emit("# memory/thread gate — valgrind memcheck (ctest + smoke surface), both compilers");
+        emit("# memory/thread gate — valgrind memcheck (ctest + smoke surface)");
         for (const std::string& label : preset_labels)
-            emit("\"$CLI\" matrix verify-lite --compiler " + label);
+            emit("\"$CLI\" matrix verify-lite --compiler " + label + sf.verify);
         emit("");
     }
     if (preset.verify) {
-        emit("# memory/thread gate — valgrind memcheck + helgrind + DRD, both compilers");
+        emit("# memory/thread gate — valgrind memcheck + helgrind + DRD");
         for (const std::string& label : preset_labels)
-            emit("\"$CLI\" matrix verify --compiler " + label);
+            emit("\"$CLI\" matrix verify --compiler " + label + sf.verify);
         emit("");
     }
 
     if (preset.bench) {
-        emit("# throughput benchmark — Release, store_bench target, both compilers");
+        emit("# throughput benchmark — Release, store_bench target");
         for (const std::string& label : preset_labels) {
-            const std::string dir = "build-bench-" + label;
-            emit("\"$CLI\" configure --release --build-dir " + dir + " --compiler " + label);
-            emit("cmake --build " + dir + " --target jac313_store_bench");
+            const std::string dir = "build-bench-" + label + flavor;
+            emit("\"$CLI\" configure --release --build-dir " + dir + " --compiler " + label + sf.bench_configure);
+            emit("cmake --build " + dir + " --target jac313_store_bench" + sf.build);
             emit("BENCH=\"" + dir + "/Store/tests/matrix/jac313_store_bench\"");
             // bench auto-records like every other gate (no --report needed); --report only renders.
-            emit("\"$BENCH\" --suite --db \"" + JAC313_RESULTS_DB + "\"" + bench_keep_logs_args(global, label)
-                 + bench_persist_args(global));
+            emit("\"$BENCH\" --suite --db \"" + JAC313_RESULTS_DB + "\"" + bench_keep_logs_args(global, label) + sf.bench);
         }
         emit("");
     }
@@ -2747,15 +2863,19 @@ int run_machine_id_command(const GlobalOptions& global) {
 
 // ---- compiler pin (Setup/compilers.pin.jtext, settings.cpp): committed, per-machine {gcc,clang}
 // toolchain labels so the choice is DETERMINISTIC — no "highest changes when a newer compiler lands"
-// drift. Keyed on cpu+cores+ram and the OS (Setup/compilers.pin.jtext rows), labeled jac313-###. bootstrap does
-// find-or-create; you change a row by editing it or `pin --gcc <label> --clang <label>`. No pin ->
-// highest-available. ----
+// drift. Keyed on the machine: cpu+cores+ram+disk (Setup/compilers.pin.jtext rows; os_pretty is
+// information only), labeled jac313-###. bootstrap does find-or-create; you change a row by editing it
+// or `pin --gcc <label> --clang <label>`. No pin -> highest-available. ----
+// This machine's row: cpu, cores and ram_gb equal, and the same disk tier (a row from before the disk
+// column, disk '', matches on the other three; an exact disk match wins over it).
 const CompilerPinRow* find_pin_for_host(const std::vector<CompilerPinRow>& rows, const HostHardwareRecord& hw) {
-    for (const auto& r : rows)
-        if (r.cpu == hw.cpu_model && r.cores == hw.cpu_cores && r.ram_gb == hw.ram_gb
-            && (r.os == sensed_os_key() || r.os == hw.os_pretty))
-            return &r;
-    return nullptr;
+    const CompilerPinRow* legacy = nullptr;
+    for (const auto& r : rows) {
+        if (r.cpu != hw.cpu_model || r.cores != hw.cpu_cores || r.ram_gb != hw.ram_gb) continue;
+        if (r.disk == hw.disk_type_label) return &r;
+        if (r.disk.empty() && legacy == nullptr) legacy = &r;
+    }
+    return legacy;
 }
 
 // "sense the highest": the highest-version available toolchain label of a kind from the live probe.
@@ -2795,7 +2915,12 @@ std::pair<std::string, std::string> pinned_or_highest_labels(const fs::path& sou
 // --run-everything: the full battery, orchestrated IN CODE (per-step exit codes, continue-on-error,
 // a failure summary). Re-invokes this CLI's own subcommands per step. Uses THIS machine's PINNED
 // gcc/clang (Setup/compilers.pin.jtext) so the run is deterministic. Run from v001/.
-int run_everything_command(const GlobalOptions& global) {
+int run_everything_command(const GlobalOptions& global_in, const ConfigureOptions& configure_opts,
+                           const BuildOptions& build_opts, const RunOptions& run_opts,
+                           const MatrixOptions& matrix_opts) {
+    // the steps record and print their own results; no Runner summary is assembled here
+    GlobalOptions global = global_in;
+    global.summary_json.clear();
     namespace fs = std::filesystem;
     std::error_code ec;
     if (!global.source_dir.empty()) {
@@ -2810,14 +2935,20 @@ int run_everything_command(const GlobalOptions& global) {
     const std::string CLI = "\"" + fs::read_symlink("/proc/self/exe", ec).string() + "\"";
     if (ec) { std::cerr << "run-everything: cannot find this program (/proc/self/exe)\n"; return 1; }
     const auto [gcc_label, clang_label] = pinned_or_highest_labels(".");
-    if (gcc_label.empty() || clang_label.empty()) {
+    if (!configure_opts.compiler && (gcc_label.empty() || clang_label.empty())) {
         std::cerr << "run-everything: could not resolve this machine's pinned/highest compilers "
                      "(run `jac313_test_cli pin --ensure`)\n";
         return 1;
     }
-    std::cout << "######## run-everything: full battery — gcc=" << gcc_label
-              << "  clang=" << clang_label << "  (pinned)"
+    // Every flag given is forwarded to the steps that take it (the rest are named, not dropped).
+    global.production = resolve_production_spec(global, fs::current_path());
+    const StepFlags sf = step_flags(global, configure_opts, build_opts, run_opts, matrix_opts, gcc_label, clang_label,
+                                    true, true, true);
+    std::cout << "######## run-everything: full battery —";
+    for (const auto& l : sf.labels) std::cout << ' ' << l;
+    std::cout << "  (pinned)"
               << "  keep-logs=" << (global.keep_logs ? "on" : "off (default)") << " ########\n";
+    for (const auto& n : sf.notes) std::cout << n << "\n";
     print_keep_logs_status(global);
     // Clear ONLY this machine's prior results (the pinned machine), NOT the whole fleet DB — every
     // other machine's committed results survive. The machine row + the current_host pin are kept (we
@@ -2858,35 +2989,36 @@ int run_everything_command(const GlobalOptions& global) {
         if (rc != 0) failures.push_back(label + " (exit " + std::to_string(rc) + ")");
     };
 
-    for (const std::string& cc : {gcc_label, clang_label}) {
-        const std::string dir = "build-" + cc;
-        step("configure " + cc, CLI + " configure --build-dir " + dir + " --compiler " + cc);
-        step("build " + cc,     CLI + " build --build-dir " + dir);
-        step("ctest " + cc,     CLI + " run --build-dir " + dir);
-        step("smoke " + cc,     CLI + " matrix run --build-dir " + dir + keep_logs_cli_suffix(global));
+    for (const std::string& cc : sf.labels) {
+        const std::string dir = "build-" + cc + sf.flavor;
+        step("configure " + cc, CLI + " configure --build-dir " + dir + " --compiler " + cc + sf.configure);
+        step("build " + cc,     CLI + " build --build-dir " + dir + sf.build);
+        step("ctest " + cc,     CLI + " run --build-dir " + dir + sf.ctest);
+        step("smoke " + cc,     CLI + " matrix run --build-dir " + dir + " --compiler " + cc + sf.smoke);
     }
     // Build the Release bench for each compiler.
-    for (const std::string& cc : {gcc_label, clang_label}) {
-        const std::string dir = "build-bench-" + cc;
-        step("configure bench " + cc, CLI + " configure --release --build-dir " + dir + " --compiler " + cc);
-        step("build bench " + cc,     "cmake --build " + dir + " --target jac313_store_bench");
+    for (const std::string& cc : sf.labels) {
+        const std::string dir = "build-bench-" + cc + sf.flavor;
+        step("configure bench " + cc, CLI + " configure --release --build-dir " + dir + " --compiler " + cc + sf.bench_configure);
+        step("build bench " + cc,     "cmake --build " + dir + " --target jac313_store_bench" + sf.build);
     }
     // Calibrate the per-machine durable persistence batch sizes (io_best_fit) AFTER the smoke gate (the host
     // is pinned by the ctest/smoke recorders by now) and BEFORE the recorded suite, so each --suite below
     // runs at the calibrated useThis. I/O batch is hardware-bound (not compiler-bound), so calibrate ONCE
-    // with the gcc bench binary. --calibrate ensure_schema's the io_best_fit table itself (this machine's
-    // rows were cleared above), and falls back gracefully (default batch) if it ever fails.
-    step("calibrate", "build-bench-" + gcc_label + "/Store/tests/matrix/jac313_store_bench "
-                      "--calibrate --db \"" + SHARED_DB + "\"");
+    // with the first bench binary. --calibrate ensure_schema's the io_best_fit table itself (this machine's
+    // rows were cleared above), and falls back gracefully (default batch) if it ever fails. A --batch given
+    // replaces the calibrated batch, so the calibration is skipped then.
+    if (global.bench_batch == 0)
+        step("calibrate", "build-bench-" + sf.labels.front() + sf.flavor + "/Store/tests/matrix/jac313_store_bench "
+                          "--calibrate --db \"" + SHARED_DB + "\"");
     // Recorded throughput suite per compiler (reads io_best_fit.useThis).
-    for (const std::string& cc : {gcc_label, clang_label}) {
-        const std::string dir = "build-bench-" + cc;
+    for (const std::string& cc : sf.labels) {
+        const std::string dir = "build-bench-" + cc + sf.flavor;
         step("bench " + cc, dir + "/Store/tests/matrix/jac313_store_bench --suite "
-                            "--db \"" + SHARED_DB + "\"" + bench_keep_logs_args(global, cc)
-                            + " --production " + resolve_production_spec(global, fs::current_path()));
+                            "--db \"" + SHARED_DB + "\"" + bench_keep_logs_args(global, cc) + sf.bench);
     }
-    step("verify gcc",   CLI + " matrix verify --compiler " + gcc_label);
-    step("verify clang", CLI + " matrix verify --compiler " + clang_label);
+    for (const std::string& cc : sf.labels)
+        step("verify " + cc, CLI + " matrix verify --compiler " + cc + sf.verify);
     step("build-times", CLI + " build-times");
     step("report",       CLI + " --report");
 
@@ -3127,16 +3259,18 @@ static int run_main(int argc, char** argv) {
         const HostHardwareRecord hw = collect_host_hardware_record(machine_disk_tier("."));
         auto rows = load_compiler_pins(src);
         const CompilerPinRow* existing = find_pin_for_host(rows, hw);
+        const std::string machine_text = hw.cpu_model + " · " + std::to_string(hw.cpu_cores) + " cores · "
+                                       + std::to_string(hw.ram_gb) + " GB · " + (hw.disk_type_label.empty() ? "-" : hw.disk_type_label);
         if (!ensure && set_gcc.empty() && set_clang.empty()) {   // default: show this machine's pin
             if (existing) std::cout << "pinned " << existing->label << ": gcc=" << existing->gcc_label
-                                    << " clang=" << existing->clang_label << "  (" << hw.cpu_model << ")\n";
-            else std::cout << "no pin for this machine (" << hw.cpu_model
+                                    << " clang=" << existing->clang_label << "  (" << machine_text << ")\n";
+            else std::cout << "no pin for this machine (" << machine_text
                            << ") — run: jac313_test_cli pin --ensure\n";
             return 0;
         }
-        if (ensure && existing && set_gcc.empty() && set_clang.empty()) {   // find-or-create: never overwrite
+        if (ensure && existing && set_gcc.empty() && set_clang.empty() && !existing->disk.empty()) {   // find-or-create: never overwrite
             std::cout << "pin exists " << existing->label << " (gcc=" << existing->gcc_label
-                      << " clang=" << existing->clang_label << ") — unchanged\n";
+                      << " clang=" << existing->clang_label << ") — unchanged  (" << machine_text << ")\n";
             return 0;
         }
         const auto probes = probe_compilers(src);
@@ -3155,17 +3289,19 @@ static int run_main(int argc, char** argv) {
                     try { maxn = std::max(maxn, std::stoi(r.label.substr(7))); } catch (...) {}
             char buf[24]; std::snprintf(buf, sizeof buf, "jac313-%03d", maxn + 1); row_label = buf;
         }
-        bool updated = false;
-        for (auto& r : rows)
-            if (r.cpu == hw.cpu_model && r.cores == hw.cpu_cores && r.ram_gb == hw.ram_gb
-                && (r.os == sensed_os_key() || r.os == hw.os_pretty)) {
-                r.gcc_label = gcc_label; r.clang_label = clang_label; updated = true; break;
-            }
-        if (!updated)
-            rows.push_back({row_label, hw.cpu_model, hw.os_pretty, gcc_label, clang_label, hw.cpu_cores, hw.ram_gb});
+        // The machine's row (a row from before the disk column gains this machine's disk tier).
+        const bool updated = existing != nullptr;
+        if (updated) {
+            auto& r = rows[static_cast<std::size_t>(existing - rows.data())];
+            r.gcc_label = gcc_label; r.clang_label = clang_label;
+            r.disk = hw.disk_type_label; r.os = hw.os_pretty;
+        } else {
+            rows.push_back({row_label, hw.cpu_model, hw.os_pretty, gcc_label, clang_label, hw.cpu_cores, hw.ram_gb,
+                            hw.disk_type_label});
+        }
         write_compiler_pins(src, rows);
         std::cout << (updated ? "updated " : "pinned ") << row_label << ": gcc=" << gcc_label
-                  << " clang=" << clang_label << "  (" << hw.cpu_model << ")\n";
+                  << " clang=" << clang_label << "  (" << machine_text << ")\n";
         return 0;
     }
 
@@ -3356,6 +3492,14 @@ static int run_main(int argc, char** argv) {
                 configure_opts.store_tests = false;
             } else if (arg == "-j" && i + 1 < argc) {
                 build_opts.jobs = std::stoi(argv[++i]);
+            } else if (arg == "--threads" && i + 1 < argc) {
+                global.bench_threads = std::stoull(argv[++i]);
+            } else if (arg == "--events-per-thread" && i + 1 < argc) {
+                global.bench_events_per_thread = std::stoull(argv[++i]);
+            } else if (arg == "--runs" && i + 1 < argc) {
+                global.bench_runs = std::stoull(argv[++i]);
+            } else if (arg == "--batch" && i + 1 < argc) {
+                global.bench_batch = std::stoull(argv[++i]);
             } else if (arg == "--help" || arg == "-h") {
                 print_usage();
                 std::exit(0);
@@ -3491,6 +3635,18 @@ static int run_main(int argc, char** argv) {
                     co.prefer_clang = true;
                 } else if (a == "--compiler" && i + 1 < argc) {
                     co.compiler = argv[++i];
+                } else if (a == "--strict") {
+                    co.strict = true;
+                } else if (a == "--hardened") {
+                    co.hardened = true;
+                } else if (a == "--contracts" && i + 1 < argc) {
+                    co.contracts = argv[++i];
+                    if (!is_contracts_mode(co.contracts)) {
+                        std::cerr << "--contracts " << co.contracts << ": use enforce, observe, quick_enforce or ignore\n";
+                        return 2;
+                    }
+                } else if (a == "-j" && i + 1 < argc) {
+                    build_opts.jobs = std::stoi(argv[++i]);
                 } else if (a == "--source-dir" && i + 1 < argc) {
                     global.source_dir = argv[++i];
                 } else if (a == "-v" || a == "--verbose") {
@@ -3501,6 +3657,8 @@ static int run_main(int argc, char** argv) {
                                       : "ctest + matrix 001 — representative sinks (binary; 001 across jtext/html/json/sql)")
                               << "; memcheck + helgrind/DRD)\n\n"
                                  "  --gcc | --clang | --compiler <cxx>   (default: auto-detect)\n"
+                                 "  --strict | --hardened | --contracts M (a tree of its own: build-<label>[-flavor]-" << sub << ")\n"
+                                 "  -j N                                 parallel build jobs\n"
                                  "  --source-dir <path>\n";
                     return 0;
                 } else {
@@ -3576,7 +3734,7 @@ static int run_main(int argc, char** argv) {
             if (run_wipe_logs_command(global) != 0) return 1;
         }
         if (preset.run_everything) {
-            return run_everything_command(global);
+            return run_everything_command(global, configure_opts, build_opts, run_opts, matrix_opts);
         }
         const bool any_preset = preset.ctest || preset.smoke || preset.bench
                              || preset.report || preset.verify_lite || preset.verify;
@@ -3586,7 +3744,7 @@ static int run_main(int argc, char** argv) {
                                    || preset.verify_lite || preset.verify)) {
                 return run_report_command(global.source_dir);   // generate the report pages from results.db
             }
-            return run_preset_command(global, configure_opts, preset);
+            return run_preset_command(global, configure_opts, build_opts, run_opts, matrix_opts, preset);
         }
         if (global.wipe_logs) {
             return 0;
@@ -3618,10 +3776,13 @@ static int run_main(int argc, char** argv) {
 // A settings table that does not read (Setup/*.jtext, tests/*.jtext) ends the command with its
 // reason, not with an uncaught exception.
 int main(int argc, char** argv) {
+    int rc = 1;
     try {
-        return run_main(argc, argv);
+        rc = run_main(argc, argv);
     } catch (const std::exception& e) {
         std::cerr << "jac313_test_cli: " << e.what() << '\n';
-        return 1;
+        rc = 1;
     }
+    for (const auto& why : g_not_recorded) std::cout << "NOT RECORDED: " << why << '\n';
+    return (rc == 0 && !g_not_recorded.empty()) ? 1 : rc;
 }

@@ -133,7 +133,7 @@ int main() {
     }
 
     // ---- compilers.pin.jtext ----
-    table(pins, "pins", {"id", "label", "cpu_model", "cores", "ram_gb", "os_pretty", "gcc_label", "clang_label"});
+    table(pins, "pins", {"id", "label", "cpu_model", "cores", "ram_gb", "disk", "os_pretty", "gcc_label", "clang_label"});
     try {
         for (const auto& p : load_compiler_pins(kSource)) {
             check(labels.count(p.gcc_label) == 1, "pin " + p.label + " gcc is a toolchain: " + p.gcc_label);
@@ -143,8 +143,8 @@ int main() {
         const fs::path tmp = fs::temp_directory_path() / ("jac313_settings_test_" + std::to_string(::getpid()));
         fs::create_directories(tmp / "Setup");
         const std::vector<CompilerPinRow> rows = {
-            {"jac313-001", "Intel(R) Core(TM) Ultra 7 265", "Fedora Linux 44 (Workstation Edition)", "gcc16", "clang", 20, 62},
-            {"jac313-002", "CPU with | ^ ~ # and ' in it", "Linux Mint 22.3", "gcc15", "clang", 8, 31}};
+            {"jac313-001", "Intel(R) Core(TM) Ultra 7 265", "Fedora Linux 44 (Workstation Edition)", "gcc16", "clang", 20, 62, "xssd"},
+            {"jac313-002", "CPU with | ^ ~ # and ' in it", "Linux Mint 22.3", "gcc15", "clang", 8, 31, "rx7k"}};
         write_compiler_pins(tmp, rows);
         check_validates(compiler_pin_path(tmp));
         const auto back = load_compiler_pins(tmp);
@@ -152,7 +152,8 @@ int main() {
         for (std::size_t i = 0; i < std::min(back.size(), rows.size()); ++i)
             check(back[i].label == rows[i].label && back[i].cpu == rows[i].cpu && back[i].os == rows[i].os
                       && back[i].gcc_label == rows[i].gcc_label && back[i].clang_label == rows[i].clang_label
-                      && back[i].cores == rows[i].cores && back[i].ram_gb == rows[i].ram_gb,
+                      && back[i].cores == rows[i].cores && back[i].ram_gb == rows[i].ram_gb
+                      && back[i].disk == rows[i].disk,
                   "pin row " + std::to_string(i + 1) + " reads back as written");
         fs::remove_all(tmp);
     } catch (const std::exception& e) {

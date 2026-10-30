@@ -168,6 +168,7 @@ std::vector<CompilerPinRow> load_compiler_pins(const fs::path& source_dir) {
         p.cores = to_int(r, "cores", path, "pins");
         p.ram_gb = to_int(r, "ram_gb", path, "pins");
         p.os = r.at("os_pretty");
+        if (const auto d = r.find("disk"); d != r.end()) p.disk = d->second;   // '' in a row from before the column
         p.gcc_label = r.at("gcc_label");
         p.clang_label = r.at("clang_label");
         out.push_back(std::move(p));
@@ -183,8 +184,9 @@ void write_compiler_pins(const fs::path& source_dir, const std::vector<CompilerP
         << "//Date:    " << std::format("{:%Y-%m-%d}", std::chrono::floor<std::chrono::days>(
                                                          std::chrono::system_clock::now())) << "\n"
         << "//Purpose: The committed per-machine compiler pin (v002). One row per machine, keyed on the\n"
-        << "//         hardware identity (cpu / cores / ram_gb / os), labeled jac313-###. bootstrap\n"
-        << "//         find-or-creates a row; the chosen gcc / clang are then DETERMINISTIC across runs.\n"
+        << "//         hardware identity (cpu_model / cores / ram_gb / disk), labeled jac313-###; os_pretty is\n"
+        << "//         information only (the OS the row was written under). bootstrap find-or-creates a\n"
+        << "//         row; the chosen gcc / clang are then DETERMINISTIC across runs.\n"
         << "//\n"
         << "// Change a row by editing it, or: jac313_test_cli pin --gcc <label> --clang <label>\n"
         << "// (labels are from the toolchains table of Setup/compilers.jtext).\n"
@@ -201,7 +203,8 @@ void write_compiler_pins(const fs::path& source_dir, const std::vector<CompilerP
         const std::vector<std::vector<std::string>> fields = {
             {"id", "Integer", "Not Null"},          {"label", "String", "Not Null", "Not Empty"},
             {"cpu_model", "String", "Not Null"},    {"cores", "Integer", "Not Null"},
-            {"ram_gb", "Integer", "Not Null"},      {"os_pretty", "String", "Not Null"},
+            {"ram_gb", "Integer", "Not Null"},      {"disk", "String", "Not Null"},
+            {"os_pretty", "String", "Not Null"},
             {"gcc_label", "String", "Not Null"},    {"clang_label", "String", "Not Null"}};
         for (std::size_t f = 0; f < fields.size(); ++f) {
             JTextEntry e;
@@ -215,7 +218,7 @@ void write_compiler_pins(const fs::path& source_dir, const std::vector<CompilerP
         for (std::size_t n = 0; n < rows.size(); ++n) {
             const CompilerPinRow& r = rows[n];
             w.append_row(1, {std::to_string(n + 1), r.label, r.cpu, std::to_string(r.cores),
-                             std::to_string(r.ram_gb), r.os, r.gcc_label, r.clang_label});
+                             std::to_string(r.ram_gb), r.disk, r.os, r.gcc_label, r.clang_label});
             w.end_record();
         }
         w.finalize();

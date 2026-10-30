@@ -82,8 +82,10 @@ inline const std::string& resolve_results_db(const std::filesystem::path& source
 // NULL can only appear in a query result, from a LEFT JOIN with no match or an aggregate over no rows.
 //
 // Schema version rule: PRAGMA user_version holds kResultsSchemaVersion. results.db holds test data
-// only, so there are no migrations: a DB stamped with any other version (0 = an unversioned older
-// layout) is dropped and created fresh on first open. Change any table or index below -> bump this.
+// only, so there are no migrations: a DB stamped with an OLDER version (0 = an unversioned older
+// layout) is dropped and created fresh on first open. A DB stamped with a NEWER version belongs to a
+// newer program: ensure_schema throws and leaves the file alone (an old binary must never wipe it).
+// Change any table or index below -> bump this.
 // 2: testRun.hot_ops and drain_keeper_ms / drain_database_ms / drain_binary_ms (the production bench run).
 // 3: parameter.contracts (the contract evaluation mode the binaries were built under).
 // 4: run_target (what each run wrote where); parameter.strict / hardened; testRun.batch_keeper /
@@ -337,19 +339,28 @@ inline std::int64_t results_user_version(Sqlite& db) {
 
 // Open-time schema check (see the version rule above). The common case — the DB already carries
 // kResultsSchemaVersion — only runs the idempotent CREATE ... IF NOT EXISTS statements.
+// A newer schema than this program knows: refuse, naming both versions, before touching the file.
+inline void refuse_newer_schema(std::int64_t have) {
+    if (have > kResultsSchemaVersion)
+        throw std::runtime_error("results.db is schema " + std::to_string(have) + "; this program knows schema "
+                                 + std::to_string(kResultsSchemaVersion) + ": rebuild this program");
+}
+
 inline void ensure_schema(Sqlite& db) {
+    refuse_newer_schema(detail::results_user_version(db));
     if (detail::results_user_version(db) != kResultsSchemaVersion) {
         // Decide and rebuild under a write lock, so a sibling process creating the same fresh DB
         // at the same moment is seen (re-read inside the lock) and not dropped again.
         db.exec("BEGIN IMMEDIATE");
         try {
             const std::int64_t have = detail::results_user_version(db);
+            refuse_newer_schema(have);   // a newer program may have stamped it meanwhile
             if (have != kResultsSchemaVersion) {
                 std::vector<std::string> tables;
                 { auto st = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
                   while (st.step()) { std::string t; st.get(t); tables.push_back(t); } }
                 if (!tables.empty()) {
-                    std::fprintf(stderr, "results.db schema %lld is not %d: rebuilding (test data only)\n",
+                    std::fprintf(stderr, "results.db schema %lld is older than %d: rebuilding (test data only)\n",
                                  static_cast<long long>(have), kResultsSchemaVersion);
                     for (const auto& t : tables) db.exec("DROP TABLE IF EXISTS \"" + t + "\"");
                 }
