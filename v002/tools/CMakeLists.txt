@@ -71,6 +71,16 @@ if(TARGET jac313::Qlite)
 endif()
 add_test(NAME jac313_host_group_test COMMAND jac313_host_group_test)
 
+add_executable(jac313_results_schema_test
+    jac313_test_cli/tests/results_schema_test.cpp
+)
+target_include_directories(jac313_results_schema_test PRIVATE ${CMAKE_SOURCE_DIR}/shared)
+target_compile_features(jac313_results_schema_test PRIVATE cxx_std_26)
+if(TARGET jac313::Qlite)
+    target_link_libraries(jac313_results_schema_test PRIVATE jac313::Qlite)
+endif()
+add_test(NAME jac313_results_schema_test COMMAND jac313_results_schema_test)
+
 add_executable(jac313_instance_hash_test
     jac313_test_cli/tests/instance_hash_test.cpp
 )

@@ -24,13 +24,11 @@ Env:
 
 from __future__ import annotations
 
-import csv
 import json
 import os
 import sqlite3
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 SCHEMA_DIR = Path(__file__).resolve().parent
@@ -148,30 +146,40 @@ def psql(args: list[str], stdin: str | None = None) -> None:
     if r.returncode != 0:
         sys.stderr.write(r.stderr)
         raise SystemExit(f"psql failed: {' '.join(args[:4])}")
-    if r.stdout and not any(a.startswith("\\copy") or a.startswith("-f") for a in args):
+    if r.stdout and "-f" not in args:
         sys.stdout.write(r.stdout)
 
 
+def _sql_value(v: object) -> str:
+    """One SQL literal. results.db stores no NULL, so None only comes from persist columns."""
+    if v is None:
+        return "NULL"
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, (int, float)):
+        return repr(v)
+    return _lit(str(v))
+
+
+def insert_rows(pg_table: str, columns: str, rows: list[tuple]) -> int:
+    """Load rows with plain INSERT statements over psql's stdin (no CSV / delimiter dump)."""
+    if not rows:
+        return 0
+    parts = []
+    for i in range(0, len(rows), 500):
+        values = ",\n".join("(" + ", ".join(_sql_value(v) for v in r) + ")" for r in rows[i : i + 500])
+        parts.append(f"INSERT INTO {pg_table} ({columns}) VALUES\n{values};")
+    psql(["-q"], stdin="BEGIN;\n" + "\n".join(parts) + "\nCOMMIT;\n")
+    return len(rows)
+
+
 def copy_table(sqlite_path: Path, sqlite_sql: str, pg_table: str, columns: str) -> int:
-    with tempfile.TemporaryDirectory() as td:
-        csv_path = Path(td) / "t.csv"
-        con = sqlite3.connect(f"file:{sqlite_path}?mode=ro", uri=True)
-        try:
-            cur = con.execute(sqlite_sql)
-            headers = [d[0] for d in cur.description]
-            with csv_path.open("w", newline="") as f:
-                w = csv.writer(f)
-                w.writerow(headers)
-                n = 0
-                for row in cur:
-                    w.writerow(["" if c is None else c for c in row])
-                    n += 1
-        finally:
-            con.close()
-        if n == 0:
-            return 0
-        psql(["-c", f"\\copy {pg_table} ({columns}) FROM '{csv_path}' CSV HEADER"])
-        return n
+    con = sqlite3.connect(f"file:{sqlite_path}?mode=ro", uri=True)
+    try:
+        rows = list(con.execute(sqlite_sql))
+    finally:
+        con.close()
+    return insert_rows(pg_table, columns, rows)
 
 
 def sync_results(db: Path) -> None:
@@ -339,33 +347,11 @@ def sync_persist(db: Path, world: str) -> None:
     if not rows_sql:
         print(f"    store.event {world:4} 0")
         return
-    with tempfile.TemporaryDirectory() as td:
-        csv_path = Path(td) / "e.csv"
-        with csv_path.open("w", newline="") as f:
-            w = csv.writer(f)
-            w.writerow(
-                [
-                    "world",
-                    "source_table",
-                    "id",
-                    "thread_id",
-                    "per_thread_event_id",
-                    "flags_raw",
-                    "category",
-                    "payload",
-                    "timestamp_us",
-                    "ints",
-                    "floats",
-                ]
-            )
-            for r in rows_sql:
-                w.writerow(r)
-        psql(
-            [
-                "-c",
-                f"\\copy store.event (world, source_table, id, thread_id, per_thread_event_id, flags_raw, category, payload, timestamp_us, ints, floats) FROM '{csv_path}' CSV HEADER",
-            ]
-        )
+    insert_rows(
+        "store.event",
+        "world, source_table, id, thread_id, per_thread_event_id, flags_raw, category, payload, timestamp_us, ints, floats",
+        rows_sql,
+    )
     print(f"    store.event {world:4} {len(rows_sql)}")
 
 

@@ -43,4 +43,19 @@ Results (including throughput from `--bench --report`) are written to the shared
 See [test-summary/README.md](../test-summary/README.md) (per version) for the current
 rendered reports.
 
+### results.db schema
+
+`shared/jac313_results_db.hpp` (`ensure_schema`) is the one definition of `results.db`. No
+column ever holds NULL: every column is `NOT NULL` with a default, `''` means "no text" and `0`
+"no number" (an axis that does not apply to a test kind, a bench row's `duration_ms`). NULL can
+only appear in a query result, from a LEFT JOIN with no match. Bench rows have `status = 'pass'`
+(a row is written only on success).
+
+The schema is versioned with `PRAGMA user_version` (`kResultsSchemaVersion`). `results.db` holds
+test data only, so there are no migrations: a DB stamped with another version (or an older,
+unversioned one) is dropped and created fresh the first time any tool opens it, with one line on
+stderr (`results.db schema <n> is not <v>: rebuilding (test data only)`). Any change to a table
+or index bumps the version. Each recorder writes its rows and the `safeness` refresh in one
+transaction.
+
 Part of the [jac313](../../README.md) project.

@@ -529,15 +529,15 @@ std::int64_t compiler_id_for(jac313::Qlite::v002::Sqlite& db, const jac313::resu
     return jac313::results::compiler_id(db, c);
 }
 
-// Insert-or-find a bench parameter combo (build_type Release, modules off; size/output_mode/batch
-// N/A => NULL). SELECT-then-INSERT, because a UNIQUE over NULL-bearing columns won't dedupe in SQLite.
+// Insert-or-find a bench parameter combo (build_type Release, modules off; size/output_mode/batch/
+// valgrind_tool N/A => '' / 0). SELECT-then-INSERT.
 std::int64_t parameter_id_bench(jac313::Qlite::v002::Sqlite& db, std::int64_t compiler_id,
                                 const std::string& persist, std::int64_t threads, std::int64_t events,
                                 std::int64_t runs, std::int64_t flags) {
     const char* where =
         "SELECT id FROM parameter WHERE compiler_id=? AND build_type='Release' AND modules='off' AND import_std='off' "
-        "AND size IS NULL AND persist=? AND output_mode IS NULL AND threads=? AND events_per_thread=? AND runs=? "
-        "AND batch IS NULL AND flag_count=? AND valgrind_tool IS NULL";
+        "AND size='' AND persist=? AND output_mode='' AND threads=? AND events_per_thread=? AND runs=? "
+        "AND batch=0 AND flag_count=? AND valgrind_tool=''";
     auto find = [&]() -> std::int64_t {
         std::int64_t id = 0; auto st = db.prepare(where);
         st.bind(compiler_id, persist, threads, events, runs, flags); if (st.step()) st.get(id); return id;
@@ -545,7 +545,7 @@ std::int64_t parameter_id_bench(jac313::Qlite::v002::Sqlite& db, std::int64_t co
     std::int64_t id = find();
     if (id == 0) {
         db.exec("INSERT INTO parameter(compiler_id,build_type,modules,import_std,size,persist,output_mode,threads,"
-                "events_per_thread,runs,batch,flag_count) VALUES(?, 'Release','off','off', NULL, ?, NULL, ?, ?, ?, NULL, ?)",
+                "events_per_thread,runs,batch,flag_count) VALUES(?, 'Release','off','off', '', ?, '', ?, ?, ?, 0, ?)",
                 compiler_id, persist, threads, events, runs, flags);
         id = find();
     }
@@ -593,13 +593,16 @@ void record_to_results_db(const Params& p, const BenchSummary& s) {
             static_cast<std::int64_t>(p.runs), flags);
         const std::int64_t bytes = (p.persist == "none") ? 0
                                  : static_cast<std::int64_t>(measure_output_bytes(p.base_name));
+        // status 'pass': a bench row is written only on success; duration_ms 0 (throughput is in the ops columns).
+        auto tx = db.transaction();   // the row + the safeness refresh commit together
         db.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms, "
-                "median_ops, low_ops, high_ops, avg_ops, stddev_ops, bytes) VALUES(?,?,?,?, NULL, NULL, ?,?,?,?,?, ?)",
+                "median_ops, low_ops, high_ops, avg_ops, stddev_ops, bytes) VALUES(?,?,?,?, 'pass', 0, ?,?,?,?,?, ?)",
                 run_id, test_type_id, test_list_id, param_id,
                 static_cast<std::int64_t>(s.median), static_cast<std::int64_t>(s.low),
                 static_cast<std::int64_t>(s.high), static_cast<std::int64_t>(s.avg),
                 static_cast<std::int64_t>(s.stddev), bytes);
         jac313::results::rebuild_safeness(db);   // refresh the safeness summary (read by report + verdict)
+        tx.commit();
     } catch (const std::exception& e) {
         std::cerr << "[results] record failed: " << e.what() << "\n";
     }

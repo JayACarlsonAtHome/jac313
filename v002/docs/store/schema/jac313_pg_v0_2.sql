@@ -42,7 +42,7 @@ COMMENT ON TABLE store.event IS
 CREATE TABLE IF NOT EXISTS results.test_type (
     id          bigint PRIMARY KEY,
     name        text UNIQUE NOT NULL,
-    description text
+    description text NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS results.test_list (
@@ -52,67 +52,70 @@ CREATE TABLE IF NOT EXISTS results.test_list (
 
 CREATE TABLE IF NOT EXISTS results.compiler (
     id      bigint PRIMARY KEY,
-    name    text,
-    version text,
-    major   integer,
+    name    text NOT NULL DEFAULT '',
+    version text NOT NULL DEFAULT '',
+    major   integer NOT NULL DEFAULT 0,
     UNIQUE (name, version)
 );
 
+-- An axis that does not apply is '' or 0 (results.db stores no NULL), so the UNIQUE really dedupes.
 CREATE TABLE IF NOT EXISTS results.parameter (
     id                 bigint PRIMARY KEY,
-    compiler_id        bigint,
-    build_type         text,
-    modules            text,
-    import_std         text,
-    size               text,
-    persist            text,
-    output_mode        text,
-    threads            integer,
-    events_per_thread  integer,
-    runs               integer,
-    batch              integer,
-    flag_count         integer,
-    valgrind_tool      text
+    compiler_id        bigint NOT NULL DEFAULT 0,
+    build_type         text NOT NULL DEFAULT '',
+    modules            text NOT NULL DEFAULT '',
+    import_std         text NOT NULL DEFAULT '',
+    size               text NOT NULL DEFAULT '',
+    persist            text NOT NULL DEFAULT '',
+    output_mode        text NOT NULL DEFAULT '',
+    threads            integer NOT NULL DEFAULT 0,
+    events_per_thread  integer NOT NULL DEFAULT 0,
+    runs               integer NOT NULL DEFAULT 0,
+    batch              integer NOT NULL DEFAULT 0,
+    flag_count         integer NOT NULL DEFAULT 0,
+    valgrind_tool      text NOT NULL DEFAULT '',
+    UNIQUE (compiler_id, build_type, modules, import_std, size, persist, output_mode, threads,
+            events_per_thread, runs, batch, flag_count, valgrind_tool)
 );
 
 -- v0_1 host_spec was a stub (hostname/kernel). Widen to sqlite host_spec.
-ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS cpu text;
-ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS cores integer;
-ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS p_cores integer;
-ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS ram_gb integer;
-ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS cpu_mhz_min integer;
-ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS cpu_mhz_max integer;
-ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS disk text;
-ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS instance_hash text;
-ALTER TABLE results.host_spec ALTER COLUMN instance_hash SET DEFAULT '';
+ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS cpu text NOT NULL DEFAULT '';
+ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS cores integer NOT NULL DEFAULT 0;
+ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS p_cores integer NOT NULL DEFAULT 0;
+ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS ram_gb integer NOT NULL DEFAULT 0;
+ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS cpu_mhz_min integer NOT NULL DEFAULT 0;
+ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS cpu_mhz_max integer NOT NULL DEFAULT 0;
+ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS disk text NOT NULL DEFAULT '';
+ALTER TABLE results.host_spec ADD COLUMN IF NOT EXISTS instance_hash text NOT NULL DEFAULT '';
 
 -- v0_1 run was a stub. Widen to sqlite run.
-ALTER TABLE results.run ADD COLUMN IF NOT EXISTS ts_utc text;
-ALTER TABLE results.run ADD COLUMN IF NOT EXISTS host text;
-ALTER TABLE results.run ADD COLUMN IF NOT EXISTS version text;
-ALTER TABLE results.run ADD COLUMN IF NOT EXISTS store_ver text;
-ALTER TABLE results.run ADD COLUMN IF NOT EXISTS qlite_ver text;
-ALTER TABLE results.run ADD COLUMN IF NOT EXISTS jtext_ver text;
+ALTER TABLE results.run ADD COLUMN IF NOT EXISTS ts_utc text NOT NULL DEFAULT '';
+ALTER TABLE results.run ADD COLUMN IF NOT EXISTS host text NOT NULL DEFAULT '';
+ALTER TABLE results.run ADD COLUMN IF NOT EXISTS version text NOT NULL DEFAULT '';
+ALTER TABLE results.run ADD COLUMN IF NOT EXISTS store_ver text NOT NULL DEFAULT '';
+ALTER TABLE results.run ADD COLUMN IF NOT EXISTS qlite_ver text NOT NULL DEFAULT '';
+ALTER TABLE results.run ADD COLUMN IF NOT EXISTS jtext_ver text NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS results.current_host (
     version  text PRIMARY KEY,
     group_id bigint NOT NULL
 );
 
+-- status: pass | fail | skip | error, 'built' / 'NA' (build), 'pass' (bench: rows exist only on success).
 CREATE TABLE IF NOT EXISTS results.test_run (
     id            bigint PRIMARY KEY,
-    run_id        bigint,
-    test_type_id  bigint,
-    test_list_id  bigint,
-    parameter_id  bigint,
-    status        text,
-    duration_ms   bigint,
-    median_ops    bigint,
-    low_ops       bigint,
-    high_ops      bigint,
-    avg_ops       bigint,
-    stddev_ops    bigint,
-    bytes         bigint
+    run_id        bigint NOT NULL DEFAULT 0,
+    test_type_id  bigint NOT NULL DEFAULT 0,
+    test_list_id  bigint NOT NULL DEFAULT 0,
+    parameter_id  bigint NOT NULL DEFAULT 0,
+    status        text NOT NULL DEFAULT '',
+    duration_ms   bigint NOT NULL DEFAULT 0,
+    median_ops    bigint NOT NULL DEFAULT 0,
+    low_ops       bigint NOT NULL DEFAULT 0,
+    high_ops      bigint NOT NULL DEFAULT 0,
+    avg_ops       bigint NOT NULL DEFAULT 0,
+    stddev_ops    bigint NOT NULL DEFAULT 0,
+    bytes         bigint NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS test_run_run ON results.test_run (run_id);
@@ -120,12 +123,12 @@ CREATE INDEX IF NOT EXISTS test_run_status ON results.test_run (status);
 
 CREATE TABLE IF NOT EXISTS results.run_event (
     id           bigint PRIMARY KEY,
-    run_id       bigint,
-    ts_utc       text,
-    test_name    text,
-    event        text,
-    message      text,
-    duration_ms  bigint
+    run_id       bigint NOT NULL DEFAULT 0,
+    ts_utc       text NOT NULL DEFAULT '',
+    test_name    text NOT NULL DEFAULT '',
+    event        text NOT NULL DEFAULT '',
+    message      text NOT NULL DEFAULT '',
+    duration_ms  bigint NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS run_event_run ON results.run_event (run_id);
@@ -135,20 +138,20 @@ CREATE TABLE IF NOT EXISTS results.safeness (
     version   text NOT NULL DEFAULT '',
     gate      text NOT NULL,
     compiler  text NOT NULL,
-    pass      integer,
-    fail      integer,
+    pass      integer NOT NULL DEFAULT 0,
+    fail      integer NOT NULL DEFAULT 0,
     PRIMARY KEY (group_id, version, gate, compiler)
 );
 
 CREATE TABLE IF NOT EXISTS results.io_best_fit (
     id         bigint PRIMARY KEY,
-    group_id   bigint,
-    type       text,
-    low_size   integer,
-    high_size  integer,
-    best_size  integer,
-    best_ops   bigint,
-    use_this   integer,
+    group_id   bigint NOT NULL DEFAULT 0,
+    type       text NOT NULL DEFAULT '',
+    low_size   integer NOT NULL DEFAULT 0,
+    high_size  integer NOT NULL DEFAULT 0,
+    best_size  integer NOT NULL DEFAULT 0,
+    best_ops   bigint NOT NULL DEFAULT 0,
+    use_this   integer NOT NULL DEFAULT 0,
     UNIQUE (group_id, type)
 );
 
@@ -156,7 +159,7 @@ CREATE TABLE IF NOT EXISTS results.package_version (
     group_id    bigint NOT NULL,
     version     text NOT NULL,
     package     text NOT NULL,
-    pkg_version text,
+    pkg_version text NOT NULL DEFAULT '',
     PRIMARY KEY (group_id, version, package)
 );
 
@@ -164,7 +167,7 @@ CREATE TABLE IF NOT EXISTS results.test_control (
     name         text PRIMARY KEY,
     timeout_sec  integer NOT NULL DEFAULT 300,
     memory_mb    integer NOT NULL DEFAULT 0,
-    description  text
+    description  text NOT NULL DEFAULT ''
 );
 
 -- GS Family join helper: latest safeness per machine/world/gate
