@@ -1,10 +1,14 @@
 # jac313 — shared results store
 
 This directory holds **`results.db`**, the single shared results database that
-every version (v001, v002, …) and — later — every machine writes to. It is the
-one source of truth; the path is resolved once into the `JAC313_RESULTS_DB`
-constant and read everywhere (the single seam to swap for an external/Postgres
-store later).
+every version (v001, v002, …) on this machine writes to. It is the one source of
+truth; the path is resolved once into the `JAC313_RESULTS_DB` constant and read
+everywhere (the single seam to swap for an external/Postgres store later).
+
+**Nothing here is committed except this page.** The database and the rendered
+report pages are this machine's own results and mean nothing to anyone else, so
+git ignores them (`.gitignore` at the repo root). The CLI creates the database
+when it is missing, and `--report` renders the pages again from it.
 
 The human-readable reports are **rendered per version** from this one DB by
 `jac313_test_cli --report` (each `--report` filters the shared DB to its own

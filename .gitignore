@@ -42,10 +42,8 @@ Thumbs.db
 # Jac313Runner GUI build output (jac313_test_cli gui-build -> <root>/gui/out/)
 gui/out/
 
-# Jac313Runner run summaries and "Copy for AI" reports: they name the PostgreSQL servers used
-/v*/test-summary/runner_last*.json
-/v*/test-summary/runner_last*.json.parts
-/v*/test-summary/*_ai.md
-
-# The shared results DB is local to each machine (the CLI creates it when missing)
+# Results are this machine's alone and mean nothing to anyone else: the shared results DB
+# (the CLI creates it when missing) and every rendered report page under a version's
+# test-summary/ stay local. Only test-summary/README.md at the root is tracked.
 test-summary/results.db
+/v*/test-summary/
