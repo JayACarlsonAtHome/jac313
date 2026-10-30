@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <span>
 #include <vector>
 #include <source_location>
 #include <string_view>
@@ -30,7 +31,6 @@ int main() {
 
     auto sink = std::make_unique<jac313::Store::v002::BinaryEventSink>(
         out.string(), 2, 2, jac313::Store::v002::PersistMode::All, 1 << 20);
-    jac313::Store::v002::DoubleBufferedWriter writer(std::move(sink), 4);
 
     jac313::Store::v002::PersistedEvent ev{};
     ev.event_id = 99;
@@ -41,8 +41,9 @@ int main() {
     ev.int_metrics = {11, 22};
     ev.dbl_metrics = {3.3, 4.4};
 
-    writer.submit_event(std::move(ev));
-    writer.finalize();
+    sink->write_batch(std::span{&ev, 1});
+    sink->flush();
+    sink->finalize();
 
     const std::string bin_path = out.string() + ".bin";
     check(fs::exists(bin_path), "fs::exists(bin_path)");
@@ -74,13 +75,13 @@ int main() {
         {
             auto bsink = std::make_unique<jac313::Store::v002::BinaryEventSink>(
                 big.string(), 0, 0, jac313::Store::v002::PersistMode::All, 64); // tiny initial buffer
-            jac313::Store::v002::DoubleBufferedWriter bwriter(std::move(bsink), 4);
             jac313::Store::v002::PersistedEvent bev{};
             bev.event_id = 1;
             bev.category = "big";
             bev.payload = big_payload;
-            bwriter.submit_event(std::move(bev));
-            bwriter.finalize();
+            bsink->write_batch(std::span{&bev, 1});
+            bsink->flush();
+            bsink->finalize();
         }
         jac313::Store::v002::BinaryEventLogReader breader(big.string() + ".bin");
         jac313::Store::v002::BinaryRecord brec{};

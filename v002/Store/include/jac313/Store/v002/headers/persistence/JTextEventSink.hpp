@@ -1,7 +1,7 @@
 #pragma once
 
 // JTextEventSink.hpp
-// Adapter that turns JTextSplitEventLog into an IEventSink for use with DoubleBufferedWriter.
+// Adapter that turns JTextSplitEventLog into an IEventSink for ts_store::attach_persistence.
 
 #include "EventSink.hpp"
 #include "JTextSplitEventLog.hpp"

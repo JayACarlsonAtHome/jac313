@@ -181,8 +181,7 @@ int main(int argc, char** argv) {
 
             auto routing_sink = std::make_unique<FlagRoutingEventSink>(
                 std::move(jtext_sink), std::move(sql_sink));
-            auto writer = std::make_unique<DoubleBufferedWriter>(std::move(routing_sink), 10'000);
-            store.attach_persistence(std::move(writer));
+            store.attach_persistence(std::move(routing_sink), 10'000);
         }
 
         auto [status, microseconds] = run_single_test(store, keeper_n, db_n);

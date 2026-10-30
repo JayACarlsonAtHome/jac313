@@ -5,7 +5,7 @@
 // Writes events as INSERTs (prepared statements) to SQLite DB.
 // For debug, can also write the equivalent INSERT statements as text to a .sql file
 // (so you can inspect/replay the straight SQL).
-// Designed to work with DoubleBufferedWriter for asynchronous background draining.
+// Fed in batches by ts_store's persistence worker (attach_persistence).
 
 #include "EventSink.hpp"
 #include "Sqlite.hpp"

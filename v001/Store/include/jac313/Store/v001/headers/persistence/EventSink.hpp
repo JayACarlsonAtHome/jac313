@@ -2,7 +2,7 @@
 
 // EventSink.hpp
 // Abstract interface for pluggable persistence backends (jText, Binary, SQL, etc.)
-// Designed to work with DoubleBufferedWriter for asynchronous background draining.
+// ts_store::attach_persistence hands a sink batches from its one persistence worker thread.
 
 #include <cstddef>
 #include <cstdint>
@@ -31,7 +31,7 @@ struct PersistedEvent {
 
 /// Abstract base for any persistence backend.
 /// Implementations must be thread-safe for the write_batch / flush calls
-/// (DoubleBufferedWriter guarantees that only one thread calls these at a time).
+/// (ts_store's persistence worker is the only thread that calls them).
 class IEventSink {
 public:
     virtual ~IEventSink() = default;

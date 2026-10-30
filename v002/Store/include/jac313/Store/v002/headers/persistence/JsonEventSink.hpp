@@ -1,7 +1,7 @@
 #pragma once
 
 // JsonEventSink.hpp
-// Adapter that turns JsonSplitEventLog into an IEventSink for use with DoubleBufferedWriter.
+// Adapter that turns JsonSplitEventLog into an IEventSink for ts_store::attach_persistence.
 
 #include "EventSink.hpp"
 #include "JsonSplitEventLog.hpp"

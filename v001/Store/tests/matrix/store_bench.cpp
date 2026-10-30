@@ -68,7 +68,7 @@ struct Params {
     std::size_t threads = 16;
     std::size_t events_per_thread = 20'000;
     std::size_t runs = 20;
-    std::size_t batch = 10'000;          // durable double-buffer batch
+    std::size_t batch = 10'000;          // durable persistence batch: rows per sink call
     std::string persist = "none";        // none | binary | jtext | html | json | sql | pg-local | pg-remote
     std::string base_name = "bench";
     std::uint64_t flags = 0;             // per-event user flag mask
@@ -246,7 +246,7 @@ bool do_workload(const Params& p, bool verify, bool readback = false) {
     if (p.persist != "none") {
         ensure_capture_parent_dir(p.base_name);
         if (auto sink = make_sink(p)) {
-            store.attach_persistence(std::make_unique<DoubleBufferedWriter>(std::move(sink), p.batch));
+            store.attach_persistence(std::move(sink), p.batch);
         } else {
             std::cerr << "ERROR: persist='" << p.persist << "' unavailable (SQL needs JAC313_STORE_HAS_SQL_PERSIST)\n";
             return false;
@@ -633,7 +633,7 @@ inline std::vector<std::size_t> build_batch_schedule(std::size_t lo, std::size_t
 }
 
 #ifdef JAC313_STORE_HAS_SQL_PERSIST
-// Per-machine durable-backend calibration. For each of binary/jtext/sql/html/json, sweep the double-buffer
+// Per-machine durable-backend calibration. For each of binary/jtext/sql/html/json, sweep the persistence batch
 // record size (batch) over a schedule under the same process-level timing as everything else, keeping
 // two running numbers: the best median ops/sec seen and the batch that produced it. useThis is that
 // PEAK batch — the record size at the max ops/sec — NOT an average. (The old "middle of the plateau
@@ -661,7 +661,7 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
     }
 
     std::cout << "\n===============================================================\n";
-    std::cout <<   "--- calibrating double buffer best size for this machine ---\n";
+    std::cout <<   "--- calibrating persistence batch best size for this machine ---\n";
     std::cout <<   "===============================================================\n";
     std::cout << "host " << jac313::results::host_label(gid) << " (group " << gid << ")"
               << "   threads=" << base.threads
@@ -697,7 +697,7 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
         //      the peak nor holes the plateau. Threshold and membership are computed on the smoothed curve.
         //   2. useThis = the SMALLEST batch within tol% of the smoothed peak (low_b), not the argmax. Every
         //      batch in [low_b..high_b] delivers the same real throughput; among those the smallest is
-        //      strictly better on secondary costs (less memory pinned in the double buffer, lower drain
+        //      strictly better on secondary costs (less memory pinned in the worker batch, lower drain
         //      latency, smaller tail-loss on crash) and is far more stable across runs.
         // best_batch/best_median stay as the RAW peak in the record/report for reference.
         std::vector<std::uint64_t> smoothed(medians.size(), 0);
@@ -936,7 +936,7 @@ int run_suite(Params base, bool dry, bool smoke) {
     // full: the recorded throughput benchmark. Allocate ONE results.db run_id up front so every
     // config in this suite shares it (that's what "ran together" means).
     if (!base.db_path.empty()) base.run_id = next_results_run_id(base.db_path);
-    // Announce the calibrated double-buffer sizes (io_best_fit.useThis) this run will use per durable
+    // Announce the calibrated persistence batch sizes (io_best_fit.useThis) this run will use per durable
     // backend — so the recorded numbers are tied to a visible batch (falls back to the default if a
     // backend isn't calibrated yet; run --calibrate to populate io_best_fit).
     std::cout << "durable batch (io_best_fit.useThis):";
@@ -949,7 +949,7 @@ int run_suite(Params base, bool dry, bool smoke) {
         p.persist = cf.persist; p.flags = flags_by_count(cf.flags); p.label = cf.label;
         p.events_per_thread = cf.evt; p.runs = cf.runs;
         if (retaining && cf.persist != "none") p.base_name = suite_persist_base(base, cf.persist, cf.label);
-        // Durable configs run at this machine's calibrated double-buffer size (io_best_fit.useThis);
+        // Durable configs run at this machine's calibrated persistence batch size (io_best_fit.useThis);
         // falls back to the default batch when uncalibrated. Non-durable has no writer, so batch is moot.
         if (cf.persist != "none") p.batch = static_cast<std::size_t>(calibrated_use(base.db_path, cf.persist, static_cast<std::int64_t>(base.batch)));
         std::cout << "\n=== " << cf.label << " ===";

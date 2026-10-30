@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <span>
 
 namespace fs = std::filesystem;
 
@@ -17,7 +18,6 @@ int main() {
 
     auto sink = std::make_unique<jac313::Store::v001::HtmlEventSink>(
         out.string(), 2, 2, jac313::Store::v001::PersistMode::All);
-    jac313::Store::v001::DoubleBufferedWriter writer(std::move(sink), 4);
 
     jac313::Store::v001::PersistedEvent ev{};
     ev.event_id = 1;
@@ -28,8 +28,9 @@ int main() {
     ev.int_metrics = {10, 20};
     ev.dbl_metrics = {1.5, 2.5};
 
-    writer.submit_event(std::move(ev));
-    writer.finalize();
+    sink->write_batch(std::span{&ev, 1});
+    sink->flush();
+    sink->finalize();
 
     if (!fs::exists(out.string() + ".html")) {
         std::cerr << "expected main .html file\n";

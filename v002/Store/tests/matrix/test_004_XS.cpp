@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
     LogxStore  safepay(THREADS, EVENTS_PER_THREAD);
     LogResult  results(THREADS, 1);
 
-    // Attach double-buffered (asynchronous) persistence to the main event store.
+    // Attach asynchronous persistence (the worker reads the rows in place) to the main event store.
     // (Results store is small summary info; we focus persist on the bulk "safepay" traffic.)
     {
         if (!attach_persistence_from_opts<LogConfigxMainx>(safepay, _opts)) return 1;

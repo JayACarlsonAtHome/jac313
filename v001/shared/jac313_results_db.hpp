@@ -215,7 +215,7 @@ inline void create_results_tables(Sqlite& db) {
             "  , fail INTEGER NOT NULL DEFAULT 0\n"
             "  , PRIMARY KEY(group_id, version, gate, compiler)\n"
             ")");
-    // io_best_fit = the per-machine durable double-buffer calibration for each backend. The peak of a
+    // io_best_fit = the per-machine durable persistence batch calibration for each backend. The peak of a
     // batch sweep is noisy, so we record the PLATEAU: low_size/high_size are the batch sizes at the
     // bottom/top of the near-peak band, and useThis is a robust pick in the MIDDLE of that band (what
     // the recorded bench actually runs at). best_size/best_ops are the raw peak (batch + median ops/sec)

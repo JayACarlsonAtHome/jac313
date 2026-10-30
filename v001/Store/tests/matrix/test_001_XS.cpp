@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
 
     LogxStore prod(threads, events);
 
-    // Attach double-buffered (asynchronous) persistence for this test run.
+    // Attach asynchronous persistence (the worker reads the rows in place) for this test run.
     // Chosen via --persist binary|jtext (default jtext). --base-name can override the
     // output file prefix (runner uses this to place files under test_results/*/TS_STORE_TEST_.../).
     {

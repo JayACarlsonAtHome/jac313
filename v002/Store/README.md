@@ -17,7 +17,7 @@ strengths + weaknesses; a good target for AI-assisted exploration against your w
 - [**Categories**](../docs/store/categories.md) — `bounded_string`, UTF-8 codepoint sizing of category + payload
 - [**Flags**](../docs/store/flags.md) — the complete `StoreFlags` catalog: every bit + meaning + honest wired/advisory/placeholder status
 - [**Routing**](../docs/store/bitmaps.md) — how flags + `PersistMode` route events (keeper/database masks)
-- [**Persistence**](../docs/store/persistence.md) — the sinks (binary, jText, HTML, JSON, SQL, flag-routing) + double-buffered drain
+- [**Persistence**](../docs/store/persistence.md) — the sinks (binary, jText, HTML, JSON, SQL, flag-routing) + the persistence worker (a sliding view over the rows)
 - [**Reporting**](../docs/store/reporting.md) — reading the logs back: jText, HTML, JSON, SQL, binary + readers
 - [**Log viewer (planned)**](../docs/store/log-viewer-plan.md) — wxWidgets browser for large captures; sidecar index for 1M/10M scale
 

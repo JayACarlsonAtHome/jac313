@@ -1,7 +1,7 @@
 # Store — Persistence (the sinks)
 
 Where logged events go for durability — the `IEventSink` interface, four backends, the
-double-buffered drain, and how [jText](../../jText/README.md) and
+persistence worker that reads the rows in place, and how [jText](../../jText/README.md) and
 [Qlite](../../jText/README.md) (brought in by jText) are *used by* Store.
 
 ← [Store docs index](../../Store/README.md) · [main README](../../README.md) ·
@@ -22,12 +22,17 @@ virtual void finalize() = 0;     // close files, commit transactions
 A `PersistedEvent` is the flat record: ids, flags, category, payload, `timestamp_us`, and the
 int/double metric arrays.
 
-## Double-buffered drain
+## The persistence worker (a sliding view)
 
-`DoubleBufferedWriter` (`persistence/DoubleBufferedWriter.hpp`) sits between the
-[hot path](logging.md) and a sink: the logger appends to an active buffer; when it fills (default
-**10k** events) the buffers swap and a worker thread drains the full one to the sink and flushes.
-Amortized O(1) per event, and the logger never blocks on sink I/O.
+`ts_store::attach_persistence(sink, batch_size = 10'000)` starts one worker thread
+(`impl_details/persist_worker.hpp`). The rows are preallocated and never overwritten within a run,
+so the worker reads them **in place**: the [hot path](logging.md)'s last statement marks its row
+ready (a release store) and that is all it does for persistence — no copy, no queue, no lock. The
+worker keeps a watermark (the next id not yet persisted), takes the contiguous run of ready rows
+from there (at most `batch_size`, capped by `max_persist_rows`), copies them into one reusable
+batch, hands it to the sink and advances; with nothing ready it waits ~1 ms.
+`finalize_persistence()` writes every saved row and finalizes the sink. A sink exception latches
+`persistence_failed()`; the watermark keeps moving, so no producer ever waits on the sink.
 
 ---
 
@@ -56,7 +61,7 @@ the binary sink and neither sibling is invoked.
 
 - **Pick your trade-off per sink:** speed (binary), readability (jText / HTML / JSON), queryability (SQL) — or
   several at once via flag routing.
-- **Non-blocking** logging regardless of sink speed (double-buffered).
+- **Non-blocking** logging regardless of sink speed (the worker reads the rows in place).
 - **Clean `IEventSink` seam** — adding a backend is implementing three methods.
 
 ## Weaknesses / footguns

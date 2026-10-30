@@ -57,9 +57,9 @@ size the store to your record, not the other way round.
   into the pre-sized row — no locks, no allocations.
 - **Capacity is pre-allocated** at construction (`max_threads × events_per_thread` rows); a
   `sysinfo` RAM check warns/exits if the box can't hold it.
-- **Persistence is decoupled.** If a `DoubleBufferedWriter` is attached, each saved event is
-  submitted to a background drain queue **non-blocking** to the caller — the log call returns at
-  memory speed regardless of how slow the sink is. See [persistence](persistence.md).
+- **Persistence is decoupled.** With persistence attached, `save_event` only marks its row ready
+  (one release store); a single worker thread reads the rows in place and feeds the sink, so the
+  log call returns at memory speed regardless of how slow the sink is. See [persistence](persistence.md).
 
 ---
 
@@ -67,7 +67,7 @@ size the store to your record, not the other way round.
 
 - Predictable, allocation-free hot path with a compile-time-known footprint — no runtime surprises.
 - Wait-free atomic slot assignment: many threads log concurrently without contention.
-- Persistence never blocks the logger (double-buffered drain).
+- Persistence never blocks the logger (the worker reads the rows in place; nothing is queued).
 
 ## Weaknesses / footguns
 

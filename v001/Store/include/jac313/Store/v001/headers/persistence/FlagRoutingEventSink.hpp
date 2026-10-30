@@ -4,11 +4,12 @@
 // Routes each batch to file and/or SQL sinks based on per-event user flags.
 // KeeperRecord (bit 1) → file_sink (use PersistMode::KeeperOnly on the inner sink).
 // DatabaseEntry (bit 2) → sql_sink (use PersistMode::DatabaseOnly on the inner sink).
+// Both inner sinks get the same batch, uncopied: each one skips the events its PersistMode
+// excludes, which is what does the routing.
 
 #include "EventSink.hpp"
 
 #include <memory>
-#include <vector>
 
 namespace jac313::Store::v001 {
 
@@ -22,30 +23,8 @@ public:
 
     void write_batch(std::span<const PersistedEvent> batch) override {
         if (batch.empty()) return;
-
-        static constexpr uint64_t KEEPER_MASK    = 1ULL << 1;
-        static constexpr uint64_t DATABASE_MASK  = 1ULL << 2;
-
-        std::vector<PersistedEvent> file_batch;
-        std::vector<PersistedEvent> sql_batch;
-        file_batch.reserve(batch.size());
-        sql_batch.reserve(batch.size());
-
-        for (const auto& e : batch) {
-            if ((e.flags & KEEPER_MASK) != 0) {
-                file_batch.push_back(e);
-            }
-            if ((e.flags & DATABASE_MASK) != 0) {
-                sql_batch.push_back(e);
-            }
-        }
-
-        if (!file_batch.empty() && file_sink_) {
-            file_sink_->write_batch(file_batch);
-        }
-        if (!sql_batch.empty() && sql_sink_) {
-            sql_sink_->write_batch(sql_batch);
-        }
+        if (file_sink_) file_sink_->write_batch(batch);
+        if (sql_sink_)  sql_sink_->write_batch(batch);
     }
 
     void flush() override {

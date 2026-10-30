@@ -1,7 +1,7 @@
 #pragma once
 
 // BinaryEventSink.hpp
-// Adapter that turns BinaryEventLog into an IEventSink for use with DoubleBufferedWriter.
+// Adapter that turns BinaryEventLog into an IEventSink for ts_store::attach_persistence.
 
 #include "EventSink.hpp"
 #include "BinaryEventLog.hpp"

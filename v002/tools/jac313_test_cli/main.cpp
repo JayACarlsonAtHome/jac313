@@ -2626,7 +2626,7 @@ int run_everything_command(const GlobalOptions& global) {
         step("configure bench " + cc, CLI + " configure --release --build-dir " + dir + " --compiler " + cc);
         step("build bench " + cc,     "cmake --build " + dir + " --target jac313_store_bench");
     }
-    // Calibrate the per-machine durable double-buffer sizes (io_best_fit) AFTER the smoke gate (the host
+    // Calibrate the per-machine durable persistence batch sizes (io_best_fit) AFTER the smoke gate (the host
     // is pinned by the ctest/smoke recorders by now) and BEFORE the recorded suite, so each --suite below
     // runs at the calibrated useThis. I/O batch is hardware-bound (not compiler-bound), so calibrate ONCE
     // with the gcc bench binary. --calibrate ensure_schema's the io_best_fit table itself (this machine's

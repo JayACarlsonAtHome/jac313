@@ -183,9 +183,9 @@ void run_special(const std::string& backend, const fs::path& dir) {
     RbStore store(1, kSpecialRows);
 #ifdef JAC313_STORE_HAS_SQL_PERSIST
     if (backend == "sql") {   // with the debug .sql file, to replay it below
-        store.attach_persistence(std::make_unique<DoubleBufferedWriter>(
+        store.attach_persistence(
             std::make_unique<SqlEventSink>(base, RbConfig::the_IntMetrics, RbConfig::the_DblMetrics,
-                                           PersistMode::All, true), 10'000));
+                                           PersistMode::All, true), 10'000);
     }
 #endif
     if (backend != "sql") {

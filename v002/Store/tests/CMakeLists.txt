@@ -12,6 +12,15 @@ if(JAC313_STORE_BUILD_TESTS)
         set_tests_properties(jac313_store_contracts_test PROPERTIES DISABLED TRUE)
     endif()
 
+    # Persistence reads the rows in place: every id once, in order; failure latch; cap; clear guard.
+    add_executable(jac313_store_persist_view_test persist_view_test.cpp)
+    target_link_libraries(jac313_store_persist_view_test PRIVATE jac313::Store)
+    if(JAC313_CONTRACTS_TERMINATE)   # the clear() guard is a contract: only checked when it terminates
+        target_compile_definitions(jac313_store_persist_view_test PRIVATE JAC313_PV_CONTRACTS_TERMINATE=1)
+    endif()
+    add_test(NAME jac313_store_persist_view_test COMMAND jac313_store_persist_view_test)
+    set_tests_properties(jac313_store_persist_view_test PROPERTIES TIMEOUT 120)
+
     add_executable(jac313_store_metric_view_test metric_view_test.cpp)
     target_link_libraries(jac313_store_metric_view_test PRIVATE jac313::Store)
     add_test(NAME jac313_store_metric_view_test COMMAND jac313_store_metric_view_test)

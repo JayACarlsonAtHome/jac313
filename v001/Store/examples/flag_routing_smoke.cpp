@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <span>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -46,12 +47,16 @@ int main() {
 
     auto routing_sink = std::make_unique<jac313::Store::v001::FlagRoutingEventSink>(
         std::move(file_sink), std::move(sql_sink));
-    jac313::Store::v001::DoubleBufferedWriter writer(std::move(routing_sink), 4);
 
-    writer.submit_event(make_event(1, kKeeperFlag, "keeper-only"));
-    writer.submit_event(make_event(2, kDatabaseFlag, "database-only"));
-    writer.submit_event(make_event(3, kKeeperFlag | kDatabaseFlag, "both"));
-    writer.finalize();
+    // One batch through the router: each inner sink keeps only the events its PersistMode takes.
+    const std::vector<jac313::Store::v001::PersistedEvent> events{
+        make_event(1, kKeeperFlag, "keeper-only"),
+        make_event(2, kDatabaseFlag, "database-only"),
+        make_event(3, kKeeperFlag | kDatabaseFlag, "both"),
+    };
+    routing_sink->write_batch(events);
+    routing_sink->flush();
+    routing_sink->finalize();
 
     if (!fs::exists(out.string() + ".bin")) {
         std::cerr << "expected .bin file from KeeperRecord routing\n";

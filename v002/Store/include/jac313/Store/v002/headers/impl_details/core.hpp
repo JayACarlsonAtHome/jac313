@@ -71,36 +71,41 @@ save_event(size_t thread_id,
 
     // (no rows_[id] = move; we wrote directly into the slot)
 
-    if (persistence_writer_ && (max_persist_rows_ == 0 || id < max_persist_rows_)) {
-        persistence_writer_->submit_event(persisted_event(id));
-    }
-
+    // Last: publish the row. The persistence worker reads it in place once it sees this mark.
+    JAC313_HAPPENS_BEFORE(&row.ready);
+    row.ready.store(epoch_.load(std::memory_order_relaxed), std::memory_order_release);
     return {true, id};
 }
 
-// persisted_event() — the exact PersistedEvent the persistence writer receives for row `id`.
-// Used by save_event and by read-back verification, which compares what a backend stored
-// against this. Precondition: id < rows_.size() and the row has been written.
-inline PersistedEvent persisted_event(size_t id) const
+// fill_persisted_event() — row `id` as the PersistedEvent a sink receives, written into `pe`.
+// Assigns into pe's strings and vectors, so a reused PersistedEvent keeps its capacity (the
+// persistence worker's batch allocates nothing after warm-up).
+inline void fill_persisted_event(size_t id, PersistedEvent& pe) const
 {
-    JAC313_PRE(id < rows_.size());
     const auto& stored = rows_[id];
-
-    PersistedEvent pe;
     pe.event_id             = id;                    // global stable ID (good linking key)
     pe.thread_id            = stored.thread_id;
     pe.per_thread_event_id  = stored.event_id;       // the caller's per-thread id
     pe.flags                = stored.event_flags;
-    pe.category             = stored.category_storage.str();  // copy out to PersistedEvent's std::string (persist path only)
-    pe.payload              = stored.value_storage.str();
-
+    pe.category.assign(stored.category_storage.view());
+    pe.payload.assign(stored.value_storage.view());
     if constexpr (Config::use_timestamps) {
         pe.timestamp_us = stored.ts_us;
+    } else {
+        pe.timestamp_us = 0;
     }
-
-    // Copy metrics (small fixed arrays)
     pe.int_metrics.assign(stored.int_metrics.begin(), stored.int_metrics.end());
     pe.dbl_metrics.assign(stored.dbl_metrics.begin(), stored.dbl_metrics.end());
+}
+
+// persisted_event() — the exact PersistedEvent the persistence worker hands the sink for row
+// `id`. Read-back verification compares what a backend stored against this.
+// Precondition: id < rows_.size() and the row has been written.
+inline PersistedEvent persisted_event(size_t id) const
+{
+    JAC313_PRE(id < rows_.size());
+    PersistedEvent pe;
+    fill_persisted_event(id, pe);
     return pe;
 }
 

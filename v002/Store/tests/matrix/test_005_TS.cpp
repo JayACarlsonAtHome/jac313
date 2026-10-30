@@ -151,7 +151,7 @@ int main(int argc, char** argv)
 
     // To keep captured log files reasonable in size (especially with --output on / live mode),
     // we only emit per-run progress + timing on the *last* iteration.
-    // For persist modes, *only the last run* attaches the DoubleBufferedWriter + sink,
+    // For persist modes, *only the last run* attaches the sink (persistence worker),
     // so the .bin / .jtext artifacts contain data from only the final run.
     // All runs do the full work + structural verification.
     // The final summary stats (min/max/avg across all runs) are still printed once at the end.

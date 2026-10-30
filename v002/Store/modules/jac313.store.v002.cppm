@@ -23,7 +23,6 @@ export namespace jac313::Store::v002 {
     using jac313::Store::v002::bounded_string;
     using jac313::Store::v002::ts_store;
     using jac313::Store::v002::ts_store_config;
-    using jac313::Store::v002::DoubleBufferedWriter;
     using jac313::Store::v002::IEventSink;
     using jac313::Store::v002::PersistedEvent;
     using jac313::Store::v002::PersistMode;

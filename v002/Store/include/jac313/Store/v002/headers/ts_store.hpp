@@ -5,7 +5,25 @@
 #include "includes.hpp"
 #include "sat_compat.hpp"
 
-#include "persistence/DoubleBufferedWriter.hpp"
+#include "persistence/EventSink.hpp"
+
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <span>
+#include <thread>
+#include <unistd.h>   // ::write(2, ...) — the persistence worker's fail-safe error line
+
+// The rows reach the persistence worker through a release/acquire pair on row_data::ready, which
+// helgrind/DRD do not model as happens-before. Builds with -DJAC313_HELGRIND_ANNOTATE tell them.
+#if defined(JAC313_HELGRIND_ANNOTATE)
+#  include <valgrind/helgrind.h>
+#  define JAC313_HAPPENS_BEFORE(addr) ANNOTATE_HAPPENS_BEFORE(addr)
+#  define JAC313_HAPPENS_AFTER(addr)  ANNOTATE_HAPPENS_AFTER(addr)
+#else
+#  define JAC313_HAPPENS_BEFORE(addr) ((void)0)
+#  define JAC313_HAPPENS_AFTER(addr)  ((void)0)
+#endif
 
 #include <numeric>  // jac313::mul_sat / jac313::add_sat (C++26): overflow-safe capacity math
 #include <fstream>  // for MemAvailable probe
@@ -58,6 +76,9 @@ private:
         Config::CategoryT category_storage{};
         Config::ValueT    value_storage{};
         std::conditional_t<Config::use_timestamps, uint64_t, std::monostate> ts_us{};
+        // The epoch in which save_event finished writing this row (0 = never). Its release store is
+        // save_event's last statement; the persistence worker reads the row once it sees it.
+        std::atomic<uint32_t> ready{};
     };
 
     const size_t max_threads_;
@@ -107,45 +128,65 @@ public:
         return jac313::mul_sat(max_threads_, events_per_thread_);
     }
     void clear() {
-        // Ids restart at 0. Once events went to an attached writer, the next ones would repeat
+        // Ids restart at 0. Once events went to attached persistence, the next ones would repeat
         // ids already written: SQLite's INSERT OR IGNORE drops them without a word, and the
-        // file logs hold duplicates.
-        JAC313_PRE(!persistence_writer_ || persistence_writer_->submitted() == 0);
+        // file logs hold duplicates. A saved event is on its way to the sink even before the
+        // worker has taken it, so any event saved since attach refuses, not only a persisted one.
+        JAC313_PRE(!persist_ || (persist_->persisted() == persist_->start_id()
+                                 && next_id_.load(std::memory_order_relaxed) == persist_->start_id()));
         next_id_.store(0, std::memory_order_relaxed);
+        // A new epoch: the rows of the last one no longer count as ready.
+        const uint32_t e = epoch_.load(std::memory_order_relaxed) + 1;
+        epoch_.store(e == 0 ? 1 : e, std::memory_order_relaxed);
+        if (persist_) persist_->restart_at_zero();
         // rows_ is intentionally NOT cleared — next_id_=0 is the logical reset; the fixed buffer is
         // reused (entries are overwritten on the next write), avoiding reallocation.
     }
 
-    /// Attach a DoubleBufferedWriter (with any IEventSink: JTextEventSink, BinaryEventSink, or future SQL).
-    /// Events will be submitted to the background writer after every successful save_event.
-    /// This enables true double-buffered asynchronous persistence while keeping the hot path fast.
-    void attach_persistence(std::unique_ptr<DoubleBufferedWriter> writer) {
-        persistence_writer_ = std::move(writer);
+    /// Persist the saved events through `sink` (JTextEventSink, BinaryEventSink, SqlEventSink, ...).
+    /// One worker thread reads the rows in place, `batch_size` rows per sink call; save_event only
+    /// marks its row ready (no copy, no lock). Events saved from now on are persisted; a clear()
+    /// right after attaching (nothing saved yet) restarts them at id 0.
+    void attach_persistence(std::unique_ptr<IEventSink> sink, size_t batch_size = 10'000) {
+        if (!sink) throw std::invalid_argument("ts_store::attach_persistence requires a non-null sink");
+        persist_.reset();
+        persist_ = std::make_unique<persist_worker>(*this, std::move(sink), batch_size,
+                                                    next_id_.load(std::memory_order_relaxed));
     }
 
-    /// Drain and finalize the background persistence worker (for tests that inspect sink output).
+    /// Write every row that is ready now, then flush the sink.
+    void flush_persistence() {
+        if (persist_) persist_->flush();
+    }
+
+    /// Write every saved row, flush and finalize the sink, stop the worker. Call it after the
+    /// producer threads joined: a row that is still not ready after 10 s throws std::runtime_error.
     void finalize_persistence() {
-        if (persistence_writer_) {
-            persistence_writer_->finalize();
-        }
+        if (persist_) persist_->finalize();
     }
 
-    /// True when the attached writer's sink failed: the events since then were dropped.
+    /// True when the sink failed: the events since then were dropped.
     [[nodiscard]] bool persistence_failed() const noexcept {
-        return persistence_writer_ && persistence_writer_->failed();
+        return persist_ && persist_->failed();
+    }
+
+    /// Rows handed to the sink so far.
+    [[nodiscard]] size_t persisted_rows() const noexcept {
+        return persist_ ? persist_->persisted() - persist_->start_id() : 0;
     }
 
     /// Persist at most `n` rows: only events with global id < n are handed to the persistence
     /// writer (0 = no limit, the default). The in-memory store still takes every event, so the
     /// hot path is exercised at full size while a test or proof run writes a bounded dataset.
     /// Ids are assigned 0, 1, 2, ... so the persisted set is exactly ids [0, n) every run.
-    void set_max_persist_rows(size_t n) noexcept { max_persist_rows_ = n; }
-    [[nodiscard]] size_t max_persist_rows() const noexcept { return max_persist_rows_; }
+    void set_max_persist_rows(size_t n) noexcept { max_persist_rows_.store(n, std::memory_order_relaxed); }
+    [[nodiscard]] size_t max_persist_rows() const noexcept { return max_persist_rows_.load(std::memory_order_relaxed); }
 
     /// Number of rows the attached persistence receives for a full run: min(events, limit).
     [[nodiscard]] size_t expected_persisted_rows() const noexcept {
         const size_t n = std::min(next_id_.load(std::memory_order_relaxed), expected_size());
-        return (max_persist_rows_ == 0) ? n : std::min(n, max_persist_rows_);
+        const size_t cap = max_persist_rows();
+        return (cap == 0) ? n : std::min(n, cap);
     }
 
     explicit ts_store(size_t max_threads, size_t events_per_thread)
@@ -195,7 +236,8 @@ public:
                 total_est >> 20, avail >> 20));
         }
 
-        rows_.resize(expected_size());
+        // Built in place, not resized: row_data holds an atomic, so it cannot be moved.
+        rows_ = decltype(rows_)(N);
         // bounded_string members are inline fixed char arrays — no per-row .reserve needed.
         // Storage is fully preallocated by the above resize.
 
@@ -211,14 +253,21 @@ private:
         std::chrono::steady_clock::time_point::min()
     };
     std::atomic<size_t> next_id_{0};
+    std::atomic<uint32_t> epoch_{1};   // a row is ready when its mark equals this; clear() bumps it
     // row_data's value-initialized state is all-zero bytes and it needs no destructor, which is
-    // what lets zeroed_row_allocator skip construction (see above).
+    // what lets zeroed_row_allocator skip construction (see above). An all-zero ready mark is
+    // epoch 0, which is never current: a fresh row is not ready.
     static_assert(std::is_trivially_destructible_v<row_data>);
     static_assert(std::is_aggregate_v<row_data>);
+    static_assert(std::is_trivially_destructible_v<std::atomic<uint32_t>>);
+    static_assert(std::atomic<uint32_t>::is_always_lock_free);
     std::vector<row_data, zeroed_row_allocator<row_data>> rows_;
 
-    std::unique_ptr<DoubleBufferedWriter> persistence_writer_;
-    size_t max_persist_rows_ = 0;   // 0 = no limit (see set_max_persist_rows)
+    std::atomic<size_t> max_persist_rows_{0};   // 0 = no limit (see set_max_persist_rows)
+
+    #include "impl_details/persist_worker.hpp"
+    // Declared after rows_ (and everything it reads), so it is finalized and joined before they go.
+    std::unique_ptr<persist_worker> persist_;
 
 public:
     static constexpr bool debug_mode_v = Config::debug_mode;

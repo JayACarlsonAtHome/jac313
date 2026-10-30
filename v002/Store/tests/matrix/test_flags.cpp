@@ -16,7 +16,7 @@ using namespace jac313::Store::v002;
 
 int main(int argc, char** argv) {
     auto _opts = parse_test_options(argc, argv);
-    (void)_opts;  // flags test does not use persist/double-buffer; parse for CLI compatibility with runner
+    (void)_opts;  // flags test does not use persistence; parse for CLI compatibility with runner
     std::cout << "Running StoreFlags standalone tests...\n\n";
 
     StoreFlags flags(0);

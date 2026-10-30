@@ -130,8 +130,7 @@ bool attach_persistence_from_opts(Store& prod, const TestOptions& opts) {
     auto sink = make_persistence_sink(ptype, bname, im, dm, PersistMode::All);
     if (!sink) return false;
 
-    auto writer = std::make_unique<DoubleBufferedWriter>(std::move(sink), 10'000);
-    prod.attach_persistence(std::move(writer));
+    prod.attach_persistence(std::move(sink), 10'000);
     prod.set_max_persist_rows(opts.max_persist_rows);
     return true;
 }

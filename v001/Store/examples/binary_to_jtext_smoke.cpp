@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <span>
 
 namespace fs = std::filesystem;
 
@@ -18,7 +19,6 @@ int main() {
 
     auto sink = std::make_unique<jac313::Store::v001::BinaryEventSink>(
         out.string(), 2, 2, jac313::Store::v001::PersistMode::All, 1 << 20);
-    jac313::Store::v001::DoubleBufferedWriter writer(std::move(sink), 4);
 
     jac313::Store::v001::PersistedEvent ev{};
     ev.event_id = 42;
@@ -29,8 +29,9 @@ int main() {
     ev.int_metrics = {7, 8};
     ev.dbl_metrics = {1.1, 2.2};
 
-    writer.submit_event(std::move(ev));
-    writer.finalize();
+    sink->write_batch(std::span{&ev, 1});
+    sink->flush();
+    sink->finalize();
 
     const std::string bin_path = out.string() + ".bin";
     jac313::Store::v001::BinaryEventLogReader reader(bin_path);

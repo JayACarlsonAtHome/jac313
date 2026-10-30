@@ -56,19 +56,17 @@ sink, HTML sink, JSON sink + reader, SQL/SQLite sink, flag routing, metric view 
 
 ## The lock-free boundary (an architectural finding)
 
-The whole Store has **exactly one mutex + condition variable**, both in
-`DoubleBufferedWriter`. The in-memory core never locks:
+The whole Store's only mutex and condition variables are in the persistence worker
+(`impl_details/persist_worker.hpp`), and producers never touch them:
 
 | Path | Synchronization | Lock-free? |
 |------|-----------------|------------|
 | In-memory only (`--persist=none`) | atomics only — `fetch_add` id, atomic epoch, unique-slot write | **Yes** |
-| With persistence | every event calls `submit_event()` → takes `buffer_mutex_` | **No** — one mutex acquisition per event |
+| With persistence | `save_event` release-stores its row's ready mark; the worker acquire-loads it and reads the row in place | **Yes** — no lock on the producer side |
 
-So "lock-free" holds for the in-memory store; persistence bolts a mutex-guarded
-double-buffered writer onto the producer side. This is a reasonable design — the lock is
-held only to append into a buffer (microseconds), while a background worker does the slow
-file/SQL I/O outside the lock. The trade-off is that producer threads contend on one mutex
-per event, which serializes submission at high thread counts versus a truly lock-free queue.
+So "lock-free" holds for the producers with or without persistence. The worker's mutex only
+guards flush / finalize requests and its 1 ms idle wait. (Up to Store v001.013 / v002.019 a
+double-buffered writer took one mutex per event on the producer side; it is gone.)
 
 ## Findings
 
@@ -105,14 +103,12 @@ This also confirmed a contract: **`store.select()` has no internal synchronizati
 a slot's write and its read — it is only safe on *completed* ids. The store is fine; the
 test was violating that contract.
 
-### 2. A benign "dubious" warning in the writer shutdown — **cleaned up**
+### 2. The persistence handoff — annotated
 
-`DoubleBufferedWriter::stop()` called `cv_.notify_one()` *after* releasing the mutex. The
-predicate (`stop_requested_`) is set under the lock and the worker re-checks it under the
-lock, so this was the correct, idiomatic notify-without-lock pattern — no lost wakeup. But
-the thread checkers flag it ("dubious: associated lock not held") because they can't prove
-the predicate was published under lock. Moved the `notify_one()` inside the lock scope —
-silences the warning, no behavior change.
+The persistence worker reads rows that producers published with a release store of
+`row_data::ready`. Builds with `JAC313_HELGRIND_ANNOTATE` mark that edge
+(`ANNOTATE_HAPPENS_BEFORE` / `ANNOTATE_HAPPENS_AFTER` on the ready mark, `ts_store.hpp`), so
+helgrind/DRD see it like the tail-reader handoff below.
 
 ## Why a residual flag remains (and the annotation)
 
@@ -140,12 +136,11 @@ valgrind --tool=helgrind build-hg/Store/tests/matrix/jac313_store_003_TS --no-in
 |---------|--------|-------|
 | memcheck (22 binaries) | clean | clean |
 | 003 / 006 (helgrind & DRD) | 200 err, 2 contexts | **0** (code fix + annotation) |
-| Writer dubious-notify (008 + binary/jtext/html/json/sql) | 1 err each | **0** |
 | Lock-free path 001/002/004/005/007 | 0 | 0 |
 | `ctest` (gcc-15 Debug) | 30/30 | **30/30** |
 | 003/006 functional (native) | 100 hits / 0 misses | 100 hits / 0 misses |
 
-The real data race is fixed and verified; the cosmetic dubious-notify is fixed; and the
+The real data race is fixed and verified, and the
 tool blind-spot on lock-free atomics is annotated away. (Commit `ee0058c`.)
 
 ## The gate (`verify-lite` / `verify`)
