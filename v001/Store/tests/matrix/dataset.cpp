@@ -184,7 +184,11 @@ int main(int argc, char** argv) {
                                             std::to_string(r.per_thread_event_id), std::format("0x{:016x}", r.flags),
                                             r.category, r.payload, std::to_string(r.timestamp_us)};
             for (size_t k = 0; k < ic; ++k) row.push_back(std::to_string(k < r.int_metrics.size() ? r.int_metrics[k] : 0));
-            for (size_t k = 0; k < dc; ++k) row.push_back(std::format("{}", k < r.dbl_metrics.size() ? r.dbl_metrics[k] : 0.0));
+            for (size_t k = 0; k < dc; ++k) {
+                std::string d;
+                append_double(d, k < r.dbl_metrics.size() ? r.dbl_metrics[k] : 0.0);   // exact, as stored
+                row.push_back(std::move(d));
+            }
             w.append_row(1, row);
             w.end_record();
         }

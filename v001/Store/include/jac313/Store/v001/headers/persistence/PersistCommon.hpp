@@ -1,9 +1,12 @@
 #pragma once
 
+#include <charconv>
+#include <cmath>
 #include <filesystem>
 #include <chrono>
 #include <format>
 #include <fstream>
+#include <limits>
 #include <ostream>
 #include <stdexcept>
 #include <string>
@@ -50,6 +53,31 @@ inline std::string sanitize_identifier(std::string_view s) {
     while (!out.empty() && out.back() == '_') out.pop_back();
     if (out.empty() || (out[0] >= '0' && out[0] <= '9')) out.insert(0, "t_");
     return out;
+}
+
+// A double as text, exact: finite values in the shortest form that reads back to the same
+// bits (std::to_chars), the non-finite ones spelled NaN, Infinity and -Infinity. Every text
+// writer (jText, HTML, JSON, the PostgreSQL COPY stream) and read-back's row hash use this, so
+// a double written by any backend reads back as the double that was stored. NaN and the
+// infinities are data, not errors.
+inline void append_double(std::string& out, double v) {
+    if (std::isnan(v)) { out += "NaN"; return; }
+    if (std::isinf(v)) { out += (v > 0 ? "Infinity" : "-Infinity"); return; }
+    char buf[32];
+    auto [p, ec] = std::to_chars(buf, buf + sizeof(buf), v);
+    out.append(buf, p);
+}
+
+// The reverse of append_double: the whole of `s` must be one double (to_chars' form, any
+// exact decimal, or NaN / Infinity / -Infinity). Returns false for anything else.
+inline bool parse_double_text(std::string_view s, double& out) {
+    if (s == "NaN")       { out = std::numeric_limits<double>::quiet_NaN(); return true; }
+    if (s == "Infinity")  { out = std::numeric_limits<double>::infinity(); return true; }
+    if (s == "-Infinity") { out = -std::numeric_limits<double>::infinity(); return true; }
+    if (s.empty()) return false;
+    auto [p, ec] = std::from_chars(s.data(), s.data() + s.size(), out);
+    // from_chars also takes "nan" / "inf": only the three spellings above are ours.
+    return ec == std::errc{} && p == s.data() + s.size() && std::isfinite(out);
 }
 
 // Flush a text log to disk and fsync it, and throw when either failed: a full disk or an I/O

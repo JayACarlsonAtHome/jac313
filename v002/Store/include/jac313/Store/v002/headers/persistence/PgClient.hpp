@@ -81,7 +81,4 @@ private:
 /// Append `v` to `out` in COPY text format (backslash, tab, newline, CR escaped).
 void pg_copy_append_text(std::string& out, std::string_view v);
 
-/// Append a double in COPY text format, exact (shortest round-trip), NaN/Infinity spelled for PG.
-void pg_copy_append_double(std::string& out, double v);
-
 } // namespace jac313::Store::v002

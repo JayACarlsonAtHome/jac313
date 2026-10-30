@@ -162,7 +162,11 @@ void JsonSplitEventLog::append_event(
         std::string line = std::format(R"({{"id":{})", event_id);
         for (size_t k = 0; k < i.dbl_count; ++k) {
             const double v = (k < dbl_metrics.size()) ? dbl_metrics[k] : 0.0;
-            line += std::format(R"(,"dbl{}":{:.10g})", k, v);
+            line += std::format(R"(,"dbl{}":)", k);
+            // Exact. JSON has no NaN or infinity numbers: those go as the strings "NaN",
+            // "Infinity", "-Infinity", which JsonEventLogReader reads back as the doubles.
+            if (std::isfinite(v)) append_double(line, v);
+            else { line += '"'; append_double(line, v); line += '"'; }
         }
         line += "}\n";
         i.floats_ofs << line;

@@ -4,9 +4,7 @@
 #include <libpq-fe.h>
 
 #include <algorithm>
-#include <charconv>
 #include <chrono>
-#include <cmath>
 #include <cstdlib>
 #include <functional>
 #include <format>
@@ -197,14 +195,6 @@ void pg_copy_append_text(std::string& out, std::string_view v) {
             default:   out += c;      break;
         }
     }
-}
-
-void pg_copy_append_double(std::string& out, double v) {
-    if (std::isnan(v)) { out += "NaN"; return; }
-    if (std::isinf(v)) { out += (v > 0 ? "Infinity" : "-Infinity"); return; }
-    char buf[32];
-    auto [p, ec] = std::to_chars(buf, buf + sizeof(buf), v);   // shortest exact round trip
-    out.append(buf, p);
 }
 
 } // namespace jac313::Store::v002

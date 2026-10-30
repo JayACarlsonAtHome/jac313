@@ -196,9 +196,13 @@ void HtmlSplitEventLog::append_event(
 
     if (i.dbl_count > 0 && i.floats_ofs.is_open()) {
         i.floats_ofs << "<tr><td>" << event_id << "</td>";
+        std::string cells;
         for (size_t k = 0; k < dbl_metrics.size(); ++k) {
-            i.floats_ofs << "<td>" << std::format("{:.10g}", dbl_metrics[k]) << "</td>";
+            cells += "<td>";
+            append_double(cells, dbl_metrics[k]);   // exact; NaN, Infinity, -Infinity
+            cells += "</td>";
         }
+        i.floats_ofs << cells;
         for (size_t k = dbl_metrics.size(); k < i.dbl_count; ++k) {
             i.floats_ofs << "<td>0</td>";
         }

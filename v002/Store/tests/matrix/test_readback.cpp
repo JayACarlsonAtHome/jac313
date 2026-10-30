@@ -5,9 +5,16 @@
 //   1. persists a small run (with integer and double metrics) and checks read-back PASSES,
 //   2. damages the stored data (edits a value, or removes a row), and checks read-back FAILS.
 // A read-back that cannot fail would prove nothing; this test keeps it honest.
+//
+// It also persists the doubles a text format gets wrong most easily (NaN, +/-Infinity, a
+// denormal, DBL_MAX, 0.1+0.2, -0.0) through every backend and reads them back exactly. SQLite
+// is the documented exception: it holds NaN as NULL and -0.0 as 0, which read-back accepts.
 
 #include "test_common.hpp"
 
+#include <array>
+#include <cfloat>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -159,6 +166,75 @@ void run_backend(const std::string& backend, const fs::path& dir) {
     }
 }
 
+// The hard doubles, two per row (RbConfig has two double metrics).
+constexpr size_t kSpecialRows = 4;
+const std::array<std::array<double, 2>, kSpecialRows> kSpecial = {{
+    {std::nan(""), INFINITY},
+    {-INFINITY, 5e-324},
+    {DBL_MAX, 0.1 + 0.2},
+    {-0.0, 1.0 / 3.0},
+}};
+
+void run_special(const std::string& backend, const fs::path& dir) {
+    std::cout << "[" << backend << " special doubles]\n";
+    fs::create_directories(dir);
+    const std::string base = (dir / "persist").string();
+
+    RbStore store(1, kSpecialRows);
+#ifdef JAC313_STORE_HAS_SQL_PERSIST
+    if (backend == "sql") {   // with the debug .sql file, to replay it below
+        store.attach_persistence(std::make_unique<DoubleBufferedWriter>(
+            std::make_unique<SqlEventSink>(base, RbConfig::the_IntMetrics, RbConfig::the_DblMetrics,
+                                           PersistMode::All, true), 10'000));
+    }
+#endif
+    if (backend != "sql") {
+        TestOptions opts;
+        opts.persist = backend;
+        opts.base_name = base;
+        if (!attach_persistence_from_opts<RbConfig>(store, opts)) { check(false, "attach " + backend); return; }
+    }
+    for (size_t i = 0; i < kSpecialRows; ++i) {
+        std::array<int64_t, RbConfig::the_IntMetrics> ints{};
+        std::array<double, RbConfig::the_DblMetrics> dbls{kSpecial[i][0], kSpecial[i][1]};
+        store.save_event(0, i, std::string("special"), 0, std::string("doubles"), false, ints, dbls);
+    }
+    store.finalize_persistence();
+
+    for (const auto* m : {"all", "sample"}) {
+        const auto rep = run_readback(store, backend, base, RbConfig::the_IntMetrics, RbConfig::the_DblMetrics, m);
+        check(rep.ok && rep.found == kSpecialRows, std::string("NaN, +/-Inf, 5e-324, DBL_MAX, 0.1+0.2, -0.0 read back (") +
+                                                       m + ")" + (rep.ok ? "" : ": " + rep.error));
+        if (backend != "sql" && backend != "pg-local" && backend != "pg-remote") break;   // files: "all" only
+    }
+
+#ifdef JAC313_STORE_HAS_SQL_PERSIST
+    if (backend == "sql") {
+        // What SQLite holds: NULL for the NaN, +/-Inf kept as REAL.
+        {
+            Sqlite db(base + ".db");
+            auto st = db.prepare("SELECT typeof(dbl0), typeof(dbl1), dbl1 > 1e308 FROM persist_floats WHERE id = 0");
+            check(st.step() && st.get_by_name<std::string>("typeof(dbl0)") == "null" &&
+                      st.get_by_name<std::string>("typeof(dbl1)") == "real" && st.get_by_name<int64_t>("dbl1 > 1e308") == 1,
+                  "SQLite holds NaN as NULL and +Infinity as REAL Inf");
+            auto st2 = db.prepare("SELECT typeof(dbl0), dbl0 < -1e308 FROM persist_floats WHERE id = 1");
+            check(st2.step() && st2.get_by_name<std::string>("typeof(dbl0)") == "real" &&
+                      st2.get_by_name<int64_t>("dbl0 < -1e308") == 1,
+                  "SQLite holds -Infinity as REAL -Inf");
+            // The debug .sql file states what SQLite holds: replayed, it reads back the same.
+            db.exec("DELETE FROM persist; DELETE FROM persist_ints; DELETE FROM persist_floats");
+            db.exec(slurp(base + ".sql"));
+        }
+        auto rep = run_readback(store, backend, base, RbConfig::the_IntMetrics, RbConfig::the_DblMetrics, "all");
+        check(rep.ok, "the debug .sql file replayed reads back the same" + (rep.ok ? "" : ": " + rep.error));
+        // Only the NaN may read as NULL.
+        { Sqlite db(base + ".db"); db.exec("UPDATE persist_floats SET dbl1 = NULL WHERE id = 3"); }
+        rep = run_readback(store, backend, base, RbConfig::the_IntMetrics, RbConfig::the_DblMetrics, "all");
+        check(!rep.ok, "a NULL where no NaN was stored fails: " + rep.error);
+    }
+#endif
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -187,7 +263,10 @@ int main(int argc, char** argv) {
         else std::cout << "[pg-remote] skipped: no remote server set ($JAC313_PG_REMOTE)\n";
     }
 #endif
-    for (const auto& b : backends) run_backend(b, dir / b);
+    for (const auto& b : backends) {
+        run_backend(b, dir / b);
+        run_special(b, dir / (b + "_special"));
+    }
 
     fs::remove_all(dir, ec);
     if (failures == 0) {

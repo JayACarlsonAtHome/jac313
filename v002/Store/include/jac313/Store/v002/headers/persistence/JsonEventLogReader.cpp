@@ -1,7 +1,8 @@
 #include "JsonEventLogReader.hpp"
+#include "PersistCommon.hpp"   // parse_double_text
 
 #include <charconv>
-#include <cstdlib>
+#include <cmath>
 #include <format>
 #include <optional>
 #include <stdexcept>
@@ -37,12 +38,22 @@ bool parse_i64_at(std::string_view line, size_t pos, int64_t& out) {
     return ec == std::errc{} && ptr != tail.data();
 }
 
+// A JSON number, or one of the strings "NaN", "Infinity", "-Infinity" JsonSplitEventLog writes
+// for the doubles JSON has no number for. Exact either way (parse_double_text).
 bool parse_double_at(std::string_view line, size_t pos, double& out) {
     while (pos < line.size() && (line[pos] == ' ' || line[pos] == '\t')) ++pos;
-    const std::string_view tail = line.substr(pos);
-    char* end = nullptr;
-    out = std::strtod(tail.data(), &end);
-    return end != tail.data();
+    std::string_view tail = line.substr(pos);
+    if (tail.starts_with('"')) {
+        tail.remove_prefix(1);
+        const size_t close = tail.find('"');
+        if (close == std::string_view::npos) return false;
+        // only the three non-finite words come quoted
+        return parse_double_text(tail.substr(0, close), out) && !std::isfinite(out);
+    }
+    size_t end = 0;
+    while (end < tail.size() && tail[end] != ',' && tail[end] != '}' && tail[end] != ' ') ++end;
+    // a bare number is finite: NaN / Infinity unquoted is not JSON
+    return parse_double_text(tail.substr(0, end), out) && std::isfinite(out);
 }
 
 bool parse_quoted_string_at(std::string_view line, size_t pos, std::string& out) {

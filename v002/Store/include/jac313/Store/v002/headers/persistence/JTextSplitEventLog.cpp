@@ -167,7 +167,11 @@ void JTextSplitEventLog::append_event(
         e.number = 1;  // field 1 = event_id (links to main record)
         e.fields.reserve(1 + dbl_metrics.size());
         e.fields.emplace_back(std::to_string(event_id));
-        for (auto v : dbl_metrics) e.fields.emplace_back(std::format("{:.10g}", v));
+        for (auto v : dbl_metrics) {
+            std::string t;
+            append_double(t, v);   // exact; NaN, Infinity, -Infinity
+            e.fields.push_back(std::move(t));
+        }
         i.floats_writer->append_entry(e);
         i.floats_writer->end_record();
         i.stats.floats_rows++;

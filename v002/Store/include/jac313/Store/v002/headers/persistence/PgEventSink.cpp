@@ -103,7 +103,8 @@ void PgEventSink::write_batch(std::span<const PersistedEvent> batch) {
             append_int(dbls_buf_, id);
             for (size_t k = 0; k < dbl_count_; ++k) {
                 dbls_buf_ += '\t';
-                pg_copy_append_double(dbls_buf_, k < e.dbl_metrics.size() ? e.dbl_metrics[k] : 0.0);
+                // exact; NaN, Infinity, -Infinity are also PostgreSQL's spellings
+                append_double(dbls_buf_, k < e.dbl_metrics.size() ? e.dbl_metrics[k] : 0.0);
             }
             dbls_buf_ += '\n';
         }

@@ -69,6 +69,24 @@ the binary sink and neither sibling is invoked.
   means a join (`_ints` / `_floats` back to main).
 - **jText is a build dependency of the jText sink** even if you only ever use binary.
 
+## Compromises: doubles
+
+A double metric is stored exactly, and NaN, +Infinity and -Infinity are data like any other value.
+
+- **Text formats write the shortest exact round-trip text** (`append_double` in
+  `PersistCommon.hpp`, `std::to_chars`): every finite double reads back with the same bits.
+  The non-finite ones are spelled `NaN`, `Infinity`, `-Infinity`.
+- **NaN and the infinities round-trip** through binary, jText, HTML, JSON and PostgreSQL. JSON has
+  no number for them, so the JSON sink writes them as the strings `"NaN"`, `"Infinity"`,
+  `"-Infinity"`, and `JsonEventLogReader` reads those strings back as the doubles.
+- **SQLite cannot hold NaN: it stores NULL.** Read-back regards a NULL double from SQLite as the
+  NaN that was stored. This is the one NULL allowed in this project; any other NULL fails
+  read-back, and so does any NULL from PostgreSQL.
+- **SQLite keeps +/-Infinity** as REAL. The debug `.sql` file writes them as `9e999` / `-9e999`
+  (SQLite has no infinity keyword and reads those as +/-Inf) and NaN as `NULL`.
+- **SQLite drops the sign of -0.0**: it stores a whole REAL as an integer, so -0.0 reads back as
+  0. Read-back regards that 0 as the -0.0 that was stored.
+
 > Persistence is the densest part of Store and where most of the real engineering lives (mmap
 > growth, batched draining, the binary codec). It's the prime candidate for an AI-assisted deep
 > read against your durability/throughput requirements.
