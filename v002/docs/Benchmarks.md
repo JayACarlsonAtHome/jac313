@@ -66,9 +66,8 @@ exactly the `DatabaseEntry` events. A sink that holds an event it should not hav
 
 ### Picking the sinks
 
-- **In the table:** the `production` section of `tests/test_params.jtext` (`test_params_full.jtext`
-  with `--size full`, `test_params_bench.jtext` with `--size bench`) holds one row:
-  `keeper_sink`, `database_sink`, `keeper_pct`, `database_pct`, `binary`. Defaults: jtext, sql,
+- **In the table:** `tests/production.jtext` holds one row: `keeper_sink`, `database_sink`,
+  `keeper_pct`, `database_pct`, `binary`. One row serves the smoke, full and bench profiles. Defaults: jtext, sql,
   10, 10, true. `jac313_test_cli --bench` reads it and passes it on.
 - **In Jac313Runner:** the *Production* row of the *Persist to* box (Keeper, Database, the two
   percentages, *binary replay log*). It shows the row of the chosen version's file; **Save as

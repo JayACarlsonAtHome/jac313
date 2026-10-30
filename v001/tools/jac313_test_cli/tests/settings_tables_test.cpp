@@ -77,8 +77,9 @@ int main() {
     const std::vector<fs::path> params = {kSource / "tests" / "test_params.jtext",
                                           kSource / "tests" / "test_params_full.jtext",
                                           kSource / "tests" / "test_params_bench.jtext"};
+    const fs::path production = kSource / "tests" / "production.jtext";
 
-    for (const auto& p : {compilers, recipes, pins, limits}) check_validates(p);
+    for (const auto& p : {compilers, recipes, pins, limits, production}) check_validates(p);
     for (const auto& p : params) check_validates(p);
 
     // ---- compilers.jtext ----
@@ -180,14 +181,24 @@ int main() {
         } catch (const std::exception& e) {
             check(false, std::string("load_params_table: ") + e.what());
         }
-        table(p, "production", {"id", "keeper_sink", "database_sink", "keeper_pct", "database_pct", "binary"});
+        // The production row lives in tests/production.jtext (one row for every profile), not here.
+        bool has_production = true;
         try {
-            const auto prod = load_production_settings(p);
-            check(prod.spec() == "keeper=jtext,database=sql,keeper_pct=10,database_pct=10,binary=on",
-                  p.string() + " production row holds the defaults (jtext, sql, 10, 10, on)");
-        } catch (const std::exception& e) {
-            check(false, std::string("load_production_settings: ") + e.what());
+            (void)read_jtext_table(p, "production");
+        } catch (const std::exception&) {
+            has_production = false;
         }
+        check(!has_production, p.string() + " has no production section (it is in production.jtext)");
+    }
+
+    // ---- tests/production.jtext: the bench's production run, one row for every profile ----
+    table(production, "production", {"id", "keeper_sink", "database_sink", "keeper_pct", "database_pct", "binary"});
+    try {
+        const auto prod = load_production_settings(production);
+        check(prod.spec() == "keeper=jtext,database=sql,keeper_pct=10,database_pct=10,binary=on",
+              production.string() + " production row holds the defaults (jtext, sql, 10, 10, on)");
+    } catch (const std::exception& e) {
+        check(false, std::string("load_production_settings: ") + e.what());
     }
 
     if (failures == 0) std::cout << "settings_tables_test: all passed\n";

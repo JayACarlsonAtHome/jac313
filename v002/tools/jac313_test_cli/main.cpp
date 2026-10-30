@@ -88,8 +88,8 @@ void print_usage() {
         "                       sinks + binary replay log, flags routed), then each durable sink\n"
         "                       alone, then the non-durable flag sweep (auto-records to results.db)\n"
         "  --production <spec>  the production run's mix, e.g. keeper=jtext,database=sql,keeper_pct=10,\n"
-        "                       database_pct=10,binary=on (default: the production row of\n"
-        "                       tests/test_params.jtext, or _full / _bench with --size full / bench)\n"
+        "                       database_pct=10,binary=on (default: the one row of tests/production.jtext,\n"
+        "                       which serves the smoke, full and bench profiles)\n"
         "  --report             render-only: (re)build the .md report pages from results.db\n"
         "                       (alone; every gate run renders them at its end anyway)\n"
         "  --verify-lite        valgrind: ctest + matrix 001 (binary; 001 across jtext/html/json/sql)\n"
@@ -2340,14 +2340,12 @@ struct PresetOptions {
 };
 
 // The bench's production run (store_bench --production): --production SPEC as given, else the
-// production row of the params file that matches --size (tests/test_params.jtext; _full with
-// --size full, _bench with --size bench). A file without a valid row falls back to store_bench's
-// defaults (jtext, sql, 10, 10, binary on), with a note.
+// one row of tests/production.jtext (it serves the smoke, full and bench profiles). A file
+// without a valid row falls back to store_bench's defaults (jtext, sql, 10, 10, binary on), with
+// a note.
 std::string resolve_production_spec(const GlobalOptions& global, const fs::path& root) {
     if (!global.production.empty()) return global.production;
-    const std::string sz = global.size_override;
-    const fs::path file = root / "tests" / (sz == "full" ? "test_params_full.jtext"
-                                            : sz == "bench" ? "test_params_bench.jtext" : "test_params.jtext");
+    const fs::path file = root / "tests" / "production.jtext";
     try {
         return load_production_settings(file).spec();
     } catch (const std::exception& e) {

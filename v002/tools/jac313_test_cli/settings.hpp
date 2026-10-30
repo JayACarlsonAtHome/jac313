@@ -8,7 +8,8 @@
 //   Setup/contracts.jtext      contract_modes              contract modes by OS and toolchain
 //   tests/test_limits.jtext    test_control                seed of the results DB testControl table
 //   tests/test_params*.jtext   selection + settings        what a matrix run selects (--params)
-//                              production                  the bench's production run (--bench)
+//   tests/production.jtext     production                  the bench's production run (--bench;
+//                                                          one row for every profile)
 //
 // One reader for all of them: read_jtext_table parses the file with jText's parser and validator
 // (jtext::parse_file_structure + jtext::validate) and returns one section as rows of column ->
@@ -80,7 +81,7 @@ struct ParamsTable {
 };
 ParamsTable load_params_table(const std::filesystem::path& path);
 
-// ---- tests/test_params*.jtext, section production: the bench's production run ----
+// ---- tests/production.jtext, section production: the bench's production run ----
 // One row: the keeper sink (jtext | html | json), the database sink (sql | pg-local | pg-remote),
 // the % of events flagged KeeperRecord / DatabaseEntry, and the binary replay log on or off.
 struct ProductionSettings {

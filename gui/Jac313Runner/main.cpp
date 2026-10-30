@@ -50,8 +50,8 @@ static int DumpCommand()
 		Cerr() << "Jac313Runner: no project root (pass --root)\n";
 		return 1;
 	}
-	String err;   // the production row of the version's params file (the defaults without one)
-	LoadProduction(ProductionParamsFile(root, ResolveVersion(o.version, root), o.size), o.prod, err);
+	String err;   // the row of the version's tests/production.jtext (the defaults without one)
+	LoadProduction(ProductionParamsFile(root, ResolveVersion(o.version, root)), o.prod, err);
 	for(const RunPlan& p : BuildPlans(o, root))
 		Cout() << p.Display() << "\n";
 	return 0;
@@ -523,12 +523,12 @@ struct Runner : TopWindow {
 	Option    gCtest, gSmoke, gBench, gVerifyLite, gVerify;
 	Option    bStrict, bHardened;
 	Option    pSql, pPgL, pPgR, pJt, pBin, pJson, pHtml;
-	// The bench's production run (the production row of the version's tests/test_params*.jtext)
+	// The bench's production run (the row of the version's tests/production.jtext)
 	Label     lProd, lProdKeeper, lProdDb, lProdKPct, lProdDPct;
 	DropList  prodKeeper, prodDb;
 	EditIntSpin prodKPct, prodDPct;
 	Option    prodBinary;
-	String    prodFor;      // the params file the production controls were loaded from
+	String    prodFor;      // the production.jtext the production controls were loaded from
 	void   LoadProductionControls();
 	EditIntNotNullSpin maxRuns;
 	LeaveIntSpin maxRecords, maxRows;   // leaving either one limits Max persisted to Max records
@@ -810,11 +810,11 @@ Runner::Runner()
 	Place(s1p.body, pHtml, 420, y + 44, 90, 22);
 	// The bench's production run: the keeper file and the database it writes at once (with the
 	// binary replay log), and the % of events flagged for each. Loaded from / saved to the
-	// production row of the version's tests/test_params.jtext (_full for size full).
+	// row of the version's tests/production.jtext (one row for every size).
 	lProd.SetText("Production:");
 	lProd.Tip("The bench's production run (bench gate): the keeper file, the database and the binary "
 	          "replay log written at once, each event routed by its KeeperRecord / DatabaseEntry flag. "
-	          "Saved to the production row of tests/test_params.jtext with Save as default.");
+	          "Saved to tests/production.jtext (one row for the smoke, full and bench profiles) with Save as default.");
 	lProdKeeper.SetText("Keeper");
 	lProdDb.SetText("Database");
 	lProdKPct.SetText("Keeper %");
@@ -1179,11 +1179,11 @@ void Runner::FromOptions()
 	connFile <<= EffectiveConnFile(opt, Root());
 }
 
-// The production controls show the production row of the version's params file; a new version or
-// size loads that file's row (a file without one keeps what is shown).
+// The production controls show the row of the version's tests/production.jtext; a new version
+// loads that file's row (a file without one keeps what is shown).
 void Runner::LoadProductionControls()
 {
-	String file = ProductionParamsFile(Root(), AsString(~version), AsString(~size));
+	String file = ProductionParamsFile(Root(), AsString(~version));
 	if(file == prodFor)
 		return;
 	prodFor = file;
@@ -1191,7 +1191,7 @@ void Runner::LoadProductionControls()
 	String err;
 	bool ok = LoadProduction(file, p, err);   // a file without a row: the defaults, the label red
 	lProd.SetInk(ok ? SColorText() : Color(170, 0, 0));
-	lProd.Tip(ok ? "The bench's production run, from the production row of " + file
+	lProd.Tip(ok ? "The bench's production run (every profile), from " + file
 	             : "Production run: " + err + " (shown: the defaults; Save as default cannot write it)");
 	prodKeeper <<= p.keeper;
 	prodDb <<= p.database;
@@ -1380,13 +1380,13 @@ void Runner::SaveDefault()
 		Exclamation("Cannot write " + DeQtf(SettingsPath()));
 		return;
 	}
-	// the production run's choices go to the version's params file (a jText table), not the JSON
-	String err, file = ProductionParamsFile(Root(), opt.version, opt.size);
+	// the production run's choices go to the version's tests/production.jtext (a jText table), not the JSON
+	String err, file = ProductionParamsFile(Root(), opt.version);
 	if(!SaveProduction(file, opt.prod, err)) {
 		Exclamation("Saved " + DeQtf(SettingsPath()) + ", but not the production run: " + DeQtf(err));
 		return;
 	}
-	lInfo.SetText("Saved as default: " + SettingsPath() + " and the production row of " + file);
+	lInfo.SetText("Saved as default: " + SettingsPath() + " and the production row in " + file);
 }
 
 void Runner::Start()

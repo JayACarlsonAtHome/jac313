@@ -13,9 +13,9 @@ const int       kDefMaxRuns    = 20;
 const int       kDefMaxRecords = 10000;
 const int       kDefMaxRows    = 10000;
 
-// ---- The bench's production run: the production row of the version's tests/test_params*.jtext
-// (test_params.jtext for size smoke, test_params_full.jtext for full). Shown in the Persist to box,
-// saved back to that file (not to Jac313Runner.json) and passed to the bench as --production.
+// ---- The bench's production run: the one row of the version's tests/production.jtext (it serves
+// the smoke, full and bench profiles). Shown in the Persist to box, saved back to that file (not
+// to Jac313Runner.json) and passed to the bench as --production.
 struct ProductionOptions {
 	String keeper      = "jtext";   // jtext | html | json         (the keeper file, KeeperOnly)
 	String database    = "sql";     // sql | pg-local | pg-remote  (the database, DatabaseOnly)
@@ -24,7 +24,7 @@ struct ProductionOptions {
 	bool   binary      = true;      // the binary replay log (every event)
 	String Spec() const;            // "keeper=jtext,database=sql,keeper_pct=10,database_pct=10,binary=on"
 };
-String          ProductionParamsFile(const String& root, const String& version, const String& size);
+String          ProductionParamsFile(const String& root, const String& version);
 // Read the production row; false (err set, p unchanged) when the file or a valid row is missing.
 bool            LoadProduction(const String& file, ProductionOptions& p, String& err);
 // The file with its production row replaced (the row written by jText's writer; every other line
@@ -75,7 +75,7 @@ struct RunOptions {
 	String pgPort;                  // "" = 5432
 	String pgDb       = "jac313";
 	String pgUser     = "jac313";
-	ProductionOptions prod;         // from / to tests/test_params*.jtext (not saved in the JSON)
+	ProductionOptions prod;         // from / to tests/production.jtext (not saved in the JSON)
 
 	void Jsonize(JsonIO& io);
 };

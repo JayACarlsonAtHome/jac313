@@ -431,10 +431,9 @@ String ProductionOptions::Spec() const
 	     + ",database_pct=" + AsString(databasePct) + ",binary=" + (binary ? "on" : "off");
 }
 
-String ProductionParamsFile(const String& root, const String& version, const String& size)
+String ProductionParamsFile(const String& root, const String& version)
 {
-	return AppendFileName(AppendFileName(AppendFileName(root, version), "tests"),
-	                      size == "full" ? "test_params_full.jtext" : "test_params.jtext");
+	return AppendFileName(AppendFileName(AppendFileName(root, version), "tests"), "production.jtext");
 }
 
 bool LoadProduction(const String& file, ProductionOptions& p, String& err)
