@@ -54,6 +54,8 @@ if(JAC313_CONTRACTS STREQUAL "ignore")
 elseif(NOT JAC313_CONTRACTS STREQUAL "enforce")
     message(FATAL_ERROR "JAC313_CONTRACTS=${JAC313_CONTRACTS}: v001 (C++23) has enforce or ignore")
 endif()
+# Every binary knows the mode it was built under: results.db records it with each run.
+add_compile_definitions(JAC313_CONTRACTS_MODE="${JAC313_CONTRACTS}")
 if(JAC313_CONTRACTS STREQUAL "enforce")
     set(JAC313_CONTRACTS_TERMINATE ON)   # the death tests hold only when violations terminate
 else()

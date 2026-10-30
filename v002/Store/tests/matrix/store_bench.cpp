@@ -65,6 +65,7 @@
 #include "jac313/Qlite/v002/Sqlite.hpp"   // jac313::Qlite::v002::Sqlite — the results DB receiver
 #include "jac313_results_db.hpp"           // jac313::results — shared schema + dimension helpers
 #include "jac313_harness_version.hpp"
+#include <jac313/Setup/contracts.hpp>   // contracts_mode: this binary's JAC313_CONTRACTS
 #endif
 
 using namespace jac313::Store::v002;
@@ -737,23 +738,25 @@ std::int64_t compiler_id_for(jac313::Qlite::v002::Sqlite& db, const jac313::resu
 }
 
 // Insert-or-find a bench parameter combo (build_type Release, modules off; size/output_mode/batch/
-// valgrind_tool N/A => '' / 0). SELECT-then-INSERT.
+// valgrind_tool N/A => '' / 0; contracts = this binary's mode). SELECT-then-INSERT.
 std::int64_t parameter_id_bench(jac313::Qlite::v002::Sqlite& db, std::int64_t compiler_id,
                                 const std::string& persist, std::int64_t threads, std::int64_t events,
                                 std::int64_t runs, std::int64_t flags) {
     const char* where =
         "SELECT id FROM parameter WHERE compiler_id=? AND build_type='Release' AND modules='off' AND import_std='off' "
         "AND size='' AND persist=? AND output_mode='' AND threads=? AND events_per_thread=? AND runs=? "
-        "AND batch=0 AND flag_count=? AND valgrind_tool=''";
+        "AND batch=0 AND flag_count=? AND valgrind_tool='' AND contracts=?";
+    const std::string contracts(jac313::contracts::contracts_mode);
     auto find = [&]() -> std::int64_t {
         std::int64_t id = 0; auto st = db.prepare(where);
-        st.bind(compiler_id, persist, threads, events, runs, flags); if (st.step()) st.get(id); return id;
+        st.bind(compiler_id, persist, threads, events, runs, flags, contracts); if (st.step()) st.get(id); return id;
     };
     std::int64_t id = find();
     if (id == 0) {
         db.exec("INSERT INTO parameter(compiler_id,build_type,modules,import_std,size,persist,output_mode,threads,"
-                "events_per_thread,runs,batch,flag_count) VALUES(?, 'Release','off','off', '', ?, '', ?, ?, ?, 0, ?)",
-                compiler_id, persist, threads, events, runs, flags);
+                "events_per_thread,runs,batch,flag_count,contracts) "
+                "VALUES(?, 'Release','off','off', '', ?, '', ?, ?, ?, 0, ?, ?)",
+                compiler_id, persist, threads, events, runs, flags, contracts);
         id = find();
     }
     return id;

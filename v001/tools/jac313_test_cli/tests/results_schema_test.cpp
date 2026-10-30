@@ -76,6 +76,12 @@ int main() {
             check(one_int(db, std::string("SELECT COUNT(*) FROM pragma_table_info('testRun') WHERE name='") + col + "'") == 1,
                   std::string("testRun has ") + col);
 
+        // Schema 3: parameter.contracts, NOT NULL DEFAULT 'enforce', part of the UNIQUE key.
+        check(R::kResultsSchemaVersion == 3, "kResultsSchemaVersion == 3");
+        check(one_int(db, "SELECT COUNT(*) FROM pragma_table_info('parameter') WHERE name='contracts' "
+                          "AND \"notnull\"=1 AND dflt_value='''enforce'''") == 1,
+              "parameter.contracts NOT NULL DEFAULT 'enforce'");
+
         bool threw = false;
         try {
             db.exec("INSERT INTO parameter(compiler_id, size) VALUES(1, NULL)");
@@ -85,6 +91,11 @@ int main() {
         db.exec(kParamInsert);
         db.exec(kParamInsert);
         check(one_int(db, "SELECT COUNT(*) FROM parameter") == 1, "identical parameter rows dedupe to one");
+        check(one_int(db, "SELECT COUNT(*) FROM parameter WHERE contracts='enforce'") == 1, "contracts defaults to enforce");
+        db.exec("INSERT OR IGNORE INTO parameter(compiler_id, build_type, modules, import_std, size, persist, output_mode, "
+                "threads, events_per_thread, runs, batch, flag_count, valgrind_tool, contracts) "
+                "VALUES(1, 'Debug', 'off', 'off', '', '', '', 0, 0, 0, 0, 0, '', 'observe')");
+        check(one_int(db, "SELECT COUNT(*) FROM parameter") == 2, "another contract mode is its own parameter row");
 
         // host_spec is unique on the identity too: --assign-new-### for a machine already filed
         // under another number moves its row instead of failing on (or duplicating) the identity.

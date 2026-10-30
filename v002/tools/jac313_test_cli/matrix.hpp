@@ -70,12 +70,15 @@ struct BuildFeatures {
     bool pg_persist{false};           // PostgreSQL sink built (JAC313_STORE_PG_PERSIST + libpq found)
     bool modules{false};              // JAC313_BUILD_MODULES from the tree's CMakeCache
     std::string build_type{"Debug"};  // CMAKE_BUILD_TYPE from the tree's CMakeCache, plus
-                                      // "-strict" / "-hardened" / "-contracts-<mode>" when
-                                      // those options are set, so such runs get their own
-                                      // results rows, logs and datasets
+                                      // "-strict" / "-hardened" when those options are set, so
+                                      // such runs get their own results rows, logs and datasets
     bool strict{false};               // JAC313_STRICT
     bool hardened{false};             // JAC313_HARDENED
-    std::string contracts{"enforce"}; // JAC313_CONTRACTS
+    std::string contracts{"enforce"}; // JAC313_CONTRACTS (results.db: parameter.contracts)
+
+    // build_type plus "-contracts-<mode>" unless enforce: the label of this tree's log and
+    // dataset directories, so runs under another contract mode never share them.
+    std::string dir_label() const;
 };
 
 // "-strict", "-hardened", then "-contracts-<mode>" unless the mode is enforce (the default);

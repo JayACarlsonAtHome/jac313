@@ -155,6 +155,7 @@ struct ResultRow {
 
 struct Summary {
 	String path, runId, host, version, compiler, buildType, started, finished, command;
+	String contracts;         // "contracts": the ctest/smoke builds' contract mode ("" in older summaries)
 	String pgRemote;          // "pg_remote": the remote PostgreSQL server the run used ("" = none)
 	int    pass = 0, fail = 0;
 	int    contract = 1;      // "contract" (summaries written before it existed are 1)

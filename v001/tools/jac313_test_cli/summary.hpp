@@ -6,7 +6,7 @@
 // Each gate command (run = ctest, matrix run = smoke, store_bench --suite = bench) appends one
 // JSON object per result to "<summary-json>.parts" (one per line). The preset command deletes
 // both files before it starts and, when its script finishes, assembles <summary-json>:
-//   { run_id, host, version, compiler, build_type, started_utc, finished_utc, command,
+//   { run_id, host, version, compiler, build_type, contracts, started_utc, finished_utc, command,
 //     totals: {pass, fail}, results: [ ...parts... ] }
 
 #include "options.hpp"

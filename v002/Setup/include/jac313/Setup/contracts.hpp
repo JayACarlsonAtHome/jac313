@@ -24,8 +24,18 @@
 #include <cstdio>
 #include <cstdlib>
 #include <source_location>
+#include <string_view>
 
 namespace jac313::contracts {
+
+// The evaluation mode this binary was built under (JAC313_CONTRACTS: enforce | observe |
+// quick_enforce | ignore). The CMake tree defines JAC313_CONTRACTS_MODE for every target; a build
+// outside it gets the default, enforce.
+#ifdef JAC313_CONTRACTS_MODE
+inline constexpr std::string_view contracts_mode = JAC313_CONTRACTS_MODE;
+#else
+inline constexpr std::string_view contracts_mode = "enforce";
+#endif
 
 // A contract violation aborts after reporting — a fail-fast safety net, deterministic
 // for tests. Used only by the RUNTIME fallback (B); NATIVE mode (A) reports/terminates

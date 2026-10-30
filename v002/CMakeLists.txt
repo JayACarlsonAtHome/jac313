@@ -88,6 +88,9 @@ elseif(NOT JAC313_CONTRACTS STREQUAL "enforce")
     message(FATAL_ERROR "JAC313_CONTRACTS=${JAC313_CONTRACTS} needs native C++26 contracts (GCC 16); "
                         "this compiler has enforce or ignore")
 endif()
+# Every binary knows the mode it was built under: results.db records it with each run
+# (jac313::contracts::contracts_mode, Setup/include/jac313/Setup/contracts.hpp).
+add_compile_definitions(JAC313_CONTRACTS_MODE="${JAC313_CONTRACTS}")
 # The death tests (a violated contract must terminate) only hold when violations terminate.
 if(JAC313_CONTRACTS MATCHES "^(enforce|quick_enforce)$")
     set(JAC313_CONTRACTS_TERMINATE ON)

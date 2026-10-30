@@ -330,8 +330,12 @@ BuildFeatures read_build_features(const fs::path& build_dir) {
         }
     }
     features.pg_persist = pg_option && libpq_found;
-    features.build_type += build_flavor_suffix(features.strict, features.hardened, features.contracts);
+    features.build_type += build_flavor_suffix(features.strict, features.hardened);
     return features;
+}
+
+std::string BuildFeatures::dir_label() const {
+    return build_type + build_flavor_suffix(false, false, contracts);
 }
 
 std::string build_flavor_suffix(bool strict, bool hardened, const std::string& contracts) {

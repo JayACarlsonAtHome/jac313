@@ -82,7 +82,8 @@ inline const std::string& resolve_results_db(const std::filesystem::path& source
 // only, so there are no migrations: a DB stamped with any other version (0 = an unversioned older
 // layout) is dropped and created fresh on first open. Change any table or index below -> bump this.
 // 2: testRun.hot_ops and drain_keeper_ms / drain_database_ms / drain_binary_ms (the production bench run).
-inline constexpr int kResultsSchemaVersion = 2;
+// 3: parameter.contracts (the contract evaluation mode the binaries were built under).
+inline constexpr int kResultsSchemaVersion = 3;
 
 namespace detail {
 // Every table and index, all idempotent (IF NOT EXISTS): cheap to run on every open.
@@ -104,7 +105,7 @@ inline void create_results_tables(Sqlite& db) {
             "  , UNIQUE(name, version)\n"
             ")");
     // An axis that does not apply to a test kind is '' or 0 (never NULL), so the plain table-level
-    // UNIQUE over all 13 axes really dedupes (SQLite treats NULLs as distinct; there are none).
+    // UNIQUE over all 14 axes really dedupes (SQLite treats NULLs as distinct; there are none).
     db.exec("CREATE TABLE IF NOT EXISTS parameter (\n"
             "    id INTEGER PRIMARY KEY NOT NULL\n"
             "  , compiler_id INTEGER NOT NULL DEFAULT 0\n"
@@ -120,8 +121,9 @@ inline void create_results_tables(Sqlite& db) {
             "  , batch INTEGER NOT NULL DEFAULT 0\n"
             "  , flag_count INTEGER NOT NULL DEFAULT 0\n"
             "  , valgrind_tool TEXT NOT NULL DEFAULT ''\n"
+            "  , contracts TEXT NOT NULL DEFAULT 'enforce'\n"   // enforce | observe | quick_enforce | ignore (JAC313_CONTRACTS)
             "  , UNIQUE(compiler_id, build_type, modules, import_std, size, persist, output_mode, threads,\n"
-            "           events_per_thread, runs, batch, flag_count, valgrind_tool)\n"
+            "           events_per_thread, runs, batch, flag_count, valgrind_tool, contracts)\n"
             ")");
     // run = per-run metadata only. The hardware lives in host_spec (one row per machine), so it is
     // NOT duplicated across every run; run references the machine via group_id.
