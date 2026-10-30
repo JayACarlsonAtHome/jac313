@@ -128,8 +128,11 @@ public:
 
         if (write_pos_ + needed > file_size_) {
             size_t new_size = file_size_ * 2;
-            if (::ftruncate(fd_, static_cast<off_t>(new_size)) != 0) {
-                throw std::runtime_error("BinaryEventLog: ftruncate failed");
+            // Allocate the new pages now. ftruncate made a sparse file, and a full disk then
+            // showed up as SIGBUS on the first store into them (the constructor's reason too).
+            if (::posix_fallocate(fd_, static_cast<off_t>(file_size_),
+                                  static_cast<off_t>(new_size - file_size_)) != 0) {
+                throw std::runtime_error("BinaryEventLog: posix_fallocate failed growing the file (out of space?)");
             }
             ::munmap(mapped_, file_size_);
             mapped_ = static_cast<char*>(::mmap(nullptr, new_size, PROT_READ | PROT_WRITE,

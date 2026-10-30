@@ -9,6 +9,8 @@
 
 #include <numeric>  // jac313::mul_sat / jac313::add_sat (C++26): overflow-safe capacity math
 #include <fstream>  // for MemAvailable probe
+#include <format>
+#include <stdexcept>
 
 namespace jac313::Store::v002 {
 // Allocator for the preallocated row table. std::calloc hands back zero pages that the kernel
@@ -105,6 +107,10 @@ public:
         return jac313::mul_sat(max_threads_, events_per_thread_);
     }
     void clear() {
+        // Ids restart at 0. Once events went to an attached writer, the next ones would repeat
+        // ids already written: SQLite's INSERT OR IGNORE drops them without a word, and the
+        // file logs hold duplicates.
+        JAC313_PRE(!persistence_writer_ || persistence_writer_->submitted() == 0);
         next_id_.store(0, std::memory_order_relaxed);
         // rows_ is intentionally NOT cleared — next_id_=0 is the logical reset; the fixed buffer is
         // reused (entries are overwritten on the next write), avoiding reallocation.
@@ -122,6 +128,11 @@ public:
         if (persistence_writer_) {
             persistence_writer_->finalize();
         }
+    }
+
+    /// True when the attached writer's sink failed: the events since then were dropped.
+    [[nodiscard]] bool persistence_failed() const noexcept {
+        return persistence_writer_ && persistence_writer_->failed();
     }
 
     /// Persist at most `n` rows: only events with global id < n are handed to the persistence
@@ -178,9 +189,10 @@ public:
         };
         size_t avail = available_bytes();
         if (avail > 0 && total_est > (avail * 90 / 100)) {
-            std::cerr << "ts_store: insufficient memory for preallocation (need ~"
-                      << (total_est >> 20) << " MiB, avail ~" << (avail >> 20) << " MiB) — bailing\n";
-            std::exit(1);
+            // Thrown, not exit(1): the caller decides, and writers and destructors still run.
+            throw std::runtime_error(std::format(
+                "ts_store: insufficient memory for preallocation (need ~{} MiB, avail ~{} MiB)",
+                total_est >> 20, avail >> 20));
         }
 
         rows_.resize(expected_size());

@@ -47,6 +47,10 @@ public:
         if (stopped_.load(std::memory_order_relaxed)) return;
 
         std::lock_guard<std::mutex> lock(buffer_mutex_);
+        // stop() sets stop_requested_ under this lock after taking the last batch: an event that
+        // passed the check above while stop() ran would land here and never be drained.
+        if (stop_requested_.load(std::memory_order_relaxed)) return;
+        ++submitted_;
         active_buffer_.push_back(std::move(event));
 
         if (active_buffer_.size() >= batch_size_) {
@@ -73,6 +77,15 @@ public:
     }
 
     [[nodiscard]] size_t get_batch_size() const { return batch_size_; }
+
+    // True once the sink threw: every event since was dropped, and finalize() wrote nothing more.
+    [[nodiscard]] bool failed() const noexcept { return sink_failed_.load(std::memory_order_relaxed); }
+
+    // Events taken in so far (those dropped after a sink failure included).
+    [[nodiscard]] size_t submitted() {
+        std::lock_guard<std::mutex> lock(buffer_mutex_);
+        return submitted_;
+    }
 
 private:
     void swap_and_signal() {
@@ -169,6 +182,7 @@ private:
 
     std::unique_ptr<IEventSink> sink_;
     size_t batch_size_;
+    size_t submitted_ = 0;   // events taken in (under buffer_mutex_)
 
     std::vector<PersistedEvent> active_buffer_;
     std::vector<PersistedEvent> drain_buffer_;

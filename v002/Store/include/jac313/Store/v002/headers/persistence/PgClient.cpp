@@ -1,4 +1,5 @@
 #include "PgClient.hpp"
+#include "PersistCommon.hpp"   // sanitize_identifier
 
 #include <libpq-fe.h>
 
@@ -19,19 +20,6 @@ namespace {
 
 double ms_since(std::chrono::steady_clock::time_point t0) {
     return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-}
-
-std::string sanitize_identifier(std::string_view s) {
-    std::string out;
-    out.reserve(s.size());
-    for (char c : s) {
-        if (c >= 'A' && c <= 'Z') out += static_cast<char>(c - 'A' + 'a');
-        else if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) out += c;
-        else if (out.empty() || out.back() != '_') out += '_';
-    }
-    while (!out.empty() && out.back() == '_') out.pop_back();
-    if (out.empty() || (out[0] >= '0' && out[0] <= '9')) out.insert(0, "t_");
-    return out;
 }
 
 // RAII for PGresult.

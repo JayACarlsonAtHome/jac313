@@ -152,8 +152,13 @@ ProcessResult run_process(const std::vector<std::string>& args, const int failsa
 
     int stdout_pipe[2]{-1, -1};
     int stderr_pipe[2]{-1, -1};
+    const auto close_pipes = [&] {
+        for (int fd : {stdout_pipe[0], stdout_pipe[1], stderr_pipe[0], stderr_pipe[1]})
+            if (fd >= 0) ::close(fd);
+    };
     if (::pipe(stdout_pipe) != 0 || ::pipe(stderr_pipe) != 0) {
         result.stderr_text = "pipe() failed";
+        close_pipes();   // the first pipe may be open
         return result;
     }
 
@@ -164,6 +169,7 @@ ProcessResult run_process(const std::vector<std::string>& args, const int failsa
     const pid_t pid = ::fork();
     if (pid < 0) {
         result.stderr_text = "fork() failed";
+        close_pipes();
         return result;
     }
 

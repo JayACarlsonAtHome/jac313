@@ -36,13 +36,6 @@ std::string json_escape(std::string_view text) {
     return out;
 }
 
-void sync_to_disk(std::ofstream& ofs, const std::string& path) {
-    if (path.empty()) return;
-    ofs.flush();
-    const int fd = ::open(path.c_str(), O_RDONLY);
-    if (fd >= 0) { ::fsync(fd); ::close(fd); }
-}
-
 } // namespace
 
 namespace fs = std::filesystem;
@@ -189,9 +182,9 @@ void JsonSplitEventLog::finalize() {
     auto& i = *impl_;
     if (i.finalized) return;
 
-    sync_to_disk(i.main_ofs, i.main_path);
-    if (i.ints_ofs.is_open()) sync_to_disk(i.ints_ofs, i.ints_path);
-    if (i.floats_ofs.is_open()) sync_to_disk(i.floats_ofs, i.floats_path);
+    sync_text_file(i.main_ofs, i.main_path);
+    if (i.ints_ofs.is_open()) sync_text_file(i.ints_ofs, i.ints_path);
+    if (i.floats_ofs.is_open()) sync_text_file(i.floats_ofs, i.floats_path);
 
     i.finalized = true;
 }

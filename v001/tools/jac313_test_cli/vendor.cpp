@@ -638,8 +638,24 @@ int run_vendor_sync(int argc, char** argv, int first_arg) {
         if (!exists) ++added; else if (differs) ++changed; else ++same;
         if (differs) std::cout << "vendor-sync: " << (exists ? "update " : "add    ") << p.path << '\n';
         if (write && differs) {
+            // Written whole or not at all, and a failure stops the sync before the manifest
+            // claims a copy that is not there.
             fs::create_directories(dst.parent_path(), ec);
-            std::ofstream(dst, std::ios::binary | std::ios::trunc) << p.content;
+            if (ec) {
+                std::cerr << "vendor-sync: cannot create " << dst.parent_path().string() << ": " << ec.message() << '\n';
+                return 1;
+            }
+            const fs::path tmp = dst.string() + ".tmp";
+            {
+                std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
+                out << p.content;
+                if (!out) { std::cerr << "vendor-sync: cannot write " << tmp.string() << '\n'; return 1; }
+            }
+            fs::rename(tmp, dst, ec);
+            if (ec) {
+                std::cerr << "vendor-sync: cannot replace " << dst.string() << ": " << ec.message() << '\n';
+                return 1;
+            }
         }
     }
     for (const auto& row : m.files) {

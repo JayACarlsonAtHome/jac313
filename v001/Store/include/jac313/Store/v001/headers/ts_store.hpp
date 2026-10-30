@@ -9,6 +9,8 @@
 namespace jac313::Store::v001 {
 // Allocator for the preallocated row table. std::calloc hands back zero pages that the kernel
 // maps lazily (large blocks come straight from mmap), so value-initializing the rows needs no
+#include <format>
+#include <stdexcept>
 // writes: the no-argument construct() is a no-op because an all-zero row IS the value-initialized
 // row. That moves ~N*sizeof(row) bytes of memset and every first-touch page fault off the
 // constructor's single thread and into the writer threads, which touch their rows anyway.
@@ -121,6 +123,11 @@ public:
         return size_t(max_threads_) * events_per_thread_;
     }
     void clear() {
+        // Ids restart at 0. Once events went to an attached writer, the next ones would repeat
+        // ids already written: SQLite's INSERT OR IGNORE drops them without a word, and the
+        // file logs hold duplicates.
+        if (persistence_writer_ && persistence_writer_->submitted() != 0)
+            throw std::logic_error("ts_store::clear(): events were already persisted; their ids would repeat");
         next_id_.store(0, std::memory_order_relaxed);
         // Remove any rows_.clear() if present
     }
@@ -137,6 +144,11 @@ public:
         if (persistence_writer_) {
             persistence_writer_->finalize();
         }
+    }
+
+    /// True when the attached writer's sink failed: the events since then were dropped.
+    [[nodiscard]] bool persistence_failed() const noexcept {
+        return persistence_writer_ && persistence_writer_->failed();
     }
 
     /// Persist at most `n` rows: only events with global id < n are handed to the persistence
@@ -168,9 +180,10 @@ public:
 
         const size_t avail = available_ram_bytes();
         if (avail > 0 && total_est > (avail * 90 / 100)) {
-            std::cerr << "ts_store: insufficient memory for preallocation (need ~"
-                      << (total_est >> 20) << " MiB, avail ~" << (avail >> 20) << " MiB) — bailing\n";
-            std::exit(1);
+            // Thrown, not exit(1): the caller decides, and writers and destructors still run.
+            throw std::runtime_error(std::format(
+                "ts_store: insufficient memory for preallocation (need ~{} MiB, avail ~{} MiB)",
+                total_est >> 20, avail >> 20));
         }
 
         rows_.resize(expected_size());

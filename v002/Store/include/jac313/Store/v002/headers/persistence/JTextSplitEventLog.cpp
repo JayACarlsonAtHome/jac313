@@ -193,15 +193,9 @@ void JTextSplitEventLog::finalize() {
     // — the same bug binary had, which is why jText was out-throughputting the truly durable
     // backends. Flush each stream, then fsync the file, so the real durable cost lands inside
     // the clock (one sync at finalize, mirroring binary's MS_SYNC).
-    auto sync_to_disk = [](std::ofstream& ofs, const std::string& path) {
-        if (path.empty()) return;
-        ofs.flush();
-        const int fd = ::open(path.c_str(), O_RDONLY);
-        if (fd >= 0) { ::fsync(fd); ::close(fd); }
-    };
-    sync_to_disk(i.main_ofs, i.main_path);
-    sync_to_disk(i.ints_ofs, i.ints_path);
-    sync_to_disk(i.floats_ofs, i.floats_path);
+    sync_text_file(i.main_ofs, i.main_path);
+    sync_text_file(i.ints_ofs, i.ints_path);
+    sync_text_file(i.floats_ofs, i.floats_path);
     i.finalized = true;
 }
 

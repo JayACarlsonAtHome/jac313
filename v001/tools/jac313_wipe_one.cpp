@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
     std::cout << "target: " << db_path << "\n  delete run " << run_id << "  (testRun rows=" << n_tr
               << ", runEvent=" << n_ev << ", machine " << host << ")\n  machine entry (" << host << "): "
               << (last_for_machine
-                      ? "REMOVE — host_spec + io_best_fit + current_host pin (this was its last run)"
+                      ? "REMOVE — every row that names this machine (this was its last run)"
                       : "keep — " + std::to_string(runs_in_group - 1) + " other run(s) remain")
               << "\n  shared dimensions (testList/compiler/parameter) kept.\n";
     if (dry) { std::cout << "  dry-run — nothing changed; re-run with --yes to delete.\n"; return 0; }
@@ -87,9 +87,10 @@ int main(int argc, char** argv) {
     db.exec("DELETE FROM runEvent WHERE run_id=?", run_id);
     db.exec("DELETE FROM run WHERE run_id=?", run_id);
     if (last_for_machine) {
-        db.exec("DELETE FROM host_spec   WHERE group_id=?", group_id);
-        db.exec("DELETE FROM io_best_fit WHERE group_id=?", group_id);
-        db.exec("DELETE FROM current_host WHERE group_id=?", group_id);  // clears the pin only if it named this machine
+        // Every table that names the machine (kGroupTables), so its number is free again: a row
+        // left behind in package_version or fleet_sync kept it counted as in use.
+        for (const char* t : jac313::results::kGroupTables)
+            db.exec(std::string("DELETE FROM ") + t + " WHERE group_id=?", group_id);
     }
     jac313::results::rebuild_safeness(db);   // recount the per-(machine x gate x compiler) summary from what's left
     db.exec("VACUUM");

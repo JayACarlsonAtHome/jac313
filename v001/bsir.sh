@@ -445,25 +445,25 @@ if [ "$need_install" = 1 ] && [ "$ASSUME_YES" = 0 ] && [ -t 0 ]; then
     *) ASSUME_YES=1 ;;
   esac
 fi
-if [ "$ASSUME_YES" = 1 ] && [ "$need_install" = 1 ]; then
-  # The sudo password once, now; then keep it fresh (sudo forgets after ~5 minutes, and the
-  # downloads and builds take longer), until this script ends.
-  if sudo -v; then
-    ( while kill -0 $$ 2>/dev/null; do sudo -n true 2>/dev/null; sleep 50; done ) &
-    SUDO_KEEPALIVE=$!
-    trap 'pkill -P "$SUDO_KEEPALIVE" 2>/dev/null; kill "$SUDO_KEEPALIVE" 2>/dev/null' EXIT
-    # First thing after the password: bring the system up to date, so every install below
-    # comes from current packages. It can move gcc / clang, so look for them again after.
-    echo
-    echo "=== system update ==="
-    case "$family" in
-      fedora|rhel) sudo dnf -y upgrade --refresh ;;
-      linuxmint)   sudo apt-get update && sudo apt-get -y upgrade ;;
-      *)           echo "  (no update command for '$family'; skipped)" ;;
-    esac || echo "  [FAIL] system update (see above); going on with the installs"
-    detect_cxx
-    compute_missing
-  fi
+# The system update runs on every run, with nothing to answer: every install below and every
+# build comes from current packages. The sudo password once, now; then keep it fresh (sudo
+# forgets after ~5 minutes, and the downloads and builds take longer), until this script ends.
+if sudo -v; then
+  ( while kill -0 $$ 2>/dev/null; do sudo -n true 2>/dev/null; sleep 50; done ) &
+  SUDO_KEEPALIVE=$!
+  trap 'pkill -P "$SUDO_KEEPALIVE" 2>/dev/null; kill "$SUDO_KEEPALIVE" 2>/dev/null' EXIT
+  # It can move gcc / clang, so look for them again after.
+  echo
+  echo "=== system update ==="
+  case "$family" in
+    fedora|rhel) sudo dnf -y upgrade --refresh ;;
+    linuxmint)   sudo apt-get update && sudo apt-get -y upgrade ;;
+    *)           echo "  (no update command for '$family'; skipped)" ;;
+  esac || echo "  [FAIL] system update (see above); going on"
+  detect_cxx
+  compute_missing
+else
+  echo "  (no sudo: the system update was skipped)"
 fi
 
 # --- 3. install what is missing (recipes in Setup/recipes.conf), then continue ---

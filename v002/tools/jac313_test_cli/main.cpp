@@ -1502,7 +1502,7 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
     }
 
     std::vector<std::string> targets;   // smoke+bench target names, discovered once
-    int built_total = 0, skipped = 0;
+    int built_total = 0, skipped = 0, failed = 0;
     for (const auto& c : cfgs) {
         const fs::path dir = source_dir / "tmp_build" / c.label;
         safe_rmdir(source_dir, dir);
@@ -1510,7 +1510,8 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
             "-DCMAKE_CXX_COMPILER=" + c.cc, "-DCMAKE_BUILD_TYPE=Debug", "-DJAC313_BUILD_STORE_TESTS=ON"};
         conf.insert(conf.end(), c.feflags.begin(), c.feflags.end());
         if (run_process(conf, 0, source_dir.string(), 0).exit_code != 0) {
-            std::cout << "  " << c.label << ": CONFIGURE FAILED — skipped\n";
+            std::cout << "  " << c.label << ": CONFIGURE FAILED\n";
+            ++failed;
             safe_rmdir(source_dir, dir); continue;
         }
         if (targets.empty()) {
@@ -1529,15 +1530,19 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
         std::cout << "  " << c.label << ": building " << missing.size() << " of " << targets.size() << " targets...\n";
         std::vector<std::string> build = {"cmake", "--build", "tmp_build/" + c.label};
         for (const auto& m : missing) { build.push_back("--target"); build.push_back(m); }
-        run_process(build, 0, source_dir.string(), 0);   // ignore rc: capture records whatever built
+        if (run_process(build, 0, source_dir.string(), 0).exit_code != 0) {
+            std::cout << "  " << c.label << ": BUILD FAILED (what did build is recorded)\n";
+            ++failed;
+        }
         capture_build_times(source_dir, dir, c.mod, c.istd);
         built_total += static_cast<int>(missing.size());
         safe_rmdir(source_dir, dir);
     }
     safe_rmdir(source_dir, source_dir / "tmp_build");
     std::cout << "build-times gate: " << built_total << " target-builds recorded, " << skipped
-              << " config(s) already complete for " << host << ".\n";
-    return 0;
+              << " config(s) already complete for " << host << (failed ? ", " + std::to_string(failed) + " FAILED" : "")
+              << ".\n";
+    return failed ? 1 : 0;   // the pre-push hook stops on a broken compiler config
 }
 
 // Record one testRun row per ctest unit test into results.db.
@@ -1922,10 +1927,16 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
     }
 
     // 3. Scratch working dir so persist_* output never lands in the repo.
-    const fs::path scratch = fs::temp_directory_path() / "jac313-cleancheck";
+    // One scratch dir per process (two verifies at once, gcc and clang or two users, must not
+    // delete each other's files), removed when this function returns.
+    const fs::path scratch = fs::temp_directory_path() / ("jac313-cleancheck-" + std::to_string(::getpid()));
     std::error_code ec;
     fs::remove_all(scratch, ec);
     fs::create_directories(scratch, ec);
+    struct ScratchCleanup {
+        fs::path dir;
+        ~ScratchCleanup() { std::error_code e; fs::remove_all(dir, e); }
+    } scratch_cleanup{scratch};
     const std::string scratch_s = scratch.string();
 
     const fs::path build_abs = fs::absolute(global.build_dir);
@@ -2387,7 +2398,7 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
             emit("cmake --build " + dir + " --target jac313_store_bench");
             emit("BENCH=\"" + dir + "/Store/tests/matrix/jac313_store_bench\"");
             // bench auto-records like every other gate (no --report needed); --report only renders.
-            emit("\"$BENCH\" --suite --db " + JAC313_RESULTS_DB + bench_keep_logs_args(global, label)
+            emit("\"$BENCH\" --suite --db \"" + JAC313_RESULTS_DB + "\"" + bench_keep_logs_args(global, label)
                  + bench_persist_args(global));
         }
         emit("");
@@ -2574,8 +2585,17 @@ std::pair<std::string, std::string> pinned_or_highest_labels(const fs::path& sou
 int run_everything_command(const GlobalOptions& global) {
     namespace fs = std::filesystem;
     std::error_code ec;
-    if (!global.source_dir.empty()) fs::current_path(global.source_dir, ec);
-    const std::string CLI = "./jac313_test_cli";
+    if (!global.source_dir.empty()) {
+        fs::current_path(global.source_dir, ec);
+        if (ec) {
+            std::cerr << "run-everything: cannot enter " << global.source_dir << ": " << ec.message() << '\n';
+            return 1;
+        }
+    }
+    // This very program, by absolute path: the steps run through the shell from the version
+    // dir, which may be anywhere (and so may hold a space).
+    const std::string CLI = "\"" + fs::read_symlink("/proc/self/exe", ec).string() + "\"";
+    if (ec) { std::cerr << "run-everything: cannot find this program (/proc/self/exe)\n"; return 1; }
     const auto [gcc_label, clang_label] = pinned_or_highest_labels(".");
     if (gcc_label.empty() || clang_label.empty()) {
         std::cerr << "run-everything: could not resolve this machine's pinned/highest compilers "
@@ -2640,15 +2660,15 @@ int run_everything_command(const GlobalOptions& global) {
     // Calibrate the per-machine durable double-buffer sizes (io_best_fit) AFTER the smoke gate (the host
     // is pinned by the ctest/smoke recorders by now) and BEFORE the recorded suite, so each --suite below
     // runs at the calibrated useThis. I/O batch is hardware-bound (not compiler-bound), so calibrate ONCE
-    // with the gcc bench binary. --calibrate ensure_schema's the io_best_fit table itself (the DB was
-    // wiped above), and falls back gracefully (default batch) if it ever fails.
+    // with the gcc bench binary. --calibrate ensure_schema's the io_best_fit table itself (this machine's
+    // rows were cleared above), and falls back gracefully (default batch) if it ever fails.
     step("calibrate", "build-bench-" + gcc_label + "/Store/tests/matrix/jac313_store_bench "
-                      "--calibrate --db " + SHARED_DB);
+                      "--calibrate --db \"" + SHARED_DB + "\"");
     // Recorded throughput suite per compiler (reads io_best_fit.useThis).
     for (const std::string& cc : {gcc_label, clang_label}) {
         const std::string dir = "build-bench-" + cc;
         step("bench " + cc, dir + "/Store/tests/matrix/jac313_store_bench --suite "
-                            "--db " + SHARED_DB + bench_keep_logs_args(global, cc));
+                            "--db \"" + SHARED_DB + "\"" + bench_keep_logs_args(global, cc));
     }
     step("verify gcc",   CLI + " matrix verify --compiler " + gcc_label);
     step("verify clang", CLI + " matrix verify --compiler " + clang_label);
@@ -2947,19 +2967,9 @@ int main(int argc, char** argv) {
     }
     if (command == "host") {   // sense + pin THIS machine (host_spec + current_host) and show the grid
         GlobalOptions host_global = global;
-        for (int i = 2; i < argc; ++i) {
-            const std::string a = argv[i];
-            if (a == "--source-dir" && i + 1 < argc) { ++i; continue; }
-            if (a == "--claim" && i + 1 < argc) { host_global.host_claim = argv[++i]; continue; }
-            if (a.rfind("--assign-new-", 0) == 0) {
-                host_global.host_assign_new = std::stoll(a.substr(15));
-                continue;
-            }
-            if (a == "--assign-new" && i + 1 < argc) {
-                host_global.host_assign_new = std::stoll(argv[++i]);
-                continue;
-            }
-        }
+        const HostPinFlags pin_flags = parse_host_pin_flags(argc, argv, 2);   // --claim / --assign-new[-###]
+        host_global.host_claim = pin_flags.claim;
+        host_global.host_assign_new = pin_flags.assign_new;
         const fs::path db_path = JAC313_RESULTS_DB;
         std::error_code ec;
         if (!fs::exists(db_path.parent_path(), ec)) { std::cerr << "host: no test-summary/.\n"; return 1; }
@@ -3032,6 +3042,16 @@ int main(int argc, char** argv) {
                 preset.verify_lite = true;
             } else if (arg == "--group-id") {
                 preset.group_id = true;
+            } else if (arg == "--claim" && i + 1 < argc) {
+                global.host_claim = argv[++i];
+            } else if (arg.rfind("--assign-new-", 0) == 0 || (arg == "--assign-new" && i + 1 < argc)) {
+                const std::string num = arg == "--assign-new" ? std::string(argv[++i])
+                                                              : arg.substr(std::string("--assign-new-").size());
+                try { global.host_assign_new = std::stoll(num); }
+                catch (const std::exception&) {
+                    std::cerr << arg << ": a slot number is needed (e.g. --assign-new-003)\n";
+                    std::exit(2);
+                }
             } else if (arg == "--run-everything") {
                 preset.run_everything = true;
             } else if (arg == "--keep-logs") {

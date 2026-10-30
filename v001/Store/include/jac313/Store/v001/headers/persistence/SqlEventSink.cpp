@@ -19,8 +19,9 @@ SqlEventSink::SqlEventSink(std::string_view base_name,
     , dbl_count_(dbl_count)
     , mode_(mode)
 {
-    table_base_ = fs::path(std::string(base_name)).filename().string();
-    if (table_base_.empty()) table_base_ = "persist";
+    // The table name is pasted into DROP / CREATE / INSERT below: only an identifier may be.
+    const std::string stem = fs::path(std::string(base_name)).filename().string();
+    table_base_ = sanitize_identifier(stem.empty() ? "persist" : stem);
 
     db_path_ = std::string(base_name) + ".db";
     debug_path_ = std::string(base_name) + ".sql";  // debug insert statements for inspection/replay
