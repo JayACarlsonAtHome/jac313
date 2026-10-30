@@ -23,11 +23,11 @@
 
 1. #|# 2|canonical_dir|jText/v001
 
-1. #|# 3|canonical_commit|a97fc5d270f2
+1. #|# 3|canonical_commit|02d8a644f733
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v001.029
+1. #|# 5|canonical_version|v001.030
 
 1. #|# 6|transform|jac313-prefix
 
@@ -60,19 +60,19 @@
 === Data ===
 1. #|# 1|Qlite/include/jac313/Qlite/v001.hpp|Qlite/include/Qlite/v001.hpp|2f4be1e0263e1ca942d496d87e05aa36d62b52e7bf4fad49c1daf983595a3ac9|1d185351c40d0e34ee25b0a4b813940fc89313d09c910e4e81464d9c7933b7af
 
-1. #|# 2|Qlite/include/jac313/Qlite/v001/Database.body.hpp|Qlite/include/Qlite/v001/Database.body.hpp|c09a4b575b48d5ce3bd73a3792f148f7c2a0f0fbc23398a9fb1d17b1d1231abe|0fb8e4fece0affaa82d1326dd3e3f4423c016727400eb1a445e3f760cb883847
+1. #|# 2|Qlite/include/jac313/Qlite/v001/Database.body.hpp|Qlite/include/Qlite/v001/Database.body.hpp|cceb4c97b60b1eb6c74dd11276f5b0fb3f042781c63acf52f17313fbd667a021|d4bd3edaa5ee09a650ff0816b8fc75b63b1d440ec8e719abab3d97a5895b4fcd
 
 1. #|# 3|Qlite/include/jac313/Qlite/v001/Database.hpp|Qlite/include/Qlite/v001/Database.hpp|7dc6fa2f50fa8e51840526571e297e3114352e16b1a9a012078c2936b99ed29c|be9a66f5a8899da090683cbff741f6dca3890ba383fc435a02ff2c9dbfe63dd0
 
-1. #|# 4|Qlite/include/jac313/Qlite/v001/MariaDB.body.hpp|Qlite/include/Qlite/v001/MariaDB.body.hpp|0623fcb55297abcf31b63cd05aad714216f58e2a8bdce985f56626bc0469e6db|2958c22ea7850a3405b5e73dd220d2fb9fd75f1ce2a0297d50a39934bbd1f485
+1. #|# 4|Qlite/include/jac313/Qlite/v001/MariaDB.body.hpp|Qlite/include/Qlite/v001/MariaDB.body.hpp|5b87de7b4da58ca3ef1507ec7bb7f8f8f766f4a727238fff039f7c45740d8fa5|1d16cb60749bb89c7c7a90c54ecfdbc29880db1c88750b375fa107cc057c60cd
 
 1. #|# 5|Qlite/include/jac313/Qlite/v001/MariaDB.hpp|Qlite/include/Qlite/v001/MariaDB.hpp|5437d81b0b7890fcc9fb8b21d2a40e921721c8bf6bdf4c9efd2c1be7f4313127|5f55a5f25458bb1646d07570b250968909f2ebf1e56e4b4b681eba8431fcaf65
 
-1. #|# 6|Qlite/include/jac313/Qlite/v001/Postgres.body.hpp|Qlite/include/Qlite/v001/Postgres.body.hpp|2f5039789877486af82624bd4c77945907707a1a08c478e866f7f463db923ee2|e93d5c027b5bc7c77aeb369fce4d30ad2281fd459a8886414bc9eaa2cbacd33e
+1. #|# 6|Qlite/include/jac313/Qlite/v001/Postgres.body.hpp|Qlite/include/Qlite/v001/Postgres.body.hpp|869dd1628b36fb9e4de6405854fe1e91279e6bc3c5c8bcf1e2aff151c526436b|a34051925e7119f4a9a103386a0a53f9283370477ec315925e6f62b398067725
 
 1. #|# 7|Qlite/include/jac313/Qlite/v001/Postgres.hpp|Qlite/include/Qlite/v001/Postgres.hpp|c84ef94e7f51260db20aa8cd07d398be6d4dfa2e3c3eae749a5ab1d24ef2f52f|84649eaca80c2786114ec0911ad970055d6736a6fc03f418e5ce650aed10b330
 
-1. #|# 8|Qlite/include/jac313/Qlite/v001/Sqlite.body.hpp|Qlite/include/Qlite/v001/Sqlite.body.hpp|d21e0705c7767fe684d67c0e765c8272f2ec6cc2d5e146e1fa757b1ddd6c5637|07d6d36ac9f753bfdd6f32c61c96d42b0d1820bad941a48ab40a522b40c2ae2a
+1. #|# 8|Qlite/include/jac313/Qlite/v001/Sqlite.body.hpp|Qlite/include/Qlite/v001/Sqlite.body.hpp|5e231e0d64c21b611c8b358b23d1131d98e78440ceba39ef0e3534fadd967ac3|97436385c0206099fcbb0560d87ec3daf465178836d86ee40bfd5c8123a9d413
 
 1. #|# 9|Qlite/include/jac313/Qlite/v001/Sqlite.hpp|Qlite/include/Qlite/v001/Sqlite.hpp|047f6dee6495cb83fbcb4d6c75204cdcd7369c3b123cb1f633ae181bbbdc8649|f244133c7bf278c9ec1f53151b7573c16177faad77fbecde676f94ab2867b94a
 
@@ -82,7 +82,7 @@
 
 1. #|# 12|include/jac313/jText/v001.hpp|include/jText/v001.hpp|50fa0c094772ea9628f53c827a5cef50ad76b5f4623bae28e8a19305ef40f210|06af37f1fcbf98aaa653f9e6500d7edd4d1ae8cf226ca88844a5fe2aca621814
 
-1. #|# 13|jText.api.inc|jText.api.inc|11e57a232b08348b0f3c42d9fe505d4c022079820d5bee9f39d0c82bb3ecb4b5|74ef4a9ba44a61e6f88184c21b1aff94073749ea03ce0a1e15b7482615ab86a3
+1. #|# 13|jText.api.inc|jText.api.inc|6e3f5b90d41e4bc819c21ee62caeeba2adec10771b759dfd27a1b52534fb0ee7|bc30888ebab9dfcb8c6192aa21e24eedd9890a2fd0ac3e5046ebb7399c05be6b
 
 1. #|# 14|jText.cpp|jText.cpp|2004c32952a36a6d5bed4725c47347dab99f34d8aec9c80cb159ee4c4687746e|2f0538e503dea46fdbc7847b5abfab8407abae8a4f994beca45df849f5fee3cb
 
@@ -130,7 +130,7 @@
 
 1. #|# 36|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|3531e8d11b33c745132feee513fee2444b8069cc58a046cdb374fea045018502|036433b198e88cf0c4be9e3cb28be9e9c051d6abcc4b9ad23fda23c7c3bfa2e1
 
-1. #|# 37|tests/v001_test.cpp|tests/v001_test.cpp|f210ce35ba59ac3f50ad907b1c92f907130eaf99a843808d1d60a365ceb5cd9e|0ee9173a0baf8b90aadad18c156c6766754f05282949599689d96e6a0105277d
+1. #|# 37|tests/v001_test.cpp|tests/v001_test.cpp|e6a4e5cfccde1ce7e1a495f16027c48feef741fb88dfee27e9ba3cef6738eec8|b8718b88eb0621a1f6d10143f99f701336de808707e1764f587eefcee6423b6e
 
 1. #|# 38|tools/common/record_lines.hpp|tools/common/record_lines.hpp|77d76b33723603912a3c14655f0cc5a979295a5968978faaad2e2a0c7a5b4ff6|c8e08a51d238a6ec076f4d81d8f544c263acb810b7072e3cc25c847187edd0cc
 
