@@ -116,6 +116,26 @@ PgConn::PgConn(const std::string& conninfo) {
     exec("SET client_min_messages = warning");
 }
 
+std::string PgConn::host() const {
+    const char* v = PQhost(conn_);
+    return v ? v : "";
+}
+
+std::string PgConn::hostaddr() const {
+    const char* v = PQhostaddr(conn_);
+    return v ? v : "";
+}
+
+int PgConn::port() const {
+    const char* v = PQport(conn_);
+    return (v && *v) ? std::atoi(v) : 0;
+}
+
+std::string PgConn::dbname() const {
+    const char* v = PQdb(conn_);
+    return v ? v : "";
+}
+
 PgConn::~PgConn() {
     if (conn_) PQfinish(conn_);
 }

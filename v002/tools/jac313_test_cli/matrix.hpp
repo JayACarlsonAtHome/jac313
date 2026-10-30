@@ -72,6 +72,7 @@ struct BuildFeatures {
     std::string build_type{"Debug"};  // CMAKE_BUILD_TYPE from the tree's CMakeCache, plus
                                       // "-strict" / "-hardened" when those options are set, so
                                       // such runs get their own results rows, logs and datasets
+    std::string cmake_build_type{"Debug"};  // CMAKE_BUILD_TYPE alone (results.db parameter.build_type)
     bool strict{false};               // JAC313_STRICT
     bool hardened{false};             // JAC313_HARDENED
     std::string contracts{"enforce"}; // JAC313_CONTRACTS (results.db: parameter.contracts)

@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
               << " package_version=" << cnt("package_version") << " io_best_fit=" << cnt("io_best_fit")
               << "  (testType enum + testControl kept)\n";
     if (dry) { std::cout << "  dry-run — nothing changed; re-run with --yes to clear.\n"; return 0; }
-    for (const char* t : {"testRun", "runEvent", "run", "parameter", "compiler", "testList", "current_host", "host_spec",
+    for (const char* t : {"testRun", "runEvent", "run_target", "run", "parameter", "compiler", "testList", "current_host", "host_spec",
                           "safeness", "package_version", "io_best_fit"})
         db.exec(std::string("DELETE FROM ") + t);
     db.exec("VACUUM");

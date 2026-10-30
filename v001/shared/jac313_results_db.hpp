@@ -83,7 +83,9 @@ inline const std::string& resolve_results_db(const std::filesystem::path& source
 // layout) is dropped and created fresh on first open. Change any table or index below -> bump this.
 // 2: testRun.hot_ops and drain_keeper_ms / drain_database_ms / drain_binary_ms (the production bench run).
 // 3: parameter.contracts (the contract evaluation mode the binaries were built under).
-inline constexpr int kResultsSchemaVersion = 3;
+// 4: run_target (what each run wrote where); parameter.strict / hardened; testRun.batch_keeper /
+//    batch_database / batch_binary (the batch each sink used).
+inline constexpr int kResultsSchemaVersion = 4;
 
 namespace detail {
 // Every table and index, all idempotent (IF NOT EXISTS): cheap to run on every open.
@@ -105,7 +107,10 @@ inline void create_results_tables(Sqlite& db) {
             "  , UNIQUE(name, version)\n"
             ")");
     // An axis that does not apply to a test kind is '' or 0 (never NULL), so the plain table-level
-    // UNIQUE over all 14 axes really dedupes (SQLite treats NULLs as distinct; there are none).
+    // UNIQUE over all 16 axes really dedupes (SQLite treats NULLs as distinct; there are none).
+    // build_type is CMAKE_BUILD_TYPE as built (Debug | Release); strict / hardened are JAC313_STRICT /
+    // JAC313_HARDENED of that tree (on | off). batch: the persistence batch (rows per sink call) the
+    // run used, 0 when nothing persisted (the per-sink values are on testRun).
     db.exec("CREATE TABLE IF NOT EXISTS parameter (\n"
             "    id INTEGER PRIMARY KEY NOT NULL\n"
             "  , compiler_id INTEGER NOT NULL DEFAULT 0\n"
@@ -122,8 +127,10 @@ inline void create_results_tables(Sqlite& db) {
             "  , flag_count INTEGER NOT NULL DEFAULT 0\n"
             "  , valgrind_tool TEXT NOT NULL DEFAULT ''\n"
             "  , contracts TEXT NOT NULL DEFAULT 'enforce'\n"   // enforce | observe | quick_enforce | ignore (JAC313_CONTRACTS)
+            "  , strict TEXT NOT NULL DEFAULT 'off'\n"           // on | off (JAC313_STRICT)
+            "  , hardened TEXT NOT NULL DEFAULT 'off'\n"         // on | off (JAC313_HARDENED)
             "  , UNIQUE(compiler_id, build_type, modules, import_std, size, persist, output_mode, threads,\n"
-            "           events_per_thread, runs, batch, flag_count, valgrind_tool, contracts)\n"
+            "           events_per_thread, runs, batch, flag_count, valgrind_tool, contracts, strict, hardened)\n"
             ")");
     // run = per-run metadata only. The hardware lives in host_spec (one row per machine), so it is
     // NOT duplicated across every run; run references the machine via group_id.
@@ -201,6 +208,32 @@ inline void create_results_tables(Sqlite& db) {
             "  , drain_keeper_ms INTEGER NOT NULL DEFAULT 0\n"
             "  , drain_database_ms INTEGER NOT NULL DEFAULT 0\n"
             "  , drain_binary_ms INTEGER NOT NULL DEFAULT 0\n"
+            // The persistence batch each sink used (rows per sink call; 0 = no such sink). A one-sink
+            // run fills the one that applies: keeper = a file (jtext | html | json), database = sql |
+            // pg-local | pg-remote, binary = the binary log.
+            "  , batch_keeper INTEGER NOT NULL DEFAULT 0\n"
+            "  , batch_database INTEGER NOT NULL DEFAULT 0\n"
+            "  , batch_binary INTEGER NOT NULL DEFAULT 0\n"
+            ")");
+    // run_target = what a run wrote where, many rows per run: one per table or file a sink wrote,
+    // plus a 'registry' row when the run's process reached the fleet registry server.
+    //   role:     persist (a one-sink run) | keeper | database | binary (the production run's sinks) | registry
+    //   backend:  sql | pg-local | pg-remote | jtext | html | json | binary
+    //   server:   a PostgreSQL server: its connections-file id ("#2") when the server came from that
+    //             file, else its host name; '' for a file or SQLite
+    //   address / port: the address and port connected to ('' / 0 for a file or SQLite)
+    //   dbname:   the database (SQLite: the .db path); '' for a file sink
+    //   table_name: the table (PostgreSQL: schema-qualified), or the file path for a file sink
+    db.exec("CREATE TABLE IF NOT EXISTS run_target (\n"
+            "    id INTEGER PRIMARY KEY NOT NULL\n"
+            "  , run_id INTEGER NOT NULL DEFAULT 0\n"
+            "  , role TEXT NOT NULL DEFAULT ''\n"
+            "  , backend TEXT NOT NULL DEFAULT ''\n"
+            "  , server TEXT NOT NULL DEFAULT ''\n"
+            "  , address TEXT NOT NULL DEFAULT ''\n"
+            "  , port INTEGER NOT NULL DEFAULT 0\n"
+            "  , dbname TEXT NOT NULL DEFAULT ''\n"
+            "  , table_name TEXT NOT NULL DEFAULT ''\n"
             ")");
     // runEvent: live status and progress log for tracking runs in real time (e.g. in DataGrip).
     // Inserted during execution so you can watch started/ended/error events while the CLI is running.
@@ -266,6 +299,7 @@ inline void create_results_tables(Sqlite& db) {
     db.exec("CREATE INDEX IF NOT EXISTS ix_testRun_run ON testRun(run_id)");
     db.exec("CREATE INDEX IF NOT EXISTS ix_testRun_parameter ON testRun(parameter_id)");
     db.exec("CREATE INDEX IF NOT EXISTS ix_runEvent_run ON runEvent(run_id)");
+    db.exec("CREATE INDEX IF NOT EXISTS ix_run_target_run ON run_target(run_id)");
     db.exec("CREATE INDEX IF NOT EXISTS ix_run_group_version ON run(group_id, version)");
 }
 
@@ -730,6 +764,7 @@ inline void delete_prior_run_for_group(Sqlite& db, std::int64_t gid, const std::
     if (prior_run > 0) {
         db.exec("DELETE FROM testRun WHERE run_id=?", prior_run);
         db.exec("DELETE FROM runEvent WHERE run_id=?", prior_run);
+        db.exec("DELETE FROM run_target WHERE run_id=?", prior_run);
         db.exec("DELETE FROM run WHERE run_id=?", prior_run);
     }
 }
@@ -749,6 +784,89 @@ inline void insert_run(Sqlite& db, std::int64_t run_id, std::int64_t gid, const 
     db.exec("INSERT OR IGNORE INTO run(run_id, ts_utc, group_id, host, version, store_ver, qlite_ver, jtext_ver) "
             "VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?,?)",
             run_id, gid, host, version, store_ver, qlite_ver, jtext_ver);
+}
+
+// ---- run_target: what a run wrote where ----
+// One table or file a run wrote, as a sink reported it (Store's IEventSink::targets(), printed by the
+// test / bench worker as a TARGET line), or the fleet registry server the run's process reached.
+struct RunTarget {
+    std::string role;        // persist | keeper | database | binary | registry
+    std::string backend;     // sql | pg-local | pg-remote | jtext | html | json | binary
+    std::string host;        // the server's host name as connected ('' for a file / SQLite)
+    std::string address;     // the address connected to
+    std::int64_t port = 0;
+    std::string dbname;
+    std::string table;       // a table, or the file path for a file sink
+};
+
+// One "TARGET key=value ..." line (Store/tests/matrix/test_common.hpp print_targets; values may be
+// "quoted"). False when the line is not one.
+inline bool parse_target_line(const std::string& line, RunTarget& out) {
+    if (line.rfind("TARGET ", 0) != 0) return false;
+    out = RunTarget{};
+    std::size_t i = 7;
+    while (i < line.size()) {
+        while (i < line.size() && line[i] == ' ') ++i;
+        const auto eq = line.find('=', i);
+        if (eq == std::string::npos) break;
+        const std::string key = line.substr(i, eq - i);
+        std::string val;
+        std::size_t j = eq + 1;
+        if (j < line.size() && line[j] == '"') {
+            const auto close = line.find('"', j + 1);
+            val = line.substr(j + 1, (close == std::string::npos ? line.size() : close) - j - 1);
+            j = (close == std::string::npos) ? line.size() : close + 1;
+        } else {
+            const auto sp = line.find(' ', j);
+            val = line.substr(j, (sp == std::string::npos ? line.size() : sp) - j);
+            j = (sp == std::string::npos) ? line.size() : sp;
+        }
+        if (key == "role") out.role = val;
+        else if (key == "backend") out.backend = val;
+        else if (key == "host") out.host = val;
+        else if (key == "address") out.address = val;
+        else if (key == "port") out.port = std::atoll(val.c_str());
+        else if (key == "dbname") out.dbname = val;
+        else if (key == "table") out.table = val;
+        i = j;
+    }
+    return !out.backend.empty();
+}
+
+// Every TARGET line in a process's output.
+inline std::vector<RunTarget> parse_target_lines(const std::string& text) {
+    std::vector<RunTarget> v;
+    for (std::size_t at = 0; at < text.size();) {
+        const auto nl = text.find('\n', at);
+        const std::string line = text.substr(at, nl == std::string::npos ? std::string::npos : nl - at);
+        at = nl == std::string::npos ? text.size() : nl + 1;
+        RunTarget t;
+        if (parse_target_line(line, t)) v.push_back(std::move(t));
+    }
+    return v;
+}
+
+// The server name recorded for a PostgreSQL target: "#<id>" when $JAC313_PG_REMOTE_ID /
+// $JAC313_PG_LOCAL_ID says the server came from that row of the connections file (jac313_test_cli
+// sets it with the conninfo), else the host name.
+inline std::string pg_server_name(const std::string& backend, const std::string& host) {
+    const char* id = std::getenv(backend == "pg-local" ? "JAC313_PG_LOCAL_ID" : "JAC313_PG_REMOTE_ID");
+    return (id && *id) ? "#" + std::string(id) : host;
+}
+
+// Record what run `run_id` wrote where: one run_target row per distinct target (a target already
+// recorded for this run is not repeated). PostgreSQL and registry targets get their server name
+// (pg_server_name); files and SQLite have none. The one writer for the CLI and the bench.
+inline void insert_run_targets(Sqlite& db, std::int64_t run_id, const std::vector<RunTarget>& targets) {
+    for (const auto& t : targets) {
+        const bool server = t.backend == "pg-local" || t.backend == "pg-remote";
+        const std::string name = server ? pg_server_name(t.backend, t.host) : std::string();
+        db.exec("INSERT INTO run_target(run_id, role, backend, server, address, port, dbname, table_name) "
+                "SELECT ?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM run_target WHERE run_id=? AND role=? "
+                "AND backend=? AND server=? AND address=? AND port=? AND dbname=? AND table_name=?)",
+                run_id, t.role, t.backend, name, t.address, t.port, t.dbname, t.table,
+                run_id, t.role, t.backend, name, t.address, t.port, t.dbname, t.table);
+    }
 }
 
 // ---- io_best_fit (per-machine durable-backend batch calibration) ----

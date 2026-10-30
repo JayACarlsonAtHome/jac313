@@ -39,6 +39,9 @@ public:
 
     std::string_view name() const override { return "SqlEventSink"; }
 
+    /// The .db file as dbname, and its main / _ints / _floats tables.
+    std::vector<SinkTarget> targets() const override;
+
     [[nodiscard]] size_t main_row_count() const { return main_rows_inserted_; }
 
 private:

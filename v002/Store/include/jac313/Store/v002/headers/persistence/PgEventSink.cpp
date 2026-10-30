@@ -40,6 +40,17 @@ PgEventSink::PgEventSink(std::string_view backend,
 
     const std::string s(kPgTestSchema);
     const std::string t = s + "." + table_base_;
+    {
+        const SinkTarget server{conn_->host(), conn_->hostaddr().empty() ? conn_->host() : conn_->hostaddr(),
+                                conn_->port(), conn_->dbname(), t};
+        targets_.push_back(server);
+        for (const char* suffix : {"_ints", "_floats"}) {
+            if ((suffix[1] == 'i' ? int_count_ : dbl_count_) == 0) continue;
+            SinkTarget tb = server;
+            tb.table = t + suffix;
+            targets_.push_back(tb);
+        }
+    }
     std::string ddl = std::format("CREATE SCHEMA IF NOT EXISTS {};\n"
                                   "DROP TABLE IF EXISTS {}, {}_ints, {}_floats;\n"
                                   "CREATE TABLE {} (\n"

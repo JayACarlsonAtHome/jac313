@@ -91,6 +91,24 @@ endif()
 # Every binary knows the mode it was built under: results.db records it with each run
 # (jac313::contracts::contracts_mode, Setup/include/jac313/Setup/contracts.hpp).
 add_compile_definitions(JAC313_CONTRACTS_MODE="${JAC313_CONTRACTS}")
+# ... and the rest of how it was built (results.db parameter.build_type / modules / strict / hardened).
+if(JAC313_BUILD_MODULES)
+    set(_jac313_modules_state on)
+else()
+    set(_jac313_modules_state off)
+endif()
+if(JAC313_STRICT)
+    set(_jac313_strict_state on)
+else()
+    set(_jac313_strict_state off)
+endif()
+if(JAC313_HARDENED)
+    set(_jac313_hardened_state on)
+else()
+    set(_jac313_hardened_state off)
+endif()
+add_compile_definitions(JAC313_BUILD_TYPE="${CMAKE_BUILD_TYPE}" JAC313_BUILD_MODULES="${_jac313_modules_state}"
+                        JAC313_STRICT="${_jac313_strict_state}" JAC313_HARDENED="${_jac313_hardened_state}")
 # The death tests (a violated contract must terminate) only hold when violations terminate.
 if(JAC313_CONTRACTS MATCHES "^(enforce|quick_enforce)$")
     set(JAC313_CONTRACTS_TERMINATE ON)

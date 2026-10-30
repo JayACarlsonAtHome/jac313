@@ -40,6 +40,8 @@
 #include <locale>
 #include <sstream>
 #include <map>
+#include <set>
+#include <tuple>
 #include <unordered_map>
 #include <iomanip>
 
@@ -520,30 +522,40 @@ std::int64_t cli_results_id(jac313::Qlite::v001::Sqlite& db, const char* sql, co
     return jac313::results::lookup_id(db, sql, name);
 }
 
-// insert-or-find a functional parameter combo (batch/flag_count/valgrind_tool N/A => 0 / ''); SELECT-then-INSERT.
-// contracts = the build tree's JAC313_CONTRACTS (read_build_features).
-std::int64_t cli_parameter_id(jac313::Qlite::v001::Sqlite& db,
-        std::int64_t compiler_id, const std::string& build_type, const std::string& modules,
-        const std::string& import_std, const std::string& size, const std::string& persist,
-        const std::string& output_mode, std::int64_t threads, std::int64_t events, std::int64_t runs,
-        const std::string& contracts) {
+// How a tree was built, as results.db parameter records it: CMAKE_BUILD_TYPE alone, the front end,
+// and JAC313_CONTRACTS / JAC313_STRICT / JAC313_HARDENED, all from the tree's CMakeCache.
+struct BuildAxes { std::string build_type, modules, import_std, contracts, strict, hardened; };
+BuildAxes build_axes(const BuildFeatures& bf, const std::string& modules_override = "",
+                     const std::string& import_std_override = "") {
+    return {bf.cmake_build_type, modules_override.empty() ? (bf.modules ? "on" : "off") : modules_override,
+            import_std_override.empty() ? "off" : import_std_override, bf.contracts,
+            bf.strict ? "on" : "off", bf.hardened ? "on" : "off"};
+}
+
+// Insert-or-find a parameter row: the build axes plus the test's own (size, persist, output_mode,
+// threads, events, runs, valgrind tool; '' / 0 where they do not apply). batch / flag_count are the
+// bench's (0 here). SELECT-then-INSERT.
+std::int64_t cli_parameter_id(jac313::Qlite::v001::Sqlite& db, std::int64_t compiler_id, const BuildAxes& b,
+        const std::string& size = "", const std::string& persist = "", const std::string& output_mode = "",
+        std::int64_t threads = 0, std::int64_t events = 0, std::int64_t runs = 0, const std::string& tool = "") {
     const char* where =
         "SELECT id FROM parameter WHERE compiler_id=? AND build_type=? AND modules=? AND import_std=? AND size=? "
         "AND persist=? AND output_mode=? AND threads=? AND events_per_thread=? AND runs=? "
-        "AND batch=0 AND flag_count=0 AND valgrind_tool='' AND contracts=?";
+        "AND batch=0 AND flag_count=0 AND valgrind_tool=? AND contracts=? AND strict=? AND hardened=?";
     auto find = [&]() -> std::int64_t {
         std::int64_t id = 0; auto st = db.prepare(where);
-        st.bind(compiler_id, build_type, modules, import_std, size, persist, output_mode, threads, events, runs,
-                contracts);
+        st.bind(compiler_id, b.build_type, b.modules, b.import_std, size, persist, output_mode, threads, events, runs,
+                tool, b.contracts, b.strict, b.hardened);
         if (st.step()) st.get(id);
         return id;
     };
     std::int64_t id = find();
     if (id == 0) {
         db.exec("INSERT INTO parameter(compiler_id,build_type,modules,import_std,size,persist,output_mode,threads,"
-                "events_per_thread,runs,batch,flag_count,contracts) VALUES(?,?,?,?,?,?,?,?,?,?,0,0,?)",
-                compiler_id, build_type, modules, import_std, size, persist, output_mode, threads, events, runs,
-                contracts);
+                "events_per_thread,runs,batch,flag_count,valgrind_tool,contracts,strict,hardened) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,0,0,?,?,?,?)",
+                compiler_id, b.build_type, b.modules, b.import_std, size, persist, output_mode, threads, events, runs,
+                tool, b.contracts, b.strict, b.hardened);
         id = find();
     }
     return id;
@@ -577,6 +589,8 @@ std::int64_t cli_begin_run(jac313::Qlite::v001::Sqlite& db, const GlobalOptions&
     const std::int64_t run_id   = jac313::results::next_run_id(db);
     jac313::results::insert_run(db, run_id, group_id, jac313::results::host_label(group_id),
                                 harness_version(global));
+    // The fleet registry server, when pinning reached it (run_target role registry).
+    if (const auto reg = fleet_registry_target()) jac313::results::insert_run_targets(db, run_id, {*reg});
     return run_id;
 }
 
@@ -623,6 +637,53 @@ std::string run_label_md(std::int64_t run_id) {
 std::string dash(const std::string& s) { return s.empty() ? "-" : s; }
 // " [observe]" after a row key or compiler when a run's contract mode is not enforce (the default).
 std::string contracts_tag(const std::string& mode) { return mode == "enforce" ? std::string() : " [" + mode + "]"; }
+// "Release", "Debug · strict · hardened": the build type and the strict / hardened options that were on.
+std::string build_label(const std::string& build_type, const std::string& strict, const std::string& hardened) {
+    return dash(build_type) + (strict == "on" ? " · strict" : "") + (hardened == "on" ? " · hardened" : "");
+}
+
+// The database backend of a persist value ("pg-remote", "pg-remote/cap=10", "jtext+pg-remote/nobinary"
+// -> "pg-remote"); "" when it is not a database.
+std::string database_backend(const std::string& persist) {
+    std::string b = persist.substr(0, persist.find('/'));
+    if (const auto plus = b.find('+'); plus != std::string::npos) b = b.substr(plus + 1);
+    return (b == "sql" || b == "pg-local" || b == "pg-remote") ? b : std::string();
+}
+
+// " (#2)" after a database backend: the server run `run_id` wrote it to (run_target), so runs against
+// different servers are different rows. "" for a file, SQLite (no server) or an unrecorded run.
+std::string server_tag(jac313::Qlite::v001::Sqlite& db, std::int64_t run_id, const std::string& persist) {
+    const std::string backend = database_backend(persist);
+    if (backend.empty()) return {};
+    // IFNULL kept: GROUP_CONCAT over no rows is NULL.
+    auto st = db.prepare("SELECT IFNULL(GROUP_CONCAT(DISTINCT server), '') FROM run_target "
+                         "WHERE run_id=? AND backend=? AND role<>'registry' AND server<>''");
+    st.bind(run_id, backend);
+    std::string servers;
+    if (st.step()) st.get(servers);
+    return servers.empty() ? std::string() : " (" + servers + ")";
+}
+
+// "| role | backend | server | address | database | table / file |": what run `run_id` wrote where.
+void write_targets_section(jac313::Qlite::v001::Sqlite& db, std::ostream& md, std::int64_t run_id) {
+    auto st = db.prepare("SELECT role, backend, server, address, port, dbname, table_name FROM run_target "
+                         "WHERE run_id=? ORDER BY role='registry', backend, dbname, table_name");
+    st.bind(run_id);
+    bool any = false;
+    while (st.step()) {
+        std::string role, backend, server, address, dbname, table; std::int64_t port = 0;
+        st.get(role, backend, server, address, port, dbname, table);
+        if (!any) {
+            md << "\n## Written to\n\n_What this run wrote where (`run_target`); the servers page lists every "
+                  "server: [servers](../servers/README.md)._\n\n"
+                  "| role | backend | server | address | database | table / file |\n|---|---|---|---|---|---|\n";
+            any = true;
+        }
+        md << "| " << role << " | " << backend << " | " << dash(server) << " | "
+           << (address.empty() ? std::string("-") : address + (port ? ":" + std::to_string(port) : std::string()))
+           << " | " << dash(dbname) << " | " << dash(table) << " |\n";
+    }
+}
 
 // Page navigation. `back` = relative path to the parent index ("../README.md" for an area page,
 // "README.md" for a run-detail page). nav_top sets the #top anchor + a back / jump-to-bottom line;
@@ -691,18 +752,23 @@ void write_compiler_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
     std::ofstream md(out / "compiler" / "README.md");
     nav_top(md, "../README.md");
     md << "# Compilers\n\n_Generated from `results.db`._\n\n"
-          "| label | name | version | major | contracts | runs |\n|---|---|---|--:|---|--:|\n";
-    // IFNULL: a compiler with no parameter row yet (LEFT JOIN, no match) has no contract modes.
+          "| label | name | version | major | builds | contracts | runs |\n|---|---|---|--:|---|---|--:|\n";
+    // IFNULL: a compiler with no parameter row yet (LEFT JOIN, no match) has no builds or contract modes.
+    // builds: each build type as built, with the strict / hardened options that were on.
     auto st = db.prepare(
-        "SELECT c.name, c.version, c.major, IFNULL(GROUP_CONCAT(DISTINCT p.contracts), ''), "
+        "SELECT c.name, c.version, c.major, "
+        "IFNULL(GROUP_CONCAT(DISTINCT CASE WHEN p.build_type = '' THEN NULL ELSE p.build_type "
+        "|| CASE WHEN p.strict = 'on' THEN '·strict' ELSE '' END "
+        "|| CASE WHEN p.hardened = 'on' THEN '·hardened' ELSE '' END END), ''), "
+        "IFNULL(GROUP_CONCAT(DISTINCT p.contracts), ''), "
         "COUNT(DISTINCT tr.run_id) "
         "FROM compiler c LEFT JOIN parameter p ON p.compiler_id=c.id "
         "LEFT JOIN testRun tr ON tr.parameter_id=p.id GROUP BY c.id ORDER BY c.name, c.major, c.version");
     while (st.step()) {
-        std::string name, version, modes; std::int64_t major = 0, runs = 0;
-        st.get(name, version, major, modes, runs);
+        std::string name, version, builds, modes; std::int64_t major = 0, runs = 0;
+        st.get(name, version, major, builds, modes, runs);
         md << "| " << comp_label(name, major) << " | " << name << " | " << version << " | "
-           << major << " | " << dash(modes) << " | " << runs << " |\n";
+           << major << " | " << dash(builds) << " | " << dash(modes) << " | " << runs << " |\n";
     }
     nav_bottom(md, "../README.md");
 }
@@ -714,13 +780,14 @@ void write_run_detail(jac313::Qlite::v001::Sqlite& db, const fs::path& dir, cons
     nav_top(det, "README.md");
     det << "# " << type << " — " << rl << "\n\n";
     { auto st = db.prepare(
-        "SELECT r.host, c.name, c.version, p.build_type, p.modules, p.import_std, p.size, p.contracts, r.ts_utc "
+        "SELECT r.host, c.name, c.version, p.build_type, p.strict, p.hardened, p.modules, p.import_std, p.size, "
+        "p.contracts, r.ts_utc "
         "FROM testRun tr JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id "
         "JOIN compiler c ON c.id=p.compiler_id WHERE tr.run_id=? LIMIT 1");
       st.bind(run_id);
-      if (st.step()) { std::string host, name, version, bt, mod, imp, size, contracts, ts;
-          st.get(host, name, version, bt, mod, imp, size, contracts, ts);
-          det << "_" << host << " · " << name << " " << version << " · " << bt << " · "
+      if (st.step()) { std::string host, name, version, bt, strict, hardened, mod, imp, size, contracts, ts;
+          st.get(host, name, version, bt, strict, hardened, mod, imp, size, contracts, ts);
+          det << "_" << host << " · " << name << " " << version << " · " << build_label(bt, strict, hardened) << " · "
               << frontend_label(mod, imp) << " · contracts " << contracts
               << (size.empty() ? "" : (" · " + size)) << " · " << ts << "_\n\n"; } }
     det << "| test | persist | mode | tool | status | ms |\n|---|---|---|---|---|--:|\n";
@@ -733,9 +800,10 @@ void write_run_detail(jac313::Qlite::v001::Sqlite& db, const fs::path& dir, cons
     while (st.step()) {
         std::string t, per, mode, tool, status; std::int64_t ms = 0;
         st.get(t, per, mode, tool, status, ms);
-        det << "| " << t << " | " << dash(per) << " | " << dash(mode) << " | " << dash(tool) << " | "
-            << status << " | " << fmt_num(ms) << " |\n";
+        det << "| " << t << " | " << dash(per) << server_tag(db, run_id, per) << " | " << dash(mode) << " | "
+            << dash(tool) << " | " << status << " | " << fmt_num(ms) << " |\n";
     }
+    write_targets_section(db, det, run_id);
     nav_bottom(det, "README.md");
 }
 
@@ -791,7 +859,7 @@ void write_type_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out, cons
               std::int64_t run = 0, ms = 0; std::string t, per, mode, tool, status;
               st.get(run, t, per, mode, tool, status, ms);
               std::string key = t;
-              if (!per.empty())  key += " · " + per;
+              if (!per.empty())  key += " · " + per + server_tag(db, run, per);
               if (!mode.empty()) key += " · " + mode;
               if (!tool.empty()) key += " · " + tool;
               Row* r = nullptr;
@@ -867,13 +935,15 @@ void write_bench_detail(jac313::Qlite::v001::Sqlite& db, const fs::path& dir, st
     std::ofstream det(dir / (rl + ".md"));
     nav_top(det, "README.md");
     det << "# bench — " << rl << "\n\n";
-    { auto st = db.prepare("SELECT r.host, c.name, c.version, p.build_type, p.contracts, r.ts_utc FROM testRun tr "
+    { auto st = db.prepare("SELECT r.host, c.name, c.version, p.build_type, p.strict, p.hardened, p.modules, "
+        "p.import_std, p.contracts, r.ts_utc FROM testRun tr "
         "JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
         "WHERE tr.run_id=? LIMIT 1");
       st.bind(run_id);
-      if (st.step()) { std::string host, name, ver, bt, contracts, ts; st.get(host, name, ver, bt, contracts, ts);
-          det << "_" << host << " · " << name << " " << ver << " · " << bt << " · contracts " << contracts
-              << " · " << ts << "_\n\n"; } }
+      if (st.step()) { std::string host, name, ver, bt, strict, hardened, mod, imp, contracts, ts;
+          st.get(host, name, ver, bt, strict, hardened, mod, imp, contracts, ts);
+          det << "_" << host << " · " << name << " " << ver << " · " << build_label(bt, strict, hardened) << " · "
+              << frontend_label(mod, imp) << " · contracts " << contracts << " · " << ts << "_\n\n"; } }
     det << "_Production rows: hot path = producers until they join (before finalize); drain = attach → "
            "that sink's finalize done, binary / keeper / database; durable total = the whole process "
            "(median ops/sec, as for every row)._\n\n";
@@ -882,26 +952,38 @@ void write_bench_detail(jac313::Qlite::v001::Sqlite& db, const fs::path& dir, st
     auto st = db.prepare(
         std::string("SELECT ") + kBenchNameSql + ", p.persist, p.threads*p.events_per_thread, "
         "tr.median_ops, tr.low_ops, tr.high_ops, tr.bytes, tr.hot_ops, tr.drain_binary_ms, tr.drain_keeper_ms, "
-        "tr.drain_database_ms "
+        "tr.drain_database_ms, p.batch, tr.batch_binary, tr.batch_keeper, tr.batch_database, tr.max_persist_rows, "
+        "tr.readback_mode, tr.readback_status, tr.rows_checked "
         "FROM testRun tr LEFT JOIN testList tl ON tl.id=tr.test_list_id JOIN parameter p ON p.id=tr.parameter_id "
         "JOIN testType tt ON tt.id=tr.test_type_id WHERE tr.run_id=? AND tt.name='bench' ORDER BY tr.median_ops DESC");
     st.bind(run_id);
     while (st.step()) {
-        std::string name, per; std::int64_t events = 0, med = 0, low = 0, high = 0, bytes = 0;
-        std::int64_t hot = 0, dbin = 0, dkeep = 0, ddb = 0;
-        st.get(name, per, events, med, low, high, bytes, hot, dbin, dkeep, ddb);
+        std::string name, per, rb_mode, rb_status; std::int64_t events = 0, med = 0, low = 0, high = 0, bytes = 0;
+        std::int64_t hot = 0, dbin = 0, dkeep = 0, ddb = 0, batch = 0, bbin = 0, bkeep = 0, bdb = 0, cap = 0, checked = 0;
+        st.get(name, per, events, med, low, high, bytes, hot, dbin, dkeep, ddb, batch, bbin, bkeep, bdb, cap,
+               rb_mode, rb_status, checked);
         const int g = bench_group(per);
+        // batch: the production run's three sinks (binary / keeper / database), else the one sink's
+        const std::string batch_cell = g == 0 ? (bbin ? fmt_num(bbin) : std::string("off")) + " / " + fmt_num(bkeep)
+                                                    + " / " + fmt_num(bdb)
+                                     : batch ? fmt_num(batch) : std::string("-");
+        const std::string rb_cell = rb_mode.empty() ? std::string("-")
+                                  : rb_mode + " " + rb_status + " · " + fmt_num(checked) + " rows";
         std::ostringstream l;
-        l << "| " << kBenchGroupTitle[g] << " | " << name << " | " << dash(per) << " | " << fmt_num(events) << " | "
+        l << "| " << kBenchGroupTitle[g] << " | " << name << " | " << dash(per) << server_tag(db, run_id, per) << " | "
+          << fmt_num(events) << " | " << batch_cell << " | " << (cap ? fmt_num(cap) : std::string("-")) << " | "
           << (g == 0 ? fmt_num(hot) : std::string("-")) << " | "
           << (g == 0 ? drain_cell(per, dbin, dkeep, ddb) : std::string("-")) << " | "
-          << fmt_num(med) << " | " << human_ops(low) << "–" << human_ops(high) << " | " << human_bytes(bytes) << " |\n";
+          << fmt_num(med) << " | " << human_ops(low) << "–" << human_ops(high) << " | " << human_bytes(bytes) << " | "
+          << rb_cell << " |\n";
         lines.push_back({g, l.str()});
     }
     std::stable_sort(lines.begin(), lines.end(), [](const Line& a, const Line& b) { return a.group < b.group; });
-    det << "| group | config | persist | events | hot ops/sec | drain ms<br>binary / keeper / database | "
-           "durable median ops/sec | band (low–high) | bytes |\n|---|---|---|--:|--:|--:|--:|---|--:|\n";
+    det << "| group | config | persist | events | batch | max rows | hot ops/sec | drain ms<br>binary / keeper / database | "
+           "durable median ops/sec | band (low–high) | bytes | read-back |\n"
+           "|---|---|---|--:|--:|--:|--:|--:|--:|---|--:|---|\n";
     for (const auto& l : lines) det << l.text;
+    write_targets_section(db, det, run_id);
     nav_bottom(det, "README.md");
 }
 
@@ -974,7 +1056,7 @@ void write_bench_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
               std::int64_t hot = 0, dbin = 0, dkeep = 0, ddb = 0;
               std::string config, persist, mode;
               st.get(run, config, persist, mode, events, med, low, high, bytes, hot, dbin, dkeep, ddb);
-              const std::string name = config + contracts_tag(mode);
+              const std::string name = config + server_tag(db, run, persist) + contracts_tag(mode);
               const int grp = bench_group(persist);
               const int scale = grp == 3 ? 0 : (events <= 1000000 ? 1 : 2);
               Row* r = nullptr;
@@ -1054,12 +1136,13 @@ void write_build_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
     nav_top(md, "../README.md");
     md << "# Compiler build times\n\n_Generated from `results.db`. Compile time is hardware-specific, so "
           "each machine (`jac313-###`) is its own section.\n\n"
-          "Column headers are `compiler·fe`:\n"
+          "Column headers are `compiler·fe` and the build:\n"
           "- `hdr` — code uses headers only\n"
-          "- `mod` — code uses modules\n\n"
+          "- `mod` — code uses modules\n"
+          "- the build type (Debug / Release), then `strict` / `hardened` when those options were on\n\n"
           "Cell = compile+link seconds · status · binary size (latest build); per test × front-end × compiler._\n";
 
-    struct Config { std::string label, cname, bt, mod, imp, contracts; std::int64_t cmajor; };
+    struct Config { std::string label, cname, bt, mod, imp, contracts, strict, hardened; std::int64_t cmajor; };
     for (const std::int64_t g : groups) {
         std::string cpu, os, disk; std::int64_t cores = 0, ram = 0;
         { auto st = db.prepare("SELECT cpu, cores, ram_gb, os, disk FROM host_spec WHERE group_id=? LIMIT 1");
@@ -1068,14 +1151,18 @@ void write_build_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
            << " cores · " << ram << " GB · " << dash(os) << (disk.empty() ? std::string() : " · " + disk) << "\n\n";
 
         std::vector<Config> configs;
-        { auto st = db.prepare("SELECT DISTINCT c.name, c.major, p.build_type, p.modules, p.import_std, p.contracts "
+        { auto st = db.prepare("SELECT DISTINCT c.name, c.major, p.build_type, p.modules, p.import_std, p.contracts, "
+            "p.strict, p.hardened "
             "FROM testRun tr JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id "
             "JOIN compiler c ON c.id=p.compiler_id JOIN testType tt ON tt.id=tr.test_type_id "
-            "WHERE tt.name='build' AND r.group_id=? ORDER BY c.name, c.major, p.modules, p.import_std, p.contracts");
+            "WHERE tt.name='build' AND r.group_id=? "
+            "ORDER BY c.name, c.major, p.modules, p.import_std, p.build_type, p.strict, p.hardened, p.contracts");
           st.bind(g);
-          while (st.step()) { std::string cn, bt, mod, imp, ct; std::int64_t cm = 0; st.get(cn, cm, bt, mod, imp, ct);
+          while (st.step()) { std::string cn, bt, mod, imp, ct, strict, hardened; std::int64_t cm = 0;
+              st.get(cn, cm, bt, mod, imp, ct, strict, hardened);
               const std::string fe = (mod != "on") ? "hdr" : "mod";
-              configs.push_back({comp_label(cn, cm) + "·" + fe + contracts_tag(ct), cn, bt, mod, imp, ct, cm}); } }
+              configs.push_back({comp_label(cn, cm) + "·" + fe + "<br>" + build_label(bt, strict, hardened)
+                                 + contracts_tag(ct), cn, bt, mod, imp, ct, strict, hardened, cm}); } }
         if (configs.empty()) continue;
 
         std::vector<std::string> tests;
@@ -1098,9 +1185,9 @@ void write_build_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
                     "JOIN compiler c ON c.id=p.compiler_id JOIN testList tl ON tl.id=tr.test_list_id "
                     "JOIN testType tt ON tt.id=tr.test_type_id "
                     "WHERE tt.name='build' AND r.group_id=? AND tl.name=? AND c.name=? AND c.major=? "
-                    "AND p.build_type=? AND p.modules=? AND p.import_std=? AND p.contracts=? "
-                    "ORDER BY tr.run_id DESC LIMIT 1");
-                st.bind(g, t, cf.cname, cf.cmajor, cf.bt, cf.mod, cf.imp, cf.contracts);
+                    "AND p.build_type=? AND p.modules=? AND p.import_std=? AND p.contracts=? AND p.strict=? "
+                    "AND p.hardened=? ORDER BY tr.run_id DESC LIMIT 1");
+                st.bind(g, t, cf.cname, cf.cmajor, cf.bt, cf.mod, cf.imp, cf.contracts, cf.strict, cf.hardened);
                 if (st.step()) { std::int64_t ms = 0, bytes = 0; std::string status; st.get(ms, status, bytes);
                     if (status == "NA") { cell = "NA"; }   // config not built by design
                     else if (ms > 0) { cell = fmt_build_seconds(ms) + " · " + (status.empty() ? "-" : status)
@@ -1109,6 +1196,72 @@ void write_build_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
             }
             md << " |\n";
         }
+    }
+    nav_bottom(md, "../README.md");
+}
+
+// "[Run_012](../smoke/Run_012.md)": a run, linked to its detail page from a page one level below
+// test-summary/ (a build-times run has no detail page: plain text with its gate).
+std::string run_link(jac313::Qlite::v001::Sqlite& db, std::int64_t run_id) {
+    std::string type;
+    { auto st = db.prepare("SELECT tt.name FROM testRun tr JOIN testType tt ON tt.id=tr.test_type_id "
+                           "WHERE tr.run_id=? ORDER BY tr.id LIMIT 1");
+      st.bind(run_id); if (st.step()) st.get(type); }
+    const std::string rl = run_label_md(run_id);
+    if (type.empty() || type == "build") return rl + (type.empty() ? "" : " (" + type + ")");
+    return "[" + rl + "](../" + type + "/" + rl + ".md)";
+}
+
+// test-summary/servers/README.md: every database server a run wrote to or reached (run_target), with
+// its databases and tables and the runs that used it; then this machine's SQLite files the same way.
+void write_servers_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
+    std::error_code ec; fs::create_directories(out / "servers", ec);
+    std::ofstream md(out / "servers" / "README.md");
+    nav_top(md, "../README.md");
+    md << "# Servers\n\n_Generated from `results.db` (`run_target`): every database server a run wrote to, "
+          "or reached as the fleet registry, with its databases and tables and the runs that used it. A server "
+          "is named by its connections-file id (`#2`) when it came from that file, else by its host. Files "
+          "(jtext, html, json, binary) are listed on each run's page._\n";
+    // One table per (server, address, port): database · table · roles · runs.
+    auto table = [&](const std::string& where_sql, auto&&... binds) {
+        struct Item { std::set<std::string> roles; std::vector<std::int64_t> runs; };
+        std::map<std::pair<std::string, std::string>, Item> items;   // (dbname, table) -> roles, runs
+        auto st = db.prepare("SELECT dbname, table_name, role, run_id FROM run_target WHERE " + where_sql
+                             + " ORDER BY dbname, table_name, run_id DESC");
+        st.bind(binds...);
+        while (st.step()) {
+            std::string dbname, tbl, role; std::int64_t run = 0;
+            st.get(dbname, tbl, role, run);
+            Item& it = items[{dbname, tbl}];
+            it.roles.insert(role);
+            if (std::find(it.runs.begin(), it.runs.end(), run) == it.runs.end()) it.runs.push_back(run);
+        }
+        md << "| database | table | role | runs |\n|---|---|---|---|\n";
+        for (const auto& [key, it] : items) {
+            std::string roles, runs;
+            for (const auto& r : it.roles) roles += (roles.empty() ? "" : ", ") + r;
+            for (const auto run : it.runs) runs += (runs.empty() ? "" : ", ") + run_link(db, run);
+            md << "| " << dash(key.first) << " | " << dash(key.second) << " | " << roles << " | " << runs << " |\n";
+        }
+    };
+    bool any = false;
+    { auto st = db.prepare("SELECT DISTINCT server, address, port FROM run_target "
+                           "WHERE server<>'' OR address<>'' ORDER BY server, address, port");
+      std::vector<std::tuple<std::string, std::string, std::int64_t>> servers;
+      while (st.step()) { std::string s, a; std::int64_t p = 0; st.get(s, a, p); servers.emplace_back(s, a, p); }
+      for (const auto& [server, address, port] : servers) {
+          any = true;
+          md << "\n## " << dash(server) << " — " << dash(address) << (port ? ":" + std::to_string(port) : std::string())
+             << "\n\n";
+          table("server=? AND address=? AND port=?", server, address, port);
+      } }
+    if (!any) md << "\n_No run has written to a database server yet._\n";
+    // SQLite: a file on this machine, no server; its database is the .db path.
+    std::int64_t sqlite_rows = 0;
+    { auto st = db.prepare("SELECT COUNT(*) FROM run_target WHERE backend='sql'"); if (st.step()) st.get(sqlite_rows); }
+    if (sqlite_rows > 0) {
+        md << "\n## SQLite (files on the machine that ran)\n\n";
+        table("backend=?", std::string("sql"));
     }
     nav_bottom(md, "../README.md");
 }
@@ -1232,7 +1385,8 @@ void write_index_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
     }
 
     md << "| area | runs | rows |\n|---|--:|--:|\n"
-          "| [compilers](compiler/README.md) | — | — |\n";
+          "| [compilers](compiler/README.md) | — | — |\n"
+          "| [servers](servers/README.md) (what each run wrote where) | — | — |\n";
     // testType name (DB) vs. output dir/link name (GitHub-facing): they match except for
     // 'build', whose page lives in compiler-build-times/ to avoid the **/build/ ignore rule.
     struct Area { const char* type; const char* dir; };
@@ -1270,11 +1424,15 @@ int run_report_command(const fs::path& source_dir) {
                 "WHERE r.version='" + ver + "' OR r.version=''");
         db.exec("CREATE TEMP VIEW safeness AS SELECT * FROM main.safeness "
                 "WHERE version='" + ver + "' OR version=''");
+        db.exec("CREATE TEMP VIEW run_target AS SELECT t.* FROM main.run_target t "
+                "JOIN main.run r ON r.run_id=t.run_id "
+                "WHERE r.version='" + ver + "' OR r.version=''");
         const fs::path out = source_dir / "test-summary";
         write_compiler_page(db, out);
         for (const char* t : {"ctest", "smoke", "verify-lite", "verify"}) write_type_pages(db, out, t);
         write_bench_pages(db, out);
         write_build_pages(db, out);
+        write_servers_page(db, out);
         write_index_page(db, out);
         // Self-clean: a Run_<id>.md belongs in area <X>'s dir only if run <id> actually recorded rows of
         // type <X>. Drop any page whose run is gone OR is a different gate's run (stale pages left behind
@@ -1295,59 +1453,10 @@ int run_report_command(const fs::path& source_dir) {
                 }
             }
         }
-        std::cout << "[report] wrote test-summary/README.md + {compiler,ctest,smoke,verify-lite,verify,bench,compiler-build-times}/ from results.db"
+        std::cout << "[report] wrote test-summary/README.md + {compiler,ctest,smoke,verify-lite,verify,bench,compiler-build-times,servers}/ from results.db"
                   << (swept ? (" (swept " + std::to_string(swept) + " orphan run page(s))") : std::string()) << "\n";
         return 0;
     } catch (const std::exception& e) { std::cerr << "report failed: " << e.what() << "\n"; return 1; }
-}
-
-// ctest parameter combo: just the build axes; persist/output_mode/scaling/batch/flag_count are N/A.
-std::int64_t cli_parameter_id_ctest(jac313::Qlite::v001::Sqlite& db, std::int64_t compiler_id,
-                                    const std::string& build_type, const std::string& modules,
-                                    const std::string& import_std, const std::string& contracts) {
-    const char* where =
-        "SELECT id FROM parameter WHERE compiler_id=? AND build_type=? AND modules=? AND import_std=? AND size='' "
-        "AND persist='' AND output_mode='' AND threads=0 AND events_per_thread=0 "
-        "AND runs=0 AND batch=0 AND flag_count=0 AND valgrind_tool='' AND contracts=?";
-    auto find = [&]() -> std::int64_t {
-        std::int64_t id = 0; auto st = db.prepare(where);
-        st.bind(compiler_id, build_type, modules, import_std, contracts); if (st.step()) st.get(id); return id;
-    };
-    std::int64_t id = find();
-    if (id == 0) {
-        db.exec("INSERT INTO parameter(compiler_id,build_type,modules,import_std,size,persist,output_mode,threads,"
-                "events_per_thread,runs,batch,flag_count,contracts) VALUES(?,?,?,?,'','','',0,0,0,0,0,?)",
-                compiler_id, build_type, modules, import_std, contracts);
-        id = find();
-    }
-    return id;
-}
-
-// Verify parameter combo: build axes + the underlying test's persist ('' when the task has none,
-// e.g. unit tests) + the valgrind tool (memcheck/helgrind/drd). SELECT-then-INSERT.
-std::int64_t cli_parameter_id_verify(jac313::Qlite::v001::Sqlite& db, std::int64_t compiler_id,
-                                     const std::string& build_type, const std::string& modules,
-                                     const std::string& import_std, const std::string& persist,
-                                     const std::string& tool, const std::string& contracts) {
-    auto find = [&]() -> std::int64_t {
-        std::int64_t id = 0;
-        auto st = db.prepare(
-            "SELECT id FROM parameter WHERE compiler_id=? AND build_type=? AND modules=? AND import_std=? "
-            "AND size='' AND persist=? AND output_mode='' AND threads=0 AND events_per_thread=0 AND runs=0 "
-            "AND batch=0 AND flag_count=0 AND valgrind_tool=? AND contracts=?");
-        st.bind(compiler_id, build_type, modules, import_std, persist, tool, contracts);
-        if (st.step()) st.get(id);
-        return id;
-    };
-    std::int64_t id = find();
-    if (id == 0) {
-        db.exec("INSERT INTO parameter(compiler_id,build_type,modules,import_std,size,persist,output_mode,threads,"
-                "events_per_thread,runs,batch,flag_count,valgrind_tool,contracts) "
-                "VALUES(?,?,?,?,'',?,'',0,0,0,0,0,?,?)",
-                compiler_id, build_type, modules, import_std, persist, tool, contracts);
-        id = find();
-    }
-    return id;
 }
 
 // Parse ninja's build log (.ninja_log lines: "start_ms<TAB>end_ms<TAB>mtime<TAB>output<TAB>hash")
@@ -1422,10 +1531,9 @@ void capture_build_times(const fs::path& source_dir, const fs::path& build_dir,
         { auto st = db.prepare("SELECT group_id FROM run WHERE run_id=?"); st.bind(run_id); if (st.step()) st.get(gid); }
         const std::int64_t type_id = cli_results_id(db, "SELECT id FROM testType WHERE name=?", std::string("build"));
         const std::int64_t comp_id = cli_compiler_id(db, read_compiler_info(build_dir));
-        const BuildFeatures bf = read_build_features(build_dir);
-        const std::string modules = modules_override.empty() ? (bf.modules ? "on" : "off") : modules_override;
-        const std::string istd    = import_std_override.empty() ? "off" : import_std_override;
-        const std::int64_t param_id = cli_parameter_id_ctest(db, comp_id, bf.build_type, modules, istd, bf.contracts);
+        const BuildAxes axes = build_axes(read_build_features(build_dir), modules_override, import_std_override);
+        const std::string& modules = axes.modules;
+        const std::int64_t param_id = cli_parameter_id(db, comp_id, axes);
         int banked = 0;
         auto tx = db.transaction();   // every banked row lands together (or none on an error)
         for (const auto& [t, ms] : times) {
@@ -1622,11 +1730,9 @@ std::int64_t record_ctest_results(const fs::path& source_dir, const fs::path& bu
         for (const auto& r : results) {
             db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", r.entry.name);
         }
-        const BuildFeatures bf = read_build_features(build_dir);
         const std::int64_t comp_id = cli_compiler_id(db, read_compiler_info(build_dir));
         const std::int64_t type_id = cli_results_id(db, "SELECT id FROM testType WHERE name=?", std::string("ctest"));
-        const std::int64_t param_id = cli_parameter_id_ctest(db, comp_id, bf.build_type,
-                                                             bf.modules ? "on" : "off", "off", bf.contracts);
+        const std::int64_t param_id = cli_parameter_id(db, comp_id, build_axes(read_build_features(build_dir)));
         auto tx = db.transaction();   // the rows + the safeness refresh commit together
         for (const auto& r : results) {
             const std::int64_t list_id = cli_results_id(db, "SELECT id FROM testList WHERE name=?", r.entry.name);
@@ -1634,6 +1740,8 @@ std::int64_t record_ctest_results(const fs::path& source_dir, const fs::path& bu
                     "VALUES(?,?,?,?,?,?)",
                     run_id, type_id, list_id, param_id, std::string(matrix_status_str(r.status)),
                     static_cast<std::int64_t>(r.duration.count()));
+            // a test that persisted says what it wrote where (TARGET lines)
+            jac313::results::insert_run_targets(db, run_id, jac313::results::parse_target_lines(r.stdout_tail));
         }
         jac313::results::rebuild_safeness(db);   // refresh the safeness summary (read by report + verdict)
         tx.commit();
@@ -1648,8 +1756,7 @@ std::int64_t record_ctest_results(const fs::path& source_dir, const fs::path& bu
 
 // Record one testRun row per scenario of a matrix (smoke) run into results.db.
 std::int64_t record_matrix_results(const fs::path& source_dir, const fs::path& build_dir,
-                                   const std::vector<MatrixRunResult>& results, const std::string& build_type,
-                                   const std::string& modules, const std::string& size,
+                                   const std::vector<MatrixRunResult>& results, const std::string& size,
                                    std::int64_t max_persist_rows = 0) {
     if (results.empty()) return 0;
     const fs::path db_path = JAC313_RESULTS_DB;
@@ -1664,19 +1771,24 @@ std::int64_t record_matrix_results(const fs::path& source_dir, const fs::path& b
         }
         const std::int64_t type_id = cli_results_id(db, "SELECT id FROM testType WHERE name=?", std::string("smoke"));
         const std::int64_t comp_id = cli_compiler_id(db, read_compiler_info(build_dir));
-        const std::string import_std = "off";
-        const std::string contracts = read_build_features(build_dir).contracts;
+        const BuildAxes axes = build_axes(read_build_features(build_dir));
         auto tx = db.transaction();   // the rows + the safeness refresh commit together
         for (const auto& r : results) {
             const std::int64_t list_id = cli_results_id(db, "SELECT id FROM testList WHERE name=?", r.scenario.entry.name);
-            const std::int64_t param_id = cli_parameter_id(db, comp_id, build_type, modules, import_std, size,
+            const std::int64_t param_id = cli_parameter_id(db, comp_id, axes, size,
                 r.scenario.persist, r.scenario.output_mode,
                 static_cast<std::int64_t>(r.scenario.threads), static_cast<std::int64_t>(r.scenario.events_per_thread),
-                static_cast<std::int64_t>(r.scenario.runs), contracts);
-            db.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms) "
-                    "VALUES(?,?,?,?,?,?)",
+                static_cast<std::int64_t>(r.scenario.runs));
+            // the persist row cap applies to a scenario that persists (0 for the rest)
+            const bool persisting = r.scenario.category == "matrix" && r.scenario.persist != "none"
+                                    && r.scenario.persist != "flags" && r.scenario.persist != "unit";
+            db.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms, "
+                    "max_persist_rows) VALUES(?,?,?,?,?,?,?)",
                     run_id, type_id, list_id, param_id, std::string(matrix_status_str(r.result.status)),
-                    static_cast<std::int64_t>(r.result.duration.count()));
+                    static_cast<std::int64_t>(r.result.duration.count()), persisting ? max_persist_rows : std::int64_t{0});
+            const std::int64_t test_run_id = sqlite3_last_insert_rowid(db.handle());
+            // what the scenario wrote where (its TARGET lines)
+            jac313::results::insert_run_targets(db, run_id, jac313::results::parse_target_lines(r.result.stdout_tail));
             if (!r.readback.empty()) {
                 // read-back outcome (tests/matrix/readback.hpp) on the row just inserted
                 auto num = [&](const char* k) -> double {   // a missing/unparsable figure is 0, never NULL
@@ -1685,13 +1797,12 @@ std::int64_t record_matrix_results(const fs::path& source_dir, const fs::path& b
                     try { return std::stod(it->second); } catch (...) { return 0.0; }
                 };
                 auto get = [&](const char* k) { auto it = r.readback.find(k); return it == r.readback.end() ? std::string{} : it->second; };
-                db.exec("UPDATE testRun SET max_persist_rows=?, rows_persisted=?, readback_mode=?, readback_status=?, "
+                db.exec("UPDATE testRun SET rows_persisted=?, readback_mode=?, readback_status=?, "
                         "rows_checked=?, read_ms=?, pg_connect_ms=?, pg_ping_ms=?, pg_write_ms=? "
-                        "WHERE id = last_insert_rowid()",
-                        max_persist_rows,
+                        "WHERE id = ?",
                         static_cast<std::int64_t>(num("expected")), get("mode"), get("status"),
                         static_cast<std::int64_t>(num("checked")), num("read_ms"),
-                        num("connect_ms"), num("ping_ms"), num("write_ms"));
+                        num("connect_ms"), num("ping_ms"), num("write_ms"), test_run_id);
             }
         }
         jac313::results::rebuild_safeness(db);   // refresh the safeness summary (read by report + verdict)
@@ -1880,8 +1991,7 @@ int run_matrix_run_command(const GlobalOptions& global,
     std::cout << "\n\n";   // two blank lines after the smoke summary
 
     // Capture this smoke run into results.db (one testRun row per scenario).
-    const std::int64_t smoke_run = record_matrix_results(global.source_dir, global.build_dir, results, build_type,
-                          features.modules ? "on" : "off", params.size,
+    const std::int64_t smoke_run = record_matrix_results(global.source_dir, global.build_dir, results, params.size,
                           static_cast<std::int64_t>(global.max_persist_rows.value_or(0)));
     if (!global.summary_json.empty()) {
         const std::string host = run_host_label(smoke_run);
@@ -2059,6 +2169,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
     std::vector<std::string> failures;
     struct VerifyRec { std::string tool, test, persist, status; std::int64_t dur_ms; };
     std::vector<VerifyRec> recs;   // one per (tool x task) — captured into results.db below
+    std::vector<jac313::results::RunTarget> targets;   // what the tasks wrote where (their TARGET lines)
 
     // Aligned console output (match the ctest/smoke runners): pad the tool and the task
     // label to fixed columns — label to the widest across ALL tasks (mem ∪ thr), so every
@@ -2128,6 +2239,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
         const auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                 std::chrono::steady_clock::now() - t0).count();
         const int errs = parse_vg_errors(r.stderr_text + r.stdout_text);
+        for (auto& tg : jac313::results::parse_target_lines(r.stdout_text)) targets.push_back(std::move(tg));
         std::string verdict, status;
         if (!r.started) {
             verdict = "LAUNCH-FAIL"; status = "error";
@@ -2218,16 +2330,17 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
                 }
                 const std::int64_t comp_id = cli_compiler_id(rdb, read_compiler_info(global.build_dir));
                 const std::int64_t type_id = cli_results_id(rdb, "SELECT id FROM testType WHERE name=?", name);
-                const std::string contracts = read_build_features(global.build_dir).contracts;
+                const BuildAxes axes = build_axes(read_build_features(global.build_dir));
                 auto tx = rdb.transaction();   // the rows + the safeness refresh commit together
                 for (const auto& v : recs) rdb.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", v.test);
                 for (const auto& v : recs) {
                     const std::int64_t list_id  = cli_results_id(rdb, "SELECT id FROM testList WHERE name=?", v.test);
-                    const std::int64_t param_id = cli_parameter_id_verify(rdb, comp_id, "Debug", "off", "off", v.persist,
-                                                                          v.tool, contracts);
+                    const std::int64_t param_id = cli_parameter_id(rdb, comp_id, axes, "", v.persist, "", 0, 0, 0,
+                                                                   v.tool);
                     rdb.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms) "
                              "VALUES(?,?,?,?,?,?)", use_run, type_id, list_id, param_id, v.status, v.dur_ms);
                 }
+                jac313::results::insert_run_targets(rdb, use_run, targets);
                 jac313::results::rebuild_safeness(rdb);   // refresh the safeness summary (read by report + verdict)
                 tx.commit();
                 std::cout << "[results] recorded " << recs.size() << " " << name << " results (run " << use_run
@@ -2433,7 +2546,8 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
         for (char c : s) q += (c == '\'') ? std::string("'\\''") : std::string(1, c);
         return q + "'";
     };
-    for (const char* var : {"JAC313_PG_REMOTE", "JAC313_PG_LOCAL"})
+    // (and the connections-file row each came from, which names the server in results.db)
+    for (const char* var : {"JAC313_PG_REMOTE", "JAC313_PG_LOCAL", "JAC313_PG_REMOTE_ID", "JAC313_PG_LOCAL_ID"})
         if (const char* val = std::getenv(var); val && *val) emit(std::string("export ") + var + "=" + shq(val));
     emit("CLI=\"" + self.string() + "\"");
     // Every gate records into results.db; render the report pages ONCE at the end, also when a
@@ -2666,6 +2780,7 @@ int run_everything_command(const GlobalOptions& global) {
                 // machine — never the OTHER version's data for the same hardware group.
                 const std::string ver = harness_version(global);
                 db.exec("DELETE FROM testRun WHERE run_id IN (SELECT run_id FROM run WHERE group_id=? AND version=?)", g, ver);
+                db.exec("DELETE FROM run_target WHERE run_id IN (SELECT run_id FROM run WHERE group_id=? AND version=?)", g, ver);
                 db.exec("DELETE FROM run WHERE group_id=? AND version=?", g, ver);
                 db.exec("DELETE FROM io_best_fit WHERE group_id=?", g);
                 jac313::results::rebuild_safeness(db);
@@ -3149,6 +3264,7 @@ static int run_main(int argc, char** argv) {
                 }
                 (arg == "--pg-remote" ? global.pg_remote : global.pg_local) = ci;
                 ::setenv(arg == "--pg-remote" ? "JAC313_PG_REMOTE" : "JAC313_PG_LOCAL", ci.c_str(), 1);
+                ::unsetenv(arg == "--pg-remote" ? "JAC313_PG_REMOTE_ID" : "JAC313_PG_LOCAL_ID");   // not a file row
             } else if (arg == "--compiler" && i + 1 < argc) {
                 configure_opts.compiler = argv[++i];
             } else if (arg == "--gcc") {

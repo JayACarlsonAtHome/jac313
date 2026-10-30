@@ -55,6 +55,13 @@ SqlEventSink::SqlEventSink(std::string_view base_name,
     ensure_tables_and_prepare();
 }
 
+std::vector<SinkTarget> SqlEventSink::targets() const {
+    std::vector<SinkTarget> v{{"", "", 0, db_path_, table_base_}};
+    if (int_count_ > 0) v.push_back({"", "", 0, db_path_, table_base_ + "_ints"});
+    if (dbl_count_ > 0) v.push_back({"", "", 0, db_path_, table_base_ + "_floats"});
+    return v;
+}
+
 SqlEventSink::~SqlEventSink() {
     try {
         finalize();

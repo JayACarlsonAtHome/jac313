@@ -325,6 +325,7 @@ BuildFeatures read_build_features(const fs::path& build_dir) {
                 std::string v = line.substr(eq + 1);
                 if (!v.empty()) {
                     features.build_type = v;
+                    features.cmake_build_type = v;
                 }
             }
         }

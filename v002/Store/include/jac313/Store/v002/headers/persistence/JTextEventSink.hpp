@@ -17,7 +17,9 @@ public:
                    size_t dbl_count,
                    PersistMode mode = PersistMode::All)
         : impl_(std::make_unique<JTextSplitEventLog>(base_name, int_count, dbl_count, mode))
-    {}
+    {
+        targets_ = file_targets(*impl_, 1, 1);   // a jText log always writes all three files
+    }
 
     void write_batch(std::span<const PersistedEvent> batch) override {
         if (!impl_) return;
@@ -47,11 +49,14 @@ public:
 
     std::string_view name() const override { return "JTextEventSink"; }
 
+    std::vector<SinkTarget> targets() const override { return targets_; }
+
     [[nodiscard]] size_t main_row_count() const {
         return impl_ ? impl_->stats().main_rows : 0;
     }
 
 private:
+    std::vector<SinkTarget> targets_;   // the files written (targets())
     std::unique_ptr<JTextSplitEventLog> impl_;
 };
 

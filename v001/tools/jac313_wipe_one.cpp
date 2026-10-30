@@ -85,6 +85,7 @@ int main(int argc, char** argv) {
 
     db.exec("DELETE FROM testRun WHERE run_id=?", run_id);
     db.exec("DELETE FROM runEvent WHERE run_id=?", run_id);
+    db.exec("DELETE FROM run_target WHERE run_id=?", run_id);
     db.exec("DELETE FROM run WHERE run_id=?", run_id);
     if (last_for_machine) {
         // Every table that names the machine (kGroupTables), so its number is free again: a row

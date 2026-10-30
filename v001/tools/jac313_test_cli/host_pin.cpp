@@ -78,6 +78,7 @@ int exit_ambiguous(std::ostream& err, jac313::Qlite::v001::Sqlite& db,
 namespace {
 
 bool g_fleet_renumbered = false;
+std::optional<jac313::results::RunTarget> g_registry_target;
 
 // The shared server's number for this machine, pinned locally (local rows renumbered to it), or
 // nullopt to fall back to local numbering: no server set, unreachable, or built without libpq.
@@ -104,6 +105,9 @@ std::optional<std::int64_t> pin_from_fleet(jac313::Qlite::v001::Sqlite& db,
         tried = true;
         // a new machine asks for the next number free here, so other machines' local rows stay put
         fr = fleet_register(h, local ? local : R::next_free_group_id(db), source_dir);
+        if (!fr.host.empty())
+            g_registry_target = R::RunTarget{"registry", "pg-remote", fr.host, fr.address, fr.port, fr.dbname,
+                                             "fleet.host_spec"};
         if (fr.gid == 0)
             err << "[fleet] remote PG registry not used (" << fr.error << "); this machine keeps its local "
                 << (local ? R::host_label(local) : std::string("number")) << " for now and is checked again next run\n";
@@ -133,6 +137,8 @@ std::optional<std::int64_t> pin_from_fleet(jac313::Qlite::v001::Sqlite& db,
 } // namespace
 
 bool fleet_renumbered() { return g_fleet_renumbered; }
+
+std::optional<jac313::results::RunTarget> fleet_registry_target() { return g_registry_target; }
 
 std::optional<std::int64_t> try_resolve_and_pin(jac313::Qlite::v001::Sqlite& db,
                                                 const HostHardwareRecord& hw,

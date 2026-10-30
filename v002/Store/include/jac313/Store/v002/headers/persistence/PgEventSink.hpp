@@ -37,10 +37,15 @@ public:
 
     [[nodiscard]] const std::string& table_base() const noexcept { return table_base_; }
 
+    /// The server as the connection reports it (host, address, port, database) and the three
+    /// tables, schema-qualified (store_test.<base>, _ints, _floats).
+    std::vector<SinkTarget> targets() const override { return targets_; }
+
 private:
     std::unique_ptr<PgConn> conn_;
     std::shared_ptr<PgTimings> timings_;
     std::string table_base_;   // unqualified; schema is kPgTestSchema
+    std::vector<SinkTarget> targets_;   // filled once connected (targets())
     size_t int_count_ = 0;
     size_t dbl_count_ = 0;
     PersistMode mode_ = PersistMode::All;

@@ -85,7 +85,7 @@ bool load_connections(const fs::path& file, std::vector<PgConnection>& out, std:
             return -1;
         };
         const int cb = col("backend"), ch = col("host"), cp = col("port"), cd = col("dbname"),
-                  cu = col("user"), ct = col("connect_timeout"), cn = col("notes");
+                  cu = col("user"), ct = col("connect_timeout"), cn = col("notes"), ci = col("id");
         if (cb < 0 || ch < 0) continue;   // not a connections section
         for (const auto& rec : sec.records) {
             auto get = [&](int c) -> std::string {
@@ -93,7 +93,7 @@ bool load_connections(const fs::path& file, std::vector<PgConnection>& out, std:
                 const std::string& v = rec.values[c];
                 return v == jtext::kNullValue ? std::string{} : v;   // {NULL}: no value (SPEC 2.6.1)
             };
-            PgConnection pc{get(cb), get(ch), get(cp), get(cd), get(cu), get(ct), get(cn)};
+            PgConnection pc{get(cb), get(ch), get(cp), get(cd), get(cu), get(ct), get(cn), get(ci)};
             if (pc.backend.empty() || pc.host.empty()) continue;
             out.push_back(std::move(pc));
         }
@@ -109,7 +109,12 @@ void apply_connections(const std::vector<PgConnection>& rows, bool overwrite,
         if (!remote && r.backend != "pg-local") continue;
         if ((remote && skip_remote) || (!remote && skip_local)) continue;
         const char* var = remote ? "JAC313_PG_REMOTE" : "JAC313_PG_LOCAL";
-        ::setenv(var, r.conninfo().c_str(), overwrite ? 1 : 0);
+        const char* id_var = remote ? "JAC313_PG_REMOTE_ID" : "JAC313_PG_LOCAL_ID";
+        const char* cur = std::getenv(var);
+        if (!overwrite && cur && *cur) continue;   // the environment's server wins (and keeps its id)
+        ::setenv(var, r.conninfo().c_str(), 1);
+        if (r.id.empty()) ::unsetenv(id_var);
+        else ::setenv(id_var, r.id.c_str(), 1);
     }
 }
 

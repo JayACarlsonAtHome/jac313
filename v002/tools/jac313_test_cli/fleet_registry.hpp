@@ -16,6 +16,9 @@ namespace jac313::test_cli {
 struct FleetResult {
     std::int64_t gid = 0;   // the server's number for this machine (0 = not registered)
     std::string error;      // why not, when gid == 0
+    // The server reached (empty host = not reached), as the connection reports it.
+    std::string host, address, dbname;
+    std::int64_t port = 0;
 };
 
 // The server as named by $JAC313_PG_REMOTE, password-free ("" when none is set). It keys the

@@ -82,6 +82,7 @@ int main(int argc, char** argv) {
 
     db.exec("DELETE FROM testRun WHERE run_id IN (SELECT run_id FROM run WHERE group_id=?)", gid);
     db.exec("DELETE FROM runEvent WHERE run_id IN (SELECT run_id FROM run WHERE group_id=?)", gid);
+    db.exec("DELETE FROM run_target WHERE run_id IN (SELECT run_id FROM run WHERE group_id=?)", gid);
     db.exec("DELETE FROM run          WHERE group_id=?", gid);
     db.exec("DELETE FROM host_spec    WHERE group_id=?", gid);
     db.exec("DELETE FROM io_best_fit  WHERE group_id=?", gid);

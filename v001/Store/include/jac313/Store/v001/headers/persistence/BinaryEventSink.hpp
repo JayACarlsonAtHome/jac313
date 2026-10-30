@@ -18,7 +18,9 @@ public:
                     PersistMode mode = PersistMode::All,
                     size_t internal_buffer_size = 64 * 1024 * 1024)
         : impl_(std::make_unique<BinaryEventLog>(base_name, int_count, dbl_count, mode, internal_buffer_size))
-    {}
+    {
+        targets_ = {{"", "", 0, "", impl_->file_path()}};
+    }
 
     void write_batch(std::span<const PersistedEvent> batch) override {
         if (!impl_) return;
@@ -51,7 +53,10 @@ public:
 
     std::string_view name() const override { return "BinaryEventSink"; }
 
+    std::vector<SinkTarget> targets() const override { return targets_; }
+
 private:
+    std::vector<SinkTarget> targets_;   // the files written (targets())
     std::unique_ptr<BinaryEventLog> impl_;
 };
 

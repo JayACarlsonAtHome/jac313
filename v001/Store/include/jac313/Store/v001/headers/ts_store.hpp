@@ -227,6 +227,9 @@ public:
     /// IEventSink::name() of sink `index`.
     [[nodiscard]] std::string_view persistence_sink_name(size_t index) const { return worker(index).sink_name(); }
 
+    /// IEventSink::targets() of sink `index`: the tables / files it writes (valid after finalize).
+    [[nodiscard]] std::vector<SinkTarget> persistence_targets(size_t index) const { return worker(index).sink_targets(); }
+
     /// Persist at most `n` rows: only events with global id < n are handed to the persistence
     /// writer (0 = no limit, the default). The in-memory store still takes every event, so the
     /// hot path is exercised at full size while a test or proof run writes a bounded dataset.

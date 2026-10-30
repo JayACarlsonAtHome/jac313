@@ -97,6 +97,9 @@ public:
     // The sink's name (IEventSink::name()), for one report line per sink.
     [[nodiscard]] std::string_view sink_name() const { return sink_->name(); }
 
+    // The tables / files the sink writes (IEventSink::targets()).
+    [[nodiscard]] std::vector<SinkTarget> sink_targets() const { return sink_->targets(); }
+
 private:
     static constexpr auto kIdleWait     = std::chrono::milliseconds(1);
     static constexpr auto kReadyTimeout = std::chrono::seconds(10);

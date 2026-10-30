@@ -49,6 +49,10 @@ std::optional<std::int64_t> try_resolve_and_pin(jac313::Qlite::v002::Sqlite& db,
 // machine's, or another machine's rows moved aside): the report pages then carry stale labels.
 bool fleet_renumbered();
 
+// The fleet registry server this process reached while pinning (role registry, backend pg-remote,
+// table fleet.host_spec), for the run_target rows of the runs it records; nullopt when it reached none.
+std::optional<jac313::results::RunTarget> fleet_registry_target();
+
 // Read-only propose (no write).
 jac313::results::HostPinResult propose_host_group(jac313::Qlite::v002::Sqlite& db,
                                                   const HostHardwareRecord& hw);

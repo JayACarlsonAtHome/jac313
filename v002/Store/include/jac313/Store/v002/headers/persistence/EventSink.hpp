@@ -30,6 +30,27 @@ struct PersistedEvent {
     std::vector<double>  dbl_metrics;
 };
 
+/// One table or file a sink writes: what results.db records per run (run_target). A file sink
+/// gives one per file (`table` = the file path); a database sink one per table, with `dbname`
+/// (SQLite: the .db path) and, for a server, its `host` / `address` / `port` as the connection
+/// reports them after connecting.
+struct SinkTarget {
+    std::string host;      // server host name ('' for a file or SQLite)
+    std::string address;   // the address connected to ('' for a file or SQLite)
+    int port = 0;          // 0 = none
+    std::string dbname;    // the database ('' for a file sink)
+    std::string table;     // the table, or the file path for a file sink
+};
+
+/// The files of a split log (main, _Ints, _Floats): the metric files only when it has such metrics.
+template<typename SplitLog>
+std::vector<SinkTarget> file_targets(const SplitLog& log, size_t int_count, size_t dbl_count) {
+    std::vector<SinkTarget> v{{"", "", 0, "", log.main_file()}};
+    if (int_count > 0) v.push_back({"", "", 0, "", log.ints_file()});
+    if (dbl_count > 0) v.push_back({"", "", 0, "", log.floats_file()});
+    return v;
+}
+
 /// Abstract base for any persistence backend.
 /// One sink is called from one thread only (the worker it was attached with), so it needs no
 /// locking of its own. With several sinks attached, each must own its own file or connection:
@@ -51,6 +72,10 @@ public:
 
     /// Optional: return a human-readable name for diagnostics.
     virtual std::string_view name() const { return "IEventSink"; }
+
+    /// Every table or file this sink writes. Known from construction on and still valid after
+    /// finalize(), so a test or the bench can report it once the run is done.
+    virtual std::vector<SinkTarget> targets() const { return {}; }
 };
 
 } // namespace jac313::Store::v002

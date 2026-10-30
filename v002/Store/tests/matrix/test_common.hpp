@@ -8,6 +8,7 @@
 #include <jac313/Store/v002/headers/persistence/JTextEventSink.hpp>
 
 #include <algorithm>
+#include <filesystem>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -114,6 +115,33 @@ inline std::unique_ptr<IEventSink> make_persistence_sink(const std::string& ptyp
     return nullptr;
 }
 
+/// One "TARGET role=... backend=... host=\"...\" address=\"...\" port=N dbname=\"...\" table=\"...\""
+/// line per table / file sink `index` wrote (IEventSink::targets()). The test runner and the bench
+/// parse these (jac313_results_db.hpp parse_target_lines) into results.db run_target rows. A file
+/// (a file sink's path, SQLite's .db) is given as an absolute path, so it names the file wherever
+/// the run was started from.
+template<typename Store>
+void print_targets(const Store& store, size_t index, std::string_view backend, std::string_view role) {
+    auto q = [](std::string v) {
+        for (auto& c : v) if (c == '"' || c == '\n') c = '\'';
+        return "\"" + v + "\"";
+    };
+    auto abs = [](const std::string& path) {
+        std::error_code ec;
+        const auto a = std::filesystem::absolute(path, ec);
+        return ec ? path : a.lexically_normal().string();
+    };
+    for (auto t : store.persistence_targets(index)) {
+        if (t.host.empty()) {   // not a server: a file sink's file, or SQLite's .db
+            if (t.dbname.empty()) t.table = abs(t.table);
+            else t.dbname = abs(t.dbname);
+        }
+        std::cout << "TARGET role=" << role << " backend=" << backend << " host=" << q(t.host)
+                  << " address=" << q(t.address) << " port=" << t.port << " dbname=" << q(t.dbname)
+                  << " table=" << q(t.table) << "\n";
+    }
+}
+
 template<typename Config, typename Store>
 bool attach_persistence_from_opts(Store& prod, const TestOptions& opts) {
     std::string ptype = opts.persist.empty() ? "jtext" : opts.persist;
@@ -147,6 +175,7 @@ bool finish_persistence(Store& prod, const TestOptions& opts) {
     const std::string ptype = opts.persist.empty() ? "jtext" : opts.persist;
     if (persist_skips_sink(ptype)) return true;
     prod.finalize_persistence();
+    for (size_t i = 0; i < prod.persistence_count(); ++i) print_targets(prod, i, ptype, "persist");
     if (opts.readback == "off") return true;
     const std::string bname = opts.base_name.empty() ? "persist" : opts.base_name;
     const auto rep = run_readback(prod, ptype, bname, Config::the_IntMetrics, Config::the_DblMetrics,
@@ -179,4 +208,5 @@ using matrix_test::g_pg_timings;
 using matrix_test::attach_persistence_from_opts;
 using matrix_test::make_persistence_sink;
 using matrix_test::persist_skips_sink;
+using matrix_test::print_targets;
 }

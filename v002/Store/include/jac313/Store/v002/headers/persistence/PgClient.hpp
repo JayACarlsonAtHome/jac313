@@ -73,6 +73,14 @@ public:
 
     [[nodiscard]] double connect_ms() const noexcept { return connect_ms_; }
 
+    /// The server this connection reached, as libpq reports it: host name (or socket directory),
+    /// the numeric address when one was given or resolved ("" otherwise), port (0 = unknown) and
+    /// database.
+    [[nodiscard]] std::string host() const;
+    [[nodiscard]] std::string hostaddr() const;
+    [[nodiscard]] int port() const;
+    [[nodiscard]] std::string dbname() const;
+
 private:
     PGconn* conn_ = nullptr;
     double connect_ms_ = 0.0;

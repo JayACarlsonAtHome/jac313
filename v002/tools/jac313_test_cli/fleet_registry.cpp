@@ -72,6 +72,10 @@ FleetResult fleet_register(const jac313::results::HostId& h, std::int64_t prefer
         conninfo += " connect_timeout=5";   // an unreachable server must not stall every run
     try {
         jac313::Store::v002::PgConn c(conninfo);
+        r.host = c.host();
+        r.address = c.hostaddr().empty() ? c.host() : c.hostaddr();
+        r.port = c.port();
+        r.dbname = c.dbname();
         try {
             c.exec(ddl);
         } catch (const std::exception&) {

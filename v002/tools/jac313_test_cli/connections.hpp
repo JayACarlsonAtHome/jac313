@@ -27,6 +27,7 @@ struct PgConnection {
     std::string user;
     std::string connect_timeout;  // seconds ("" = 10)
     std::string notes;
+    std::string id;               // the row's id (results.db run_target.server "#<id>")
     std::string conninfo() const; // libpq keyword=value form (no password)
 };
 
@@ -38,8 +39,9 @@ std::filesystem::path default_connections_path(const std::filesystem::path& vers
 // is not valid jText, or has no usable rows.
 bool load_connections(const std::filesystem::path& file, std::vector<PgConnection>& out, std::string& err);
 
-// Set $JAC313_PG_REMOTE / $JAC313_PG_LOCAL from the file's rows. With overwrite=false a value
-// already in the environment wins; `skip_remote` / `skip_local` keep what a --pg-* flag set.
+// Set $JAC313_PG_REMOTE / $JAC313_PG_LOCAL from the file's rows, and $JAC313_PG_REMOTE_ID /
+// $JAC313_PG_LOCAL_ID to the row's id (results.db names the server by it). With overwrite=false a
+// value already in the environment wins; `skip_remote` / `skip_local` keep what a --pg-* flag set.
 void apply_connections(const std::vector<PgConnection>& rows, bool overwrite,
                        bool skip_remote, bool skip_local);
 
