@@ -973,6 +973,19 @@ inline std::int64_t io_best_fit_use(Sqlite& db, std::int64_t mid, const std::str
     return v > 0 ? v : fallback;
 }
 
+// The batch each sink of the production run attaches with on this machine: the replay log at the
+// calibrated "binary" batch, the keeper file at its type's (jtext | html | json), the database at its
+// type's (sql | pg-local | pg-remote) — each falling back to `fallback` when that type is not
+// calibrated. A batch given on the command line (`override_batch` > 0) replaces all three.
+struct SinkBatches { std::int64_t binary = 0, keeper = 0, database = 0; };
+inline SinkBatches production_batches(Sqlite& db, std::int64_t mid, const std::string& keeper,
+                                      const std::string& database, std::int64_t fallback,
+                                      std::int64_t override_batch) {
+    if (override_batch > 0) return {override_batch, override_batch, override_batch};
+    return {io_best_fit_use(db, mid, "binary", fallback), io_best_fit_use(db, mid, keeper, fallback),
+            io_best_fit_use(db, mid, database, fallback)};
+}
+
 // ---- package_version (per-machine code versions, sourced from the version() literals at pin time) ----
 // Record (or refresh) one package's code version for this machine. Called at host-pin time so the DB
 // always reflects what THIS checkout is running.

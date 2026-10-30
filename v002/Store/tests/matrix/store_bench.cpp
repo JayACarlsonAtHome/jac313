@@ -36,7 +36,9 @@
 //   store_bench --production keeper=jtext,database=sql,keeper_pct=10,database_pct=10,binary=on
 // Three numbers per run: the hot path (producers' wall time until they join, before finalize),
 // each sink's drain time (Store::drain_time_us: attach -> that sink's finalize done) and the
-// durable total (the whole process, as for every config).
+// durable total (the whole process, as for every config). Each sink attaches at its own batch: this
+// machine's calibrated io_best_fit.useThis for its type (binary, the keeper's, the database's), the
+// default batch where a type is not calibrated; --batch N gives all three N.
 
 #include <algorithm>
 #include <array>
@@ -134,6 +136,9 @@ struct Params {
         std::size_t keeper_pct = 10;     // % of events flagged KeeperRecord
         std::size_t database_pct = 10;   // % of events flagged DatabaseEntry
         bool binary = true;              // the binary replay log (All)
+        // The batch the replay log and the keeper file attach with; the database sink's is Params::batch
+        // (what parameter.batch records). 0 = Params::batch. Set by apply_production_batches.
+        std::size_t batch_binary = 0, batch_keeper = 0;
         // The canonical spec (worker re-exec, dry-run line).
         std::string spec() const {
             return "keeper=" + keeper + ",database=" + database + ",keeper_pct=" + std::to_string(keeper_pct)
@@ -197,17 +202,31 @@ struct SinkPlan {
     std::string base;
     PersistMode mode = PersistMode::All;
     std::string role;    // "" (a one-sink config) | binary | keeper | database
+    std::size_t batch = 0;   // the persistence batch it attaches with (rows per sink call)
 };
 
 // The sinks a config attaches, in attach order: none, one (mode All), or the production three.
 std::vector<SinkPlan> sink_plan(const Params& p) {
     if (p.persist == "none") return {};
-    if (p.persist != "production") return {{p.persist, p.base_name, PersistMode::All, ""}};
+    if (p.persist != "production") return {{p.persist, p.base_name, PersistMode::All, "", p.batch}};
+    auto or_db = [&](std::size_t b) { return b ? b : p.batch; };
     std::vector<SinkPlan> v;
-    if (p.prod.binary) v.push_back({"binary", p.base_name + "_replay", PersistMode::All, "binary"});
-    v.push_back({p.prod.keeper, p.base_name + "_keeper", PersistMode::KeeperOnly, "keeper"});
-    v.push_back({p.prod.database, p.base_name + "_database", PersistMode::DatabaseOnly, "database"});
+    if (p.prod.binary)
+        v.push_back({"binary", p.base_name + "_replay", PersistMode::All, "binary", or_db(p.prod.batch_binary)});
+    v.push_back({p.prod.keeper, p.base_name + "_keeper", PersistMode::KeeperOnly, "keeper", or_db(p.prod.batch_keeper)});
+    v.push_back({p.prod.database, p.base_name + "_database", PersistMode::DatabaseOnly, "database", p.batch});
     return v;
+}
+
+// The production run's batch per sink, machine-readable: "batch_binary=4000 batch_keeper=3000
+// batch_database=2000" (0 for a sink not attached: binary=off). The PRODTIMES, PRODUCTION and start
+// lines all carry it, so what the worker attached with and what testRun records can be compared.
+std::string production_batch_fields(const Params& p) {
+    std::size_t b[3] = {0, 0, 0};
+    for (const auto& sp : sink_plan(p))
+        b[sp.role == "binary" ? 0 : sp.role == "keeper" ? 1 : 2] = sp.batch;
+    return "batch_binary=" + std::to_string(b[0]) + " batch_keeper=" + std::to_string(b[1])
+         + " batch_database=" + std::to_string(b[2]);
 }
 
 // The production run's per-run timings, reported by the worker on its PRODTIMES line.
@@ -377,7 +396,7 @@ bool do_workload(const Params& p, bool verify, bool readback = false) {
         ensure_capture_parent_dir(sp.base);
         if (auto sink = make_persistence_sink(sp.backend, sp.base, LogConfig::the_IntMetrics,
                                               LogConfig::the_DblMetrics, sp.mode)) {
-            store.attach_persistence(std::move(sink), p.batch);
+            store.attach_persistence(std::move(sink), sp.batch);
         } else {
             std::cerr << "ERROR: persist='" << sp.backend << "' unavailable (SQL needs JAC313_STORE_HAS_SQL_PERSIST)\n";
             return false;
@@ -436,7 +455,8 @@ bool do_workload(const Params& p, bool verify, bool readback = false) {
             else pt.database_us = us;
         }
         std::cout << "PRODTIMES hot_us=" << pt.hot_us << " binary_us=" << pt.binary_us
-                  << " keeper_us=" << pt.keeper_us << " database_us=" << pt.database_us << std::endl;
+                  << " keeper_us=" << pt.keeper_us << " database_us=" << pt.database_us
+                  << " " << production_batch_fields(p) << std::endl;
     }
 
     // Verification is correctness, not throughput. It runs only when asked (the parent asks
@@ -494,7 +514,12 @@ std::vector<std::string> worker_argv(const std::string& exe, const Params& p, bo
         "--readback",          p.readback,
         "--pg-cleanup",        p.pg_cleanup,
     };
-    if (p.persist == "production") { a.push_back("--production"); a.push_back(p.prod.spec()); }
+    if (p.persist == "production") {
+        a.push_back("--production"); a.push_back(p.prod.spec());
+        // the replay log's and the keeper's own batches (--batch above is the database sink's)
+        a.push_back("--batch-binary"); a.push_back(std::to_string(p.prod.batch_binary));
+        a.push_back("--batch-keeper"); a.push_back(std::to_string(p.prod.batch_keeper));
+    }
     if (verify) a.push_back("--verify");
     if (keep_logs_enabled(p)) {
         a.push_back("--keep-logs");
@@ -586,6 +611,12 @@ std::optional<std::size_t> run_one(const Params& p, bool verify, ProdTimes* pt =
         pt->binary_us = field("binary_us");
         pt->keeper_us = field("keeper_us");
         pt->database_us = field("database_us");
+        // The worker attached each sink at the batch the parent planned (and testRun records).
+        const std::string want = production_batch_fields(p);
+        if (out.find(want, at) == std::string::npos) {
+            std::cerr << "worker batches differ from the plan (" << want << ", config '" << p.label << "')\n";
+            return std::nullopt;
+        }
     }
     return static_cast<std::size_t>(duration_cast<microseconds>(end - start).count());
 }
@@ -687,7 +718,7 @@ ProdSummary summarize_production(const Params& p, const std::vector<ProdTimes>& 
               << " drain_keeper_ms=" << s.drain_keeper_ms << " drain_database_ms=" << s.drain_database_ms
               << " keeper=" << p.prod.keeper << " database=" << p.prod.database
               << " keeper_pct=" << p.prod.keeper_pct << " database_pct=" << p.prod.database_pct
-              << " binary=" << (p.prod.binary ? "on" : "off") << "\n";
+              << " binary=" << (p.prod.binary ? "on" : "off") << " " << production_batch_fields(p) << "\n";
     return s;
 }
 
@@ -939,16 +970,20 @@ void record_to_results_db(const Params& p, const BenchSummary& s, const ProdSumm
         // pair is a different parameter row; its mix is in the testList name.
         std::string persist = p.persist;
         if (persist.rfind("production", 0) == 0) persist = p.prod.persist_label() + persist.substr(10);
-        // The batch each sink ran at: the production run's sinks share one; a one-sink run's sink is a
-        // database (sql | pg-*), the binary log, or a keeper-style file (jtext | html | json).
+        // parameter.batch: the run's batch, for the production run its database sink's (Params::batch).
+        // The production row key is its sink pair, so the other two batches would add nothing to the
+        // parameter identity beyond what the database's does; testRun carries all three below.
         const std::int64_t batch = p.persist == "none" ? 0 : static_cast<std::int64_t>(p.batch);
+        // The batch each sink ran at: a one-sink run's sink is a database (sql | pg-*), the binary log,
+        // or a keeper-style file (jtext | html | json); the production run's three each have their own.
         // (A capped suite run's persist carries "/cap=N": the sinks are those of the backend before it.)
         std::int64_t batch_keeper = 0, batch_database = 0, batch_binary = 0;
         Params sinks = p;
         sinks.persist = p.persist.substr(0, p.persist.find('/'));
         for (const auto& sp : sink_plan(sinks)) {
             const bool is_db = sp.backend == "sql" || sp.backend == "pg-local" || sp.backend == "pg-remote";
-            (sp.backend == "binary" ? batch_binary : is_db ? batch_database : batch_keeper) = batch;
+            (sp.backend == "binary" ? batch_binary : is_db ? batch_database : batch_keeper)
+                = static_cast<std::int64_t>(sp.batch);
         }
         const std::int64_t param_id = parameter_id_bench(db, comp_id, persist,
             static_cast<std::int64_t>(p.threads), static_cast<std::int64_t>(p.events_per_thread),
@@ -1167,11 +1202,32 @@ std::int64_t calibrated_use(const std::string& db_path, const std::string& type,
         return jac313::results::io_best_fit_use(db, mid, type, fallback);
     } catch (...) { return fallback; }
 }
+
+// The production run's batches (results::production_batches): the database sink's into p.batch, the
+// replay log's and the keeper's into p.prod. p.batch on entry is the fallback; override_batch > 0
+// (--batch) gives all three that.
+void apply_production_batches(Params& p, std::size_t override_batch) {
+    const auto fb = static_cast<std::int64_t>(p.batch), o = static_cast<std::int64_t>(override_batch);
+    jac313::results::SinkBatches b{o ? o : fb, o ? o : fb, o ? o : fb};   // no --db: the fallback
+    if (!p.db_path.empty()) try {
+        jac313::Qlite::v002::Sqlite db(results_db_path(p.db_path).string());
+        ensure_results_schema(db);
+        const std::int64_t mid = jac313::results::current_host(db, bench_harness_version());   // 0: no rows
+        b = jac313::results::production_batches(db, mid, p.prod.keeper, p.prod.database, fb, o);
+    } catch (...) {}
+    p.prod.batch_binary = static_cast<std::size_t>(b.binary);
+    p.prod.batch_keeper = static_cast<std::size_t>(b.keeper);
+    p.batch = static_cast<std::size_t>(b.database);
+}
 #else
 int run_calibration(Params, const std::vector<std::size_t>&, std::size_t, const std::string&) {
     std::cerr << "ERROR: --calibrate needs the SQL-persist build (JAC313_STORE_HAS_SQL_PERSIST)\n"; return 2;
 }
 std::int64_t calibrated_use(const std::string&, const std::string&, std::int64_t fb) { return fb; }
+void apply_production_batches(Params& p, std::size_t override_batch) {
+    if (override_batch) p.batch = override_batch;
+    p.prod.batch_binary = p.prod.batch_keeper = p.batch;
+}
 #endif
 
 // The suite, in the order it runs (and the report shows): the production run (@1M, @10M), then each
@@ -1400,6 +1456,13 @@ int run_suite(Params base, bool dry, bool smoke, SuiteAxes given) {
             std::cout << "  " << ty << "=" << bench_group_thousands(
                 static_cast<std::uint64_t>(calibrated_use(base.db_path, ty, static_cast<std::int64_t>(base.batch))));
     }
+    if (production) {
+        // the production run's three sinks, each at its own batch
+        Params pb = base;
+        pb.persist = "production";
+        apply_production_batches(pb, given.batch ? base.batch : 0);
+        std::cout << "\nproduction batch: " << production_batch_fields(pb);
+    }
     std::cout << std::endl;   // flush: surface the chosen batches promptly (before the long runs)
     for (const auto& cf : cfgs) {
         Params p = base;
@@ -1408,12 +1471,14 @@ int run_suite(Params base, bool dry, bool smoke, SuiteAxes given) {
         if (retaining && cf.persist != "none") p.base_name = suite_persist_base(base, cf.persist, cf.label);
         // Durable configs run at this machine's calibrated persistence batch size (io_best_fit.useThis);
         // falls back to the default batch when uncalibrated. Non-durable has no writer, so batch is moot.
-        // The production run's three sinks share one batch: its database sink's (usually the slowest).
-        const std::string batch_of = cf.persist == "production" ? base.prod.database : cf.persist;
-        if (cf.persist != "none" && !given.batch)
-            p.batch = static_cast<std::size_t>(calibrated_use(base.db_path, batch_of, static_cast<std::int64_t>(base.batch)));
+        // The production run's three sinks each run at their own type's batch.
+        if (cf.persist == "production")
+            apply_production_batches(p, given.batch ? base.batch : 0);
+        else if (cf.persist != "none" && !given.batch)
+            p.batch = static_cast<std::size_t>(calibrated_use(base.db_path, cf.persist, static_cast<std::int64_t>(base.batch)));
         std::cout << "\n=== " << cf.label << " ===";
-        if (cf.persist != "none") std::cout << "  (batch " << bench_group_thousands(p.batch) << ")";
+        if (cf.persist == "production") std::cout << "  (" << production_batch_fields(p) << ")";
+        else if (cf.persist != "none") std::cout << "  (batch " << bench_group_thousands(p.batch) << ")";
         std::cout << "\n";
         std::vector<ProdTimes> prod_runs;
         auto durations = measure_set(p, cf.persist == "production" ? &prod_runs : nullptr);
@@ -1466,6 +1531,8 @@ int main(int argc, char** argv) {
         else if (a == "--events-per-thread") { p.events_per_thread = std::stoull(next()); events_set = true; }
         else if (a == "--runs") { p.runs = std::stoull(next()); runs_set = true; }
         else if (a == "--batch") { p.batch = std::stoull(next()); batch_set = true; }
+        else if (a == "--batch-binary") p.prod.batch_binary = std::stoull(next());   // worker: the replay log's batch
+        else if (a == "--batch-keeper") p.prod.batch_keeper = std::stoull(next());   // worker: the keeper's batch
         else if (a == "--persist") p.persist = next();
         else if (a == "--production") {
             // the production run's mix; on its own (not --suite) it also selects that run
@@ -1566,9 +1633,12 @@ int main(int argc, char** argv) {
             capped = true;
         }
         if (capped) p.label += " [capped]";
+        // The production run: each sink at its type's calibrated batch; --batch gives all three its N.
+        if (prod_run) apply_production_batches(p, batch_set ? p.batch : 0);
         std::cout << "store_bench: threads=" << p.threads << " events/thread=" << p.events_per_thread
-                  << " runs=" << p.runs << " persist=" << p.persist << " batch=" << p.batch;
-        if (prod_run) std::cout << " production=" << p.prod.spec();
+                  << " runs=" << p.runs << " persist=" << p.persist;
+        if (prod_run) std::cout << " production=" << p.prod.spec() << " " << production_batch_fields(p);
+        else std::cout << " batch=" << p.batch;
         std::cout << "\n";
         std::vector<ProdTimes> prod_runs;
         auto durations = measure_set(p, prod_run ? &prod_runs : nullptr);
