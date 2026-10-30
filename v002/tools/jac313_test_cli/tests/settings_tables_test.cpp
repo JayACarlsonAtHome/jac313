@@ -2,7 +2,9 @@
 // reads through settings.cpp, validates with jText's validator without errors, has the expected
 // columns, and agrees with the others: every recipe has an install command on every OS family,
 // every toolchain has an activation on every OS family, and every toolchain a recipe is `for`
-// exists. The pin writer's output reads back the same.
+// exists. The pin writer's output reads back the same. The machine-local override files (the
+// Setup/*.local.jtext.example files, used as local files of copies of the tracked tables) replace,
+// add and remove rows; a missing one changes nothing and a malformed one is an error naming it.
 
 #include "settings.hpp"
 
@@ -130,6 +132,111 @@ int main() {
         for (const auto& r : loaded) check(r.install_by_family.size() == kFamilies.size(), r.component + " has every family");
     } catch (const std::exception& e) {
         check(false, std::string("load_recipes: ") + e.what());
+    }
+
+    // ---- machine-local overrides: Setup/compilers.local.jtext, Setup/recipes.local.jtext ----
+    {
+        const fs::path ex_c = kSource / "Setup" / "compilers.local.jtext.example";
+        const fs::path ex_r = kSource / "Setup" / "recipes.local.jtext.example";
+        check_validates(ex_c);
+        check_validates(ex_r);
+        const fs::path tmp = fs::temp_directory_path() / ("jac313_settings_local_test_" + std::to_string(::getpid()));
+        fs::create_directories(tmp / "Setup");
+        fs::copy_file(compilers, compilers_table_path(tmp));
+        fs::copy_file(recipes, recipes_table_path(tmp));
+        const auto find_tc = [](const auto& v, const std::string& label) {
+            return std::find_if(v.begin(), v.end(), [&](const auto& t) { return t.label == label; });
+        };
+        const auto find_rec = [](const auto& v, const std::string& name) {
+            return std::find_if(v.begin(), v.end(), [&](const auto& r) { return r.component == name; });
+        };
+        const auto has = [](const std::vector<std::string>& v, const std::string& x) {
+            return std::find(v.begin(), v.end(), x) != v.end();
+        };
+        // the error `load` throws holds `want` (empty: it throws at all)
+        const auto throws_naming = [](auto load, const std::string& want) {
+            try {
+                load();
+            } catch (const std::exception& e) {
+                return std::string(e.what()).find(want) != std::string::npos;
+            }
+            return false;
+        };
+        try {
+            // missing: the tracked tables as they are
+            check(local_override_path(compilers_table_path(tmp)) == tmp / "Setup" / "compilers.local.jtext",
+                  "local_override_path: compilers.jtext -> compilers.local.jtext");
+            check(local_override_note(compilers_table_path(tmp)).empty() && local_override_note(recipes_table_path(tmp)).empty(),
+                  "no local file: no note");
+            const auto base_tc = load_toolchains(tmp, "fedora");
+            const auto base_rec = load_recipes(tmp);
+            check(base_tc.size() == labels.size() && find_tc(base_tc, "gcc16")->build_dir == "build-gcc16",
+                  "no local file: compilers as tracked");
+            check(base_rec.size() == comps.rows.size() && find_rec(base_rec, "dbeaver") != base_rec.end(),
+                  "no local file: recipes as tracked");
+
+            // the examples: one override, one addition, one removal per table
+            fs::copy_file(ex_c, local_override_path(compilers_table_path(tmp)));
+            fs::copy_file(ex_r, local_override_path(recipes_table_path(tmp)));
+            check(local_override_note(compilers_table_path(tmp))
+                      == "local overrides: " + (tmp / "Setup" / "compilers.local.jtext").string() + " (3 rows)",
+                  "compilers note: " + local_override_note(compilers_table_path(tmp)));
+            check(local_override_note(recipes_table_path(tmp))
+                      == "local overrides: " + (tmp / "Setup" / "recipes.local.jtext").string() + " (4 rows)",
+                  "recipes note: " + local_override_note(recipes_table_path(tmp)));
+            const auto tc = load_toolchains(tmp, "fedora");
+            check(tc.size() == base_tc.size() && tc[1].label == "gcc16", "override keeps gcc16 in place");
+            const auto g16 = find_tc(tc, "gcc16");
+            check(g16->build_dir == "build-gcc16-local", "override: gcc16 build_dir is build-gcc16-local");
+            check(g16->activations.size() == find_tc(base_tc, "gcc16")->activations.size() + 1
+                      && g16->activations.back() == "bash -c 'source /opt/rh/gcc-toolset-16/enable && {CMD}'",
+                  "add: fedora gcc16 has a fourth activation");
+            const auto g15 = find_tc(tc, "gcc15");
+            check(!has(g15->activations, "scl enable gcc-toolset-15 -- {CMD}")
+                      && g15->activations.size() == find_tc(base_tc, "gcc15")->activations.size() - 1,
+                  "remove: fedora gcc15 no longer tries scl enable");
+            check(has(find_tc(load_toolchains(tmp, "rhel"), "gcc15")->activations, "scl enable gcc-toolset-15 -- {CMD}"),
+                  "remove: rhel gcc15 still tries scl enable");
+            const auto rec = load_recipes(tmp);
+            check(rec.size() == base_rec.size(), "recipes: one added, one removed");
+            check(find_rec(rec, "ninja")->install_by_family.at("fedora") == "sudo dnf install -y ninja-build"
+                      && find_rec(rec, "ninja")->install_by_family.at("rhel") == find_rec(base_rec, "ninja")->install_by_family.at("rhel"),
+                  "override: fedora ninja command");
+            check(!rec.empty() && rec.back().component == "tmux" && rec.back().install_by_family.at("fedora") == "sudo dnf install -y tmux",
+                  "add: tmux, last, with its fedora command");
+            check(find_rec(rec, "dbeaver") == rec.end(), "remove: dbeaver");
+
+            // malformed: errors that name the local file
+            const std::string lc = local_override_path(compilers_table_path(tmp)).string();
+            const std::string lr = local_override_path(recipes_table_path(tmp)).string();
+            const auto write = [](const std::string& path, const std::string& text) { std::ofstream(path, std::ios::trunc) << text; };
+            write(lc, "this is not jText\n");
+            check(throws_naming([&] { load_toolchains(tmp, "fedora"); }, lc), "unparsable compilers.local.jtext: error names it");
+            check(throws_naming([&] { local_override_note(compilers_table_path(tmp)); }, lc), "unparsable: the note names it too");
+            std::ifstream in(ex_c);
+            std::stringstream ss;
+            ss << in.rdbuf();
+            std::string text = ss.str();
+            text.replace(text.find("/# build_dir/"), 13, "/# build_dirx/");
+            write(lc, text);
+            check(throws_naming([&] { load_toolchains(tmp, "fedora"); }, lc + " (section toolchains): no column build_dir"),
+                  "compilers.local.jtext without build_dir: error names it");
+            fs::remove(lc);
+            std::ifstream in_r(ex_r);
+            std::stringstream ss_r;
+            ss_r << in_r.rdbuf();
+            text = ss_r.str();
+            text.erase(text.find("=== Section: recipe_os ==="), text.find("=== End File ===") - text.find("=== Section: recipe_os ==="));
+            write(lr, text);
+            check(throws_naming([&] { load_recipes(tmp); }, lr + ": no section recipe_os"),
+                  "recipes.local.jtext without recipe_os: error names it");
+            fs::remove(lr);
+            check(load_toolchains(tmp, "fedora").size() == base_tc.size() && load_recipes(tmp).size() == base_rec.size(),
+                  "local files removed: back to the tracked tables");
+        } catch (const std::exception& e) {
+            check(false, std::string("local overrides: ") + e.what());
+        }
+        fs::remove_all(tmp);
     }
 
     // ---- compilers.pin.jtext ----

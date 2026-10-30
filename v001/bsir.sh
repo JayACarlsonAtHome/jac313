@@ -34,6 +34,10 @@ RECIPES="$ROOT/Setup/recipes.jtext"
 COMPILERS="$ROOT/Setup/compilers.jtext"
 # jtext_rows / jtext_fields / jtext_select: read those jText tables with sh + awk (nothing is built yet)
 . "$ROOT/Setup/jtext_table.sh"
+# A machine-local Setup/compilers.local.jtext / recipes.local.jtext (gitignored) overrides rows of
+# those tables; jtext_select applies it. A malformed one stops the bootstrap here, named.
+jtext_local_check "$COMPILERS" toolchains toolchain_os && jtext_local_check "$RECIPES" components recipe_os \
+  || { echo "Fix or remove the local override file named above, then re-run."; exit 1; }
 
 WANT_GUI=1   # the Runner window is part of a normal bootstrap; --no-gui skips it
 ASSUME_YES=0

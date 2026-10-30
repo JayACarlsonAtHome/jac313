@@ -78,15 +78,86 @@ jtext_fields() {
   ' "$1"
 }
 
+# ---- machine-local overrides (Setup/compilers.local.jtext, Setup/recipes.local.jtext) ----
+# FILE's local file is FILE with .jtext -> .local.jtext. When it exists, jtext_select reads the
+# section with the local rows applied by key, as settings.cpp does (the rules are in the headers of
+# Setup/*.local.jtext.example): a local row whose key FILE has replaces that row in place, a new key
+# is added after FILE's rows, a row with delete = true removes the row with its key.
+
+# the key columns (comma list) of a section a local file may hold
+_jt_key() {
+  case $1 in
+    toolchains) echo label ;;
+    toolchain_os) echo os,toolchain,activation_seq ;;
+    components) echo component ;;
+    recipe_os) echo os,component ;;
+    *) return 1 ;;
+  esac
+}
+
+#   jtext_local_rows FILE SECTION
+#
+# prints the rows of SECTION as jtext_rows does, in the order of FILE's Fields block, with the rows
+# of FILE's local file applied when it exists. A local file that lacks the section or one of FILE's
+# columns, or has a column FILE lacks (other than delete), is an error naming it (exit 1).
+jtext_local_rows() {
+  _jt_loc=${1%.jtext}.local.jtext
+  if [ ! -e "$_jt_loc" ]; then jtext_rows "$1" "$2"; return; fi
+  _jt_keys=$(_jt_key "$2") || { echo "$_jt_loc: no override key for section $2" >&2; return 1; }
+  _jt_tn=$(jtext_fields "$1" "$2" | tr '\n' ' ')
+  _jt_ln=$(jtext_fields "$_jt_loc" "$2" | tr '\n' ' ')
+  { jtext_rows "$1" "$2" | awk '{ print "T\t" $0 }'; jtext_rows "$_jt_loc" "$2" | awk '{ print "L\t" $0 }'; } |
+  awk -F '\t' -v tn="$_jt_tn" -v ln="$_jt_ln" -v keys="$_jt_keys" -v lf="$_jt_loc" -v sec="$2" '
+    function err(m) { print lf " (section " sec "): " m | "cat 1>&2"; bad = 1 }
+    function yes(v) { v = tolower(v); return v == "true" || v == "yes" || v == "y" || v == "t" || v == "1" }
+    BEGIN {
+      nt = split(tn, t, " "); for (i = 1; i <= nt; i++) tc[t[i]] = i
+      nl = split(ln, l, " "); for (i = 1; i <= nl; i++) lc[l[i]] = i
+      if (nl == 0) err("no section " sec)
+      else {
+        for (i = 1; i <= nt; i++) if (!(t[i] in lc)) err("no column " t[i])
+        for (i = 1; i <= nl; i++) if (!(l[i] in tc) && l[i] != "delete") err("column " l[i] " is not in the tracked table")
+      }
+      nk = split(keys, k, ",")
+      if (bad) exit 1
+    }
+    $1 == "T" {
+      key = ""; for (j = 1; j <= nk; j++) key = key $(tc[k[j]] + 1) SUBSEP
+      n++; order[n] = key; pos[key] = n; val[key] = substr($0, 3); next
+    }
+    $1 == "L" {
+      key = ""; for (j = 1; j <= nk; j++) key = key $(lc[k[j]] + 1) SUBSEP
+      if (("delete" in lc) && yes($(lc["delete"] + 1))) { delete pos[key]; delete val[key]; next }
+      row = $(lc[t[1]] + 1); for (i = 2; i <= nt; i++) row = row "\t" $(lc[t[i]] + 1)
+      if (!(key in pos)) { n++; order[n] = key; pos[key] = n }
+      val[key] = row
+    }
+    END {
+      if (bad) exit 1
+      for (i = 1; i <= n; i++) if ((order[i] in pos) && pos[order[i]] == i) print val[order[i]]
+    }
+  '
+}
+
+#   jtext_local_check FILE SECTION...
+#
+# exit 0 when FILE has no local file, or its local file holds every SECTION in the right shape;
+# otherwise each problem goes to stderr, naming the local file, and exit 1.
+jtext_local_check() {
+  _jt_f=$1; shift
+  [ -e "${_jt_f%.jtext}.local.jtext" ] || return 0
+  for _jt_s in "$@"; do jtext_local_rows "$_jt_f" "$_jt_s" > /dev/null || return 1; done
+}
+
 #   jtext_select FILE SECTION OUTCOLS [COLUMN VALUE]...
 #
 # prints OUTCOLS (one column name, or several joined by commas, printed TAB-separated) of every
-# row of section SECTION whose COLUMNs hold exactly the VALUEs, in file order. An unknown column
-# name is an error (exit 1).
+# row of section SECTION whose COLUMNs hold exactly the VALUEs, in file order, with FILE's local
+# file applied (jtext_local_rows). An unknown column name is an error (exit 1).
 jtext_select() {
   _jt_file=$1; _jt_sec=$2; _jt_out=$3; shift 3
   _jt_names=$(jtext_fields "$_jt_file" "$_jt_sec" | tr '\n' ' ')
-  jtext_rows "$_jt_file" "$_jt_sec" | awk -F '\t' -v names="$_jt_names" -v out="$_jt_out" '
+  jtext_local_rows "$_jt_file" "$_jt_sec" | awk -F '\t' -v names="$_jt_names" -v out="$_jt_out" '
     BEGIN {
       n = split(names, nm, " ")
       for (i = 1; i <= n; i++) col[nm[i]] = i

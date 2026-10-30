@@ -1,0 +1,65 @@
+//File:    compilers.local.jtext.example
+//Date:    2026-10-30
+//Purpose: Example of a machine-local override of compilers.jtext (v001). Copy it to
+//         Setup/compilers.local.jtext (gitignored, never committed) and edit; this .example file is
+//         never read. jac313_test_cli (settings.cpp) and bsir.sh (Setup/jtext_table.sh) read
+//         compilers.jtext with the local file's rows applied, row by row:
+//
+//   - The local file has both sections of compilers.jtext (toolchains, toolchain_os), each with
+//     every column of the tracked one (a section may have no rows), plus an optional Bool column
+//     delete. A column the tracked table does not have is an error.
+//   - A row's key: toolchains: label; toolchain_os: os + toolchain + activation_seq.
+//   - A row whose key compilers.jtext has REPLACES that row (in place, every column); a new key is
+//     ADDED after the tracked rows; a row with delete = true REMOVES the row with its key (the
+//     other columns of that row are not used; nothing happens when no row has the key). Rows
+//     apply in file order. id is not part of the key.
+//   - No local file = compilers.jtext as it is. A local file that does not read or validate, or
+//     lacks a section or a column, is an error naming it (the CLI stops; bsir.sh says so and
+//     stops). `jac313_test_cli compilers` and `setup` print "local overrides: <file> (N rows)".
+//
+// This example: gcc16 builds in build-gcc16-local (override), Fedora gets a fourth gcc16
+// activation (add), and Fedora no longer tries `scl enable` for gcc15 (remove).
+//
+// Same formatter as compilers.jtext (^~), one row per line, no comments on data rows: bsir.sh
+// reads this file with POSIX awk.
+//
+=== jText File ===
+ 1. ?# compilers.local.jtext
+ 2. ?# 2026-10-30
+ 3. ?# Machine-local compiler registry overrides (v001)
+ 4. ?# 0.8
+
+=== Section: toolchains ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# label/String/Not Null/Not Empty
+ 3. /# kind/String/Not Null/Not Empty
+ 4. /# version/Integer/Not Null
+ 5. /# min_version/Integer/Not Null
+ 6. /# build_dir/String/Not Null/Not Empty
+ 7. /# flag/String/Not Null/Not Empty
+ 8. /# cc_names/String/Not Null/Not Empty
+ 9. /# scan_deps/String/Not Null
+10. /# delete/Bool/Not Null                      # true = remove the tracked row with this key
+=== End Fields ===
+=== Data ===
+ 1. ^~ 1^gcc16^gcc^16^0^build-gcc16-local^--gcc16^g++-16 g++16 g++^^false
+=== End Data ===
+=== End Section ===
+
+=== Section: toolchain_os ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# os/String/Not Null/Not Empty
+ 3. /# toolchain/String/Not Null/Not Empty
+ 4. /# required/Bool/Not Null
+ 5. /# activation_seq/Integer/Not Null
+ 6. /# activation/String/Not Null/Not Empty
+ 7. /# delete/Bool/Not Null                      # true = remove the tracked row with this key
+=== End Fields ===
+=== Data ===
+ 1. ^~ 1^fedora^gcc16^true^4^bash -c 'source /opt/rh/gcc-toolset-16/enable && {CMD}'^false
+ 1. ^~ 2^fedora^gcc15^false^3^{CMD}^true
+=== End Data ===
+=== End Section ===
+=== End File ===

@@ -39,6 +39,10 @@ build-*/
 .DS_Store
 Thumbs.db
 
+# Machine-local overrides of Setup/compilers.jtext and Setup/recipes.jtext (row-level; see the
+# Setup/*.local.jtext.example files): this machine's alone, never committed
+/v*/Setup/*.local.jtext
+
 # Jac313Runner GUI build output (jac313_test_cli gui-build -> <root>/gui/out/)
 gui/out/
 

@@ -1,0 +1,61 @@
+//File:    recipes.local.jtext.example
+//Date:    2026-10-30
+//Purpose: Example of a machine-local override of recipes.jtext (v002). Copy it to
+//         Setup/recipes.local.jtext (gitignored, never committed) and edit; this .example file is
+//         never read. jac313_test_cli (settings.cpp) and bsir.sh (Setup/jtext_table.sh) read
+//         recipes.jtext with the local file's rows applied, row by row:
+//
+//   - The local file has both sections of recipes.jtext (components, recipe_os), each with every
+//     column of the tracked one (a section may have no rows), plus an optional Bool column
+//     delete. A column the tracked table does not have is an error.
+//   - A row's key: components: component; recipe_os: os + component.
+//   - A row whose key recipes.jtext has REPLACES that row (in place, every column); a new key is
+//     ADDED after the tracked rows; a row with delete = true REMOVES the row with its key (the
+//     other columns of that row are not used; nothing happens when no row has the key). Rows
+//     apply in file order. id is not part of the key.
+//   - No local file = recipes.jtext as it is. A local file that does not read or validate, or
+//     lacks a section or a column, is an error naming it (the CLI stops; bsir.sh says so and
+//     stops). `jac313_test_cli setup` prints "local overrides: <file> (N rows)".
+//
+// This example: Fedora installs ninja from its own package (override), a tmux component with its
+// Fedora command (add), and no DBeaver on this machine (remove).
+//
+// Same formatter as recipes.jtext (^~), one row per line, no comments on data rows: bsir.sh reads
+// this file with POSIX awk.
+//
+=== jText File ===
+ 1. ?# recipes.local.jtext
+ 2. ?# 2026-10-30
+ 3. ?# Machine-local provision recipe overrides (v002)
+ 4. ?# 0.8
+
+=== Section: components ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# component/String/Not Null/Not Empty
+ 3. /# desc/String/Not Null/Not Empty
+ 4. /# for/String/Not Null
+ 5. /# required/Bool/Not Null
+ 6. /# check/String/Not Null
+ 7. /# delete/Bool/Not Null                      # true = remove the tracked row with this key
+=== End Fields ===
+=== Data ===
+ 1. ^~ 1^tmux^tmux (terminal multiplexer)^^false^command -v tmux >/dev/null 2>&1^false
+ 1. ^~ 2^dbeaver^-^^false^^true
+=== End Data ===
+=== End Section ===
+
+=== Section: recipe_os ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# os/String/Not Null/Not Empty
+ 3. /# component/String/Not Null/Not Empty
+ 4. /# command/String/Not Null/Not Empty
+ 5. /# delete/Bool/Not Null                      # true = remove the tracked row with this key
+=== End Fields ===
+=== Data ===
+ 1. ^~ 1^fedora^ninja^sudo dnf install -y ninja-build^false
+ 1. ^~ 2^fedora^tmux^sudo dnf install -y tmux^false
+=== End Data ===
+=== End Section ===
+=== End File ===

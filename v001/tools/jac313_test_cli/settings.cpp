@@ -42,7 +42,85 @@ int to_int(const std::map<std::string, std::string>& row, const std::string& col
     return out;
 }
 
+// The sections a local override file holds, each with its key columns, by tracked file name.
+struct OverrideSection {
+    std::string_view section;
+    std::vector<std::string> key;
+};
+const std::vector<OverrideSection>& override_sections(const fs::path& tracked) {
+    static const std::vector<OverrideSection> compilers = {{"toolchains", {"label"}},
+                                                           {"toolchain_os", {"os", "toolchain", "activation_seq"}}};
+    static const std::vector<OverrideSection> recipes = {{"components", {"component"}},
+                                                         {"recipe_os", {"os", "component"}}};
+    if (tracked.filename() == "compilers.jtext") return compilers;
+    if (tracked.filename() == "recipes.jtext") return recipes;
+    throw std::runtime_error(tracked.string() + " has no local override file");
+}
+
+// Section `section` of the local file `local`, checked against the tracked table's columns.
+SettingsTable read_local_section(const fs::path& local, std::string_view section, const SettingsTable& tracked,
+                                 const fs::path& tracked_path) {
+    SettingsTable loc = read_jtext_table(local, section);
+    require_columns(loc, local, section, tracked.columns);
+    for (const auto& c : loc.columns)
+        if (c != "delete" && std::find(tracked.columns.begin(), tracked.columns.end(), c) == tracked.columns.end())
+            throw std::runtime_error(where(local, section) + ": column " + c + " is not in " + tracked_path.string());
+    return loc;
+}
+
+// Section `section` of the tracked table `path`, with the rows of its local override file applied by
+// `key` when that file exists (replace in place, add at the end, delete = true removes).
+SettingsTable read_with_local(const fs::path& path, std::string_view section) {
+    SettingsTable table = read_jtext_table(path, section);
+    const fs::path local = local_override_path(path);
+    std::error_code ec;
+    if (!fs::exists(local, ec)) return table;
+    const auto& sections = override_sections(path);
+    const auto sec = std::find_if(sections.begin(), sections.end(), [&](const auto& s) { return s.section == section; });
+    if (sec == sections.end()) throw std::runtime_error(where(path, section) + ": no local override key");
+    const SettingsTable loc = read_local_section(local, section, table, path);
+    const bool has_delete = std::find(loc.columns.begin(), loc.columns.end(), "delete") != loc.columns.end();
+    const auto key_of = [&](const std::map<std::string, std::string>& row) {
+        std::string k;
+        for (const auto& c : sec->key) k += row.at(c) + '\x1f';
+        return k;
+    };
+    for (const auto& lr : loc.rows) {
+        std::map<std::string, std::string> row;
+        for (const auto& c : table.columns) row[c] = lr.at(c);
+        const std::string k = key_of(row);
+        const auto it = std::find_if(table.rows.begin(), table.rows.end(), [&](const auto& r) { return key_of(r) == k; });
+        if (has_delete && jtext_bool(lr.at("delete"))) {
+            if (it != table.rows.end()) table.rows.erase(it);
+        } else if (it != table.rows.end()) {
+            *it = std::move(row);
+        } else {
+            table.rows.push_back(std::move(row));
+        }
+    }
+    return table;
+}
+
 } // namespace
+
+fs::path compilers_table_path(const fs::path& source_dir) { return source_dir / "Setup" / "compilers.jtext"; }
+fs::path recipes_table_path(const fs::path& source_dir) { return source_dir / "Setup" / "recipes.jtext"; }
+
+fs::path local_override_path(const fs::path& tracked) {
+    fs::path local = tracked;
+    local.replace_extension(".local.jtext");
+    return local;
+}
+
+std::string local_override_note(const fs::path& tracked) {
+    const fs::path local = local_override_path(tracked);
+    std::error_code ec;
+    if (!fs::exists(local, ec)) return {};
+    std::size_t rows = 0;
+    for (const auto& s : override_sections(tracked))
+        rows += read_local_section(local, s.section, read_jtext_table(tracked, s.section), tracked).rows.size();
+    return "local overrides: " + local.string() + " (" + std::to_string(rows) + (rows == 1 ? " row)" : " rows)");
+}
 
 SettingsTable read_jtext_table(const fs::path& path, std::string_view section) {
     std::ifstream in(path);
@@ -88,11 +166,11 @@ bool jtext_bool(std::string_view value) {
 }
 
 std::vector<setup::Toolchain> load_toolchains(const fs::path& source_dir, const std::string& os_family) {
-    const fs::path path = source_dir / "Setup" / "compilers.jtext";
-    const SettingsTable tcs = read_jtext_table(path, "toolchains");
+    const fs::path path = compilers_table_path(source_dir);
+    const SettingsTable tcs = read_with_local(path, "toolchains");
     require_columns(tcs, path, "toolchains",
                     {"label", "kind", "version", "min_version", "build_dir", "flag", "cc_names", "scan_deps"});
-    const SettingsTable os = read_jtext_table(path, "toolchain_os");
+    const SettingsTable os = read_with_local(path, "toolchain_os");
     require_columns(os, path, "toolchain_os", {"os", "toolchain", "required", "activation_seq", "activation"});
 
     const bool family_listed = std::any_of(os.rows.begin(), os.rows.end(),
@@ -130,10 +208,10 @@ std::vector<setup::Toolchain> load_toolchains(const fs::path& source_dir, const 
 }
 
 std::vector<setup::ProvisionRecipe> load_recipes(const fs::path& source_dir) {
-    const fs::path path = source_dir / "Setup" / "recipes.jtext";
-    const SettingsTable comps = read_jtext_table(path, "components");
+    const fs::path path = recipes_table_path(source_dir);
+    const SettingsTable comps = read_with_local(path, "components");
     require_columns(comps, path, "components", {"component", "desc", "for", "required", "check"});
-    const SettingsTable os = read_jtext_table(path, "recipe_os");
+    const SettingsTable os = read_with_local(path, "recipe_os");
     require_columns(os, path, "recipe_os", {"os", "component", "command"});
 
     std::vector<setup::ProvisionRecipe> out;

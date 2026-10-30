@@ -11,6 +11,9 @@
 //   tests/production.jtext     production                  the bench's production run (--bench;
 //                                                          one row for every profile)
 //
+//   Setup/compilers.local.jtext, Setup/recipes.local.jtext  (gitignored, optional) this machine's
+//                                                          row-level overrides of the two above
+//
 // One reader for all of them: read_jtext_table parses the file with jText's parser and validator
 // (jtext::parse_file_structure + jtext::validate) and returns one section as rows of column ->
 // value. The typed loaders below build on it. Setup (toolchain sensing) does not link jText: it
@@ -44,6 +47,25 @@ void require_columns(const SettingsTable& table, const std::filesystem::path& pa
 
 // jText Bool spellings (SPEC 2.4.1): Yes/No, True/False, Y/N, T/F, 1/0, any case.
 bool jtext_bool(std::string_view value);
+
+// ---- machine-local overrides: Setup/compilers.local.jtext, Setup/recipes.local.jtext ----
+// Gitignored and optional. A local file has the sections of its tracked table (compilers: toolchains
+// + toolchain_os; recipes: components + recipe_os), each with every column of the tracked one, and
+// optionally a Bool column `delete`. Its rows apply by key (toolchains: label; toolchain_os: os +
+// toolchain + activation_seq; components: component; recipe_os: os + component), in file order: a
+// row whose key the tracked table has REPLACES that row in place, a new key is ADDED at the end, and
+// a row with delete = true REMOVES the row with its key (nothing when there is none). Every loader
+// below sees the merged rows. No local file = no change; a local file that cannot be read, does not
+// validate, lacks a section or a column, or has a column the tracked table lacks is an error that
+// names it.
+
+std::filesystem::path compilers_table_path(const std::filesystem::path& source_dir);   // Setup/compilers.jtext
+std::filesystem::path recipes_table_path(const std::filesystem::path& source_dir);     // Setup/recipes.jtext
+// The local override file of a tracked table: Setup/compilers.jtext -> Setup/compilers.local.jtext.
+std::filesystem::path local_override_path(const std::filesystem::path& tracked);
+// "local overrides: <file> (N rows)" when the local file of `tracked` (compilers or recipes) exists,
+// else "". Throws as the loaders do when that file is malformed.
+std::string local_override_note(const std::filesystem::path& tracked);
 
 // The toolchains of <source_dir>/Setup/compilers.jtext in table order, with the activations and
 // required_on of `os_family` (toolchain_os rows, by activation_seq). A family with no rows tries

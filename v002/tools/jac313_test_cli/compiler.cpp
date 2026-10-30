@@ -147,7 +147,7 @@ bool write_filecheck_list(const fs::path& source_dir, const std::vector<Resolved
 void print_compiler_probe(const std::vector<ResolvedToolchain>& probes) {
     std::cout << "=== compiler probe ===\n";
     for (const auto& probe : probes) {
-        std::cout << "  " << probe.spec.label;
+        std::cout << "  " << probe.spec.label << "  " << probe.spec.build_dir;
         if (probe.available) {
             std::cout << "  " << probe.cc_path;
             if (!probe.version_line.empty()) {

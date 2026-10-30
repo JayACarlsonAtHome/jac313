@@ -153,6 +153,8 @@ void print_usage() {
         "  --no-store-tests     Disable JAC313_BUILD_STORE_TESTS\n\n"
         "Toolchains are data-driven: see Setup/compilers.jtext\n"
         "(activation-aware — handles gcc-toolset via scl / env-launcher / source-script).\n"
+        "A gitignored Setup/compilers.local.jtext / Setup/recipes.local.jtext overrides rows of\n"
+        "those tables on this machine (see the .local.jtext.example files).\n"
         "Auto-detect prefers the highest-version gcc that resolves; build dir from the\n"
         "toolchain's build_dir when --build-dir is omitted.\n\n"
         "Examples:\n"
@@ -439,7 +441,14 @@ bool apply_compiler_resolution(GlobalOptions& global,
     }
 }
 
+// "local overrides: <file> (N rows)" for each of `tracked` whose machine-local file applies.
+void print_local_overrides(const std::vector<fs::path>& tracked) {
+    for (const auto& t : tracked)
+        if (const std::string note = local_override_note(t); !note.empty()) std::cout << note << '\n';
+}
+
 int run_compilers_command(const GlobalOptions& global, const ConfigureOptions& configure_opts) {
+    print_local_overrides({compilers_table_path(global.source_dir)});
     const auto probes = probe_compilers(global.source_dir);
     print_compiler_probe(probes);
     write_filecheck_list(global.source_dir, probes);
@@ -480,6 +489,7 @@ int run_compilers_command(const GlobalOptions& global, const ConfigureOptions& c
 int run_setup_command(const GlobalOptions& global) {
     namespace setup = jac313::Setup::v001;
 
+    print_local_overrides({compilers_table_path(global.source_dir), recipes_table_path(global.source_dir)});
     const auto resolved = probe_compilers(global.source_dir);
     print_compiler_probe(resolved);
     write_filecheck_list(global.source_dir, resolved);

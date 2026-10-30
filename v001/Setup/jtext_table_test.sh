@@ -1,6 +1,7 @@
 #!/bin/sh
 # jtext_table_test.sh — checks Setup/jtext_table.sh (the sh + awk jText reader bsir.sh uses)
-# against Setup/compilers.jtext and Setup/recipes.jtext. Registered with ctest.
+# against Setup/compilers.jtext and Setup/recipes.jtext, and its machine-local overrides (the
+# Setup/*.local.jtext.example files as local files). Registered with ctest.
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/jtext_table.sh"
@@ -61,6 +62,33 @@ JT
 check "rows of a" "$(jtext_rows "$T" a | tr '\n' '/')" "1${tab}x y/2${tab}${tab}z~w/"
 check "unknown column" "$(jtext_select "$T" a nope 2>/dev/null; echo "rc=$?")" "rc=1"
 rm -f "$T"
+
+# machine-local overrides: the .example files as the local files of copies of the tracked tables
+D=$(mktemp -d)
+cp "$C" "$R" "$D/"
+LC="$D/compilers.jtext"; LR="$D/recipes.jtext"
+check "no local file: gcc16 build_dir" "$(jtext_select "$LC" toolchains build_dir label gcc16)" build-gcc16
+check "no local file: check passes" "$(jtext_local_check "$LC" toolchains toolchain_os; echo "rc=$?")" "rc=0"
+cp "$HERE/compilers.local.jtext.example" "$D/compilers.local.jtext"
+cp "$HERE/recipes.local.jtext.example" "$D/recipes.local.jtext"
+check "local check passes" "$(jtext_local_check "$LC" toolchains toolchain_os && jtext_local_check "$LR" components recipe_os; echo "rc=$?")" "rc=0"
+check "override: gcc16 build_dir" "$(jtext_select "$LC" toolchains build_dir label gcc16)" build-gcc16-local
+check "override keeps the row in place" "$(jtext_select "$LC" toolchains label | tr '\n' ' ')" "gcc15 gcc16 clang "
+check "add: fedora gcc16 activation 4" "$(jtext_select "$LC" toolchain_os activation toolchain gcc16 os fedora activation_seq 4)" \
+      "bash -c 'source /opt/rh/gcc-toolset-16/enable && {CMD}'"
+check "remove: fedora gcc15 activation 3" "$(jtext_select "$LC" toolchain_os activation toolchain gcc15 os fedora activation_seq 3)" ""
+check "toolchain_os rows (+1 -1)" "$(jtext_select "$LC" toolchain_os id | wc -l | tr -d ' ')" 24
+check "override: fedora ninja" "$(jtext_select "$LR" recipe_os command component ninja os fedora)" "sudo dnf install -y ninja-build"
+check "add: tmux last" "$(jtext_select "$LR" components component | tail -n1)" tmux
+check "remove: dbeaver" "$(jtext_select "$LR" components component component dbeaver)" ""
+check "rhel ninja unchanged" "$(jtext_select "$LR" recipe_os command component ninja os rhel)" \
+      "sudo dnf install -y python3-pip && python3 -m pip install --user ninja"
+# a malformed local file (a section without the column build_dir) is an error naming it
+sed 's|^ 6\. /# build_dir/.*$| 6. /# build_dirx/String/Not Null|' "$HERE/compilers.local.jtext.example" > "$D/compilers.local.jtext"
+check "malformed: check fails" "$(jtext_local_check "$LC" toolchains toolchain_os 2>/dev/null; echo "rc=$?")" "rc=1"
+check "malformed: names the file" \
+      "$(jtext_local_check "$LC" toolchains toolchain_os 2>&1 >/dev/null | grep -c "^$D/compilers.local.jtext (section toolchains): no column build_dir")" 1
+rm -rf "$D"
 
 [ "$fails" -eq 0 ] && echo "jtext_table_test: all passed" || echo "jtext_table_test: $fails failed"
 [ "$fails" -eq 0 ]
