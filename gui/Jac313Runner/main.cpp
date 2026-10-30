@@ -50,6 +50,8 @@ static int DumpCommand()
 		Cerr() << "Jac313Runner: no project root (pass --root)\n";
 		return 1;
 	}
+	String err;   // the production row of the version's params file (the defaults without one)
+	LoadProduction(ProductionParamsFile(root, ResolveVersion(o.version, root), o.size), o.prod, err);
 	for(const RunPlan& p : BuildPlans(o, root))
 		Cout() << p.Display() << "\n";
 	return 0;
@@ -521,6 +523,13 @@ struct Runner : TopWindow {
 	Option    gCtest, gSmoke, gBench, gVerifyLite, gVerify;
 	Option    bStrict, bHardened;
 	Option    pSql, pPgL, pPgR, pJt, pBin, pJson, pHtml;
+	// The bench's production run (the production row of the version's tests/test_params*.jtext)
+	Label     lProd, lProdKeeper, lProdDb, lProdKPct, lProdDPct;
+	DropList  prodKeeper, prodDb;
+	EditIntSpin prodKPct, prodDPct;
+	Option    prodBinary;
+	String    prodFor;      // the params file the production controls were loaded from
+	void   LoadProductionControls();
 	EditIntNotNullSpin maxRuns;
 	LeaveIntSpin maxRecords, maxRows;   // leaving either one limits Max persisted to Max records
 	DocEdit   cmd;
@@ -779,7 +788,7 @@ Runner::Runner()
 	y += 130;
 
 	boxPersist.SetLabel("Persist to");
-	s1p.body.Add(boxPersist.HSizePosZ(8, 8).TopPosZ(y, 176));
+	s1p.body.Add(boxPersist.HSizePosZ(8, 8).TopPosZ(y, 202));
 	lDb.SetText("Databases:");
 	lFiles.SetText("Files:");
 	pSql.SetLabel("SQLite");
@@ -799,6 +808,38 @@ Runner::Runner()
 	Place(s1p.body, pBin, 210, y + 44, 100, 22);
 	Place(s1p.body, pJson, 320, y + 44, 90, 22);
 	Place(s1p.body, pHtml, 420, y + 44, 90, 22);
+	// The bench's production run: the keeper file and the database it writes at once (with the
+	// binary replay log), and the % of events flagged for each. Loaded from / saved to the
+	// production row of the version's tests/test_params.jtext (_full for size full).
+	lProd.SetText("Production:");
+	lProd.Tip("The bench's production run (bench gate): the keeper file, the database and the binary "
+	          "replay log written at once, each event routed by its KeeperRecord / DatabaseEntry flag. "
+	          "Saved to the production row of tests/test_params.jtext with Save as default.");
+	lProdKeeper.SetText("Keeper");
+	lProdDb.SetText("Database");
+	lProdKPct.SetText("Keeper %");
+	lProdDPct.SetText("Database %");
+	prodKeeper.Add("jtext", "jText").Add("html", "HTML").Add("json", "JSON");
+	prodDb.Add("sql", "SQLite").Add("pg-local", "PG local").Add("pg-remote", "PG remote");
+	prodKeeper.Tip("The keeper file: gets only the events flagged KeeperRecord");
+	prodDb.Tip("The database: gets only the events flagged DatabaseEntry");
+	prodKPct.MinMax(0, 100);
+	prodDPct.MinMax(0, 100);
+	prodKPct.Tip("% of events flagged KeeperRecord (0..100)");
+	prodDPct.Tip("% of events flagged DatabaseEntry (0..100)");
+	prodBinary.SetLabel("binary replay log");
+	prodBinary.Tip("Also write every event to the binary replay log, as a real program would");
+	Place(s1p.body, lProd, 20, y + 70, 90, 22);
+	Place(s1p.body, lProdKeeper, 110, y + 70, 50, 22);
+	Place(s1p.body, prodKeeper, 160, y + 70, 80, 22);
+	Place(s1p.body, lProdDb, 250, y + 70, 60, 22);
+	Place(s1p.body, prodDb, 310, y + 70, 100, 22);
+	Place(s1p.body, lProdKPct, 420, y + 70, 60, 22);
+	Place(s1p.body, prodKPct, 480, y + 70, 56, 22);
+	Place(s1p.body, lProdDPct, 546, y + 70, 70, 22);
+	Place(s1p.body, prodDPct, 616, y + 70, 56, 22);
+	Place(s1p.body, prodBinary, 684, y + 70, 160, 22);
+	y += 26;   // the rows below move down one line
 	lMaxRuns.SetText("Max runs:");
 	lMaxRec.SetText("Max records in a run:");
 	lMax.SetText("Max persisted in a run:");
@@ -888,7 +929,7 @@ Runner::Runner()
 	Place(s1p.body, lMax, 612, y + 148, 150, 22);
 	Place(s1p.body, maxRows, 764, y + 148, 90, 22);
 	Place(s1p.body, lDefRows, 858, y + 148, 110, 22);
-	y += 182;
+	y += 182;   // (+ the production row's 26 above)
 
 	boxRows.SetLabel("Rows and read-back");
 	s1p.body.Add(boxRows.HSizePosZ(8, 8).TopPosZ(y, 72));
@@ -938,7 +979,8 @@ Runner::Runner()
 	SetMinSize(minsz);
 
 	Ctrl *live[] = { &version, &comp, &type, &front, &size, &rb, &pg, &gCtest, &gSmoke, &gBench, &gVerifyLite,
-	                 &gVerify, &bStrict, &bHardened, &contracts, &pSql, &pPgL, &pPgR, &pJt, &pBin, &pJson, &pHtml, &pgHost, &pgPort, &pgDb, &pgUser, &connFile, &maxRuns, &maxRecords, &maxRows };
+	                 &gVerify, &bStrict, &bHardened, &contracts, &pSql, &pPgL, &pPgR, &pJt, &pBin, &pJson, &pHtml,
+	                 &prodKeeper, &prodDb, &prodKPct, &prodDPct, &prodBinary, &pgHost, &pgPort, &pgDb, &pgUser, &connFile, &maxRuns, &maxRecords, &maxRows };
 	for(Ctrl *c : live)
 		c->WhenAction << THISBACK(UpdateCommand);
 	// ticking a PG box tests that server; a failed test unticks it again
@@ -1137,8 +1179,35 @@ void Runner::FromOptions()
 	connFile <<= EffectiveConnFile(opt, Root());
 }
 
+// The production controls show the production row of the version's params file; a new version or
+// size loads that file's row (a file without one keeps what is shown).
+void Runner::LoadProductionControls()
+{
+	String file = ProductionParamsFile(Root(), AsString(~version), AsString(~size));
+	if(file == prodFor)
+		return;
+	prodFor = file;
+	ProductionOptions p = opt.prod;
+	String err;
+	bool ok = LoadProduction(file, p, err);   // a file without a row: the defaults, the label red
+	lProd.SetInk(ok ? SColorText() : Color(170, 0, 0));
+	lProd.Tip(ok ? "The bench's production run, from the production row of " + file
+	             : "Production run: " + err + " (shown: the defaults; Save as default cannot write it)");
+	prodKeeper <<= p.keeper;
+	prodDb <<= p.database;
+	prodKPct <<= p.keeperPct;
+	prodDPct <<= p.databasePct;
+	prodBinary <<= p.binary;
+}
+
 void Runner::ToOptions()
 {
+	LoadProductionControls();
+	opt.prod.keeper = AsString(~prodKeeper);
+	opt.prod.database = AsString(~prodDb);
+	opt.prod.keeperPct = IsNull(~prodKPct) ? 0 : minmax((int)~prodKPct, 0, 100);
+	opt.prod.databasePct = IsNull(~prodDPct) ? 0 : minmax((int)~prodDPct, 0, 100);
+	opt.prod.binary = prodBinary;
 	opt.version = AsString(~version);
 	opt.ctest = gCtest;
 	opt.smoke = gSmoke;
@@ -1307,10 +1376,17 @@ void Runner::SaveDefault()
 {
 	ToOptions();
 	maxRows <<= opt.maxRows;
-	if(SaveSettings(opt))
-		lInfo.SetText("Saved as default: " + SettingsPath());
-	else
+	if(!SaveSettings(opt)) {
 		Exclamation("Cannot write " + DeQtf(SettingsPath()));
+		return;
+	}
+	// the production run's choices go to the version's params file (a jText table), not the JSON
+	String err, file = ProductionParamsFile(Root(), opt.version, opt.size);
+	if(!SaveProduction(file, opt.prod, err)) {
+		Exclamation("Saved " + DeQtf(SettingsPath()) + ", but not the production run: " + DeQtf(err));
+		return;
+	}
+	lInfo.SetText("Saved as default: " + SettingsPath() + " and the production row of " + file);
 }
 
 void Runner::Start()

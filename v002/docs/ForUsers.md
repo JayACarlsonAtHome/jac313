@@ -10,14 +10,14 @@ valgrind gates, or anything in [Setup.md](Setup.md)'s testing section. This page
 | Package | Namespace | What it's for |
 |---|---|---|
 | **jText** | `jac313::jText::v002` | structured text / log records — fast formatting, parse + validate |
-| **Store** | `jac313::Store::v002` | a time-series logging **store** with pluggable persistence (binary / jtext / html / json / sql / flag-routing; or `persist=none` for in-memory, no sink) |
+| **Store** | `jac313::Store::v002` | a time-series logging **store** with pluggable persistence (binary / jtext / html / json / sql, several at once, each event routed by its flags; or `persist=none` for in-memory, no sink) |
 | **Qlite** | `jac313::Qlite::v002` | a thin, safe **SQLite** wrapper (variadic bind/exec/step/get, RAII transactions, stmt cache, `column<int>`, `try_*` when `<expected>` is available) |
 
 They compose — Store uses Qlite + jText under the hood — but you can take just the one you need.
 
 ## What could I use this for?
 
-**Store** — timestamped `{floats/ints + category + event-name}` records, persisted (binary / jtext / html / json / sql / flag-routing; or `persist=none` = in-memory, not persisted):
+**Store** — timestamped `{floats/ints + category + event-name}` records, persisted (binary / jtext / html / json / sql, several at once, routed by flags; or `persist=none` = in-memory, not persisted):
 - **Robot arm** — joint angles + gripper state · cat `manipulation` · *"Moving arm to weld seam 3"*
 - **AGV / fleet, 2D map** — x, y, heading, load_id · cat `logistics` · *"Forklift picking up load at dock 7"*, *"Truck arrived, gate 4"*
 - **Drone / vehicle telemetry** — lat/lon/alt, or rpm/speed/temp · *"Waypoint 5 reached"*, *"Hard brake −0.8 g"*
@@ -36,6 +36,15 @@ when the toolchain provides `<expected>`.
 **They compose.** A forklift logs `{x, y, load_id}` + events to **Store** → persisted via **Qlite** (SQL) so
 you can ask "how long did dock 7 take this week?" → exported via **jText** as a human shift report. One
 capture path, three consumption shapes.
+
+**What to expect on your machine.** A real program usually writes a replay log, a keeper file and a
+database at the same time, sending each event only where its flags say. The bench's **production
+run** does exactly that (binary + your choice of jtext / html / json + SQLite or PostgreSQL, a few
+percent of events flagged for each) and reports the hot-path rate, how long each sink takes to
+drain, and the whole-process rate — run it on your hardware with `./jac313_test_cli --bench` or from
+Jac313Runner ([Benchmarks](Benchmarks.md#the-production-run)). *Changed in Store v002.022:* this
+used to read "flag-routing" as if it were one more sink; the old router sink is gone, and routing is
+now each sink's `PersistMode` with several sinks attached at once.
 
 **Your data isn't locked in.** Store's `sql` backend writes a standard **SQLite 3** database (`persist.db`) —
 open it as-is in **DataGrip, DBeaver, or the `sqlite3` CLI**, no export step — alongside a human-readable

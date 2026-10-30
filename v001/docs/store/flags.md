@@ -20,8 +20,8 @@ related: [bitmaps / routing](bitmaps.md) (how flags route events) · [logging](l
 | Bit | Name | Meaning | Status |
 |----|------|---------|--------|
 | 0 | `LogConsole` | echo the event to the console | 🕳️ placeholder — set in test data; no console sink consumes it |
-| 1 | `KeeperRecord` | **keep this event in the keeper (file) sink** | ✅ wired — routing + `PersistMode::KeeperOnly` |
-| 2 | `DatabaseEntry` | **write this event to the SQL sink** | ✅ wired — routing + `PersistMode::DatabaseOnly` |
+| 1 | `KeeperRecord` | **keep this event in the keeper (file) sink** | ✅ wired — routing + `PersistMode::KeeperOnly`; used as designed by the bench's production run |
+| 2 | `DatabaseEntry` | **write this event to the database sink** | ✅ wired — routing + `PersistMode::DatabaseOnly`; used as designed by the bench's production run |
 | 3 | `SendNetwork` | send the event over the network | 🕳️ placeholder — no network sink exists |
 | 4 | `HotCacheHint` | hint that the event is cache-hot | 🕳️ placeholder — nothing consumes it |
 | 5 | `IsResult` | the event represents a result | 🕳️ placeholder — not wired |
@@ -32,6 +32,15 @@ goes. See [bitmaps / routing](bitmaps.md) for how each sink's `PersistMode`
 selects by these bits (several sinks attached at once, one worker each).
 (`KeeperRecord` is the bit the planned "keep only the last X entries" retention
 will hang off of.)
+
+**Used as designed (Store v001.016).** The bench's production run
+([Benchmarks](../Benchmarks.md#the-production-run)) is the first place these two bits route a real
+workload: one store, three sinks — the binary replay log (`All`), a keeper file (`KeeperOnly`) and
+a database (`DatabaseOnly`) — and each event flagged `KeeperRecord` and/or `DatabaseEntry` by a
+fixed mix (default 10 % each). Its read-back proves each sink holds exactly its flagged events and
+nothing else. *Why this changed:* before, the bench only ran one sink in mode `All`, so the flags
+were set but never decided anything; now the bench measures them doing their job. The other bits
+below are unchanged and still honestly marked.
 
 ## Internal flags (bits 16–17) — set by the store
 
@@ -66,7 +75,7 @@ display and filtering; **not** consulted by routing.
 
 Of the 13 named flags, only **five drive behavior today**:
 
-- **Routing:** `KeeperRecord`, `DatabaseEntry`
+- **Routing:** `KeeperRecord`, `DatabaseEntry` (exercised by the bench's production run)
 - **Auto-set markers:** `HasData`, `HasIntData`, `HasDblData`
 
 `HasIntStats` / `HasDblStats` are **advisory** (the metric-view availability bits). The

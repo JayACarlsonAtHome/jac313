@@ -6,6 +6,10 @@
 //   2. damages the stored data (edits a value, or removes a row), and checks read-back FAILS.
 // A read-back that cannot fail would prove nothing; this test keeps it honest.
 //
+// The flagged subsets (the production bench run): a KeeperOnly / DatabaseOnly sink reads back
+// exactly the events flagged KeeperRecord / DatabaseEntry, and a dataset that holds every event
+// fails a KeeperOnly check (rows the sink should not hold).
+//
 // It also persists the doubles a text format gets wrong most easily (NaN, +/-Infinity, a
 // denormal, DBL_MAX, 0.1+0.2, -0.0) through every backend and reads them back exactly. SQLite
 // is the documented exception: it holds NaN as NULL and -0.0 as 0, which read-back accepts.
@@ -235,6 +239,41 @@ void run_special(const std::string& backend, const fs::path& dir) {
 #endif
 }
 
+// Every third event KeeperRecord, every fifth DatabaseEntry: a keeper sink (`backend`, KeeperOnly)
+// and a mode-All twin. The keeper sink passes as KeeperOnly; the All twin fails as KeeperOnly.
+void run_subset(const std::string& backend, const fs::path& dir) {
+    std::cout << "[" << backend << " flagged subset]\n";
+    fs::create_directories(dir);
+    const std::string keeper = (dir / "keeper").string(), every = (dir / "every").string();
+    const PersistMode mode = (backend == "sql") ? PersistMode::DatabaseOnly : PersistMode::KeeperOnly;
+    RbStore store(2, 30);
+    store.attach_persistence(make_persistence_sink(backend, keeper, RbConfig::the_IntMetrics,
+                                                   RbConfig::the_DblMetrics, mode), 7);
+    store.attach_persistence(make_persistence_sink(backend, every, RbConfig::the_IntMetrics,
+                                                   RbConfig::the_DblMetrics, PersistMode::All), 7);
+    for (size_t t = 0; t < 2; ++t)
+        for (size_t i = 0; i < 30; ++i) {
+            std::uint64_t f = 0;
+            if (i % 3 == 0) f = set_user_flag(f, StoreFlags::UserFlag::KeeperRecord);
+            if (i % 5 == 0) f = set_user_flag(f, StoreFlags::UserFlag::DatabaseEntry);
+            std::array<int64_t, RbConfig::the_IntMetrics> ints{static_cast<int64_t>(i), 2, 3};
+            std::array<double, RbConfig::the_DblMetrics> dbls{0.5, static_cast<double>(t)};
+            store.save_event(t, i, std::string("subset"), f, std::string("cat"), false, ints, dbls);
+        }
+    store.finalize_persistence();
+    const size_t want = (mode == PersistMode::DatabaseOnly) ? 12 : 20;   // 2 threads x (30/5 | 30/3)
+    for (const auto* m : {"count", "sample", "all"}) {
+        auto rep = run_readback(store, backend, keeper, RbConfig::the_IntMetrics, RbConfig::the_DblMetrics, m,
+                                "keep-last", mode);
+        check(rep.ok && rep.expected == want && rep.found == want,
+              std::string("the flagged subset reads back (") + m + ", " + std::to_string(rep.found) + " rows)"
+                  + (rep.ok ? "" : ": " + rep.error));
+        rep = run_readback(store, backend, every, RbConfig::the_IntMetrics, RbConfig::the_DblMetrics, m,
+                           "keep-last", mode);
+        check(!rep.ok, std::string("every event, checked as the subset, fails (") + m + "): " + rep.error);
+    }
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -266,6 +305,7 @@ int main(int argc, char** argv) {
     for (const auto& b : backends) {
         run_backend(b, dir / b);
         run_special(b, dir / (b + "_special"));
+        if (b == "jtext" || b == "html" || b == "json" || b == "sql") run_subset(b, dir / (b + "_subset"));
     }
 
     fs::remove_all(dir, ec);

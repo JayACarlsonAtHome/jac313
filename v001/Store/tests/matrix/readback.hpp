@@ -3,8 +3,11 @@
 // readback.hpp — read a persisted dataset back and prove it matches the in-memory store.
 //
 // Every backend (binary, jtext, html, json, sql = SQLite, pg-local, pg-remote) is read back
-// and compared with Store::persisted_event(id) for ids [0, expected), where
-// expected = Store::expected_persisted_rows() (the run's events, capped by max_persist_rows).
+// and compared with Store::persisted_event(id) for the ids the sink was given: ids [0, cap),
+// cap = Store::expected_persisted_rows() (the run's events, capped by max_persist_rows), and of
+// those only the ones its PersistMode takes. A KeeperOnly sink must hold exactly the ids whose
+// flags carry KeeperRecord (bit 1), a DatabaseOnly sink exactly those with DatabaseEntry (bit 2),
+// and nothing else; an All sink holds every id. `expected` in the READBACK line is that count.
 //
 // Modes (--readback=...):
 //   off     skip
@@ -22,7 +25,9 @@
 //
 // The result is printed as one line the test runner parses:
 //   READBACK backend=sql mode=sample status=PASS expected=100 found=100 count=PASS
-//            checksum=PASS sample=PASS checked=100 read_ms=1.234 [pg timings...] [error="..."]
+//            checksum=PASS sample=PASS checked=100 read_ms=1.234 [subset=keeper|database]
+//            [pg timings...] [error="..."]
+// subset= appears only for a KeeperOnly / DatabaseOnly sink (the production bench run).
 
 #include "test_common.hpp"
 #include "parser/section.hpp"
@@ -57,6 +62,7 @@ namespace jac313::Store::v001::matrix_test {
 struct ReadbackReport {
     std::string backend;
     std::string mode;
+    std::string subset;     // "" (every id) | keeper | database: the PersistMode the sink ran in
     bool ok = true;
     size_t expected = 0;
     size_t found = 0;
@@ -495,16 +501,32 @@ inline size_t db_count(DbQuery& q, const std::string& table) {
 
 } // namespace readback_detail
 
-/// Read back `backend` at `base` and compare with `store`. Prints the READBACK line.
+/// Read back `backend` at `base` and compare with `store`. `subset` is the PersistMode the sink
+/// ran in: All checks ids [0, cap); KeeperOnly / DatabaseOnly check only the ids whose flags carry
+/// KeeperRecord / DatabaseEntry, and the dataset must hold nothing else. Prints nothing (see
+/// print_readback).
 template<typename Store>
 ReadbackReport run_readback(const Store& store, const std::string& backend, const std::string& base,
-                            size_t ic, size_t dc, const std::string& mode, const std::string& pg_cleanup = "keep-last") {
+                            size_t ic, size_t dc, const std::string& mode, const std::string& pg_cleanup = "keep-last",
+                            PersistMode subset = PersistMode::All) {
     using namespace readback_detail;
     ReadbackReport rep;
     rep.backend = backend;
     rep.mode = mode;
-    rep.expected = store.expected_persisted_rows();
+    rep.subset = subset == PersistMode::KeeperOnly ? "keeper" : subset == PersistMode::DatabaseOnly ? "database" : "";
     const auto t0 = std::chrono::steady_clock::now();
+    // The ids this sink was given, ascending: [0, cap), filtered by the sink's PersistMode with the
+    // same bit test the sinks use (bit 1 KeeperRecord, bit 2 DatabaseEntry).
+    const size_t cap = store.expected_persisted_rows();
+    std::vector<size_t> want_ids;
+    {
+        const uint64_t bit = subset == PersistMode::KeeperOnly ? (1ULL << 1)
+                           : subset == PersistMode::DatabaseOnly ? (1ULL << 2) : 0;
+        want_ids.reserve(bit ? cap / 4 : cap);
+        for (size_t id = 0; id < cap; ++id)
+            if (bit == 0 || (store.persisted_event(id).flags & bit) != 0) want_ids.push_back(id);
+    }
+    rep.expected = want_ids.size();
     const bool sqlite = backend == "sql";
     const bool is_db = backend == "sql" || backend == "pg-local" || backend == "pg-remote";
 
@@ -514,37 +536,45 @@ ReadbackReport run_readback(const Store& store, const std::string& backend, cons
         if (rep.error.empty()) rep.error = std::move(msg);
     };
 
-    // Expected checksum and sums over ids [0, expected).
-    uint64_t want_hash = 0, want_sum_tid = 0, want_sum_seq = 0;
+    // Expected checksum and sums over the wanted ids.
+    uint64_t want_hash = 0, want_sum_id = 0, want_sum_tid = 0, want_sum_seq = 0;
     if (mode != "count") {
-        for (size_t id = 0; id < rep.expected; ++id) {
+        for (const size_t id : want_ids) {
             const auto e = store.persisted_event(id);
             want_hash += row_hash(e, sqlite);
+            want_sum_id += id;
             want_sum_tid += e.thread_id;
             want_sum_seq += e.per_thread_event_id;
         }
     }
+    // wanted[id]: the sink should hold row `id` (ids [0, cap)).
+    std::vector<bool> wanted(cap, false);
+    for (const size_t id : want_ids) wanted[id] = true;
 
     // Compare a full RowSet (files, or a database in "all" mode).
     auto check_full = [&](RowSet&& rs) {
         if (!rs.error.empty()) { fail(rep.count, rs.error); return; }
         rep.found = rs.rows.size();
-        // count: exactly the ids [0, expected), each once
-        std::vector<const PersistedEvent*> by_id(rep.expected, nullptr);
+        // count: exactly the wanted ids, each once, and no other id
+        std::vector<const PersistedEvent*> by_id(cap, nullptr);
         bool ids_ok = rs.rows.size() == rep.expected;
+        size_t unwanted = 0;
         for (const auto& r : rs.rows) {
-            if (r.event_id >= rep.expected || by_id[r.event_id]) { ids_ok = false; continue; }
+            if (r.event_id >= cap || !wanted[r.event_id]) { ids_ok = false; ++unwanted; continue; }
+            if (by_id[r.event_id]) { ids_ok = false; continue; }
             by_id[r.event_id] = &r;
         }
         if (ids_ok) rep.count = "PASS";
-        else fail(rep.count, std::format("expected ids 0..{} once each, found {} rows", rep.expected, rep.found));
+        else if (unwanted) fail(rep.count, std::format("{} rows the sink should not hold (expected {} rows, found {})",
+                                                       unwanted, rep.expected, rep.found));
+        else fail(rep.count, std::format("expected {} ids once each, found {} rows", rep.expected, rep.found));
         if (mode == "count") return;
         uint64_t got_hash = 0;
         for (const auto& r : rs.rows) got_hash += row_hash(r, sqlite);
         if (got_hash == want_hash) rep.checksum = "PASS";
         else fail(rep.checksum, "row checksum differs");
         rep.sample = "PASS";
-        for (size_t id = 0; id < rep.expected; ++id) {
+        for (const size_t id : want_ids) {
             if (!by_id[id]) continue;   // already counted as a count failure
             ++rep.checked;
             if (auto d = compare_row(store.persisted_event(id), *by_id[id], sqlite); !d.empty()) {
@@ -584,17 +614,16 @@ ReadbackReport run_readback(const Store& store, const std::string& backend, cons
                     // checksum: id/thread/sequence sums computed by the database
                     auto s = q->query(std::format("SELECT SUM(id), SUM(thread_id), SUM(per_thread_event_id) FROM {}",
                                                   q->main_table));
-                    const uint64_t n = rep.expected;
-                    const uint64_t want_sum_id = n ? n * (n - 1) / 2 : 0;
+                    const size_t n = want_ids.size();
                     const bool sums_ok = !s.empty() && to_u64(s[0][0]) == want_sum_id &&
                                          to_u64(s[0][1]) == want_sum_tid && to_u64(s[0][2]) == want_sum_seq;
                     if (sums_ok) rep.checksum = "PASS";
                     else fail(rep.checksum, "SUM(id/thread_id/per_thread_event_id) differs");
-                    // sample: first 100, last 100, 100 evenly spaced
+                    // sample: the first 100, last 100 and 100 evenly spaced of the wanted ids
                     std::vector<size_t> ids;
-                    for (size_t i = 0; i < std::min<size_t>(100, n); ++i) ids.push_back(i);
-                    for (size_t i = n > 100 ? n - 100 : 0; i < n; ++i) ids.push_back(i);
-                    for (size_t i = 0; i < 100 && n > 0; ++i) ids.push_back(i * n / 100);
+                    for (size_t i = 0; i < std::min<size_t>(100, n); ++i) ids.push_back(want_ids[i]);
+                    for (size_t i = n > 100 ? n - 100 : 0; i < n; ++i) ids.push_back(want_ids[i]);
+                    for (size_t i = 0; i < 100 && n > 0; ++i) ids.push_back(want_ids[i * n / 100]);
                     std::sort(ids.begin(), ids.end());
                     ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
                     std::string in;
@@ -637,9 +666,9 @@ inline void print_readback(const ReadbackReport& r, std::string_view extra = {})
     std::string err = r.error;
     for (auto& c : err) if (c == '"' || c == '\n') c = '\'';
     std::cout << std::format("READBACK backend={} mode={} status={} expected={} found={} count={} checksum={} "
-                             "sample={} checked={} read_ms={:.3f}{}{}{}\n",
+                             "sample={} checked={} read_ms={:.3f}{}{}{}{}\n",
                              r.backend, r.mode, r.ok ? "PASS" : "FAIL", r.expected, r.found, r.count, r.checksum,
-                             r.sample, r.checked, r.read_ms, extra,
+                             r.sample, r.checked, r.read_ms, r.subset.empty() ? "" : " subset=" + r.subset, extra,
                              err.empty() ? "" : " error=\"", err.empty() ? "" : err + "\"");
 }
 

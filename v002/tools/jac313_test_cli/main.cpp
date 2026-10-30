@@ -84,8 +84,12 @@ void print_usage() {
         "Preset gates (no subcommand — compose freely; writes & runs ./run_latest_config.sh):\n"
         "  --ctest              ctest unit suite\n"
         "  --smoke              smoke matrix: persist (binary/jtext/html/json/sql/none) × output on/off\n"
-        "  --bench              throughput benchmark — durable jtext/html/json/binary/sql\n"
-        "                       (auto-records to results.db, like every gate)\n"
+        "  --bench              throughput benchmark — the production run first (keeper + database\n"
+        "                       sinks + binary replay log, flags routed), then each durable sink\n"
+        "                       alone, then the non-durable flag sweep (auto-records to results.db)\n"
+        "  --production <spec>  the production run's mix, e.g. keeper=jtext,database=sql,keeper_pct=10,\n"
+        "                       database_pct=10,binary=on (default: the production row of\n"
+        "                       tests/test_params.jtext, or _full / _bench with --size full / bench)\n"
         "  --report             render-only: (re)build the .md report pages from results.db\n"
         "                       (alone; every gate run renders them at its end anyway)\n"
         "  --verify-lite        valgrind: ctest + matrix 001 (binary; 001 across jtext/html/json/sql)\n"
@@ -840,7 +844,33 @@ void write_type_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out, cons
 }
 
 // Bench pages: bench rows carry ops stats (median/band/bytes), not status/duration — its own format.
-// Bench per-run detail (ops format): each config with persist/events + median/band/bytes.
+// Four groups, in this order: the production run (persist = its sink pair, "jtext+sql"), the
+// databases alone (sql, pg-local, pg-remote), the files alone (binary, jtext, html, json), and the
+// non-durable flag sweep. A capped run's persist carries "/cap=N"; it groups like its backend.
+int bench_group(const std::string& persist) {
+    const std::string b = persist.substr(0, persist.find('/'));
+    if (b.find('+') != std::string::npos) return 0;
+    if (b == "sql" || b == "pg-local" || b == "pg-remote") return 1;
+    if (b.empty() || b == "none") return 3;
+    return 2;
+}
+const char* const kBenchGroupTitle[] = {"Production", "Databases", "Files", "Non-durable (flag sweep)"};
+
+// The config name when the testList row is missing (LEFT JOIN): rebuilt from the parameters.
+// IFNULL kept: tl.name is NULL when the LEFT JOIN finds no testList row.
+const char* const kBenchNameSql =
+    "IFNULL(tl.name, CASE WHEN p.persist IN ('','none') THEN p.flag_count || ' flags, non-durable' "
+    "WHEN p.persist LIKE '%+%' THEN 'production ' || p.persist ELSE 'durable ' || p.persist END)";
+
+// "26 / 26 / 27" — the production run's drain times (binary / keeper / database, ms); binary "off"
+// when the run had no replay log (its persist carries "/nobinary").
+std::string drain_cell(const std::string& persist, std::int64_t bin, std::int64_t keeper, std::int64_t database) {
+    const bool nobin = persist.find("/nobinary") != std::string::npos;
+    return (nobin ? std::string("off") : fmt_num(bin)) + " / " + fmt_num(keeper) + " / " + fmt_num(database);
+}
+
+// Bench per-run detail (ops format): each config with persist/events + median/band/bytes, grouped
+// like the bench page; production rows also show the hot path and the three drain times.
 void write_bench_detail(jac313::Qlite::v002::Sqlite& db, const fs::path& dir, std::int64_t run_id) {
     const std::string rl = run_label_md(run_id);
     std::ofstream det(dir / (rl + ".md"));
@@ -852,28 +882,42 @@ void write_bench_detail(jac313::Qlite::v002::Sqlite& db, const fs::path& dir, st
       st.bind(run_id);
       if (st.step()) { std::string host, name, ver, bt, ts; st.get(host, name, ver, bt, ts);
           det << "_" << host << " · " << name << " " << ver << " · " << bt << " · " << ts << "_\n\n"; } }
-    det << "| config | persist | events | median ops/sec | band (low–high) | bytes |\n|---|---|--:|--:|---|--:|\n";
+    det << "_Production rows: hot path = producers until they join (before finalize); drain = attach → "
+           "that sink's finalize done, binary / keeper / database; durable total = the whole process "
+           "(median ops/sec, as for every row)._\n\n";
+    struct Line { int group; std::string text; };
+    std::vector<Line> lines;
     auto st = db.prepare(
-        // LEFT JOIN + the name rebuilt from the parameters: a row recorded without its testList
-        // name still shows. IFNULL kept: tl.name is NULL when the LEFT JOIN finds no testList row.
-        "SELECT IFNULL(tl.name, CASE WHEN p.persist IN ('','none') THEN p.flag_count || ' flags, non-durable' ELSE 'durable ' || p.persist END), p.persist, p.threads*p.events_per_thread, "
-        "tr.median_ops, tr.low_ops, tr.high_ops, tr.bytes "
+        std::string("SELECT ") + kBenchNameSql + ", p.persist, p.threads*p.events_per_thread, "
+        "tr.median_ops, tr.low_ops, tr.high_ops, tr.bytes, tr.hot_ops, tr.drain_binary_ms, tr.drain_keeper_ms, "
+        "tr.drain_database_ms "
         "FROM testRun tr LEFT JOIN testList tl ON tl.id=tr.test_list_id JOIN parameter p ON p.id=tr.parameter_id "
         "JOIN testType tt ON tt.id=tr.test_type_id WHERE tr.run_id=? AND tt.name='bench' ORDER BY tr.median_ops DESC");
     st.bind(run_id);
     while (st.step()) {
         std::string name, per; std::int64_t events = 0, med = 0, low = 0, high = 0, bytes = 0;
-        st.get(name, per, events, med, low, high, bytes);
-        det << "| " << name << " | " << dash(per) << " | " << fmt_num(events) << " | " << fmt_num(med) << " | "
-            << human_ops(low) << "–" << human_ops(high) << " | " << human_bytes(bytes) << " |\n";
+        std::int64_t hot = 0, dbin = 0, dkeep = 0, ddb = 0;
+        st.get(name, per, events, med, low, high, bytes, hot, dbin, dkeep, ddb);
+        const int g = bench_group(per);
+        std::ostringstream l;
+        l << "| " << kBenchGroupTitle[g] << " | " << name << " | " << dash(per) << " | " << fmt_num(events) << " | "
+          << (g == 0 ? fmt_num(hot) : std::string("-")) << " | "
+          << (g == 0 ? drain_cell(per, dbin, dkeep, ddb) : std::string("-")) << " | "
+          << fmt_num(med) << " | " << human_ops(low) << "–" << human_ops(high) << " | " << human_bytes(bytes) << " |\n";
+        lines.push_back({g, l.str()});
     }
+    std::stable_sort(lines.begin(), lines.end(), [](const Line& a, const Line& b) { return a.group < b.group; });
+    det << "| group | config | persist | events | hot ops/sec | drain ms<br>binary / keeper / database | "
+           "durable median ops/sec | band (low–high) | bytes |\n|---|---|---|--:|--:|--:|--:|---|--:|\n";
+    for (const auto& l : lines) det << l.text;
     nav_bottom(det, "README.md");
 }
 
 // Bench page = a HOST-SCOPED compiler comparison: throughput is hardware-specific, so each machine
 // (jac313-###) is its own section with a hardware header (cpu/cores/ram/os) and its OWN compiler
-// columns. Config rows (config @scale) × compiler columns; cell = median ops/sec · low–high band ·
-// footprint (latest run per compiler, for that host).
+// columns. Groups in order: Production, Databases, Files, Non-durable, each split @1M / @10M.
+// Config rows × compiler columns; cell = median ops/sec · low–high band · footprint (latest run per
+// compiler, for that host); production rows add the hot path and the three drain times.
 void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     std::vector<std::int64_t> groups;
     { auto st = db.prepare("SELECT DISTINCT r.group_id FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
@@ -884,12 +928,17 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     std::ofstream md(out / "bench" / "README.md");
     nav_top(md, "../README.md");
     md << "# bench — throughput by machine\n\n_Generated from `results.db`. Throughput is hardware-specific, "
-          "so each machine (`jac313-###`) is its own section. Per compiler: median ops/sec, the low–high band, "
-          "and footprint; latest run per compiler. Split into non-durable / durable @1M / durable @10M, each "
-          "sorted by median ops/sec (descending)._\n";
+          "so each machine (`jac313-###`) is its own section; latest run per compiler. Groups: **Production** "
+          "(the keeper file + the database + the binary replay log at once, events routed by their "
+          "KeeperRecord / DatabaseEntry flags — the run that looks like a real program), then each "
+          "**database** alone, each **file** alone, and the **non-durable** flag sweep; each split @1M / "
+          "@10M events and sorted by median ops/sec (descending). Production cells: hot path ops/sec "
+          "(producers until they join) · drain ms (binary / keeper / database: attach → that sink's "
+          "finalize done) · durable total median ops/sec (the whole process) · band · size. See "
+          "docs/Benchmarks.md._\n";
 
-    struct Cell { std::string median = "-", band = "-", size = "-"; };
-    struct Row { std::string key; int cat; std::vector<Cell> cells; };
+    struct Cell { std::string median = "-", band = "-", size = "-", hot = "-", drain = "-"; };
+    struct Row { std::string key; int group; int scale; std::vector<Cell> cells; };   // scale 1 = @1M, 2 = @10M
     for (const std::int64_t g : groups) {
         std::vector<std::pair<std::string, std::int64_t>> comps;   // this host's compilers (latest run each)
         { auto st = db.prepare(
@@ -916,44 +965,59 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
 
         std::vector<Row> rows;
         { auto st = db.prepare(
-            // IFNULL kept: tl.name is NULL when the LEFT JOIN finds no testList row.
-            "SELECT tr.run_id, IFNULL(tl.name, CASE WHEN p.persist IN ('','none') THEN p.flag_count || ' flags, non-durable' ELSE 'durable ' || p.persist END), p.persist, p.threads*p.events_per_thread, "
-            "tr.median_ops, tr.low_ops, tr.high_ops, tr.bytes "
+            std::string("SELECT tr.run_id, ") + kBenchNameSql + ", p.persist, p.threads*p.events_per_thread, "
+            "tr.median_ops, tr.low_ops, tr.high_ops, tr.bytes, tr.hot_ops, tr.drain_binary_ms, tr.drain_keeper_ms, "
+            "tr.drain_database_ms "
             "FROM testRun tr LEFT JOIN testList tl ON tl.id=tr.test_list_id JOIN parameter p ON p.id=tr.parameter_id "
             "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' AND tr.run_id IN (" + inlist + ") "
             "ORDER BY tr.median_ops DESC");   // SQL sorts: each config first appears at its best median
           while (st.step()) {
-              std::int64_t run = 0, events = 0, med = 0, low = 0, high = 0, bytes = 0; std::string name, persist;
-              st.get(run, name, persist, events, med, low, high, bytes);
-              // 0 = non-durable flag sweep · 1 = durable @1M · 2 = durable @10M
-              const int cat = (persist.empty() || persist == "none") ? 0 : (events <= 1000000 ? 1 : 2);
+              std::int64_t run = 0, events = 0, med = 0, low = 0, high = 0, bytes = 0;
+              std::int64_t hot = 0, dbin = 0, dkeep = 0, ddb = 0;
+              std::string name, persist;
+              st.get(run, name, persist, events, med, low, high, bytes, hot, dbin, dkeep, ddb);
+              const int grp = bench_group(persist);
+              const int scale = grp == 3 ? 0 : (events <= 1000000 ? 1 : 2);
               Row* r = nullptr;
-              for (auto& rr : rows) if (rr.key == name && rr.cat == cat) { r = &rr; break; }
-              if (!r) { rows.push_back({name, cat, std::vector<Cell>(comps.size())}); r = &rows.back(); }
+              for (auto& rr : rows) if (rr.key == name && rr.group == grp && rr.scale == scale) { r = &rr; break; }
+              if (!r) { rows.push_back({name, grp, scale, std::vector<Cell>(comps.size())}); r = &rows.back(); }
               const int col = col_for(run);
               if (col >= 0) { Cell& cell = r->cells[static_cast<std::size_t>(col)];
                               cell.median = fmt_num(med);
                               cell.band   = human_ops(low) + "–" + human_ops(high);
-                              cell.size   = human_bytes(bytes); } } }
+                              cell.size   = human_bytes(bytes);
+                              cell.hot    = fmt_num(hot);
+                              cell.drain  = drain_cell(persist, dbin, dkeep, ddb); } } }
 
-        // Three tables (non-durable / durable @1M / durable @10M), each already in median-desc order from SQL.
-        const char* cat_title[] = {"Non-durable (flag sweep)", "Durable @ 1M events", "Durable @ 10M events"};
-        for (int cat = 0; cat < 3; ++cat) {
-            bool any = false; for (const auto& r : rows) if (r.cat == cat) { any = true; break; }
-            if (!any) continue;
-            md << "\n### " << cat_title[cat] << "  _(median ops/sec, descending)_\n\n| config";
-            for (const auto& c : comps) {
-                const std::string rl = run_label_md(c.second);
-                md << " | [" << c.first << "](" << rl << ".md)<br>median ops/sec | " << c.first << "<br>band | "
-                   << c.first << "<br>size";
-            }
-            md << " |\n|---";
-            for (std::size_t i = 0; i < comps.size(); ++i) md << "|--:|:--:|--:";
-            md << "|\n";
-            for (const auto& r : rows) if (r.cat == cat) {
-                md << "| " << r.key;
-                for (const auto& cell : r.cells) md << " | " << cell.median << " | " << cell.band << " | " << cell.size;
-                md << " |\n";
+        // One table per group and scale, each already in median-desc order from SQL.
+        for (int grp = 0; grp < 4; ++grp) {
+            for (int scale = 0; scale < 3; ++scale) {
+                bool any = false; for (const auto& r : rows) if (r.group == grp && r.scale == scale) { any = true; break; }
+                if (!any) continue;
+                md << "\n### " << kBenchGroupTitle[grp]
+                   << (scale == 1 ? " @ 1M events" : scale == 2 ? " @ 10M events" : "")
+                   << "  _(median ops/sec, descending)_\n\n| config";
+                for (const auto& c : comps) {
+                    const std::string rl = run_label_md(c.second);
+                    if (grp == 0)
+                        md << " | [" << c.first << "](" << rl << ".md)<br>hot ops/sec | " << c.first
+                           << "<br>drain ms<br>bin / keep / db | " << c.first << "<br>durable median ops/sec | "
+                           << c.first << "<br>band | " << c.first << "<br>size";
+                    else
+                        md << " | [" << c.first << "](" << rl << ".md)<br>median ops/sec | " << c.first << "<br>band | "
+                           << c.first << "<br>size";
+                }
+                md << " |\n|---";
+                for (std::size_t i = 0; i < comps.size(); ++i) md << (grp == 0 ? "|--:|--:|--:|:--:|--:" : "|--:|:--:|--:");
+                md << "|\n";
+                for (const auto& r : rows) if (r.group == grp && r.scale == scale) {
+                    md << "| " << r.key;
+                    for (const auto& cell : r.cells) {
+                        if (grp == 0) md << " | " << cell.hot << " | " << cell.drain;
+                        md << " | " << cell.median << " | " << cell.band << " | " << cell.size;
+                    }
+                    md << " |\n";
+                }
             }
         }
         // Run history (every bench run for this host, each linked to its detail page) + a page per run.
@@ -2275,16 +2339,35 @@ struct PresetOptions {
     bool run_everything{false}; // the full battery on both compilers + matrix + report (C++ orchestrated)
 };
 
+// The bench's production run (store_bench --production): --production SPEC as given, else the
+// production row of the params file that matches --size (tests/test_params.jtext; _full with
+// --size full, _bench with --size bench). A file without a valid row falls back to store_bench's
+// defaults (jtext, sql, 10, 10, binary on), with a note.
+std::string resolve_production_spec(const GlobalOptions& global, const fs::path& root) {
+    if (!global.production.empty()) return global.production;
+    const std::string sz = global.size_override;
+    const fs::path file = root / "tests" / (sz == "full" ? "test_params_full.jtext"
+                                            : sz == "bench" ? "test_params_bench.jtext" : "test_params.jtext");
+    try {
+        return load_production_settings(file).spec();
+    } catch (const std::exception& e) {
+        std::cerr << "note: " << e.what() << " — the production run uses its defaults\n";
+        return ProductionSettings{}.spec();
+    }
+}
+
 int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& configure_opts,
                        const PresetOptions& preset)
 {
     // Max persisted in a run can never exceed Max records in a run (same rule as Jac313Runner).
     GlobalOptions global = global_in;
+    if (preset.bench) global.production = resolve_production_spec(global, fs::absolute(global.source_dir));
     // pg-remote has no default server: stop before building anything if none was named.
     {
         const auto chosen = split_list(global.persist_list);
         const char* remote = std::getenv("JAC313_PG_REMOTE");
-        if (std::find(chosen.begin(), chosen.end(), "pg-remote") != chosen.end() && !(remote && *remote)) {
+        const bool prod_remote = global.production.find("database=pg-remote") != std::string::npos;
+        if ((prod_remote || std::find(chosen.begin(), chosen.end(), "pg-remote") != chosen.end()) && !(remote && *remote)) {
             std::cerr << "pg-remote chosen but no remote PostgreSQL server set: pass --pg-remote "
                          "\"host=... dbname=... user=...\" (or set $JAC313_PG_REMOTE)\n";
             return 2;
@@ -2637,7 +2720,8 @@ int run_everything_command(const GlobalOptions& global) {
     for (const std::string& cc : {gcc_label, clang_label}) {
         const std::string dir = "build-bench-" + cc;
         step("bench " + cc, dir + "/Store/tests/matrix/jac313_store_bench --suite "
-                            "--db \"" + SHARED_DB + "\"" + bench_keep_logs_args(global, cc));
+                            "--db \"" + SHARED_DB + "\"" + bench_keep_logs_args(global, cc)
+                            + " --production " + resolve_production_spec(global, fs::current_path()));
     }
     step("verify gcc",   CLI + " matrix verify --compiler " + gcc_label);
     step("verify clang", CLI + " matrix verify --compiler " + clang_label);
@@ -3050,6 +3134,8 @@ static int run_main(int argc, char** argv) {
                 global.summary_json = fs::absolute(argv[++i]);
             } else if (arg == "--size" && i + 1 < argc) {
                 global.size_override = argv[++i];
+            } else if (arg == "--production" && i + 1 < argc) {
+                global.production = argv[++i];
             } else if (arg == "--connections" && i + 1 < argc) {
                 // The PostgreSQL servers from a jText connections file (keep it outside git).
                 global.connections = argv[++i];

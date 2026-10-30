@@ -8,6 +8,7 @@
 //   Setup/contracts.jtext      contract_modes              contract modes by OS and toolchain
 //   tests/test_limits.jtext    test_control                seed of the results DB testControl table
 //   tests/test_params*.jtext   selection + settings        what a matrix run selects (--params)
+//                              production                  the bench's production run (--bench)
 //
 // One reader for all of them: read_jtext_table parses the file with jText's parser and validator
 // (jtext::parse_file_structure + jtext::validate) and returns one section as rows of column ->
@@ -78,5 +79,21 @@ struct ParamsTable {
     std::vector<std::pair<std::string, std::string>> settings;    // key -> value (DISK_TYPE, SIZE, OS_ID)
 };
 ParamsTable load_params_table(const std::filesystem::path& path);
+
+// ---- tests/test_params*.jtext, section production: the bench's production run ----
+// One row: the keeper sink (jtext | html | json), the database sink (sql | pg-local | pg-remote),
+// the % of events flagged KeeperRecord / DatabaseEntry, and the binary replay log on or off.
+struct ProductionSettings {
+    std::string keeper_sink = "jtext";
+    std::string database_sink = "sql";
+    int keeper_pct = 10;
+    int database_pct = 10;
+    bool binary = true;
+    // store_bench's --production value: "keeper=jtext,database=sql,keeper_pct=10,database_pct=10,binary=on"
+    [[nodiscard]] std::string spec() const;
+};
+// Throws std::runtime_error (naming the file) when the section is missing, has not exactly one
+// row, or holds a value outside the choices above.
+ProductionSettings load_production_settings(const std::filesystem::path& path);
 
 } // namespace jac313::test_cli

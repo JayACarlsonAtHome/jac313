@@ -25,6 +25,18 @@
 //
 // Metric counts are compile-time (ts_store_config) — fixed here to the pure
 // payload+flags shape; metric variants would be separate compiled binaries.
+//
+// THE PRODUCTION RUN (--persist production, or --production SPEC): what a real program does —
+// three sinks at once, one worker each: the binary replay log (every event, PersistMode::All;
+// binary=off drops it), a keeper file (jtext | html | json, KeeperOnly: only events flagged
+// KeeperRecord) and a database (sql | pg-local | pg-remote, DatabaseOnly: only DatabaseEntry).
+// Event k (= thread * events_per_thread + i) gets KeeperRecord when k % 100 < keeper_pct and
+// DatabaseEntry when (k * 37 + 11) % 100 < database_pct: deterministic, so the read-back knows
+// each sink's exact subset (and the two subsets overlap like independent picks would).
+//   store_bench --production keeper=jtext,database=sql,keeper_pct=10,database_pct=10,binary=on
+// Three numbers per run: the hot path (producers' wall time until they join, before finalize),
+// each sink's drain time (Store::drain_time_us: attach -> that sink's finalize done) and the
+// durable total (the whole process, as for every config).
 
 #include <algorithm>
 #include <array>
@@ -69,7 +81,7 @@ struct Params {
     std::size_t events_per_thread = 20'000;
     std::size_t runs = 20;
     std::size_t batch = 10'000;          // durable persistence batch: rows per sink call
-    std::string persist = "none";        // none | binary | jtext | html | json | sql | pg-local | pg-remote
+    std::string persist = "none";        // none | binary | jtext | html | json | sql | pg-local | pg-remote | production
     std::string base_name = "bench";
     std::uint64_t flags = 0;             // per-event user flag mask
     std::string db_path;                 // --db: append one row per run to this SQLite DB (via Qlite)
@@ -85,7 +97,103 @@ struct Params {
     std::size_t max_runs = 0;            // --max-runs: cap each config's runs
     std::size_t max_records = 0;         // --max-records: cap events per run (threads x events/thread)
     std::string summary_parts;           // --summary-parts PATH: append one JSON object per config
-    std::string last_readback;           // filled by the read-back worker run (its READBACK line)
+    std::string last_readback;           // filled by the read-back worker run (its last READBACK line)
+    std::vector<std::string> readbacks;  // every READBACK line of that run (three for production)
+    // --production SPEC: the production run's sinks and mix (persist = "production").
+    struct Production {
+        std::string keeper = "jtext";    // jtext | html | json         (KeeperOnly)
+        std::string database = "sql";    // sql | pg-local | pg-remote  (DatabaseOnly)
+        std::size_t keeper_pct = 10;     // % of events flagged KeeperRecord
+        std::size_t database_pct = 10;   // % of events flagged DatabaseEntry
+        bool binary = true;              // the binary replay log (All)
+        // The canonical spec (worker re-exec, dry-run line).
+        std::string spec() const {
+            return "keeper=" + keeper + ",database=" + database + ",keeper_pct=" + std::to_string(keeper_pct)
+                 + ",database_pct=" + std::to_string(database_pct) + ",binary=" + (binary ? "on" : "off");
+        }
+        // results.db parameter.persist: the pair, binary implied ("jtext+sql"; "/nobinary" without it).
+        std::string persist_label() const { return keeper + "+" + database + (binary ? "" : "/nobinary"); }
+        // The suite / testList name: "production jtext+sql 10/10".
+        std::string config_name() const {
+            return "production " + keeper + "+" + database + " " + std::to_string(keeper_pct) + "/"
+                 + std::to_string(database_pct) + (binary ? "" : " no binary");
+        }
+    } prod;
+};
+
+// Parse "keeper=jtext,database=sql,keeper_pct=10,database_pct=10,binary=on" (any subset, any order;
+// the rest keep their defaults) into `out`. Returns "" or what is wrong.
+std::string parse_production(const std::string& spec, Params::Production& out) {
+    std::string item;
+    std::string err;
+    auto pct = [&](const std::string& k, const std::string& v, std::size_t& dst) {
+        try {
+            std::size_t used = 0;
+            const unsigned long n = std::stoul(v, &used);
+            if (used == v.size() && n <= 100) { dst = n; return; }
+        } catch (...) {}
+        err = k + " must be 0..100, not '" + v + "'";
+    };
+    auto apply = [&](const std::string& kv) {
+        if (kv.empty() || !err.empty()) return;
+        const auto eq = kv.find('=');
+        const std::string k = kv.substr(0, eq), v = eq == std::string::npos ? std::string() : kv.substr(eq + 1);
+        if (k == "keeper") {
+            if (v == "jtext" || v == "html" || v == "json") out.keeper = v;
+            else err = "keeper must be jtext | html | json, not '" + v + "'";
+        } else if (k == "database") {
+            if (v == "sql" || v == "pg-local" || v == "pg-remote") out.database = v;
+            else err = "database must be sql | pg-local | pg-remote, not '" + v + "'";
+        } else if (k == "keeper_pct") {
+            pct(k, v, out.keeper_pct);
+        } else if (k == "database_pct") {
+            pct(k, v, out.database_pct);
+        } else if (k == "binary") {
+            if (v == "on" || v == "true" || v == "1") out.binary = true;
+            else if (v == "off" || v == "false" || v == "0") out.binary = false;
+            else err = "binary must be on | off, not '" + v + "'";
+        } else {
+            err = "unknown production key '" + k + "' (keeper, database, keeper_pct, database_pct, binary)";
+        }
+    };
+    for (char c : spec + ",") {
+        if (c == ',') { apply(item); item.clear(); }
+        else if (c != ' ') item += c;
+    }
+    return err;
+}
+
+// One sink of a run: the backend, its output base, and the events it takes.
+struct SinkPlan {
+    std::string backend;
+    std::string base;
+    PersistMode mode = PersistMode::All;
+    std::string role;    // "" (a one-sink config) | binary | keeper | database
+};
+
+// The sinks a config attaches, in attach order: none, one (mode All), or the production three.
+std::vector<SinkPlan> sink_plan(const Params& p) {
+    if (p.persist == "none") return {};
+    if (p.persist != "production") return {{p.persist, p.base_name, PersistMode::All, ""}};
+    std::vector<SinkPlan> v;
+    if (p.prod.binary) v.push_back({"binary", p.base_name + "_replay", PersistMode::All, "binary"});
+    v.push_back({p.prod.keeper, p.base_name + "_keeper", PersistMode::KeeperOnly, "keeper"});
+    v.push_back({p.prod.database, p.base_name + "_database", PersistMode::DatabaseOnly, "database"});
+    return v;
+}
+
+// The production run's per-run timings, reported by the worker on its PRODTIMES line.
+struct ProdTimes {
+    std::uint64_t hot_us = 0;        // producers start -> all joined (before finalize)
+    std::uint64_t binary_us = 0;     // drain_time_us of each sink (0 when not attached)
+    std::uint64_t keeper_us = 0;
+    std::uint64_t database_us = 0;
+};
+
+// Medians over a config's runs (what results.db and the report hold).
+struct ProdSummary {
+    std::uint64_t hot_ops = 0;
+    std::uint64_t drain_binary_ms = 0, drain_keeper_ms = 0, drain_database_ms = 0;
 };
 
 bool keep_logs_enabled(const Params& p) {
@@ -210,13 +318,6 @@ std::string host_tag() {
     return cpu + ", " + std::to_string(cores) + "c";
 }
 
-std::unique_ptr<IEventSink> make_sink(const Params& p) {
-    const std::size_t im = LogConfig::the_IntMetrics;
-    const std::size_t dm = LogConfig::the_DblMetrics;
-    if (p.persist == "none") return nullptr;
-    return make_persistence_sink(p.persist, p.base_name, im, dm, PersistMode::All);
-}
-
 // Remove prior persisted output (base_name*) so each run's footprint is measured alone
 // (and durable output doesn't accumulate across configs/compilers).
 void clean_output(const std::string& base) {
@@ -243,21 +344,29 @@ bool do_workload(const Params& p, bool verify, bool readback = false) {
     LogxStore store(p.threads, p.events_per_thread);
     store.set_max_persist_rows(p.max_persist_rows);
 
-    if (p.persist != "none") {
-        ensure_capture_parent_dir(p.base_name);
-        if (auto sink = make_sink(p)) {
+    const std::vector<SinkPlan> plan = sink_plan(p);
+    for (const auto& sp : plan) {
+        ensure_capture_parent_dir(sp.base);
+        if (auto sink = make_persistence_sink(sp.backend, sp.base, LogConfig::the_IntMetrics,
+                                              LogConfig::the_DblMetrics, sp.mode)) {
             store.attach_persistence(std::move(sink), p.batch);
         } else {
-            std::cerr << "ERROR: persist='" << p.persist << "' unavailable (SQL needs JAC313_STORE_HAS_SQL_PERSIST)\n";
+            std::cerr << "ERROR: persist='" << sp.backend << "' unavailable (SQL needs JAC313_STORE_HAS_SQL_PERSIST)\n";
             return false;
         }
     }
+    // The production mix: KeeperRecord / DatabaseEntry by event index (see the file header).
+    const bool production = p.persist == "production";
+    const std::uint64_t keeper_bit = set_user_flag(std::uint64_t{0}, StoreFlags::UserFlag::KeeperRecord);
+    const std::uint64_t database_bit = set_user_flag(std::uint64_t{0}, StoreFlags::UserFlag::DatabaseEntry);
+    const std::uint64_t base_flags = production ? (p.flags & ~(keeper_bit | database_bit)) : p.flags;
 
     std::array<std::string, 8> pre_payloads;
     for (std::size_t i = 0; i < 8; ++i) pre_payloads[i] = std::string(LogxStore::test_messages[i]);
     std::array<std::string, 5> pre_cats;
     for (std::size_t i = 0; i < 5; ++i) pre_cats[i] = std::string(LogxStore::categories[i]);
 
+    const auto hot_start = steady_clock::now();
     std::vector<std::thread> ths;
     ths.reserve(p.threads);
     for (std::size_t t = 0; t < p.threads; ++t) {
@@ -267,17 +376,37 @@ bool do_workload(const Params& p, bool verify, bool readback = false) {
             for (std::size_t i = 0; i < p.events_per_thread; ++i) {
                 std::string payload = pre_payloads[i % pre_payloads.size()];
                 std::string cat = pre_cats[t % pre_cats.size()];
-                std::uint64_t f = set_severity(p.flags, static_cast<StoreFlags::Severity>(i % 8));
+                std::uint64_t f = base_flags;
+                if (production) {
+                    const std::size_t k = t * p.events_per_thread + i;
+                    if (k % 100 < p.prod.keeper_pct) f |= keeper_bit;
+                    if ((k * 37 + 11) % 100 < p.prod.database_pct) f |= database_bit;
+                }
+                f = set_severity(f, static_cast<StoreFlags::Severity>(i % 8));
                 auto [ok, id] = store.save_event(t, i, std::move(payload), f, std::move(cat), true, ints, dbls);
                 if (!ok) { std::cerr << "CLAIM FAILED t=" << t << " i=" << i << "\n"; std::abort(); }
             }
         });
     }
     for (auto& th : ths) th.join();
-    // Drain + flush the persistence writer (join its worker, finalize the sink). No-op when
+    const auto hot_end = steady_clock::now();
+    // Drain + flush the persistence writers (join each worker, finalize its sink). No-op when
     // non-durable. The store destructor that follows at scope exit does the rest of teardown;
     // both land inside the child's process lifetime, so both are counted.
     store.finalize_persistence();
+    if (production) {
+        // The worker's timings for the parent (run_one reads this line from the worker's stdout).
+        ProdTimes pt;
+        pt.hot_us = static_cast<std::uint64_t>(duration_cast<microseconds>(hot_end - hot_start).count());
+        for (std::size_t w = 0; w < plan.size(); ++w) {
+            const std::uint64_t us = store.drain_time_us(w);
+            if (plan[w].role == "binary") pt.binary_us = us;
+            else if (plan[w].role == "keeper") pt.keeper_us = us;
+            else pt.database_us = us;
+        }
+        std::cout << "PRODTIMES hot_us=" << pt.hot_us << " binary_us=" << pt.binary_us
+                  << " keeper_us=" << pt.keeper_us << " database_us=" << pt.database_us << std::endl;
+    }
 
     // Verification is correctness, not throughput. It runs only when asked (the parent asks
     // on the last run as a sanity net) and, because the child exits right after, its cost
@@ -287,14 +416,16 @@ bool do_workload(const Params& p, bool verify, bool readback = false) {
         store.diagnose_failures();
         return false;
     }
-    // Read-back (the untimed --readback-run worker only): compare the persisted dataset with the
-    // in-memory rows and print the READBACK line (tests/matrix/readback.hpp).
-    if (readback && p.persist != "none" && p.readback != "off") {
-        const auto rep = run_readback(store, p.persist, p.base_name, LogConfig::the_IntMetrics,
-                                      LogConfig::the_DblMetrics, p.readback, p.pg_cleanup);
+    // Read-back (the untimed --readback-run worker only): compare each sink's dataset with the
+    // in-memory rows it was given (the production keeper / database sinks: only their flagged
+    // subset, and nothing else) and print one READBACK line per sink (tests/matrix/readback.hpp).
+    bool all_ok = true;
+    if (readback && p.readback != "off") for (const auto& sp : plan) {
+        const auto rep = run_readback(store, sp.backend, sp.base, LogConfig::the_IntMetrics,
+                                      LogConfig::the_DblMetrics, p.readback, p.pg_cleanup, sp.mode);
         std::string extra;
 #ifdef JAC313_STORE_HAS_PG_PERSIST
-        if (is_pg_backend(p.persist) && g_pg_timings) {
+        if (is_pg_backend(sp.backend) && g_pg_timings) {
             auto b = g_pg_timings->batch_ms;
             std::sort(b.begin(), b.end());
             extra = std::format(" connect_ms={:.3f} ping_ms={:.3f} batches={} batch_med_ms={:.3f} write_ms={:.3f}",
@@ -303,9 +434,9 @@ bool do_workload(const Params& p, bool verify, bool readback = false) {
         }
 #endif
         print_readback(rep, extra);
-        if (!rep.ok) return false;
+        all_ok = all_ok && rep.ok;
     }
-    return true;
+    return all_ok;
 }
 
 // Absolute path to the running benchmark binary (Linux). Empty on failure.
@@ -332,6 +463,7 @@ std::vector<std::string> worker_argv(const std::string& exe, const Params& p, bo
         "--readback",          p.readback,
         "--pg-cleanup",        p.pg_cleanup,
     };
+    if (p.persist == "production") { a.push_back("--production"); a.push_back(p.prod.spec()); }
     if (verify) a.push_back("--verify");
     if (keep_logs_enabled(p)) {
         a.push_back("--keep-logs");
@@ -348,7 +480,9 @@ std::vector<std::string> worker_argv(const std::string& exe, const Params& p, bo
 // teardown -> exit. The parent's monotonic clock spans that whole arc, so the recorded
 // number is what a user actually sees when they launch the program ("time ./prog"), not
 // just the hot loop. Returns microseconds, or nullopt if the worker did not exit clean.
-std::optional<std::size_t> run_one(const Params& p, bool verify) {
+// A production worker also reports its hot-path and drain times (PRODTIMES line) into `pt`;
+// its stdout is a pipe instead of /dev/null for that one line.
+std::optional<std::size_t> run_one(const Params& p, bool verify, ProdTimes* pt = nullptr) {
     static const std::string exe = self_exe();
     if (exe.empty()) { std::cerr << "ERROR: cannot resolve /proc/self/exe for worker spawn\n"; return std::nullopt; }
 
@@ -362,16 +496,33 @@ std::optional<std::size_t> run_one(const Params& p, bool verify) {
     for (const auto& s : sargs) argv.push_back(const_cast<char*>(s.c_str()));
     argv.push_back(nullptr);
 
+    const bool want_times = pt != nullptr && p.persist == "production";
+    int fds[2] = {-1, -1};
+    if (want_times && ::pipe(fds) != 0) { std::cerr << "ERROR: pipe failed for worker spawn\n"; return std::nullopt; }
+    std::cout.flush();
     const auto start = steady_clock::now();
     const pid_t pid = ::fork();
     if (pid < 0) { std::cerr << "ERROR: fork failed for worker spawn\n"; return std::nullopt; }
     if (pid == 0) {
         // Worker is silent on stdout (the parent owns all reporting); stderr stays for real errors.
-        const int devnull = ::open("/dev/null", O_WRONLY);
-        if (devnull >= 0) { ::dup2(devnull, STDOUT_FILENO); ::close(devnull); }
+        // A production worker's stdout is the pipe: its one PRODTIMES line comes back that way.
+        if (want_times) {
+            ::dup2(fds[1], STDOUT_FILENO);
+            ::close(fds[0]); ::close(fds[1]);
+        } else {
+            const int devnull = ::open("/dev/null", O_WRONLY);
+            if (devnull >= 0) { ::dup2(devnull, STDOUT_FILENO); ::close(devnull); }
+        }
         ::execv(exe.c_str(), argv.data());
         std::perror("execv");          // only reached if exec itself failed
         _exit(127);
+    }
+    std::string out;
+    if (want_times) {
+        ::close(fds[1]);
+        char buf[4096];
+        for (ssize_t n; (n = ::read(fds[0], buf, sizeof buf)) > 0;) out.append(buf, static_cast<std::size_t>(n));
+        ::close(fds[0]);
     }
     int status = 0;
     while (::waitpid(pid, &status, 0) < 0) { /* retry on EINTR */ }
@@ -380,6 +531,19 @@ std::optional<std::size_t> run_one(const Params& p, bool verify) {
     if (!(WIFEXITED(status) && WEXITSTATUS(status) == 0)) {
         std::cerr << "worker FAILED (config '" << p.label << "', persist=" << p.persist << ")\n";
         return std::nullopt;
+    }
+    if (want_times) {
+        const auto at = out.rfind("PRODTIMES ");
+        if (at == std::string::npos) { std::cerr << "worker gave no PRODTIMES line (config '" << p.label << "')\n"; return std::nullopt; }
+        auto field = [&](const char* key) -> std::uint64_t {
+            const std::string k = std::string(" ") + key + "=";
+            const auto f = out.find(k, at);
+            return f == std::string::npos ? 0 : std::stoull(out.substr(f + k.size()));
+        };
+        pt->hot_us = field("hot_us");
+        pt->binary_us = field("binary_us");
+        pt->keeper_us = field("keeper_us");
+        pt->database_us = field("database_us");
     }
     return static_cast<std::size_t>(duration_cast<microseconds>(end - start).count());
 }
@@ -412,11 +576,17 @@ bool run_readback_worker(Params& p) {
     char buf[4096];
     for (ssize_t n; (n = ::read(fds[0], buf, sizeof buf)) > 0;) out.append(buf, static_cast<std::size_t>(n));
     ::close(fds[0]);
-    std::cout << out;   // pass the READBACK line through
-    if (const auto at = out.rfind("READBACK "); at != std::string::npos) {
-        p.last_readback = out.substr(at + 9, out.find('\n', at) == std::string::npos ? std::string::npos
-                                                                                   : out.find('\n', at) - at - 9);
+    // Pass the READBACK lines through (one per sink); the PRODTIMES line stays internal.
+    p.readbacks.clear();
+    for (std::size_t at = 0; at < out.size();) {
+        const auto nl = out.find('\n', at);
+        const std::string line = out.substr(at, nl == std::string::npos ? std::string::npos : nl - at);
+        at = nl == std::string::npos ? out.size() : nl + 1;
+        if (line.rfind("PRODTIMES ", 0) == 0) continue;
+        std::cout << line << "\n";
+        if (line.rfind("READBACK ", 0) == 0) p.readbacks.push_back(line.substr(9));
     }
+    if (!p.readbacks.empty()) p.last_readback = p.readbacks.back();
     int status = 0;
     while (::waitpid(pid, &status, 0) < 0) { /* retry on EINTR */ }
     if (!(WIFEXITED(status) && WEXITSTATUS(status) == 0)) {
@@ -426,19 +596,56 @@ bool run_readback_worker(Params& p) {
     return true;
 }
 
-// One measurement set: RUNS timed runs -> durations. Returns empty on any failure.
-std::vector<std::size_t> measure_set(Params& p) {
+// One measurement set: RUNS timed runs -> durations. Returns empty on any failure. A production
+// config also fills `prod` with each run's hot-path and drain times.
+std::vector<std::size_t> measure_set(Params& p, std::vector<ProdTimes>* prod = nullptr) {
     std::vector<std::size_t> durations;
     durations.reserve(p.runs);
+    if (prod) prod->clear();
     for (std::size_t r = 0; r < p.runs; ++r) {
-        auto us = run_one(p, /*verify=*/ (r + 1 == p.runs));   // verify the last run only
+        ProdTimes pt;
+        auto us = run_one(p, /*verify=*/ (r + 1 == p.runs), prod ? &pt : nullptr);   // verify the last run only
         if (!us) return {};
         durations.push_back(*us);
+        if (prod) prod->push_back(pt);
     }
     // One extra UNTIMED run that reads the persisted dataset back (never in the durations).
     p.last_readback.clear();
     if (p.persist != "none" && p.readback != "off" && !run_readback_worker(p)) return {};
     return durations;
+}
+
+// The medians of a production config's runs; prints the hot-path and drain lines (and the
+// machine-parseable PRODUCTION line) after the durable total's statistics box.
+ProdSummary summarize_production(const Params& p, const std::vector<ProdTimes>& runs, std::uint64_t events) {
+    auto median = [&](std::uint64_t ProdTimes::*m) -> std::uint64_t {
+        std::vector<std::uint64_t> v;
+        for (const auto& r : runs) v.push_back(r.*m);
+        if (v.empty()) return 0;
+        std::sort(v.begin(), v.end());
+        return v.size() % 2 ? v[v.size() / 2] : (v[v.size() / 2 - 1] + v[v.size() / 2]) / 2;
+    };
+    ProdSummary s;
+    std::vector<std::size_t> hot;
+    for (const auto& r : runs) hot.push_back(static_cast<std::size_t>(r.hot_us));
+    s.hot_ops = compute_bench_summary(hot, events).median;
+    auto ms = [](std::uint64_t us) { return (us + 500) / 1000; };
+    s.drain_binary_ms = ms(median(&ProdTimes::binary_us));
+    s.drain_keeper_ms = ms(median(&ProdTimes::keeper_us));
+    s.drain_database_ms = ms(median(&ProdTimes::database_us));
+    std::cout << "  Hot path           : " << bench_group_thousands(s.hot_ops)
+              << " ops/sec (median; producers until they join, before finalize)\n"
+              << "  Drain (median)     : binary " << (p.prod.binary ? bench_group_thousands(s.drain_binary_ms) + " ms" : std::string("off"))
+              << " · keeper " << p.prod.keeper << " " << bench_group_thousands(s.drain_keeper_ms) << " ms"
+              << " · database " << p.prod.database << " " << bench_group_thousands(s.drain_database_ms) << " ms"
+              << "  (attach -> that sink's finalize done)\n"
+              << "  Durable total      : the statistics box above (whole process, start -> exit)\n";
+    std::cout << "PRODUCTION hot_ops=" << s.hot_ops << " drain_binary_ms=" << s.drain_binary_ms
+              << " drain_keeper_ms=" << s.drain_keeper_ms << " drain_database_ms=" << s.drain_database_ms
+              << " keeper=" << p.prod.keeper << " database=" << p.prod.database
+              << " keeper_pct=" << p.prod.keeper_pct << " database_pct=" << p.prod.database_pct
+              << " binary=" << (p.prod.binary ? "on" : "off") << "\n";
+    return s;
 }
 
 void apply_axis(Params& p, const std::string& axis, std::size_t v) {
@@ -553,7 +760,8 @@ std::int64_t parameter_id_bench(jac313::Qlite::v002::Sqlite& db, std::int64_t co
 }
 
 // Write one normalized testRun fact (resolving run / parameter / testList / testType) into results.db.
-void record_to_results_db(const Params& p, const BenchSummary& s) {
+// A production config also writes its hot-path ops/sec and the three drain times (`prod`).
+void record_to_results_db(const Params& p, const BenchSummary& s, const ProdSummary* prod) {
     if (p.db_path.empty()) return;
     try {
         jac313::Qlite::v002::Sqlite db(results_db_path(p.db_path).string());
@@ -588,19 +796,29 @@ void record_to_results_db(const Params& p, const BenchSummary& s) {
         const std::int64_t test_type_id = results_lookup_id(db, "SELECT id FROM testType WHERE name=?", std::string("bench"));
         const std::int64_t flags = set_flag_count(p.flags);
         const std::int64_t comp_id = compiler_id_for(db, this_compiler());
-        const std::int64_t param_id = parameter_id_bench(db, comp_id, p.persist,
+        // A production config files under its sink pair ("jtext+sql", binary implied), so a different
+        // pair is a different parameter row; its mix is in the testList name.
+        std::string persist = p.persist;
+        if (persist.rfind("production", 0) == 0) persist = p.prod.persist_label() + persist.substr(10);
+        const std::int64_t param_id = parameter_id_bench(db, comp_id, persist,
             static_cast<std::int64_t>(p.threads), static_cast<std::int64_t>(p.events_per_thread),
             static_cast<std::int64_t>(p.runs), flags);
         const std::int64_t bytes = (p.persist == "none") ? 0
                                  : static_cast<std::int64_t>(measure_output_bytes(p.base_name));
         // status 'pass': a bench row is written only on success; duration_ms 0 (throughput is in the ops columns).
+        // hot_ops / drain_*_ms: the production run's figures (0 for every other config).
+        const ProdSummary none{};
+        const ProdSummary& ps = prod ? *prod : none;
         auto tx = db.transaction();   // the row + the safeness refresh commit together
         db.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms, "
-                "median_ops, low_ops, high_ops, avg_ops, stddev_ops, bytes) VALUES(?,?,?,?, 'pass', 0, ?,?,?,?,?, ?)",
+                "median_ops, low_ops, high_ops, avg_ops, stddev_ops, bytes, hot_ops, drain_keeper_ms, "
+                "drain_database_ms, drain_binary_ms) VALUES(?,?,?,?, 'pass', 0, ?,?,?,?,?, ?, ?,?,?,?)",
                 run_id, test_type_id, test_list_id, param_id,
                 static_cast<std::int64_t>(s.median), static_cast<std::int64_t>(s.low),
                 static_cast<std::int64_t>(s.high), static_cast<std::int64_t>(s.avg),
-                static_cast<std::int64_t>(s.stddev), bytes);
+                static_cast<std::int64_t>(s.stddev), bytes,
+                static_cast<std::int64_t>(ps.hot_ops), static_cast<std::int64_t>(ps.drain_keeper_ms),
+                static_cast<std::int64_t>(ps.drain_database_ms), static_cast<std::int64_t>(ps.drain_binary_ms));
         jac313::results::rebuild_safeness(db);   // refresh the safeness summary (read by report + verdict)
         tx.commit();
     } catch (const std::exception& e) {
@@ -609,11 +827,11 @@ void record_to_results_db(const Params& p, const BenchSummary& s) {
 }
 
 // bench_results.db / bench_run is retired — store_bench writes only the unified results.db.
-void record_to_db(const Params& p, const BenchSummary& s) {
-    record_to_results_db(p, s);
+void record_to_db(const Params& p, const BenchSummary& s, const ProdSummary* prod = nullptr) {
+    record_to_results_db(p, s, prod);
 }
 #else
-void record_to_db(const Params&, const BenchSummary&) {}   // built without SQL persist -> no DB
+void record_to_db(const Params&, const BenchSummary&, const ProdSummary* = nullptr) {}   // built without SQL persist -> no DB
 #endif
 
 // Two-phase batch schedule: fine resolution where the curve actually moves (small batches), coarse
@@ -777,13 +995,17 @@ int run_calibration(Params, const std::vector<std::size_t>&, std::size_t, const 
 std::int64_t calibrated_use(const std::string&, const std::string&, std::int64_t fb) { return fb; }
 #endif
 
-// Two scales of the SAME 14 configs:
+// The suite, in the order it runs (and the report shows): the production run (@1M, @10M), then each
+// database alone (sql, pg-local, pg-remote), then each file alone (binary, jtext, html, json), each
+// @1M and @10M, then the non-durable flag sweep (0/2/4/6 flags). 16 configs by default.
+// Two scales of the SAME configs:
 //   full  (--suite)         — the big numbers; the recorded throughput benchmark (Release).
 //   smoke (--suite --smoke) — the same 10 capped to <=10k events, run as a CORRECTNESS GATE:
 //                             pass iff ALL configs run clean (incl. structural verify); the
 //                             numbers are meaningless at this scale, so nothing is recorded.
 // One JSON object per suite config for Jac313Runner's summary (--summary-parts).
-void append_bench_part(const Params& p, const char* status, const BenchSummary* sum, std::uint64_t total) {
+void append_bench_part(const Params& p, const char* status, const BenchSummary* sum, std::uint64_t total,
+                       const ProdSummary* prod = nullptr) {
     if (p.summary_parts.empty()) return;
     auto esc = [](const std::string& v) {
         std::string o;
@@ -797,14 +1019,16 @@ void append_bench_part(const Params& p, const char* status, const BenchSummary* 
                            sum->median, sum->low, sum->high, total);
         if (sum->median > 0) obj += std::format(R"(,"ms":{})", total * 1000 / sum->median);
     }
+    if (prod)
+        obj += std::format(R"(,"hot_ops":{},"drain_binary_ms":{},"drain_keeper_ms":{},"drain_database_ms":{})",
+                           prod->hot_ops, prod->drain_binary_ms, prod->drain_keeper_ms, prod->drain_database_ms);
     if (p.persist != "none") {
         obj += std::format(R"(,"max_persist_rows":{})", p.max_persist_rows);
-        if (!p.last_readback.empty()) {
-            // "k=v k=v ... error=\"x\"" -> {"k":v,...}
+        // "k=v k=v ... error=\"x\"" -> {"k":v,...}; `expected` also goes to rows_written when asked.
+        auto readback_object = [&](const std::string& l, bool rows_written) {
             std::string rb = "{";
             std::size_t i = 0;
             bool first = true;
-            const std::string& l = p.last_readback;
             while (i < l.size()) {
                 while (i < l.size() && l[i] == ' ') ++i;
                 const auto eq = l.find('=', i);
@@ -826,11 +1050,21 @@ void append_bench_part(const Params& p, const char* status, const BenchSummary* 
                 const bool num = !v.empty() && v.find_first_not_of("0123456789.-") == std::string::npos;
                 rb += (first ? "" : ",") + std::string("\"") + k + "\":" + (num ? v : "\"" + esc(v) + "\"");
                 first = false;
-                if (k == "expected") obj += ",\"rows_written\":" + v;
+                if (k == "expected" && rows_written) obj += ",\"rows_written\":" + v;
             }
-            obj += ",\"readback\":" + rb + "}";
+            return rb + "}";
+        };
+        if (!p.last_readback.empty()) obj += ",\"readback\":" + readback_object(p.last_readback, true);
+        if (p.readbacks.size() > 1) {   // the production run: one object per sink
+            obj += ",\"readbacks\":[";
+            for (std::size_t k = 0; k < p.readbacks.size(); ++k)
+                obj += (k ? "," : "") + readback_object(p.readbacks[k], false);
+            obj += "]";
         }
-        obj += std::format(R"(,"dataset":{{"backend":"{}","base":"{}"}})", esc(p.persist), esc(p.base_name));
+        // The production run's dataset is the database sink's (the replay log and keeper file sit beside it).
+        const auto plan = sink_plan(p);
+        const SinkPlan& ds = plan.back();
+        obj += std::format(R"(,"dataset":{{"backend":"{}","base":"{}"}})", esc(ds.backend), esc(ds.base));
     }
     obj += "}";
     std::ofstream out(p.summary_parts, std::ios::app);
@@ -841,10 +1075,21 @@ int run_suite(Params base, bool dry, bool smoke) {
     base.threads = 50;                                 // curated suite is opinionated about threads
     struct Cfg { std::string persist; int flags; std::string label; std::size_t evt, runs; };
     std::vector<Cfg> cfgs;
-    for (int n : {0, 2, 4, 6})
-        cfgs.push_back({"none", n, std::to_string(n) + " flags, non-durable", 200000, 10});
+    // The production run first: the user's keeper + database sinks and the replay log, flags routed.
+    bool production = true;
+#ifndef JAC313_STORE_HAS_PG_PERSIST
+    if (base.prod.database == "pg-local" || base.prod.database == "pg-remote") {
+        std::cerr << "NOTE: production run skipped: its database " << base.prod.database
+                  << " needs PostgreSQL persistence, not built\n";
+        production = false;
+    }
+#endif
+    if (production) {
+        cfgs.push_back({"production", 0, base.prod.config_name(), 20000, 3});            // 1M × 3
+        cfgs.push_back({"production", 0, base.prod.config_name() + " @10M", 200000, 3}); // 10M × 3
+    }
     // Durable backends: the default five, or --persist-list (which may add pg-local / pg-remote).
-    std::vector<std::string> durable = {"jtext", "sql", "binary", "html", "json"};
+    std::vector<std::string> durable = {"sql", "binary", "jtext", "html", "json"};
     if (!base.persist_list.empty()) {
         durable.clear();
         std::string cur;
@@ -864,10 +1109,20 @@ int run_suite(Params base, bool dry, bool smoke) {
             } else if (c != ' ') cur += c;
         }
     }
-    for (const auto& pn : durable)
-        cfgs.push_back({pn, 0, "durable " + pn, 20000, 3});          // 1M × 3
-    for (const auto& pn : durable)
-        cfgs.push_back({pn, 0, "durable " + pn + " @10M", 200000, 3}); // 10M × 3 (scaling)
+    // Databases first, then files (whatever order --persist-list named them in).
+    const std::vector<std::string> canonical = {"sql", "pg-local", "pg-remote", "binary", "jtext", "html", "json"};
+    std::stable_sort(durable.begin(), durable.end(), [&](const std::string& a, const std::string& b) {
+        return std::find(canonical.begin(), canonical.end(), a) < std::find(canonical.begin(), canonical.end(), b);
+    });
+    auto is_db = [](const std::string& b) { return b == "sql" || b == "pg-local" || b == "pg-remote"; };
+    for (const bool dbs : {true, false})
+        for (const auto& pn : durable)
+            if (is_db(pn) == dbs) {
+                cfgs.push_back({pn, 0, "durable " + pn, 20000, 3});           // 1M × 3
+                cfgs.push_back({pn, 0, "durable " + pn + " @10M", 200000, 3}); // 10M × 3 (scaling)
+            }
+    for (int n : {0, 2, 4, 6})
+        cfgs.push_back({"none", n, std::to_string(n) + " flags, non-durable", 200000, 10});
 
     // --max-runs / --max-records: lower runs and events per run (never raise them).
     for (auto& cf : cfgs) {
@@ -902,7 +1157,9 @@ int run_suite(Params base, bool dry, bool smoke) {
                   << " (run from the build dir)\n\n";
         for (const auto& cf : cfgs) {
             std::cout << "./jac313_store_bench --threads " << base.threads << " --events-per-thread " << cf.evt
-                      << " --runs " << cf.runs << " --persist " << cf.persist;
+                      << " --runs " << cf.runs;
+            if (cf.persist == "production") std::cout << " --production " << base.prod.spec();
+            else std::cout << " --persist " << cf.persist;
             if (cf.persist == "none") std::cout << " --flag-count " << cf.flags;
             std::cout << "   # " << cf.label << "\n";
         }
@@ -940,7 +1197,7 @@ int run_suite(Params base, bool dry, bool smoke) {
     // backend — so the recorded numbers are tied to a visible batch (falls back to the default if a
     // backend isn't calibrated yet; run --calibrate to populate io_best_fit).
     std::cout << "durable batch (io_best_fit.useThis):";
-    for (const char* ty : {"jtext", "sql", "binary", "html", "json"})
+    for (const char* ty : {"sql", "binary", "jtext", "html", "json"})
         std::cout << "  " << ty << "=" << bench_group_thousands(
             static_cast<std::uint64_t>(calibrated_use(base.db_path, ty, static_cast<std::int64_t>(base.batch))));
     std::cout << std::endl;   // flush: surface the chosen batches promptly (before the long runs)
@@ -951,11 +1208,14 @@ int run_suite(Params base, bool dry, bool smoke) {
         if (retaining && cf.persist != "none") p.base_name = suite_persist_base(base, cf.persist, cf.label);
         // Durable configs run at this machine's calibrated persistence batch size (io_best_fit.useThis);
         // falls back to the default batch when uncalibrated. Non-durable has no writer, so batch is moot.
-        if (cf.persist != "none") p.batch = static_cast<std::size_t>(calibrated_use(base.db_path, cf.persist, static_cast<std::int64_t>(base.batch)));
+        // The production run's three sinks share one batch: its database sink's (usually the slowest).
+        const std::string batch_of = cf.persist == "production" ? base.prod.database : cf.persist;
+        if (cf.persist != "none") p.batch = static_cast<std::size_t>(calibrated_use(base.db_path, batch_of, static_cast<std::int64_t>(base.batch)));
         std::cout << "\n=== " << cf.label << " ===";
         if (cf.persist != "none") std::cout << "  (batch " << bench_group_thousands(p.batch) << ")";
         std::cout << "\n";
-        auto durations = measure_set(p);
+        std::vector<ProdTimes> prod_runs;
+        auto durations = measure_set(p, cf.persist == "production" ? &prod_runs : nullptr);
         if (durations.empty()) {
             std::cerr << "FAILED: " << cf.label << "\n";
             append_bench_part(p, "FAIL", nullptr, 0);
@@ -964,13 +1224,15 @@ int run_suite(Params base, bool dry, bool smoke) {
         const std::uint64_t total = static_cast<std::uint64_t>(p.threads) * p.events_per_thread;
         emit_bench_stats(durations, total);
         const BenchSummary sum = compute_bench_summary(durations, total);
+        std::optional<ProdSummary> prod;
+        if (cf.persist == "production") prod = summarize_production(p, prod_runs, total);
         Params rec = p;
         // A capped durable run measures "events in, fewer rows out": record it under its own
         // persist label so it never mixes with full-size durable results in the report.
         if (rec.persist != "none" && rec.max_persist_rows > 0)
             rec.persist += "/cap=" + std::to_string(rec.max_persist_rows);
-        record_to_db(rec, sum);
-        append_bench_part(p, "PASS", &sum, total);
+        record_to_db(rec, sum, prod ? &*prod : nullptr);
+        append_bench_part(p, "PASS", &sum, total, prod ? &*prod : nullptr);
     }
     std::cout << "\n\n";   // two blank lines after the bench suite, for visual separation
     return 0;
@@ -992,6 +1254,7 @@ int main(int argc, char** argv) {
     std::size_t cal_lo = 250, cal_knee = 1000, cal_step = 250, cal_step2 = 500, cal_hi = 5000;
     std::size_t cal_tol = 3;                          // plateau = within cal_tol% of peak (band -> middle = useThis)
     bool threads_set = false, runs_set = false;      // so --calibrate can apply its own defaults
+    bool production_set = false;                     // --production given (selects it outside --suite)
 
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -1001,6 +1264,13 @@ int main(int argc, char** argv) {
         else if (a == "--runs") { p.runs = std::stoull(next()); runs_set = true; }
         else if (a == "--batch") p.batch = std::stoull(next());
         else if (a == "--persist") p.persist = next();
+        else if (a == "--production") {
+            // the production run's mix; on its own (not --suite) it also selects that run
+            if (const std::string err = parse_production(next(), p.prod); !err.empty()) {
+                std::cerr << "bad --production: " << err << "\n"; return 2;
+            }
+            production_set = true;
+        }
         else if (a == "--base-name") p.base_name = next();
         else if (a == "--max-persist-rows") p.max_persist_rows = std::stoull(next());
         else if (a == "--readback") p.readback = next();
@@ -1039,6 +1309,8 @@ int main(int argc, char** argv) {
         }
     }
 
+    if (production_set) p.persist = "production";
+
     // Worker mode: do exactly one workload and exit. The parent (run_one) times this whole
     // process from fork to exit, so nothing is printed and nothing is recorded here.
     if (single_run) return do_workload(p, verify_flag, readback_run) ? 0 : 1;
@@ -1063,12 +1335,20 @@ int main(int argc, char** argv) {
 
     if (!sweep) {
         // single config — one measurement set
+        const bool prod_run = p.persist == "production";
+        if (prod_run && p.label.empty()) p.label = p.prod.config_name();
         std::cout << "store_bench: threads=" << p.threads << " events/thread=" << p.events_per_thread
-                  << " runs=" << p.runs << " persist=" << p.persist << " batch=" << p.batch << "\n";
-        auto durations = measure_set(p);
+                  << " runs=" << p.runs << " persist=" << p.persist << " batch=" << p.batch;
+        if (prod_run) std::cout << " production=" << p.prod.spec();
+        std::cout << "\n";
+        std::vector<ProdTimes> prod_runs;
+        auto durations = measure_set(p, prod_run ? &prod_runs : nullptr);
         if (durations.empty()) { std::cerr << "benchmark failed\n"; return 1; }
-        emit_bench_stats(durations, static_cast<std::uint64_t>(p.threads * p.events_per_thread));
-        record_to_db(p, compute_bench_summary(durations, static_cast<std::uint64_t>(p.threads * p.events_per_thread)));
+        const std::uint64_t total = static_cast<std::uint64_t>(p.threads * p.events_per_thread);
+        emit_bench_stats(durations, total);
+        std::optional<ProdSummary> prod;
+        if (prod_run) prod = summarize_production(p, prod_runs, total);
+        record_to_db(p, compute_bench_summary(durations, total), prod ? &*prod : nullptr);
         return 0;
     }
 

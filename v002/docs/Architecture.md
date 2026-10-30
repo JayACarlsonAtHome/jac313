@@ -76,7 +76,7 @@ flowchart TB
 |-------|------|
 | **Umbrella headers** | Public entry points (`include/jac313/.../v002.hpp`). |
 | **C++23 modules** | Optional `import jac313.*.v002` path (Ninja module scanning). See [Modules.md](Modules.md). |
-| **Store (in-tree)** | Owns the hot path + persistence sinks (binary, jText, HTML, JSON, SQL, flag-routing). Uses jText and Qlite. See [Store docs](store/). |
+| **Store (in-tree)** | Owns the hot path + persistence sinks (binary, jText, HTML, JSON, SQL; several at once, routed by flags). Uses jText and Qlite. See [Store docs](store/). |
 | **jac313_test_cli** | Local runner: configure/build, ctest discovery, matrix grids. No shell scripts. |
 
 ---
@@ -101,8 +101,9 @@ pipeline: `store_bench --suite --db test-summary/results.db` → `jac313_test_cl
 4. **Multi-toolchain** — run the presets on both **gcc15 + clang**; the report compares them side by side.
 
 The matrix is the **functional/correctness** suite. Throughput is no longer read as "peak ops/sec"
-from test logs — it now comes from a separate `store_bench --suite` (curated 14-config run, headline =
-median + low–high band). See [Benchmarks.md](Benchmarks.md).
+from test logs — it now comes from a separate `store_bench --suite` (curated 16-config run, headline =
+median + low–high band; the production run — keeper file + database + binary replay log at once,
+routed by flags — comes first). See [Benchmarks.md](Benchmarks.md).
 
 Throughput metrics are **DB-only** (`test-summary/results.db`, local, not in git) — there are no file
 side-channels; the per-area comparison pages render from `results.db` via `jac313_test_cli --report`. See

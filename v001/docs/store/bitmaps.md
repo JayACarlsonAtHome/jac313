@@ -16,8 +16,8 @@ change (the `event_flags` argument to [`save_event`](logging.md) carries them):
 
 | Flag | Bit | Sends the event to |
 |------|-----|--------------------|
-| `KeeperRecord` | 1 | the **keeper (file)** sink (binary / jtext / html / json) |
-| `DatabaseEntry` | 2 | the **SQL** sink |
+| `KeeperRecord` | 1 | the **keeper (file)** sink (jtext / html / json, or binary) |
+| `DatabaseEntry` | 2 | the **database** sink (SQLite, or PostgreSQL: pg-local / pg-remote) |
 
 ---
 
@@ -27,8 +27,8 @@ Two layers decide where an event goes:
 
 **1. Per-event flags** say where the event should go:
 
-- `KEEPER_MASK` (bit 1, `KeeperRecord`) → the **file** sink (binary / jtext / html / json)
-- `DATABASE_MASK` (bit 2, `DatabaseEntry`) → the **SQL** sink
+- `KEEPER_MASK` (bit 1, `KeeperRecord`) → the **file** sink (jtext / html / json, or binary)
+- `DATABASE_MASK` (bit 2, `DatabaseEntry`) → the **database** sink (SQLite or PostgreSQL)
 - An event can route to both, one, or neither.
 
 **2. `PersistMode`** on each sink (`persistence/PersistCommon.hpp`) picks the events it keeps:
@@ -43,6 +43,14 @@ A typical split: file sink in `KeeperOnly`, SQL sink in `DatabaseOnly`, both att
 store (`attach_persistence` once per sink; each gets its own worker, see
 [persistence](persistence.md)) — the app just tags events; the sink modes do the rest. Each sink
 must own its own file or connection.
+
+**The worked example is the bench's production run** ([Benchmarks](../Benchmarks.md#the-production-run)):
+binary replay log in `All`, the keeper file (jtext / html / json) in `KeeperOnly`, the database
+(sql / pg-local / pg-remote) in `DatabaseOnly`, three workers on one store, and the events flagged
+by a fixed mix. Its read-back checks each sink against exactly its flagged subset. *What changed
+and why:* this page used to describe the split only in words; the bench now runs it, times it
+(hot path, each sink's drain, the whole process) and verifies it, so the routing model is measured,
+not just described.
 
 ---
 

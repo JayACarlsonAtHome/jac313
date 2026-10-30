@@ -251,4 +251,34 @@ ParamsTable load_params_table(const fs::path& path) {
     return out;
 }
 
+std::string ProductionSettings::spec() const {
+    return "keeper=" + keeper_sink + ",database=" + database_sink + ",keeper_pct=" + std::to_string(keeper_pct)
+         + ",database_pct=" + std::to_string(database_pct) + ",binary=" + (binary ? "on" : "off");
+}
+
+ProductionSettings load_production_settings(const fs::path& path) {
+    const SettingsTable t = read_jtext_table(path, "production");
+    require_columns(t, path, "production", {"keeper_sink", "database_sink", "keeper_pct", "database_pct", "binary"});
+    if (t.rows.size() != 1)
+        throw std::runtime_error(path.string() + ": section production must have exactly one row, has "
+                                 + std::to_string(t.rows.size()));
+    const auto& r = t.rows.front();
+    ProductionSettings out;
+    out.keeper_sink = r.at("keeper_sink");
+    out.database_sink = r.at("database_sink");
+    out.keeper_pct = to_int(r, "keeper_pct", path, "production");
+    out.database_pct = to_int(r, "database_pct", path, "production");
+    out.binary = jtext_bool(r.at("binary"));
+    auto bad = [&](const std::string& what) {
+        throw std::runtime_error(path.string() + ": section production: " + what);
+    };
+    if (out.keeper_sink != "jtext" && out.keeper_sink != "html" && out.keeper_sink != "json")
+        bad("keeper_sink must be jtext | html | json, not '" + out.keeper_sink + "'");
+    if (out.database_sink != "sql" && out.database_sink != "pg-local" && out.database_sink != "pg-remote")
+        bad("database_sink must be sql | pg-local | pg-remote, not '" + out.database_sink + "'");
+    if (out.keeper_pct < 0 || out.keeper_pct > 100) bad("keeper_pct must be 0..100");
+    if (out.database_pct < 0 || out.database_pct > 100) bad("database_pct must be 0..100");
+    return out;
+}
+
 } // namespace jac313::test_cli

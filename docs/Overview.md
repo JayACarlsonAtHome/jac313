@@ -11,7 +11,7 @@ At its core are two elegant, self-contained in-tree libraries:
 - **Qlite** — a clean, modern SQLite wrapper with transactions, prepared-statement caching, and ergonomic helpers
 - **jText** — a self-describing, human-readable structured text format with a streaming writer
 
-Together they power multiple persistence backends (binary, jText, HTML, JSON, SQL, flag-routed) while keeping the hot path allocation-free and extremely fast.
+Together they power multiple persistence backends (binary, jText, HTML, JSON, SQL; several at once, each event routed by its flags) while keeping the hot path allocation-free and extremely fast.
 
 What makes jac313 special is the complete world built around it: a real testing and benchmarking harness (`jac313_test_cli`) that drives full matrices across compilers, standards, modules, and persistence strategies. This is not a toy project — it is a serious, non-trivial codebase that has already exposed real bugs in production toolchains.
 
@@ -63,8 +63,8 @@ routing model:
 - **jText** — self-describing, human-readable logs
 - **SQL** — queryable rows via SQLite
 - **in-memory / none** — for the hot path with no sink
-- **flag-routing** — flags + a persist mode decide which events go to which sink
-  (keeper vs database masks)
+- **several at once, routed by flags** — attach any number of sinks (one worker each); each
+  sink's persist mode keeps the events whose flags send them there (keeper vs database bits)
 
 Store is the largest part of the project and the thing the rest exists to serve.
 
@@ -83,6 +83,25 @@ logging 0-D) and the **Event** carries its intent, with a gallery of domains.
 
 Two small libraries compose into the headline feature, and the headline feature is
 validated by the testing framework below — the whole is bigger than the parts.
+
+---
+
+## The benchmark: why it is built around a production run
+
+*Added with Store v001.016 / v002.022, so the bench answers "what will this do on my machine?"
+rather than "how fast is one sink alone?".* The throughput bench
+([Benchmarks](../v002/docs/Benchmarks.md)) has three goals:
+
+1. **A production-like test**, so users know what to expect in their own environment: the
+   production run writes the binary replay log, a keeper file (jtext / html / json) and a database
+   (SQLite / PostgreSQL) at once, each event routed by its flags — "a truer representation of how a
+   production machine would actually be running". It reports the hot-path rate, each sink's drain
+   time and the whole-process rate.
+2. **A framework for timing future contracts**: the same bench runs under each of the four
+   contract modes (enforce, observe, quick_enforce, ignore; `Setup/contracts.jtext`), so what a
+   contract costs is one comparison away.
+3. **An easy benchmark for compiler builders and CMake**: one command (`./jac313_test_cli --bench`)
+   builds Release with each compiler and runs a fixed, recorded suite on real code.
 
 ---
 

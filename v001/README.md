@@ -7,7 +7,7 @@ At its core are two elegant supporting libraries:
 - **Qlite** — a clean, modern SQLite wrapper
 - **jText** — a self-describing, human-readable structured text format
 
-Together they deliver multiple persistence backends (binary, jText, HTML, JSON, SQL, flag-routed) while keeping the hot path fast and allocation-free.
+Together they deliver multiple persistence backends (binary, jText, HTML, JSON, SQL; several at once, routed by flags) while keeping the hot path fast and allocation-free.
 
 What makes this project special is the complete world built around it: a serious, from-scratch testing and benchmarking harness that actually exercises the code at scale across compilers and configurations. This is not a toy — it's a real codebase that has already helped surface issues in production toolchains.
 
@@ -43,7 +43,7 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 - [**Categories**](docs/store/categories.md) — how events are categorized and sized (`bounded_string`, payload caps)
 - [**Flags**](docs/store/flags.md) — the complete `StoreFlags` catalog: every bit, its meaning, and an honest wired / advisory / placeholder status
 - [**Routing**](docs/store/bitmaps.md) — how flags + `PersistMode` route events (keeper vs database masks)
-- [**Persistence**](docs/store/persistence.md) — the sinks: binary, jText, HTML, JSON, SQL, flag-routing; the binary log + reader
+- [**Persistence**](docs/store/persistence.md) — the sinks: binary, jText, HTML, JSON, SQL; several at once, routed by flags; the binary log + reader
 - [**Reporting**](docs/store/reporting.md) — reading the logs back: jText, HTML, JSON, SQL, binary + readers
 
 ---
@@ -118,7 +118,7 @@ For more details on the project, see the docs in [docs/](docs/) (listed under Do
 | [docs/Architecture.md](docs/Architecture.md) | Layout, the umbrella model, the test pipeline, customization, design principles |
 | [docs/Verify.md](docs/Verify.md) | valgrind memcheck + helgrind/DRD — method, the tail-reader data race found & fixed, results, and honest limits |
 | [docs/Maturity.md](docs/Maturity.md) | Honest self-assessment on a 12-level scale — where jac313 sits (7.5), and why that's a deliberate ceiling |
-| [docs/Benchmarks.md](docs/Benchmarks.md) | **How to run the throughput suite** — `--bench --report` (the curated `store_bench` suite), the configs, `--dry-run` copy-paste commands, and a sample report |
+| [docs/Benchmarks.md](docs/Benchmarks.md) | **Why and how to run the throughput suite** — the production run first (keeper file + database + binary replay log at once, events routed by flags; hot path, drain times, durable total), then each sink alone and the flag sweep; contract modes; compiler / CMake comparisons; and a sample report |
 | [docs/Results.md](docs/Results.md) | What a clean build + test run actually produces, **per platform** — Linux Mint (116/116, ~2.9M events/s, ~611 MB), RHEL 9.8 (116/116, up to ~24.3M ops/s; CMake 3.31.8-vs-4.3.3 import-std comparison), and RHEL 10.2 (116/116 on **both g++-15 and clang**, up to ~24.3M ops/s, on a 7200 RPM HDD) |
 | Package READMEs | [jText](jText/README.md) · [Store](Store/README.md) |
 

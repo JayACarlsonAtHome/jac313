@@ -423,6 +423,122 @@ bool SaveConnections(const String& path, const Vector<ConnRow>& rows, String& er
 	return true;
 }
 
+// ---------------------------------------------------------------- production run
+
+String ProductionOptions::Spec() const
+{
+	return "keeper=" + keeper + ",database=" + database + ",keeper_pct=" + AsString(keeperPct)
+	     + ",database_pct=" + AsString(databasePct) + ",binary=" + (binary ? "on" : "off");
+}
+
+String ProductionParamsFile(const String& root, const String& version, const String& size)
+{
+	return AppendFileName(AppendFileName(AppendFileName(root, version), "tests"),
+	                      size == "full" ? "test_params_full.jtext" : "test_params.jtext");
+}
+
+bool LoadProduction(const String& file, ProductionOptions& p, String& err)
+{
+	if(!FileExists(file)) {
+		err = "not found: " + file;
+		return false;
+	}
+	JDoc d;
+	d.Parse(LoadFile(file), GetFileFolder(file));
+	for(const JSection& s : d.sections) {
+		if(s.name != "production")
+			continue;
+		if(s.rows.GetCount() != 1) {
+			err = "the production section must have one row";
+			return false;
+		}
+		auto get = [&](const char *col) -> String {
+			int i = FindIndex(s.cols, String(col));
+			return i >= 0 && i < s.rows[0].GetCount() ? s.rows[0][i] : String();
+		};
+		ProductionOptions q;
+		q.keeper = get("keeper_sink");
+		q.database = get("database_sink");
+		q.keeperPct = StrInt(get("keeper_pct"));
+		q.databasePct = StrInt(get("database_pct"));
+		String b = ToLower(get("binary"));
+		q.binary = b == "true" || b == "yes" || b == "y" || b == "t" || b == "1";
+		if((q.keeper != "jtext" && q.keeper != "html" && q.keeper != "json") ||
+		   (q.database != "sql" && q.database != "pg-local" && q.database != "pg-remote") ||
+		   IsNull(q.keeperPct) || q.keeperPct < 0 || q.keeperPct > 100 ||
+		   IsNull(q.databasePct) || q.databasePct < 0 || q.databasePct > 100) {
+			err = "the production row holds a value outside its choices";
+			return false;
+		}
+		p = q;
+		return true;
+	}
+	err = "no production section in " + file;
+	return false;
+}
+
+bool SaveProduction(const String& file, const ProductionOptions& p, String& err)
+{
+	using namespace jText::v001;
+	// The new row through jText's writer: a one-section document, whose data lines then replace
+	// the file's production data lines (replace_section_data keeps every other line as it is).
+	std::ostringstream os;
+	{
+		JTextWriter w(os);
+		w.set_profile(JTextProfile::Full);
+		w.set_filename("production.jtext");
+		w.write_header();
+		w.begin_section("production");
+		w.begin_fields();
+		static const char *fields[] = {
+			"id/Integer/Not Null", "keeper_sink/String/Not Null/Not Empty", "database_sink/String/Not Null/Not Empty",
+			"keeper_pct/Integer/Not Null", "database_pct/Integer/Not Null", "binary/Bool/Not Null",
+		};
+		for(int i = 0; i < __countof(fields); i++) {
+			std::vector<std::string> levels;
+			for(const String& l : Split(fields[i], '/'))
+				levels.push_back(l.ToStd());
+			w.append_row(i + 1, levels, "", U'/');
+		}
+		w.begin_data();
+		JTextEntry e;   // "|" and "#" like the rest of the file
+		e.number = 1;
+		e.delimiter = U'#';
+		e.level_sep = U'|';
+		e.fields = { std::string("1"), p.keeper.ToStd(), p.database.ToStd(), AsString(p.keeperPct).ToStd(),
+		             AsString(p.databasePct).ToStd(), std::string(p.binary ? "true" : "false") };
+		w.append_entry(e);
+		w.end_record();
+		w.finalize();
+	}
+	const std::string doc = os.str();
+	const auto parsed = jtext::parse_file_structure(doc);
+	if(!parsed || parsed->sections.size() != 1) {
+		err = "the jText writer's production row did not parse";
+		return false;
+	}
+	std::string data;
+	{
+		std::istringstream in(doc);
+		std::string line;
+		for(std::size_t n = 0; std::getline(in, line); n++)
+			if(n >= parsed->sections[0].data_begin && n < parsed->sections[0].data_end)
+				data += line + "\n";
+	}
+	const String text = LoadFile(file);
+	const auto out = jtext::replace_section_data(std::string_view(~text, text.GetCount()), "production", data);
+	if(!out) {
+		const std::string& m = out.error().message;
+		err = Format("%s: line %d: %s", file, (int)out.error().line_no, String(m.data(), (int)m.size()));
+		return false;
+	}
+	if(!SaveFile(file, String(out->data(), (int)out->size()))) {
+		err = "cannot write " + file;
+		return false;
+	}
+	return true;
+}
+
 void LimitPersistToRecords(RunOptions& o)
 {
 	if(o.maxRecords > 0 && (o.maxRows == 0 || o.maxRows > o.maxRecords))
@@ -475,6 +591,7 @@ Array<RunPlan> BuildPlans(const RunOptions& opts, const String& root)
 		if(o.maxRuns > 0)    a << "--max-runs" << AsString(o.maxRuns);
 		if(o.maxRecords > 0) a << "--max-records" << AsString(o.maxRecords);
 		if(o.maxRows > 0)    a << "--max-persist-rows" << AsString(o.maxRows);
+		if(o.bench)          a << "--production" << o.prod.Spec();
 		a << "--readback" << (o.readback == "all" ? "all" : "sample");
 		a << "--pg-cleanup" << (o.pgCleanup == "delete" ? "delete" : "keep-last");
 		a << "--summary-json" << p.summary;

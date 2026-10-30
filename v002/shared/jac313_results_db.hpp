@@ -81,7 +81,8 @@ inline const std::string& resolve_results_db(const std::filesystem::path& source
 // Schema version rule: PRAGMA user_version holds kResultsSchemaVersion. results.db holds test data
 // only, so there are no migrations: a DB stamped with any other version (0 = an unversioned older
 // layout) is dropped and created fresh on first open. Change any table or index below -> bump this.
-inline constexpr int kResultsSchemaVersion = 1;
+// 2: testRun.hot_ops and drain_keeper_ms / drain_database_ms / drain_binary_ms (the production bench run).
+inline constexpr int kResultsSchemaVersion = 2;
 
 namespace detail {
 // Every table and index, all idempotent (IF NOT EXISTS): cheap to run on every open.
@@ -111,7 +112,7 @@ inline void create_results_tables(Sqlite& db) {
             "  , modules TEXT NOT NULL DEFAULT ''\n"
             "  , import_std TEXT NOT NULL DEFAULT ''\n"
             "  , size TEXT NOT NULL DEFAULT ''\n"
-            "  , persist TEXT NOT NULL DEFAULT ''\n"
+            "  , persist TEXT NOT NULL DEFAULT ''\n"            // none | sql | jtext ... | the production pair "jtext+sql"
             "  , output_mode TEXT NOT NULL DEFAULT ''\n"
             "  , threads INTEGER NOT NULL DEFAULT 0\n"
             "  , events_per_thread INTEGER NOT NULL DEFAULT 0\n"
@@ -192,6 +193,12 @@ inline void create_results_tables(Sqlite& db) {
             "  , pg_connect_ms REAL NOT NULL DEFAULT 0\n"         // PostgreSQL only: connection time
             "  , pg_ping_ms REAL NOT NULL DEFAULT 0\n"            //   median SELECT 1 round trip (latency)
             "  , pg_write_ms REAL NOT NULL DEFAULT 0\n"           //   total COPY write time
+            // The production bench run (0 for every other row): hot-path ops/sec (producers until they
+            // join, before finalize) and each sink's drain time (attach -> its finalize done), medians.
+            "  , hot_ops INTEGER NOT NULL DEFAULT 0\n"
+            "  , drain_keeper_ms INTEGER NOT NULL DEFAULT 0\n"
+            "  , drain_database_ms INTEGER NOT NULL DEFAULT 0\n"
+            "  , drain_binary_ms INTEGER NOT NULL DEFAULT 0\n"
             ")");
     // runEvent: live status and progress log for tracking runs in real time (e.g. in DataGrip).
     // Inserted during execution so you can watch started/ended/error events while the CLI is running.

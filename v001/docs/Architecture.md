@@ -76,7 +76,7 @@ flowchart TB
 |-------|------|
 | **Umbrella headers** | Public entry points (`include/jac313/.../v001.hpp`). |
 | **C++23 modules** | Optional `import jac313.*.v001` path (Ninja module scanning). See [Modules.md](Modules.md). |
-| **Store (in-tree)** | Owns the hot path + persistence sinks (binary, jText, HTML, JSON, SQL, flag-routing). Uses jText and Qlite. See [Store docs](store/). |
+| **Store (in-tree)** | Owns the hot path + persistence sinks (binary, jText, HTML, JSON, SQL; several at once, routed by flags). Uses jText and Qlite. See [Store docs](store/). |
 | **jac313_test_cli** | Local runner: configure/build, ctest discovery, matrix grids. No shell scripts. |
 
 ---

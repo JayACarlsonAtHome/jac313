@@ -70,6 +70,7 @@ std::string persist_cli_suffix(const GlobalOptions& g) {
 
 std::string bench_persist_args(const GlobalOptions& g) {
     std::string s;
+    if (!g.production.empty())    s += " --production " + g.production;
     if (!g.persist_list.empty())  s += " --persist-list " + g.persist_list;
     if (g.max_persist_rows)       s += " --max-persist-rows " + std::to_string(*g.max_persist_rows);
     if (g.max_runs)               s += " --max-runs " + std::to_string(g.max_runs);

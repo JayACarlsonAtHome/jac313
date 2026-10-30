@@ -180,6 +180,14 @@ int main() {
         } catch (const std::exception& e) {
             check(false, std::string("load_params_table: ") + e.what());
         }
+        table(p, "production", {"id", "keeper_sink", "database_sink", "keeper_pct", "database_pct", "binary"});
+        try {
+            const auto prod = load_production_settings(p);
+            check(prod.spec() == "keeper=jtext,database=sql,keeper_pct=10,database_pct=10,binary=on",
+                  p.string() + " production row holds the defaults (jtext, sql, 10, 10, on)");
+        } catch (const std::exception& e) {
+            check(false, std::string("load_production_settings: ") + e.what());
+        }
     }
 
     if (failures == 0) std::cout << "settings_tables_test: all passed\n";

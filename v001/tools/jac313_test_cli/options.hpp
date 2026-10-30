@@ -29,6 +29,8 @@ struct GlobalOptions {
     std::string pg_cleanup;              // --pg-cleanup keep-last|delete (empty = keep-last)
     std::filesystem::path summary_json;  // --summary-json PATH: JSON summary for Jac313Runner
     std::string size_override;           // --size smoke|full (overrides tests/test_params.jtext)
+    std::string production;              // --production SPEC: the bench's production run (overrides the
+                                         // production row of tests/test_params*.jtext)
     std::string pg_remote;               // --pg-remote "host=.. dbname=.. user=..": sets $JAC313_PG_REMOTE
     std::string pg_local;                // --pg-local  "...": sets $JAC313_PG_LOCAL (default localhost)
     std::filesystem::path connections;   // --connections FILE (jText; see connections.hpp)

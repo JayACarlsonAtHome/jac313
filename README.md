@@ -39,6 +39,14 @@ This version has been tested on Fedora 44 and RHEL 9.8. Before this version it w
 
 ## Results — what to expect
 
+The benchmark has three goals:
+
+1. Give you something to test in a production-like environment, so you know what to expect in your own. Its first run, the **production run**, writes a binary replay log, a keeper file (jText, HTML or JSON) and a database (SQLite or PostgreSQL) at the same time, each event going only where its flags send it — a truer representation of how a production machine would actually be running. You pick the keeper file, the database and how many events go to each in Jac313Runner (or in `tests/test_params.jtext`).
+2. Be the framework for timing future contracts, and how the four contract modes (enforce, observe, quick_enforce, ignore) affect your environment.
+3. Give compiler builders and CMake a good, easy way to benchmark their products: `./jac313_test_cli --bench`.
+
+The production run reports three numbers: how fast your program can log (the hot path), how long each sink takes to get everything to disk (its drain time), and the whole run from start to exit. This is new; before, the bench only timed one sink at a time, which is not how a real program runs. See [Benchmarks](v002/docs/Benchmarks.md).
+
 The results database has been scrubbed. When you run it, the database is rebuilt.
 
 Performance on my machine does not equal performance on your machine. Some steps are tuned before the big runs.

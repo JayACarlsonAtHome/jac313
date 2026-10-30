@@ -28,6 +28,13 @@
 //   SIZE       smoke | full | bench  (smoke = default; full uses per-test scaling via
 //              test_params_full.jtext; bench is test_params_bench.jtext)
 //   OS_ID      optional (e.g. OS_001) for test-results/OS_001/... layout
+// production: one row, the bench's production run (store_bench --production; see docs/Benchmarks.md).
+//   keeper_sink    jtext | html | json         the keeper file: only events flagged KeeperRecord
+//   database_sink  sql | pg-local | pg-remote  the database: only events flagged DatabaseEntry
+//   keeper_pct     0..100  % of events flagged KeeperRecord
+//   database_pct   0..100  % of events flagged DatabaseEntry
+//   binary         true = also write the binary replay log (every event)
+//   Jac313Runner shows and saves this row (Persist to box); jac313_test_cli --bench passes it on.
 //
 === jText File ===
  1. ?# test_params_bench.jtext
@@ -56,6 +63,20 @@
 === Data ===
  1. |# 1|DISK_TYPE|xssd
  1. |# 2|SIZE|bench
+=== End Data ===
+=== End Section ===
+
+=== Section: production ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# keeper_sink/String/Not Null/Not Empty     # jtext | html | json
+ 3. /# database_sink/String/Not Null/Not Empty   # sql | pg-local | pg-remote
+ 4. /# keeper_pct/Integer/Not Null               # 0..100
+ 5. /# database_pct/Integer/Not Null             # 0..100
+ 6. /# binary/Bool/Not Null                      # the binary replay log
+=== End Fields ===
+=== Data ===
+ 1. |# 1|jtext|sql|10|10|true
 === End Data ===
 === End Section ===
 === End File ===

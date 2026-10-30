@@ -43,7 +43,7 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 - [**Categories**](docs/store/categories.md) — how events are categorized and sized (`bounded_string`, payload caps)
 - [**Flags**](docs/store/flags.md) — the complete `StoreFlags` catalog: every bit, its meaning, and an honest wired / advisory / placeholder status
 - [**Routing**](docs/store/bitmaps.md) — how flags + `PersistMode` route events (keeper vs database masks)
-- [**Persistence**](docs/store/persistence.md) — the sinks: binary, jText, HTML, JSON, SQL, flag-routing; the binary log + reader
+- [**Persistence**](docs/store/persistence.md) — the sinks: binary, jText, HTML, JSON, SQL; several at once, routed by flags; the binary log + reader
 - [**Reporting**](docs/store/reporting.md) — reading the logs back: jText, HTML, JSON, SQL, binary + readers
 
 ---
@@ -118,7 +118,7 @@ For more details on the project, see the docs in [docs/](docs/) (listed under Do
 | [docs/Architecture.md](docs/Architecture.md) | Layout, the umbrella model, the test pipeline, customization, design principles |
 | [docs/Verify.md](docs/Verify.md) | valgrind memcheck + helgrind/DRD — method, the tail-reader data race found & fixed, results, and honest limits |
 | [docs/Maturity.md](docs/Maturity.md) | Honest self-assessment on a 12-level scale — where jac313 sits (7.5), and why that's a deliberate ceiling |
-| [docs/Benchmarks.md](docs/Benchmarks.md) | **How to run the throughput suite** — `store_bench --suite` / `--report`, the curated 14 configs, the `--dry-run` command list, and a DB-backed [results page](test-summary/) |
+| [docs/Benchmarks.md](docs/Benchmarks.md) | **Why and how to run the throughput suite** — the production run first (keeper file + database + binary replay log at once, events routed by flags; hot path, drain times, durable total), then each sink alone and the flag sweep; contract modes; compiler / CMake comparisons; and a DB-backed [results page](test-summary/) |
 | [docs/Results.md](docs/Results.md) | v002 results — recorded per-platform in `results.db` and rendered under [test-summary/](test-summary/) (median + low–high band) |
 | Package READMEs | [jText](jText/README.md) · [Store](Store/README.md) |
 

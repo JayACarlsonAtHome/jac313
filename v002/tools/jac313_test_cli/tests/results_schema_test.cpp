@@ -71,6 +71,11 @@ int main() {
             check(cols > 0 && cols == nn, "every column NOT NULL in " + t);
         }
 
+        // Schema 2: the production bench run's hot-path ops/sec and its three drain times.
+        for (const char* col : {"hot_ops", "drain_keeper_ms", "drain_database_ms", "drain_binary_ms"})
+            check(one_int(db, std::string("SELECT COUNT(*) FROM pragma_table_info('testRun') WHERE name='") + col + "'") == 1,
+                  std::string("testRun has ") + col);
+
         bool threw = false;
         try {
             db.exec("INSERT INTO parameter(compiler_id, size) VALUES(1, NULL)");
