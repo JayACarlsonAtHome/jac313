@@ -63,6 +63,25 @@ std::int64_t run(D& db, const Dialect& d, const std::string& sql,
     return db.changes();
 }
 
+/// The first column of every row a catalog SELECT returns (no values to bind), in order;
+/// `skip` names left out. Errors as text.
+template<Qlite::v001::Database D>
+std::expected<std::vector<std::string>, std::string> read_names(D& db, const Dialect& d, const std::string& sql,
+                                                                const std::vector<std::string_view>& skip = {}) {
+    std::vector<std::string> names;
+    try {
+        debug_log(std::format("{} SQL: {}", d.log, sql));
+        auto st = db.prepare(sql);
+        while (st.step()) {
+            auto name = st.template get_at<std::string>(0);
+            if (std::ranges::find(skip, std::string_view(name)) == skip.end()) names.push_back(std::move(name));
+        }
+    } catch (const Qlite::v001::Error& e) {
+        return std::unexpected(std::string(e.what()));
+    }
+    return names;
+}
+
 /// The rows of a SELECT as records, each column a line (SQL NULL: a {NULL} line).
 template<class Statement>
 std::expected<void, std::string> read_records(Statement& st, DbQueryResult& out) {

@@ -25,6 +25,8 @@ public:
     bool is_connected() const override { return false; }
     std::string last_error() const override { return why_; }
     std::expected<void, std::string> ping() override { return std::unexpected(why_); }
+    std::expected<std::vector<std::string>, std::string> list_databases() override { return std::unexpected(why_); }
+    std::expected<std::vector<std::string>, std::string> list_tables() override { return std::unexpected(why_); }
     std::expected<DbQueryResult, std::string> query(std::string_view, std::string_view, int) override {
         return std::unexpected(why_);
     }

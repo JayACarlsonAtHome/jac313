@@ -61,6 +61,22 @@ public:
         return {};
     }
 
+    std::expected<std::vector<std::string>, std::string> list_databases() override {
+        if (!is_connected()) return std::unexpected("postgres: not connected");
+        return qlite_store::read_names(*db_, kPostgres,
+                                       "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname");
+    }
+
+    // A table in public is named without its schema, as query() takes it.
+    std::expected<std::vector<std::string>, std::string> list_tables() override {
+        if (!is_connected()) return std::unexpected("postgres: not connected");
+        return qlite_store::read_names(
+            *db_, kPostgres,
+            "SELECT CASE WHEN table_schema = 'public' THEN table_name ELSE table_schema || '.' || table_name END "
+            "FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema') "
+            "AND table_type = 'BASE TABLE' ORDER BY 1");
+    }
+
     std::expected<DbQueryResult, std::string> query(std::string_view table, std::string_view where,
                                                     int limit) override {
         if (!is_connected()) return std::unexpected("postgres: not connected");

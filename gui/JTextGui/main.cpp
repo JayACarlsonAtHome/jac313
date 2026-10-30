@@ -104,8 +104,10 @@ struct ConnectDlg : TopWindow {
 	typedef ConnectDlg CLASSNAME;
 
 	DropList  saved, kind;
-	EditString host, port, user, pass, database, file;
-	Button    browse, saveFile, connectBtn, test, closeBtn;
+	EditString host, port, user, pass, file;
+	// Typed, or picked from what List read from the server.
+	WithDropChoice<EditString> database;
+	Button    browse, listDbs, saveFile, connectBtn, test, closeBtn;
 	Label     status, lSaved, lKind, lHost, lPort, lUser, lPass, lDb, lFile;
 	std::string path;
 	std::vector<jtext_gui::SavedConnection> servers;
@@ -132,6 +134,7 @@ struct ConnectDlg : TopWindow {
 		lDb.SetText("Database");
 		lFile.SetText("SQLite file");
 		browse.SetLabel("...");
+		listDbs.SetLabel("List");
 		saveFile.SetLabel("Save to file");
 		connectBtn.SetLabel("Connect");
 		test.SetLabel("Test Connection");
@@ -154,7 +157,8 @@ struct ConnectDlg : TopWindow {
 		Add(pass.HSizePosZ(336, 12).TopPosZ(y, 24));
 		y += 32;
 		Add(lDb.LeftPosZ(12, 70).TopPosZ(y, 22));
-		Add(database.HSizePosZ(88, 12).TopPosZ(y, 24));
+		Add(database.HSizePosZ(88, 90).TopPosZ(y, 24));
+		Add(listDbs.RightPosZ(12, 70).TopPosZ(y, 24));
 		y += 32;
 		Add(lFile.LeftPosZ(12, 78).TopPosZ(y, 22));
 		Add(file.HSizePosZ(96, 48).TopPosZ(y, 24));
@@ -169,6 +173,7 @@ struct ConnectDlg : TopWindow {
 		kind.WhenAction = THISBACK(ShowKind);
 		saved.WhenAction = THISBACK(PickSaved);
 		browse.WhenAction = THISBACK(BrowseFile);
+		listDbs.WhenAction = THISBACK(ListDatabases);
 		saveFile.WhenAction = THISBACK(SaveServer);
 		test.WhenAction = THISBACK(TestConnection);
 		connectBtn.WhenAction = THISBACK(OnConnect);
@@ -189,7 +194,8 @@ struct ConnectDlg : TopWindow {
 		port.Enable(!sqlite);
 		user.Enable(!sqlite);
 		pass.Enable(!sqlite);
-		database.Enable(true);
+		database.Enable(!sqlite);
+		listDbs.Enable(!sqlite);
 		file.Enable(sqlite);
 		browse.Enable(sqlite);
 		saveFile.Enable(!sqlite);
@@ -321,6 +327,34 @@ struct ConnectDlg : TopWindow {
 			return false;
 		}
 		return true;
+	}
+
+	// Connect without a database (PostgreSQL: to postgres) and fill the Database
+	// drop-down with the server's databases. A name already there stays when listed.
+	void ListDatabases() {
+		jtext_gui::ConnectionInfo info;
+		if (!ReadInfo(info) || info.kind == jtext_gui::SessionKind::Sqlite) return;
+		const String want = TrimBoth(Field(database));
+		info.database = info.kind == jtext_gui::SessionKind::PostgreSQL ? "postgres" : "";
+		auto made = jtext_gui::make_db_store(info.kind);
+		if (!made || !made->connect(info)) {
+			String why = made ? S(made->last_error()) : String();
+			if (TrimBoth(why).IsEmpty()) why = "Could not connect.";
+			SetStatus("List failed.", true);
+			Tell(why);
+			return;
+		}
+		auto names = made->list_databases();
+		made->disconnect();
+		if (!names) {
+			SetStatus("List failed.", true);
+			Tell(S(names.error()));
+			return;
+		}
+		database.ClearList();
+		for (const auto& n : *names) database.AddList(S(n));
+		if (!names->empty() && database.Find(want) < 0) database <<= S(names->front());
+		SetStatus(Format("%d database(s) on the server. Pick one, then Connect.", (int)names->size()), false);
 	}
 
 	void OnConnect() {
@@ -975,7 +1009,9 @@ struct JTextGui : TopWindow {
 
 	MenuBar menu;
 	Label lTable, lWhere, lFilter, connStatus, status, lMarker, hint;
-	EditString table, where, filter, marker;
+	EditString where, filter, marker;
+	// Typed, or picked from the connected database's tables.
+	WithDropChoice<EditString> table;
 	// A jText file's sections (dev, test, prod, ...): pick the one to edit. Shown when the
 	// file has more than one.
 	Label lSection;
@@ -2634,9 +2670,24 @@ struct JTextGui : TopWindow {
 				label = String(jtext_gui::session_kind_name(conn.kind)) + " " +
 				        S(conn.username) + "@" + S(conn.host) + "/" + S(conn.database);
 			connStatus.SetText(label);
-			Status("Connected. Set the table and WHERE, then Pull.");
+			FillTables();
 		};
 		dlg.Run();
+	}
+
+	// The Table drop-down: the connected database's tables. A typed name that is listed
+	// stays; otherwise the first table is picked.
+	void FillTables() {
+		table.ClearList();
+		auto names = store->list_tables();
+		if (!names) {
+			Status("Connected, but the tables could not be listed (" + S(names.error()) +
+			       "). Type the table and WHERE, then Pull.");
+			return;
+		}
+		for (const auto& n : *names) table.AddList(S(n));
+		if (!names->empty() && table.Find(TrimBoth(Field(table))) < 0) table <<= S(names->front());
+		Status(Format("Connected: %d table(s). Pick the table, set WHERE, then Pull.", (int)names->size()));
 	}
 
 	void Pull() {

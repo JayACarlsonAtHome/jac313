@@ -48,6 +48,13 @@ public:
         return {};
     }
 
+    // The file is the database: list_databases() stays unsupported.
+    std::expected<std::vector<std::string>, std::string> list_tables() override {
+        if (!db_) return std::unexpected("sqlite: not connected");
+        return qlite_store::read_names(
+            *db_, kSqlite, "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+    }
+
     std::expected<DbQueryResult, std::string> query(std::string_view table, std::string_view where,
                                                     int limit) override {
         if (!db_) return std::unexpected("sqlite: not connected");

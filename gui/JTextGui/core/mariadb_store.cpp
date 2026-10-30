@@ -87,6 +87,19 @@ public:
         return {};
     }
 
+    std::expected<std::vector<std::string>, std::string> list_databases() override {
+        if (!db_) return std::unexpected("mariadb: not connected");
+        return qlite_store::read_names(*db_, kMariaDB, "SHOW DATABASES",
+                                       {"information_schema", "performance_schema", "mysql", "sys"});
+    }
+
+    std::expected<std::vector<std::string>, std::string> list_tables() override {
+        if (!db_) return std::unexpected("mariadb: not connected");
+        return qlite_store::read_names(*db_, kMariaDB,
+                                       "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() "
+                                       "AND table_type = 'BASE TABLE' ORDER BY 1");
+    }
+
     std::expected<DbQueryResult, std::string> query(std::string_view table, std::string_view where,
                                                     int limit) override {
         if (!db_) return std::unexpected("mariadb: not connected");

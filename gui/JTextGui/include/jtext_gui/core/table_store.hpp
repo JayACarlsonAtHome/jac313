@@ -108,6 +108,16 @@ public:
     [[nodiscard]] virtual std::expected<void, std::string> ping() {
         return std::unexpected(std::string("SELECT 1 is not available"));
     }
+    /// The databases this server holds, sorted, without the system ones. Connect first (a
+    /// PostgreSQL connection to database postgres, a MariaDB one with no database).
+    [[nodiscard]] virtual std::expected<std::vector<std::string>, std::string> list_databases() {
+        return std::unexpected(std::string("listing databases is not supported"));
+    }
+    /// The connected database's tables, sorted, without the system ones (and without a
+    /// PostgreSQL table's schema when it is public): names query() takes.
+    [[nodiscard]] virtual std::expected<std::vector<std::string>, std::string> list_tables() {
+        return std::unexpected(std::string("listing tables is not supported"));
+    }
 
     /// Pull a table slice. `where` is optional raw predicate (v1); prefer empty or simple forms.
     /// Implementations must reject unsafe table names (identifier check). The records come
