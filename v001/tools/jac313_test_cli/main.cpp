@@ -674,7 +674,7 @@ std::string database_backend(const std::string& persist) {
     return (b == "sql" || b == "pg-local" || b == "pg-remote") ? b : std::string();
 }
 
-// " (#2)" after a database backend: the server run `run_id` wrote it to (run_target), so runs against
+// " (r430)" after a database backend: the server run `run_id` wrote it to (run_target), so runs against
 // different servers are different rows. "" for a file, SQLite (no server) or an unrecorded run.
 std::string server_tag(jac313::Qlite::v001::Sqlite& db, std::int64_t run_id, const std::string& persist) {
     const std::string backend = database_backend(persist);
@@ -879,7 +879,7 @@ ConfigColumns config_columns(const std::vector<std::pair<std::int64_t, RunConfig
     return cc;
 }
 
-// "sql, pg-remote (#2), jtext": what run `run_id` wrote to (run_target, the registry excepted); ""
+// "sql, pg-remote (r430), jtext": what run `run_id` wrote to (run_target, the registry excepted); ""
 // when it wrote nothing.
 std::string written_to(jac313::Qlite::v001::Sqlite& db, std::int64_t run_id) {
     auto st = db.prepare("SELECT DISTINCT backend, server FROM run_target WHERE run_id=? AND role<>'registry' "
@@ -1408,7 +1408,7 @@ void write_servers_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
     nav_top(md, "../README.md");
     md << "# Servers\n\n_Generated from `results.db` (`run_target`): every database server a run wrote to, "
           "or reached as the fleet registry, with its databases and tables and the runs that used it. A server "
-          "is named by its connections-file id (`#2`) when it came from that file, else by its host. Files "
+          "is named by its name in the connections file (`r430`), else by its host; one heading per name and address. Files "
           "(jtext, html, json, binary) are listed on each run's page._\n";
     // One table per (server, address, port): database · table · roles · runs.
     auto table = [&](const std::string& where_sql, auto&&... binds) {
@@ -2888,8 +2888,8 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
     emit("set -euo pipefail");
     emit("cd \"" + root.string() + "\"");
     // PostgreSQL servers chosen for this run (no passwords: libpq reads ~/.pgpass / $PGPASSFILE)
-    // (and the connections-file row each came from, which names the server in results.db)
-    for (const char* var : {"JAC313_PG_REMOTE", "JAC313_PG_LOCAL", "JAC313_PG_REMOTE_ID", "JAC313_PG_LOCAL_ID"})
+    // (and each one's name from the connections file, which names the server in results.db)
+    for (const char* var : {"JAC313_PG_REMOTE", "JAC313_PG_LOCAL", "JAC313_PG_REMOTE_NAME", "JAC313_PG_LOCAL_NAME"})
         if (const char* val = std::getenv(var); val && *val) emit(std::string("export ") + var + "=" + shell_quote(val));
     emit("CLI=\"" + self.string() + "\"");
     // Every gate records into results.db; render the report pages ONCE at the end, also when a
@@ -3635,8 +3635,7 @@ static int run_main(int argc, char** argv) {
                     std::exit(2);   // parse_common returns nothing (like --help's exit)
                 }
                 (arg == "--pg-remote" ? global.pg_remote : global.pg_local) = ci;
-                ::setenv(arg == "--pg-remote" ? "JAC313_PG_REMOTE" : "JAC313_PG_LOCAL", ci.c_str(), 1);
-                ::unsetenv(arg == "--pg-remote" ? "JAC313_PG_REMOTE_ID" : "JAC313_PG_LOCAL_ID");   // not a file row
+                replace_pg_server(arg == "--pg-remote", ci);   // keeps the file's name for the same host
             } else if (arg == "--compiler" && i + 1 < argc) {
                 configure_opts.compiler = argv[++i];
             } else if (arg == "--gcc") {

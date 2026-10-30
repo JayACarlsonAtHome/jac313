@@ -118,7 +118,7 @@ int main() {
               "run_target is indexed on run_id");
 
         // A TARGET line (Store's print_targets) parses; a PostgreSQL target is named by its
-        // connections-file id when there is one, else by its host; a repeated target is one row.
+        // connections-file name when there is one, else by its host; a repeated target is one row.
         R::RunTarget t;
         check(R::parse_target_line("TARGET role=persist backend=sql host=\"\" address=\"\" port=0 "
                                    "dbname=\"/tmp/a b.db\" table=\"persist_ints\"", t)
@@ -130,19 +130,19 @@ int main() {
             "TARGET role=database backend=pg-remote host=\"db1\" address=\"10.0.0.5\" port=5432 dbname=\"jac313\" "
             "table=\"store_test.x\"\n");
         check(lines.size() == 2 && lines[1].port == 5432 && lines[1].address == "10.0.0.5", "parse_target_lines finds both");
-        ::unsetenv("JAC313_PG_REMOTE_ID");
+        ::unsetenv("JAC313_PG_REMOTE_NAME");
         R::insert_run_targets(db, 7, lines);
         R::insert_run_targets(db, 7, lines);
         check(one_int(db, "SELECT COUNT(*) FROM run_target WHERE run_id=7") == 2, "a repeated target is recorded once");
         check(one_int(db, "SELECT COUNT(*) FROM run_target WHERE backend='pg-remote' AND server='db1'") == 1,
-              "a PostgreSQL server without a connections-file id is named by its host");
+              "a PostgreSQL server without a connections-file name is named by its host");
         check(one_int(db, "SELECT COUNT(*) FROM run_target WHERE backend='jtext' AND server=''") == 1,
               "a file has no server");
-        ::setenv("JAC313_PG_REMOTE_ID", "2", 1);
+        ::setenv("JAC313_PG_REMOTE_NAME", "r430", 1);
         R::insert_run_targets(db, 8, {lines[1]});
-        ::unsetenv("JAC313_PG_REMOTE_ID");
-        check(one_int(db, "SELECT COUNT(*) FROM run_target WHERE run_id=8 AND server='#2'") == 1,
-              "a server from the connections file is named by its id");
+        ::unsetenv("JAC313_PG_REMOTE_NAME");
+        check(one_int(db, "SELECT COUNT(*) FROM run_target WHERE run_id=8 AND server='r430'") == 1,
+              "a server from the connections file is named by its name");
 
         // Schema 5: os and machine replace host_spec; run carries os_id + machine_id (NOT NULL, no
         // default: a run row always names both); the per-machine tables key on machine_id.

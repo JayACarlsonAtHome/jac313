@@ -324,6 +324,7 @@ bool LoadConnections(const String& path, Vector<ConnRow>& rows, String& err)
 		if(cb < 0 || ch < 0)
 			continue;
 		int cp = col("port"), cd = col("dbname"), cu = col("user"), ct = col("connect_timeout"), cn = col("notes");
+		int cm = col("name");   // absent in a file written before it: every name ''
 		for(const Vector<String>& r : s.rows) {
 			auto get = [&](int c) {
 				if(c < 0 || c >= r.GetCount() || r[c] == JNull())
@@ -338,6 +339,7 @@ bool LoadConnections(const String& path, Vector<ConnRow>& rows, String& err)
 			cr.user = get(cu);
 			cr.timeout = get(ct);
 			cr.notes = get(cn);
+			cr.name = get(cm);
 			if(cr.backend.GetCount() && cr.host.GetCount())
 				rows.Add(pick(cr));
 		}
@@ -378,6 +380,7 @@ String ConnectionsText(const Vector<ConnRow>& rows)
 		{ "user/String",               "" },
 		{ "connect_timeout/Number",    "seconds" },
 		{ "notes/String",              "" },
+		{ "name/String",               "the server's name on every report ('' = its host)" },
 	};
 	for(int i = 0; i < __countof(fields); i++) {
 		std::vector<std::string> levels;
@@ -386,18 +389,13 @@ String ConnectionsText(const Vector<ConnRow>& rows)
 		w.append_row(i + 1, levels, fields[i][1], U'/');
 	}
 	w.begin_data();
-	auto val = [](const String& v) -> std::optional<std::string> {   // empty = NULL
-		if(v.IsEmpty())
-			return std::nullopt;
-		return v.ToStd();
-	};
 	for(int i = 0; i < rows.GetCount(); i++) {
 		const ConnRow& r = rows[i];
 		JTextEntry e;
 		e.number = 1;
 		e.fields = { std::to_string(i + 1), r.backend.ToStd(), r.host.ToStd(),
-		             (r.port.GetCount() ? r.port : String("5432")).ToStd(), val(r.dbname), val(r.user),
-		             (r.timeout.GetCount() ? r.timeout : String("10")).ToStd(), val(r.notes) };
+		             (r.port.GetCount() ? r.port : String("5432")).ToStd(), r.dbname.ToStd(), r.user.ToStd(),
+		             (r.timeout.GetCount() ? r.timeout : String("10")).ToStd(), r.notes.ToStd(), r.name.ToStd() };   // '' = none, never {NULL}
 		w.append_entry(e);
 		w.end_record();
 	}

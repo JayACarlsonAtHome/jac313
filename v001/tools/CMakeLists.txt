@@ -88,6 +88,20 @@ endif()
 target_compile_definitions(jac313_settings_tables_test PRIVATE JAC313_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 add_test(NAME jac313_settings_tables_test COMMAND jac313_settings_tables_test)
 
+# The PostgreSQL connections file (connections.cpp): the name column (absent in older files),
+# writing it back, and the name naming the server in results.db.
+add_executable(jac313_connections_test
+    jac313_test_cli/connections.cpp
+    jac313_test_cli/tests/connections_test.cpp
+)
+target_include_directories(jac313_connections_test PRIVATE jac313_test_cli ${CMAKE_SOURCE_DIR}/shared)
+target_compile_features(jac313_connections_test PRIVATE cxx_std_23)
+target_link_libraries(jac313_connections_test PRIVATE jac313::jText)
+if(TARGET jac313::Qlite)
+    target_link_libraries(jac313_connections_test PRIVATE jac313::Qlite)
+endif()
+add_test(NAME jac313_connections_test COMMAND jac313_connections_test)
+
 # Setup/jtext_table.sh: the sh + awk reader bsir.sh uses on compilers.jtext and recipes.jtext.
 add_test(NAME jac313_jtext_table_sh_test COMMAND bash ${CMAKE_SOURCE_DIR}/Setup/jtext_table_test.sh)
 

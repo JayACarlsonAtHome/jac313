@@ -85,7 +85,8 @@ bool load_connections(const fs::path& file, std::vector<PgConnection>& out, std:
             return -1;
         };
         const int cb = col("backend"), ch = col("host"), cp = col("port"), cd = col("dbname"),
-                  cu = col("user"), ct = col("connect_timeout"), cn = col("notes"), ci = col("id");
+                  cu = col("user"), ct = col("connect_timeout"), cn = col("notes"), ci = col("id"),
+                  cm = col("name");   // absent in a file written before it: every name ''
         if (cb < 0 || ch < 0) continue;   // not a connections section
         for (const auto& rec : sec.records) {
             auto get = [&](int c) -> std::string {
@@ -93,7 +94,7 @@ bool load_connections(const fs::path& file, std::vector<PgConnection>& out, std:
                 const std::string& v = rec.values[c];
                 return v == jtext::kNullValue ? std::string{} : v;   // {NULL}: no value (SPEC 2.6.1)
             };
-            PgConnection pc{get(cb), get(ch), get(cp), get(cd), get(cu), get(ct), get(cn), get(ci)};
+            PgConnection pc{get(cb), get(ch), get(cp), get(cd), get(cu), get(ct), get(cn), get(ci), get(cm)};
             if (pc.backend.empty() || pc.host.empty()) continue;
             out.push_back(std::move(pc));
         }
@@ -109,13 +110,46 @@ void apply_connections(const std::vector<PgConnection>& rows, bool overwrite,
         if (!remote && r.backend != "pg-local") continue;
         if ((remote && skip_remote) || (!remote && skip_local)) continue;
         const char* var = remote ? "JAC313_PG_REMOTE" : "JAC313_PG_LOCAL";
-        const char* id_var = remote ? "JAC313_PG_REMOTE_ID" : "JAC313_PG_LOCAL_ID";
+        const char* name_var = remote ? "JAC313_PG_REMOTE_NAME" : "JAC313_PG_LOCAL_NAME";
         const char* cur = std::getenv(var);
-        if (!overwrite && cur && *cur) continue;   // the environment's server wins (and keeps its id)
+        if (!overwrite && cur && *cur) continue;   // the environment's server wins (and keeps its name)
         ::setenv(var, r.conninfo().c_str(), 1);
-        if (r.id.empty()) ::unsetenv(id_var);
-        else ::setenv(id_var, r.id.c_str(), 1);
+        if (r.name.empty()) ::unsetenv(name_var);
+        else ::setenv(name_var, r.name.c_str(), 1);
     }
+}
+
+std::string conninfo_host(const std::string& conninfo) {
+    std::size_t at = 0;
+    while (at < conninfo.size()) {
+        while (at < conninfo.size() && conninfo[at] == ' ') ++at;
+        const auto eq = conninfo.find('=', at);
+        if (eq == std::string::npos) break;
+        const std::string key = conninfo.substr(at, eq - at);
+        std::string val;
+        std::size_t j = eq + 1;
+        if (j < conninfo.size() && conninfo[j] == '\'') {   // 'quoted', \ escapes
+            for (++j; j < conninfo.size() && conninfo[j] != '\''; ++j) {
+                if (conninfo[j] == '\\' && j + 1 < conninfo.size()) ++j;
+                val += conninfo[j];
+            }
+            ++j;
+        } else {
+            while (j < conninfo.size() && conninfo[j] != ' ') val += conninfo[j++];
+        }
+        if (key == "host") return val;
+        at = j;
+    }
+    return {};
+}
+
+void replace_pg_server(bool remote, const std::string& conninfo) {
+    const char* var = remote ? "JAC313_PG_REMOTE" : "JAC313_PG_LOCAL";
+    const char* name_var = remote ? "JAC313_PG_REMOTE_NAME" : "JAC313_PG_LOCAL_NAME";
+    const char* cur = std::getenv(var);
+    const std::string old_host = conninfo_host(cur ? cur : "");
+    if (old_host.empty() || old_host != conninfo_host(conninfo)) ::unsetenv(name_var);   // another server
+    ::setenv(var, conninfo.c_str(), 1);
 }
 
 void apply_password_files(const fs::path& secrets_dir) {
@@ -137,53 +171,95 @@ void apply_password_files(const fs::path& secrets_dir) {
     }
 }
 
+std::string connections_text(const std::vector<PgConnection>& rows, const std::vector<std::string>& comments) {
+    std::string t;
+    for (const auto& c : comments) t += c + "\n";
+    t += "=== jText File ===\n"
+         " 1. #?# jac313_connections\n"
+         " 3. #?# PostgreSQL connections for jac313 / Jac313Runner\n"
+         "\n\n"
+         "=== Section: connections ===\n"
+         "\n\n"
+         "=== Fields ===\n";
+    static const char* const fields[][2] = {
+        {"id/Identity(1,1)/Not Null", "record id"},
+        {"backend/String/Not Null", "pg-local | pg-remote"},
+        {"host/String/Not Null", "host name or IP address"},
+        {"port/Number", "5432 is PostgreSQL's usual port"},
+        {"dbname/String", ""},
+        {"user/String", ""},
+        {"connect_timeout/Number", "seconds"},
+        {"notes/String", ""},
+        {"name/String", "the server's name on every report ('' = its host)"},
+    };
+    int n = 0;
+    for (const auto& f : fields) {
+        std::string line = " " + std::to_string(++n) + ". #/# " + f[0];
+        if (*f[1]) line += std::string(line.size() < 38 ? 38 - line.size() : 1, ' ') + "# " + f[1];
+        t += line + "\n";
+    }
+    t += "=== End Fields ===\n\n\n=== Data ===\n";
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        const auto& r = rows[i];
+        t += "1. #|# " + (r.id.empty() ? std::to_string(i + 1) : r.id) + "|" + r.backend + "|" + r.host + "|"
+             + (r.port.empty() ? std::string("5432") : r.port) + "|" + r.dbname + "|" + r.user + "|"
+             + (r.connect_timeout.empty() ? std::string("10") : r.connect_timeout) + "|" + r.notes + "|"
+             + r.name + "\n\n";
+    }
+    t += "=== End Data ===\n"
+         "=== End Section ===\n"
+         "=== End File ===\n";
+    return t;
+}
+
+bool save_connections(const fs::path& file, const std::vector<PgConnection>& rows, std::string& err) {
+    std::vector<std::string> comments;   // the file's own leading // lines are kept as they are
+    {
+        std::ifstream in(file);
+        for (std::string line; std::getline(in, line) && line.rfind("//", 0) == 0;) comments.push_back(line);
+    }
+    if (comments.empty())
+        comments = {"//File:    jac313_connections.jtext",
+                    "//Purpose: PostgreSQL servers for jac313 test runs (pg-local / pg-remote).",
+                    "//         Keep this file OUTSIDE every git project. No passwords here: they go in",
+                    "//         jac313_pg_local.pgpass / jac313_pg_remote.pgpass beside it. Jac313Runner writes it; safe to edit by hand.",
+                    "//"};
+    std::error_code ec;
+    fs::create_directories(file.parent_path(), ec);
+    std::ofstream out(file, std::ios::trunc);
+    if (!(out << connections_text(rows, comments)) || !out.flush()) { err = "cannot write " + file.string(); return false; }
+    fs::permissions(file, fs::perms::owner_read | fs::perms::owner_write, fs::perm_options::replace, ec);
+    return true;
+}
+
 std::string connections_template() {
-    return
-        "//File:    jac313_connections.jtext\n"
-        "//Purpose: PostgreSQL servers for jac313 test runs (pg-local / pg-remote).\n"
-        "//         Keep this file OUTSIDE every git project. No passwords here: they go in\n"
-        "//         jac313_pg_local.pgpass / jac313_pg_remote.pgpass beside it. Jac313Runner writes it; safe to edit by hand.\n"
-        "//         Fill in pg-remote's host (and dbname / user if they differ), or delete that row.\n"
-        "//\n"
-        "=== jText File ===\n"
-        " 1. #?# jac313_connections\n"
-        " 3. #?# PostgreSQL connections for jac313 / Jac313Runner\n"
-        "\n\n"
-        "=== Section: connections ===\n"
-        "\n\n"
-        "=== Fields ===\n"
-        " 1. #/# id/Identity(1,1)/Not Null     # record id\n"
-        " 2. #/# backend/String/Not Null       # pg-local | pg-remote\n"
-        " 3. #/# host/String/Not Null          # host name or IP address\n"
-        " 4. #/# port/Number                   # 5432 is PostgreSQL's usual port\n"
-        " 5. #/# dbname/String\n"
-        " 6. #/# user/String\n"
-        " 7. #/# connect_timeout/Number        # seconds\n"
-        " 8. #/# notes/String\n"
-        "=== End Fields ===\n"
-        "\n\n"
-        "=== Data ===\n"
-        "1. #|# 1|pg-local|localhost|5432|jac313|jac313|10|this machine\n"
-        "\n"
-        "1. #|# 2|pg-remote|your-server.example|5432|jac313|jac313|10|your own server\n"
-        "\n"
-        "=== End Data ===\n"
-        "=== End Section ===\n"
-        "=== End File ===\n";
+    PgConnection local{"pg-local", "localhost", "5432", "jac313", "jac313", "10", "this machine", "1", "local"};
+    PgConnection remote{"pg-remote", "your-server.example", "5432", "jac313", "jac313", "10", "your own server", "2", ""};
+    return connections_text({local, remote},
+        {"//File:    jac313_connections.jtext",
+         "//Purpose: PostgreSQL servers for jac313 test runs (pg-local / pg-remote).",
+         "//         Keep this file OUTSIDE every git project. No passwords here: they go in",
+         "//         jac313_pg_local.pgpass / jac313_pg_remote.pgpass beside it. Jac313Runner writes it; safe to edit by hand.",
+         "//         Fill in pg-remote's host and name (and dbname / user if they differ), or delete that row.",
+         "//"});
 }
 
 int run_connections_command(int argc, char** argv, int first_arg) {
     fs::path file;
     bool init = false;
+    std::vector<std::pair<std::string, std::string>> set_names;   // (row id, name)
     for (int i = first_arg; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--file" && i + 1 < argc) file = argv[++i];
         else if (a == "--init") init = true;
+        else if (a == "--set-name" && i + 2 < argc) { set_names.emplace_back(argv[i + 1], argv[i + 2]); i += 2; }
         else if (a == "--help" || a == "-h") {
-            std::cout << "connections [--file PATH] [--init]\n"
+            std::cout << "connections [--file PATH] [--init] [--set-name ID NAME]...\n"
                          "  Show the PostgreSQL connections file (default: a SQL_Secrets folder beside\n"
-                         "  the project, or $JAC313_CONNECTIONS), its rows and its jText check line.\n"
-                         "  --init writes a blank file to fill in when none exists.\n";
+                         "  the project, or $JAC313_CONNECTIONS), its rows (name first) and its jText check line.\n"
+                         "  --init writes a blank file to fill in when none exists.\n"
+                         "  --set-name ID NAME names row ID's server (every report shows the name; \"\" = its\n"
+                         "  host) and writes the file back, with the name column when it had none.\n";
             return 0;
         } else {
             std::cerr << "connections: unknown option " << a << '\n';
@@ -213,7 +289,23 @@ int run_connections_command(int argc, char** argv, int first_arg) {
         std::cout << err << "\nVALIDATION errors=1\n";
         return 1;
     }
-    for (const auto& r : rows) std::cout << "  " << r.backend << "  " << r.conninfo()
+    if (!set_names.empty()) {
+        for (const auto& [id, name] : set_names) {
+            if (name.find_first_of("|\n\r") != std::string::npos) {
+                std::cout << "--set-name: a name cannot hold '|' or a line break\n";
+                return 2;
+            }
+            auto it = std::find_if(rows.begin(), rows.end(), [&](const PgConnection& r) { return r.id == id; });
+            if (it == rows.end()) { std::cout << "--set-name: no row with id " << id << '\n'; return 2; }
+            it->name = name;
+        }
+        if (!save_connections(file, rows, err) || !load_connections(file, rows, err)) {
+            std::cout << err << "\nVALIDATION errors=1\n";
+            return 1;
+        }
+        std::cout << "written: " << file.string() << '\n';
+    }
+    for (const auto& r : rows) std::cout << "  " << (r.name.empty() ? "-" : r.name) << "  " << r.backend << "  " << r.conninfo()
                                          << (r.notes.empty() ? "" : "   # " + r.notes) << '\n';
     std::cout << "VALIDATION errors=0\n";
     return 0;

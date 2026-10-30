@@ -241,8 +241,8 @@ inline void create_results_tables(Sqlite& db) {
     // plus a 'registry' row when the run's process reached the fleet registry server.
     //   role:     persist (a one-sink run) | keeper | database | binary (the production run's sinks) | registry
     //   backend:  sql | pg-local | pg-remote | jtext | html | json | binary
-    //   server:   a PostgreSQL server: its connections-file id ("#2") when the server came from that
-    //             file, else its host name; '' for a file or SQLite
+    //   server:   a PostgreSQL server: its name from the connections file when it has one, else
+    //             its host name; '' for a file or SQLite
     //   address / port: the address and port connected to ('' / 0 for a file or SQLite)
     //   dbname:   the database (SQLite: the .db path); '' for a file sink
     //   table_name: the table (PostgreSQL: schema-qualified), or the file path for a file sink
@@ -928,12 +928,12 @@ inline std::vector<RunTarget> parse_target_lines(const std::string& text) {
     return v;
 }
 
-// The server name recorded for a PostgreSQL target: "#<id>" when $JAC313_PG_REMOTE_ID /
-// $JAC313_PG_LOCAL_ID says the server came from that row of the connections file (jac313_test_cli
-// sets it with the conninfo), else the host name.
+// The server name recorded for a PostgreSQL target: the connections-file row's name when
+// $JAC313_PG_REMOTE_NAME / $JAC313_PG_LOCAL_NAME carries one (jac313_test_cli sets it with the
+// conninfo), else the host name.
 inline std::string pg_server_name(const std::string& backend, const std::string& host) {
-    const char* id = std::getenv(backend == "pg-local" ? "JAC313_PG_LOCAL_ID" : "JAC313_PG_REMOTE_ID");
-    return (id && *id) ? "#" + std::string(id) : host;
+    const char* name = std::getenv(backend == "pg-local" ? "JAC313_PG_LOCAL_NAME" : "JAC313_PG_REMOTE_NAME");
+    return (name && *name) ? std::string(name) : host;
 }
 
 // Record what run `run_id` wrote where: one run_target row per distinct target (a target already

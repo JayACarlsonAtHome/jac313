@@ -71,6 +71,7 @@ struct RunOptions {
 	// The user's own remote PostgreSQL server for "PG remote" (there is no built-in default),
 	// loaded from / saved to the connections file. Never a password: libpq reads it from
 	// ~/.pgpass or $PGPASSFILE.
+	String pgName;                  // the server's name on every report ("" = its host)
 	String pgHost;                  // e.g. 10.0.0.5 or db.example.org ("" = not set)
 	String pgPort;                  // "" = 5432
 	String pgDb       = "jac313";
@@ -93,6 +94,7 @@ const int       kRunnerContract = 4;   // 2: --pg-remote / --pg-local, summary "
 // ---- PostgreSQL connections file (jText; see the CLI's connections.hpp for the layout)
 struct ConnRow : Moveable<ConnRow> {
 	String backend, host, port, dbname, user, timeout, notes;
+	String name;   // the last field: the server's name on every report ("" = its host; absent in older files)
 };
 String          DefaultConnectionsPath(const String& root);   // $JAC313_CONNECTIONS, else <root>/../SQL_Secrets/...
 String          EffectiveConnFile(const RunOptions& o, const String& root);

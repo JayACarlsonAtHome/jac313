@@ -501,8 +501,8 @@ struct Runner : TopWindow {
 	ScrollPane s1p;   // Screen 1's options + command box; the bottom buttons stay outside it
 
 	// ---- Screen 1
-	Label     lRemote, lPgHost, lPgPort, lPgDb, lPgUser;
-	EditString pgHost, pgPort, pgDb, pgUser;
+	Label     lRemote, lPgName, lPgHost, lPgPort, lPgDb, lPgUser;
+	EditString pgName, pgHost, pgPort, pgDb, pgUser;
 	Button    pgTest, pgLTest, pgSetup;
 	Label     lConn, connStatus;
 	EditString connFile;
@@ -865,10 +865,12 @@ Runner::Runner()
 	// Remote PG: the user's own server (no built-in default). No password field on purpose:
 	// libpq reads it from ~/.pgpass or $PGPASSFILE, so it never lands in settings or reports.
 	lRemote.SetText("Remote PG:");
+	lPgName.SetText("Name");
 	lPgHost.SetText("Host");
 	lPgPort.SetText("Port");
 	lPgDb.SetText("Database");
 	lPgUser.SetText("User");
+	pgName.Tip("The server's name on every report (e.g. r430); empty = its host");
 	pgHost.Tip("Host name or IP address of your PostgreSQL server (needed for PG remote)");
 	pgPort.Tip("Empty = 5432");
 	pgTest.SetLabel("Test Remote");
@@ -903,22 +905,24 @@ Runner::Runner()
 	s1p.body.Add(connView.RightPosZ(108, 80).TopPosZ(y + 70, 22));
 	s1p.body.Add(connSave.RightPosZ(20, 80).TopPosZ(y + 70, 22));
 	Place(s1p.body, lRemote, 20, y + 96, 90, 22);
-	Place(s1p.body, lPgHost, 110, y + 96, 36, 22);
-	Place(s1p.body, pgHost, 146, y + 96, 150, 22);
-	Place(s1p.body, lPgPort, 304, y + 96, 32, 22);
-	Place(s1p.body, pgPort, 336, y + 96, 56, 22);
-	Place(s1p.body, lPgDb, 400, y + 96, 62, 22);
-	Place(s1p.body, pgDb, 462, y + 96, 100, 22);
-	Place(s1p.body, lPgUser, 570, y + 96, 34, 22);
-	Place(s1p.body, pgUser, 604, y + 96, 100, 22);
-	Place(s1p.body, pgTest, 712, y + 96, 100, 22);
-	Place(s1p.body, pgLTest, 818, y + 96, 100, 22);
-	Place(s1p.body, connStatus, 110, y + 122, 594, 22);   // short; a long failure is a popup
+	Place(s1p.body, lPgName, 110, y + 96, 40, 22);
+	Place(s1p.body, pgName, 150, y + 96, 76, 22);
+	Place(s1p.body, lPgHost, 232, y + 96, 34, 22);
+	Place(s1p.body, pgHost, 266, y + 96, 120, 22);
+	Place(s1p.body, lPgPort, 392, y + 96, 30, 22);
+	Place(s1p.body, pgPort, 422, y + 96, 50, 22);
+	Place(s1p.body, lPgDb, 478, y + 96, 58, 22);
+	Place(s1p.body, pgDb, 536, y + 96, 80, 22);
+	Place(s1p.body, lPgUser, 622, y + 96, 32, 22);
+	Place(s1p.body, pgUser, 654, y + 96, 80, 22);
+	Place(s1p.body, pgTest, 742, y + 96, 100, 22);
+	Place(s1p.body, pgLTest, 848, y + 96, 100, 22);
+	Place(s1p.body, connStatus, 110, y + 122, 624, 22);   // short; a long failure is a popup
 	pgSetup.SetLabel("Setup Remote PG Server...");
 	pgSetup.Tip("TEST MACHINES ONLY, not a production setup. Make a machine the shared PG remote server "
 	            "(PostgreSQL 18, role + database jac313, logins from your network): over ssh in a terminal, "
 	            "or with the steps shown to run by hand");
-	Place(s1p.body, pgSetup, 712, y + 122, 206, 22);    // under Test Remote .. Test Local
+	Place(s1p.body, pgSetup, 742, y + 122, 206, 22);    // under Test Remote .. Test Local
 	pgSetup << THISBACK(SetupRemotePg);
 	Place(s1p.body, lMaxRuns, 20, y + 148, 70, 22);
 	Place(s1p.body, maxRuns, 92, y + 148, 70, 22);
@@ -980,7 +984,7 @@ Runner::Runner()
 
 	Ctrl *live[] = { &version, &comp, &type, &front, &size, &rb, &pg, &gCtest, &gSmoke, &gBench, &gVerifyLite,
 	                 &gVerify, &bStrict, &bHardened, &contracts, &pSql, &pPgL, &pPgR, &pJt, &pBin, &pJson, &pHtml,
-	                 &prodKeeper, &prodDb, &prodKPct, &prodDPct, &prodBinary, &pgHost, &pgPort, &pgDb, &pgUser, &connFile, &maxRuns, &maxRecords, &maxRows };
+	                 &prodKeeper, &prodDb, &prodKPct, &prodDPct, &prodBinary, &pgName, &pgHost, &pgPort, &pgDb, &pgUser, &connFile, &maxRuns, &maxRecords, &maxRows };
 	for(Ctrl *c : live)
 		c->WhenAction << THISBACK(UpdateCommand);
 	// ticking a PG box tests that server; a failed test unticks it again
@@ -1172,6 +1176,7 @@ void Runner::FromOptions()
 	maxRows <<= opt.maxRows;
 	rb <<= opt.readback;
 	pg <<= opt.pgCleanup;
+	pgName <<= opt.pgName;
 	pgHost <<= opt.pgHost;
 	pgPort <<= opt.pgPort;
 	pgDb <<= opt.pgDb;
@@ -1236,6 +1241,7 @@ void Runner::ToOptions()
 	LimitPersistToRecords(opt);
 	opt.readback = AsString(~rb);
 	opt.pgCleanup = AsString(~pg);
+	opt.pgName = TrimBoth(~pgName);
 	opt.pgHost = TrimBoth(~pgHost);
 	opt.pgPort = TrimBoth(~pgPort);
 	opt.pgDb = TrimBoth(~pgDb);
@@ -2537,6 +2543,7 @@ void Runner::LoadConn(bool quiet)
 	}
 	for(const ConnRow& r : connRows)
 		if(r.backend == "pg-remote") {
+			pgName <<= r.name;
 			pgHost <<= r.host;
 			pgPort <<= (r.port.IsEmpty() ? String("5432") : r.port);
 			pgDb <<= r.dbname;
@@ -2600,6 +2607,7 @@ void Runner::SaveConn()
 	}
 	ConnRow& r = remote >= 0 ? rows[remote] : rows.Add();
 	r.backend = "pg-remote";
+	r.name = opt.pgName;
 	r.host = opt.pgHost;
 	r.port = opt.pgPort.IsEmpty() ? String("5432") : opt.pgPort;
 	r.dbname = opt.pgDb;
