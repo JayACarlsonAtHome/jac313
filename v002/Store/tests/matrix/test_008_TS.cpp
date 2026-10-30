@@ -190,9 +190,9 @@ int main(int argc, char** argv) {
             jtext_raw = jtext_sink.get();
             sql_raw   = sql_sink.get();
 
-            auto routing_sink = std::make_unique<FlagRoutingEventSink>(
-                std::move(jtext_sink), std::move(sql_sink));
-            store.attach_persistence(std::move(routing_sink), 10'000);
+            // Two sinks, one worker each: each keeps only the events its PersistMode takes.
+            store.attach_persistence(std::move(jtext_sink), 10'000);
+            store.attach_persistence(std::move(sql_sink), 10'000);
         }
 
         auto [status, microseconds] = run_single_test(store, keeper_n, db_n);

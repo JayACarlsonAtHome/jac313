@@ -58,8 +58,8 @@ size the store to your record, not the other way round.
 - **Capacity is pre-allocated** at construction (`max_threads × events_per_thread` rows); a
   `sysinfo` RAM check warns/exits if the box can't hold it.
 - **Persistence is decoupled.** With persistence attached, `save_event` only marks its row ready
-  (one release store); a single worker thread reads the rows in place and feeds the sink, so the
-  log call returns at memory speed regardless of how slow the sink is. See [persistence](persistence.md).
+  (one release store); one worker thread per attached sink reads the rows in place and feeds its
+  sink, so the log call returns at memory speed regardless of how slow any sink is. See [persistence](persistence.md).
 
 ---
 

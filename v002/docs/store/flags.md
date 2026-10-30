@@ -28,8 +28,9 @@ related: [bitmaps / routing](bitmaps.md) (how flags route events) · [logging](l
 | 6 | `IsExplicitNull` | the value is an explicit null | 🕳️ placeholder — not wired in the sinks |
 
 `KeeperRecord` and `DatabaseEntry` are the two that matter: they decide where an event
-goes. See [bitmaps / routing](bitmaps.md) for the `FlagRoutingEventSink` + `PersistMode`
-mechanism. (`KeeperRecord` is the bit the planned "keep only the last X entries" retention
+goes. See [bitmaps / routing](bitmaps.md) for how each sink's `PersistMode`
+selects by these bits (several sinks attached at once, one worker each).
+(`KeeperRecord` is the bit the planned "keep only the last X entries" retention
 will hang off of.)
 
 ## Internal flags (bits 16–17) — set by the store

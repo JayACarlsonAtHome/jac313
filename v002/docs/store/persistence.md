@@ -1,7 +1,7 @@
 # Store — Persistence (the sinks)
 
-Where logged events go for durability — the `IEventSink` interface, four backends, the
-persistence worker that reads the rows in place, and how [jText](../../jText/README.md) and
+Where logged events go for durability — the `IEventSink` interface, the backends, the
+persistence workers (one per attached sink) that read the rows in place, and how [jText](../../jText/README.md) and
 [Qlite](../../jText/README.md) (brought in by jText) are *used by* Store.
 
 ← [Store docs index](../../Store/README.md) · [main README](../../README.md) ·
@@ -17,22 +17,51 @@ related: [logging](logging.md) · [bitmaps/flags](bitmaps.md) · [reporting](rep
 virtual void write_batch(std::span<const PersistedEvent> batch) = 0;
 virtual void flush() = 0;
 virtual void finalize() = 0;     // close files, commit transactions
+virtual std::string_view name() const;   // for diagnostics and per-sink report lines
 ```
 
 A `PersistedEvent` is the flat record: ids, flags, category, payload, `timestamp_us`, and the
 int/double metric arrays.
 
-## The persistence worker (a sliding view)
+## The persistence workers (a sliding view, one per sink)
 
-`ts_store::attach_persistence(sink, batch_size = 10'000)` starts one worker thread
-(`impl_details/persist_worker.hpp`). The rows are preallocated and never overwritten within a run,
-so the worker reads them **in place**: the [hot path](logging.md)'s last statement marks its row
-ready (a release store) and that is all it does for persistence — no copy, no queue, no lock. The
-worker keeps a watermark (the next id not yet persisted), takes the contiguous run of ready rows
-from there (at most `batch_size`, capped by `max_persist_rows`), copies them into one reusable
-batch, hands it to the sink and advances; with nothing ready it waits ~1 ms.
-`finalize_persistence()` writes every saved row and finalizes the sink. A sink exception latches
-`persistence_failed()`; the watermark keeps moving, so no producer ever waits on the sink.
+`ts_store::attach_persistence(sink, batch_size = 10'000)` starts one worker thread for that sink
+(`impl_details/persist_worker.hpp`) and returns the worker's index. The rows are preallocated and
+never overwritten within a run, so the worker reads them **in place**: the [hot path](logging.md)'s
+last statement marks its row ready (a release store) and that is all it does for persistence — no
+copy, no queue, no lock. The worker keeps a watermark (the next id not yet persisted), takes the
+contiguous run of ready rows from there (at most `batch_size`, capped by `max_persist_rows`),
+copies them into one reusable batch, hands it to the sink and advances; with nothing ready it
+waits ~1 ms. A sink exception latches that worker's failure; its watermark keeps moving, so no
+producer ever waits on a sink.
+
+**Several sinks at once.** Call `attach_persistence` once per sink, before or during a run (events
+saved before a sink was attached are not given to it). A jText keeper file, a SQLite database and
+the binary replay log can all persist the same run, each at its own pace: every worker has its
+own watermark, start id, batch and thread, and they share nothing but the read-only rows and the
+store's atomics (`next_id_`, `max_persist_rows_`, the ready epoch). Routing needs no router: each
+sink keeps the events its `PersistMode` takes (`All`, `KeeperOnly` = `KeeperRecord` bit 1,
+`DatabaseOnly` = `DatabaseEntry` bit 2), so a `KeeperOnly` file sink beside a `DatabaseOnly` SQL
+sink splits the events by flag; see [bitmaps](bitmaps.md).
+
+**Each sink must own its own file or connection.** A sink is called from its worker's thread
+only, so it needs no locks — but two sinks writing one file interleave their records, and a
+database connection (a libpq `PGconn` included) is not thread-safe. Give every sink its own base
+name / database file / connection.
+
+| Call | Meaning |
+|------|---------|
+| `attach_persistence(sink, batch)` | add a worker for `sink`; returns its index |
+| `flush_persistence()` | every worker writes what is ready and flushes its sink |
+| `finalize_persistence()` | every worker writes every saved row, finalizes its sink, stops; all are finalized even if one reports an error, then the errors of all are thrown together (one line per sink) |
+| `persistence_failed()` / `persistence_failed(i)` | any sink failed / sink `i` failed |
+| `persisted_rows()` / `persisted_rows(i)` | the fewest rows any sink has taken / rows sink `i` has taken |
+| `drain_time_us(i)` | microseconds from attaching sink `i` to its finalize returning (0 before) |
+| `persistence_sink_name(i)` | sink `i`'s `IEventSink::name()`, for one report line per sink |
+| `persistence_count()` | sinks attached |
+
+`clear()` is refused once any event was saved since any worker was attached (the ids would
+repeat in that sink's output).
 
 ---
 
@@ -45,7 +74,6 @@ batch, hands it to the sink and advances; with nothing ready it waits ~1 ms.
 | **HTML** (`HtmlEventSink` / `HtmlSplitEventLog`) | three `.html` files: **main** + **`_Ints`** + **`_Floats`** | — (no external deps) | browser-viewable tables; writer only (no reader) |
 | **JSON** (`JsonEventSink` / `JsonSplitEventLog`) | three NDJSON files: **main** + **`_Ints`** + **`_Floats`** (one object per line) | — (no external deps) | machine-readable text; read back with `JsonEventLogReader` |
 | **SQL** (`SqlEventSink`) | three tables: **main** + **`_ints`** + **`_floats`** (dynamic metric columns), `INSERT OR IGNORE` in transactions | [jac313::Qlite](../../jText/README.md) `Sqlite` | queryable; optional debug `.sql` of textual INSERTs |
-| **Flag-routing** (`FlagRoutingEventSink`) | composite — multiplexes a batch across two inner sinks by per-event flags | — | the file-vs-SQL split; see [bitmaps](bitmaps.md) |
 
 **Binary record layout:** 5× `uint64_t` (ids/flags/timestamp), then length-prefixed category,
 payload, int array, double array. A `uint32_t` length prefix on each record lets the reader find
@@ -60,7 +88,7 @@ the binary sink and neither sibling is invoked.
 ## Strengths
 
 - **Pick your trade-off per sink:** speed (binary), readability (jText / HTML / JSON), queryability (SQL)
-  — or several at once via flag routing.
+  — or several at once, one worker each, routed by each sink's `PersistMode`.
 - **Non-blocking** logging regardless of sink speed (the worker reads the rows in place).
 - **Clean `IEventSink` seam** — adding a backend is implementing three methods.
 

@@ -56,8 +56,8 @@ sink, HTML sink, JSON sink + reader, SQL/SQLite sink, flag routing, metric view 
 
 ## The lock-free boundary (an architectural finding)
 
-The whole Store's only mutex and condition variables are in the persistence worker
-(`impl_details/persist_worker.hpp`), and producers never touch them:
+The whole Store's only mutexes and condition variables are in the persistence workers
+(`impl_details/persist_worker.hpp`, one per attached sink), and producers never touch them:
 
 | Path | Synchronization | Lock-free? |
 |------|-----------------|------------|

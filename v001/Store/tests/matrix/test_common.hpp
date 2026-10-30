@@ -3,7 +3,6 @@
 #include <jac313/Store/v001.hpp>
 #include <jac313/Store/v001/headers/impl_details/format_locale.hpp>
 #include <jac313/Store/v001/headers/persistence/BinaryEventSink.hpp>
-#include <jac313/Store/v001/headers/persistence/FlagRoutingEventSink.hpp>
 #include <jac313/Store/v001/headers/persistence/HtmlEventSink.hpp>
 #include <jac313/Store/v001/headers/persistence/JsonEventSink.hpp>
 #include <jac313/Store/v001/headers/persistence/JTextEventSink.hpp>

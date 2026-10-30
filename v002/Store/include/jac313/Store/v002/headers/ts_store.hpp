@@ -132,48 +132,84 @@ public:
         // ids already written: SQLite's INSERT OR IGNORE drops them without a word, and the
         // file logs hold duplicates. A saved event is on its way to the sink even before the
         // worker has taken it, so any event saved since attach refuses, not only a persisted one.
-        JAC313_PRE(!persist_ || (persist_->persisted() == persist_->start_id()
-                                 && next_id_.load(std::memory_order_relaxed) == persist_->start_id()));
+        // Every attached worker is asked.
+        JAC313_PRE(nothing_saved_since_attach());
         next_id_.store(0, std::memory_order_relaxed);
         // A new epoch: the rows of the last one no longer count as ready.
         const uint32_t e = epoch_.load(std::memory_order_relaxed) + 1;
         epoch_.store(e == 0 ? 1 : e, std::memory_order_relaxed);
-        if (persist_) persist_->restart_at_zero();
+        for (auto& w : persist_) w->restart_at_zero();
         // rows_ is intentionally NOT cleared — next_id_=0 is the logical reset; the fixed buffer is
         // reused (entries are overwritten on the next write), avoiding reallocation.
     }
 
     /// Persist the saved events through `sink` (JTextEventSink, BinaryEventSink, SqlEventSink, ...).
-    /// One worker thread reads the rows in place, `batch_size` rows per sink call; save_event only
-    /// marks its row ready (no copy, no lock). Events saved from now on are persisted; a clear()
-    /// right after attaching (nothing saved yet) restarts them at id 0.
-    void attach_persistence(std::unique_ptr<IEventSink> sink, size_t batch_size = 10'000) {
+    /// Each call adds one worker thread for that sink; any number may be attached, before or
+    /// during a run. A worker reads the rows in place, `batch_size` rows per sink call, at its own
+    /// pace; save_event only marks its row ready (no copy, no lock). Each sink keeps the events its
+    /// PersistMode takes, so attaching a KeeperOnly and a DatabaseOnly sink routes by flag. Each
+    /// sink must own its own file or connection. Events saved from now on are persisted; a clear()
+    /// right after attaching (nothing saved yet) restarts them at id 0. Returns the worker's index
+    /// for the per-sink queries below. Owner thread only (like flush / finalize / clear).
+    size_t attach_persistence(std::unique_ptr<IEventSink> sink, size_t batch_size = 10'000) {
         if (!sink) throw std::invalid_argument("ts_store::attach_persistence requires a non-null sink");
-        persist_.reset();
-        persist_ = std::make_unique<persist_worker>(*this, std::move(sink), batch_size,
-                                                    next_id_.load(std::memory_order_relaxed));
+        persist_.push_back(std::make_unique<persist_worker>(*this, std::move(sink), batch_size,
+                                                            next_id_.load(std::memory_order_relaxed)));
+        return persist_.size() - 1;
     }
 
-    /// Write every row that is ready now, then flush the sink.
+    /// Number of sinks attached (finalized ones included).
+    [[nodiscard]] size_t persistence_count() const noexcept { return persist_.size(); }
+
+    /// Every worker: write every row that is ready now, then flush its sink.
     void flush_persistence() {
-        if (persist_) persist_->flush();
+        for (auto& w : persist_) w->flush();
     }
 
-    /// Write every saved row, flush and finalize the sink, stop the worker. Call it after the
-    /// producer threads joined: a row that is still not ready after 10 s throws std::runtime_error.
+    /// Every worker: write every saved row, flush and finalize its sink, stop its thread. Call it
+    /// after the producer threads joined: a row that is still not ready after 10 s is an error.
+    /// Every worker is finalized even when an earlier one reports an error; the errors of all of
+    /// them are thrown together afterwards as one std::runtime_error, one line per sink.
     void finalize_persistence() {
-        if (persist_) persist_->finalize();
+        std::string errors;
+        for (size_t i = 0; i < persist_.size(); ++i) {
+            try {
+                persist_[i]->finalize();
+            } catch (const std::exception& e) {
+                if (!errors.empty()) errors += '\n';
+                errors += std::format("sink {} ({}): {}", i, persist_[i]->sink_name(), e.what());
+            }
+        }
+        if (!errors.empty()) throw std::runtime_error(errors);
     }
 
-    /// True when the sink failed: the events since then were dropped.
+    /// True when any sink failed: the events since then were dropped for that sink.
     [[nodiscard]] bool persistence_failed() const noexcept {
-        return persist_ && persist_->failed();
+        return std::ranges::any_of(persist_, [](const auto& w) { return w->failed(); });
     }
 
-    /// Rows handed to the sink so far.
+    /// True when sink `index` failed.
+    [[nodiscard]] bool persistence_failed(size_t index) const { return worker(index).failed(); }
+
+    /// Rows handed to every sink so far: the fewest any one worker has taken (0 with none attached).
     [[nodiscard]] size_t persisted_rows() const noexcept {
-        return persist_ ? persist_->persisted() - persist_->start_id() : 0;
+        if (persist_.empty()) return 0;
+        size_t n = SIZE_MAX;
+        for (const auto& w : persist_) n = std::min(n, w->persisted() - w->start_id());
+        return n;
     }
+
+    /// Rows handed to sink `index` so far.
+    [[nodiscard]] size_t persisted_rows(size_t index) const {
+        const auto& w = worker(index);
+        return w.persisted() - w.start_id();
+    }
+
+    /// Microseconds from attaching sink `index` to its finalize returning; 0 until then.
+    [[nodiscard]] uint64_t drain_time_us(size_t index) const { return worker(index).drain_time_us(); }
+
+    /// IEventSink::name() of sink `index`.
+    [[nodiscard]] std::string_view persistence_sink_name(size_t index) const { return worker(index).sink_name(); }
 
     /// Persist at most `n` rows: only events with global id < n are handed to the persistence
     /// writer (0 = no limit, the default). The in-memory store still takes every event, so the
@@ -266,8 +302,23 @@ private:
     std::atomic<size_t> max_persist_rows_{0};   // 0 = no limit (see set_max_persist_rows)
 
     #include "impl_details/persist_worker.hpp"
-    // Declared after rows_ (and everything it reads), so it is finalized and joined before they go.
-    std::unique_ptr<persist_worker> persist_;
+    // One worker per attached sink. Declared after rows_ (and everything they read), so every
+    // worker is finalized and joined before the rows go.
+    std::vector<std::unique_ptr<persist_worker>> persist_;
+
+    [[nodiscard]] const persist_worker& worker(size_t index) const {
+        if (index >= persist_.size())
+            throw std::out_of_range(std::format("ts_store: no persistence sink {} ({} attached)", index, persist_.size()));
+        return *persist_[index];
+    }
+
+    // clear()'s guard: no worker has taken a row, and nothing was saved since any of them attached.
+    [[nodiscard]] bool nothing_saved_since_attach() const noexcept {
+        const size_t next = next_id_.load(std::memory_order_relaxed);
+        return std::ranges::all_of(persist_, [next](const auto& w) {
+            return w->persisted() == w->start_id() && next == w->start_id();
+        });
+    }
 
 public:
     static constexpr bool debug_mode_v = Config::debug_mode;

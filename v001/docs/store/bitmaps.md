@@ -25,16 +25,13 @@ change (the `event_flags` argument to [`save_event`](logging.md) carries them):
 
 Two layers decide where an event goes:
 
-**1. Per-event flags** drive the `FlagRoutingEventSink`
-(`persistence/FlagRoutingEventSink.hpp`) — a composite sink that multiplexes a batch across two
-inner sinks:
+**1. Per-event flags** say where the event should go:
 
 - `KEEPER_MASK` (bit 1, `KeeperRecord`) → the **file** sink (binary / jtext / html / json)
 - `DATABASE_MASK` (bit 2, `DatabaseEntry`) → the **SQL** sink
 - An event can route to both, one, or neither.
 
-**2. `PersistMode`** on each individual sink (`persistence/PersistCommon.hpp`) is the second
-filter:
+**2. `PersistMode`** on each sink (`persistence/PersistCommon.hpp`) picks the events it keeps:
 
 | Mode | Behaviour |
 |------|-----------|
@@ -42,8 +39,10 @@ filter:
 | `KeeperOnly` | write only if `KeeperRecord` (bit 1) is set |
 | `DatabaseOnly` | write only if `DatabaseEntry` (bit 2) is set |
 
-A typical split: file sink in `KeeperOnly`, SQL sink in `DatabaseOnly`, behind one
-`FlagRoutingEventSink` — the app just tags events; the router and the sink modes do the rest.
+A typical split: file sink in `KeeperOnly`, SQL sink in `DatabaseOnly`, both attached to the
+store (`attach_persistence` once per sink; each gets its own worker, see
+[persistence](persistence.md)) — the app just tags events; the sink modes do the rest. Each sink
+must own its own file or connection.
 
 ---
 

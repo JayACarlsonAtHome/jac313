@@ -2,7 +2,8 @@
 
 // EventSink.hpp
 // Abstract interface for pluggable persistence backends (jText, Binary, SQL, etc.)
-// ts_store::attach_persistence hands a sink batches from its one persistence worker thread.
+// ts_store::attach_persistence gives each sink its own persistence worker thread, which hands it
+// batches; several sinks may be attached to one store, each routing by its own PersistMode.
 
 #include <cstddef>
 #include <cstdint>
@@ -30,8 +31,10 @@ struct PersistedEvent {
 };
 
 /// Abstract base for any persistence backend.
-/// Implementations must be thread-safe for the write_batch / flush calls
-/// (ts_store's persistence worker is the only thread that calls them).
+/// One sink is called from one thread only (the worker it was attached with), so it needs no
+/// locking of its own. With several sinks attached, each must own its own file or connection:
+/// two sinks on one file interleave, and a database connection (libpq's included) is not
+/// thread-safe.
 class IEventSink {
 public:
     virtual ~IEventSink() = default;

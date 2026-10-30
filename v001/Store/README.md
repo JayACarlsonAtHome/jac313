@@ -17,7 +17,7 @@ strengths + weaknesses; a good target for AI-assisted exploration against your w
 - [**Categories**](../docs/store/categories.md) — `bounded_string`, UTF-8 codepoint sizing of category + payload
 - [**Flags**](../docs/store/flags.md) — the complete `StoreFlags` catalog: every bit + meaning + honest wired/advisory/placeholder status
 - [**Routing**](../docs/store/bitmaps.md) — how flags + `PersistMode` route events (keeper/database masks)
-- [**Persistence**](../docs/store/persistence.md) — the sinks (binary, jText, HTML, JSON, SQL, flag-routing) + the persistence worker (a sliding view over the rows)
+- [**Persistence**](../docs/store/persistence.md) — the sinks (binary, jText, HTML, JSON, SQL) + the persistence workers (several sinks at once, one worker each, a sliding view over the rows)
 - [**Reporting**](../docs/store/reporting.md) — reading the logs back: jText, HTML, JSON, SQL, binary + reader
 - [**Log viewer (planned)**](../docs/store/log-viewer-plan.md) — wxWidgets browser for large captures; sidecar index for 1M/10M scale
 
@@ -50,7 +50,7 @@ Core includes in-memory `ts_store`, `ts_store_config`, `bounded_string`, and per
 - **jText** — `JTextEventSink`, `JTextSplitEventLog` (`jac313::store_jtext_persist`, links in-tree `jtext_core`)
 - **HTML** — `HtmlEventSink`, `HtmlSplitEventLog` (`jac313::store_html_persist`, writer only)
 - **JSON** — `JsonEventSink`, `JsonSplitEventLog`, `JsonEventLogReader` (`jac313::store_json_persist`)
-- **Routing** — `FlagRoutingEventSink` (header-only)
+- **Routing** — no router: attach several sinks (`attach_persistence` once per sink, one worker each); each keeps the events its `PersistMode` takes. Each sink must own its own file or connection.
 
 ## Build
 

@@ -1,7 +1,10 @@
 // ts_store/ts_store_headers/impl_details/persist_worker.hpp
 // NO namespace — this file is included inside the ts_store class (private section).
 //
-// The persistence worker: one thread that reads the store's rows IN PLACE (a sliding view).
+// A persistence worker: one thread that reads the store's rows IN PLACE (a sliding view) for ONE
+// sink. The store keeps one worker per attached sink; each has its own watermark, start id, batch
+// and thread, and walks the same read-only rows at its own pace. Workers share nothing but the
+// rows and the store's atomics (next_id_, max_persist_rows_, epoch_).
 // The rows are preallocated and never overwritten within a run, so nothing is copied or queued on
 // the producers' side: save_event's last statement marks its row ready (a release store of the
 // current epoch) and returns. The worker keeps a watermark (the next id not yet persisted) and,
@@ -9,7 +12,7 @@
 // max_persist_rows_ and by the batch size), copies them into ONE reusable batch (its strings and
 // vectors keep their capacity, so allocations stop after warm-up, all on this thread), hands the
 // batch to the sink and advances the watermark. An empty round waits ~1 ms on a condition variable
-// (or until flush / finalize is asked for). Only this thread ever calls the sink.
+// (or until flush / finalize is asked for). Only this thread ever calls its sink.
 //
 // The watermark starts at the id the next save gets when the worker is attached: rows saved before
 // that are not persisted. clear() (allowed only while nothing was saved since) rewinds it to 0.
@@ -22,6 +25,7 @@ public:
         , batch_size_(batch_size == 0 ? 1 : batch_size)
         , start_(start)
         , watermark_(start)
+        , attached_(std::chrono::steady_clock::now())
     {
         thread_ = std::thread([this] { run(); });
     }
@@ -86,6 +90,12 @@ public:
 
     // The first id this worker persists (owner thread only: attach / clear).
     [[nodiscard]] size_t start_id() const noexcept { return start_; }
+
+    // Microseconds from attach to the sink's finalize returning; 0 until the drain is done.
+    [[nodiscard]] uint64_t drain_time_us() const noexcept { return drain_us_.load(std::memory_order_acquire); }
+
+    // The sink's name (IEventSink::name()), for one report line per sink.
+    [[nodiscard]] std::string_view sink_name() const { return sink_->name(); }
 
 private:
     static constexpr auto kIdleWait     = std::chrono::milliseconds(1);
@@ -173,6 +183,9 @@ private:
         }
         guarded([&] { sink_->flush(); });
         guarded([&] { sink_->finalize(); });
+        const auto us = std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - attached_).count();
+        drain_us_.store(us > 0 ? static_cast<uint64_t>(us) : 1, std::memory_order_release);
     }
 
     void run() {
@@ -219,6 +232,8 @@ private:
 
     std::atomic<size_t> watermark_{0};             // next id not yet persisted
     std::atomic<bool>   failed_{false};
+    const std::chrono::steady_clock::time_point attached_;
+    std::atomic<uint64_t> drain_us_{0};            // set once by the worker when finalize is done
 
     std::mutex              mutex_;                // guards the request fields below
     std::condition_variable wake_;                 // worker waits here (1 ms timeout)
