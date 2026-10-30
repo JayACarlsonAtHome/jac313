@@ -8,7 +8,6 @@
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <ctime>
 #include <fcntl.h>
 #include <fstream>
@@ -39,27 +38,6 @@ std::string lower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return s;
-}
-
-std::vector<std::string> split_list(const std::string& value, const char* delims) {
-    std::vector<std::string> out;
-    std::string token;
-    for (const char c : value) {
-        if (std::strchr(delims, c) != nullptr) {
-            const std::string t = trim(token);
-            if (!t.empty()) {
-                out.push_back(t);
-            }
-            token.clear();
-        } else {
-            token.push_back(c);
-        }
-    }
-    const std::string t = trim(token);
-    if (!t.empty()) {
-        out.push_back(t);
-    }
-    return out;
 }
 
 std::string expand_template(const std::string& tmpl, const std::string& inner) {
@@ -117,115 +95,6 @@ bool version_matches(const Toolchain& tc, int detected) {
         return detected >= *tc.min_version;
     }
     return detected == tc.version_major;
-}
-
-// ---- compiled-in fallback registry (used when no config file exists) ----
-
-Toolchain gcc_toolchain(const std::string& label, int major, const std::string& flag) {
-    Toolchain tc;
-    tc.label = label;
-    tc.kind = "gcc";
-    tc.version_major = major;
-    tc.build_dir = "build-" + label;
-    tc.flag = flag;
-    const std::string v = std::to_string(major);
-    tc.cc_names = {"g++-" + v, "g++" + v, "g++"};
-    tc.activations = {
-        "{CMD}",
-        "gcc-toolset-" + v + "-env {CMD}",
-        "scl enable gcc-toolset-" + v + " -- {CMD}",
-        "bash -c 'source /opt/rh/gcc-toolset-" + v + "/enable && {CMD}'",
-    };
-    return tc;
-}
-
-std::vector<Toolchain> builtin_registry() {
-    Toolchain clang;
-    clang.label = "clang";        // results label (build_dir below stays build-clang20)
-    clang.kind = "clang";
-    clang.version_major = 20;
-    clang.min_version = 20;
-    clang.build_dir = "build-clang20";
-    clang.flag = "--clang";
-    clang.cc_names = {"clang++-20", "clang++20", "clang++"};
-    clang.activations = {"{CMD}"};
-    clang.scan_deps = {"clang-scan-deps-20", "clang-scan-deps"};
-
-    return {
-        gcc_toolchain("gcc15", 15, "--gcc15"),
-        gcc_toolchain("gcc14", 14, "--force-gcc14"),
-        clang,
-    };
-}
-
-std::vector<Toolchain> parse_registry_file(const fs::path& path) {
-    std::ifstream file(path);
-    if (!file) {
-        return {};
-    }
-
-    std::vector<std::string> order;
-    std::map<std::string, Toolchain> by_label;
-
-    std::string line;
-    while (std::getline(file, line)) {
-        if (const auto hash = line.find('#'); hash != std::string::npos) {
-            line = line.substr(0, hash);
-        }
-        line = trim(line);
-        const auto eq = line.find('=');
-        const auto dot = line.find('.');
-        if (line.empty() || eq == std::string::npos || dot == std::string::npos || dot > eq) {
-            continue;
-        }
-
-        const std::string label = trim(line.substr(0, dot));
-        const std::string field = lower(trim(line.substr(dot + 1, eq - dot - 1)));
-        const std::string value = trim(line.substr(eq + 1));
-        if (label.empty() || field.empty()) {
-            continue;
-        }
-
-        if (by_label.find(label) == by_label.end()) {
-            order.push_back(label);
-            by_label[label].label = label;
-        }
-        Toolchain& tc = by_label[label];
-
-        if (field == "kind") {
-            tc.kind = lower(value);
-        } else if (field == "version") {
-            try { tc.version_major = std::stoi(value); } catch (...) {}
-        } else if (field == "min_version") {
-            try { tc.min_version = std::stoi(value); } catch (...) {}
-        } else if (field == "build_dir") {
-            tc.build_dir = value;
-        } else if (field == "flag") {
-            tc.flag = value;
-        } else if (field == "cc_names") {
-            tc.cc_names = split_list(value, " \t,");
-        } else if (field == "activations") {
-            tc.activations = split_list(value, "|");
-        } else if (field == "scan_deps") {
-            tc.scan_deps = split_list(value, " \t,");
-        } else if (field == "required_on") {
-            tc.required_on = split_list(value, " \t,");
-        }
-    }
-
-    std::vector<Toolchain> out;
-    out.reserve(order.size());
-    for (const std::string& label : order) {
-        Toolchain& tc = by_label[label];
-        if (tc.build_dir.empty()) {
-            tc.build_dir = "build-" + label;
-        }
-        if (tc.activations.empty()) {
-            tc.activations = {"{CMD}"};
-        }
-        out.push_back(std::move(tc));
-    }
-    return out;
 }
 
 CaptureResult run_shell(const std::string& command_line) {
@@ -426,24 +295,7 @@ ResolvedToolchain resolve_toolchain(const Toolchain& tc, const EnvSnapshot& base
     return resolved;
 }
 
-std::vector<Toolchain> load_registry(const fs::path& source_dir) {
-    const fs::path local = source_dir / "compilers.local.conf";
-    const fs::path tracked = source_dir / "Setup" / "compilers.conf";
-
-    for (const fs::path& candidate : {local, tracked}) {
-        std::error_code ec;
-        if (fs::exists(candidate, ec)) {
-            std::vector<Toolchain> tcs = parse_registry_file(candidate);
-            if (!tcs.empty()) {
-                return tcs;
-            }
-        }
-    }
-    return builtin_registry();
-}
-
-std::vector<ResolvedToolchain> resolve_registry(const fs::path& source_dir) {
-    const std::vector<Toolchain> tcs = load_registry(source_dir);
+std::vector<ResolvedToolchain> resolve_registry(const std::vector<Toolchain>& tcs) {
     const EnvSnapshot baseline = snapshot_env();
     std::vector<ResolvedToolchain> out;
     out.reserve(tcs.size());
@@ -552,19 +404,19 @@ std::string utc_now() {
     return buf;
 }
 
-std::string registry_hash(const fs::path& source_dir) {
+// A short hash of the toolchain table as loaded (labels, versions, names, activations), so
+// FileCheckList shows when the registry it was sensed from changed.
+std::string registry_hash(const std::vector<ResolvedToolchain>& resolved) {
     std::string content;
-    for (const fs::path& p : {source_dir / "compilers.local.conf",
-                              source_dir / "Setup" / "compilers.conf"}) {
-        std::ifstream in(p);
-        if (in) {
-            std::stringstream ss;
-            ss << in.rdbuf();
-            content += ss.str();
+    for (const ResolvedToolchain& rt : resolved) {
+        const Toolchain& t = rt.spec;
+        content += t.label + '\x1f' + t.kind + '\x1f' + std::to_string(t.version_major) + '\x1f'
+                 + std::to_string(t.min_version.value_or(0)) + '\x1f' + t.build_dir + '\x1f' + t.flag;
+        for (const auto* list : {&t.cc_names, &t.activations, &t.scan_deps, &t.required_on}) {
+            content += '\x1e';
+            for (const std::string& e : *list) content += e + '\x1f';
         }
-    }
-    if (content.empty()) {
-        return "builtin";
+        content += '\n';
     }
     char buf[17];
     std::snprintf(buf, sizeof(buf), "%016zx", std::hash<std::string>{}(content));
@@ -622,7 +474,7 @@ HostSnapshot sense_host() {
 
 ReadinessReport assess_readiness(const std::vector<ResolvedToolchain>& resolved,
                                  const std::string& os_family,
-                                 const fs::path& source_dir) {
+                                 const std::vector<ProvisionRecipe>& recipes) {
     ReadinessReport rep;
     for (const ResolvedToolchain& rt : resolved) {
         if (family_in(rt.spec.required_on, os_family)) {
@@ -633,7 +485,7 @@ ReadinessReport assess_readiness(const std::vector<ResolvedToolchain>& resolved,
         }
     }
     // Required standalone tools (recipes with `required = true`): earned by their `check`.
-    for (const ProvisionRecipe& r : load_recipes(source_dir)) {
+    for (const ProvisionRecipe& r : recipes) {
         if (!r.required) {
             continue;
         }
@@ -651,9 +503,10 @@ ReadinessReport assess_readiness(const std::vector<ResolvedToolchain>& resolved,
 
 bool write_filecheck_list(const fs::path& source_dir,
                           const std::vector<ResolvedToolchain>& resolved,
+                          const std::vector<ProvisionRecipe>& recipes,
                           const std::string& disk_type) {
     const HostSnapshot host = sense_host();
-    const ReadinessReport rd = assess_readiness(resolved, host.os_family, source_dir);
+    const ReadinessReport rd = assess_readiness(resolved, host.os_family, recipes);
 
     auto join = [](const std::vector<std::string>& v) {
         std::string s;
@@ -676,7 +529,7 @@ bool write_filecheck_list(const fs::path& source_dir,
         << "  (id=" << (host.os_id.empty() ? "-" : host.os_id)
         << ", family=" << host.os_family << ")\n";
     out << "Required: " << join(rd.required) << "\n";
-    out << "Registry: Setup/compilers.conf  (recipe-hash " << registry_hash(source_dir) << ")\n\n";
+    out << "Registry: Setup/compilers.jtext  (registry-hash " << registry_hash(resolved) << ")\n\n";
 
     out << "Host\n";
     out << "  Kernel:   " << (host.kernel.empty() ? "-" : host.kernel) << "\n";
@@ -713,74 +566,16 @@ bool write_filecheck_list(const fs::path& source_dir,
     return true;
 }
 
-std::vector<ProvisionRecipe> load_recipes(const fs::path& source_dir) {
-    std::vector<std::string> order;
-    std::map<std::string, ProvisionRecipe> by_component;
-
-    for (const fs::path& path : {source_dir / "recipes.local.conf",
-                                 source_dir / "Setup" / "recipes.conf"}) {
-        std::ifstream file(path);
-        if (!file) {
-            continue;
-        }
-        std::string line;
-        while (std::getline(file, line)) {
-            if (const auto hash = line.find('#'); hash != std::string::npos) {
-                line = line.substr(0, hash);
-            }
-            line = trim(line);
-            const auto eq = line.find('=');
-            const auto dot = line.find('.');
-            if (line.empty() || eq == std::string::npos || dot == std::string::npos || dot > eq) {
-                continue;
-            }
-            const std::string component = trim(line.substr(0, dot));
-            const std::string field = lower(trim(line.substr(dot + 1, eq - dot - 1)));
-            const std::string value = trim(line.substr(eq + 1));
-            if (component.empty() || field.empty()) {
-                continue;
-            }
-            if (by_component.find(component) == by_component.end()) {
-                order.push_back(component);
-                by_component[component].component = component;
-            }
-            ProvisionRecipe& r = by_component[component];
-            if (field == "desc") {
-                r.desc = value;
-            } else if (field == "for") {
-                r.for_toolchain = value;
-            } else if (field == "check") {
-                r.check = value;
-            } else if (field == "required") {
-                r.required = (value == "true" || value == "1" || value == "yes");
-            } else {
-                r.install_by_family[field] = value; // family -> command
-            }
-        }
-        // First file that yields anything wins (local override replaces tracked).
-        if (!order.empty()) {
-            break;
-        }
-    }
-
-    std::vector<ProvisionRecipe> out;
-    out.reserve(order.size());
-    for (const std::string& c : order) {
-        out.push_back(std::move(by_component[c]));
-    }
-    return out;
-}
-
-ProvisionPlan plan_provision(const fs::path& source_dir,
-                             const std::vector<ResolvedToolchain>& resolved,
-                             const std::string& os_family) {
+ProvisionPlan plan_provision(const std::vector<ResolvedToolchain>& resolved,
+                             const std::string& os_family,
+                             const std::vector<ProvisionRecipe>& recipes) {
     ProvisionPlan plan;
     plan.family = os_family;
 
-    const ReadinessReport rd = assess_readiness(resolved, os_family, source_dir);
+    const ReadinessReport rd = assess_readiness(resolved, os_family, recipes);
     std::vector<std::string> missing = rd.missing;
 
-    for (const ProvisionRecipe& r : load_recipes(source_dir)) {
+    for (const ProvisionRecipe& r : recipes) {
         bool needed = false;
         if (!r.for_toolchain.empty()) {
             needed = std::find(missing.begin(), missing.end(), r.for_toolchain) != missing.end();

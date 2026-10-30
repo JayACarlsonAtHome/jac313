@@ -14,6 +14,7 @@
 #include "process.hpp"
 #include "report.hpp"
 #include "run_identity.hpp"
+#include "settings.hpp"
 #include "host_hardware.hpp"
 #include "host_identity.hpp"
 #include "host_pin.hpp"
@@ -63,7 +64,7 @@ void print_usage() {
         "  configure   CMake configure (Ninja; auto-detect compiler)\n"
         "  build       Build the configured tree\n"
         "  build-times compile-time matrix (smoke+bench x front-end x compiler), gap-filled per host\n"
-        "  pin         find-or-create this machine's committed compiler pin (Setup/compilers.pin)\n"
+        "  pin         find-or-create this machine's committed compiler pin (Setup/compilers.pin.jtext)\n"
         "  compilers   Sense toolchains from the registry (writes FileCheckList.txt)\n"
         "  setup       Sense readiness; name anything ./bsir.sh still has to install\n"
         "  version-check  check each package owes a version() bump (git, no build)\n"
@@ -135,7 +136,7 @@ void print_usage() {
         "                       all four; elsewhere enforce or ignore). Not enforce: builds in\n"
         "                       build-<cc>-contracts-MODE, build type Debug-contracts-MODE\n"
         "  --no-store-tests     Disable JAC313_BUILD_STORE_TESTS\n\n"
-        "Toolchains are data-driven: see tools/jac313_test_cli/compilers.conf\n"
+        "Toolchains are data-driven: see Setup/compilers.jtext\n"
         "(activation-aware — handles gcc-toolset via scl / env-launcher / source-script).\n"
         "Auto-detect prefers the highest-version gcc that resolves; build dir from the\n"
         "toolchain's build_dir when --build-dir is omitted.\n\n"
@@ -312,19 +313,21 @@ int run_tests_command(const GlobalOptions& global, const RunOptions& opts,
     }
     seed_test_catalog(global.source_dir, tests);   // record the discovered names in testList
 
-    // Seed/refresh testControl table in results.db from the limits file (if present).
-    // This makes the per-test timeouts/failsafes authoritative in the DB, not in source code or flat files at runtime.
+    // Seed/refresh the testControl table in results.db from tests/test_limits.jtext (if present).
+    // This makes the per-test timeouts/failsafes authoritative in the DB, not in source code.
     try {
         const fs::path db_path = JAC313_RESULTS_DB;
-        if (fs::exists(db_path)) {
+        const fs::path limits = global.source_dir / "tests" / "test_limits.jtext";
+        if (fs::exists(db_path) && fs::exists(limits)) {
+            const auto rows = load_test_limits(limits);
             jac313::Qlite::v002::Sqlite db(db_path.string());
             jac313::results::ensure_schema(db);
-            const fs::path limits = global.source_dir / "tests" / "test_limits.txt";
-            if (fs::exists(limits)) {
-                jac313::results::seed_test_controls_from_file(db, limits);
-            }
+            for (const TestLimit& t : rows)
+                if (t.timeout_sec > 0) jac313::results::upsert_test_control(db, t.test, t.timeout_sec, t.memory_mb);
         }
-    } catch (...) {}
+    } catch (const std::exception& e) {
+        std::cerr << "warning: test limits not seeded: " << e.what() << '\n';
+    }
 
     if (opts.list_only) {
         return run_list_command(global);
@@ -488,8 +491,9 @@ int run_setup_command(const GlobalOptions& global) {
     write_filecheck_list(global.source_dir, resolved);
 
     const setup::HostSnapshot host = setup::sense_host();
-    const setup::ReadinessReport rd = setup::assess_readiness(resolved, host.os_family, global.source_dir);
-    const setup::ProvisionPlan plan = setup::plan_provision(global.source_dir, resolved, host.os_family);
+    const auto recipes = load_recipes(global.source_dir);
+    const setup::ReadinessReport rd = setup::assess_readiness(resolved, host.os_family, recipes);
+    const setup::ProvisionPlan plan = setup::plan_provision(resolved, host.os_family, recipes);
 
     std::cout << "\nPlatform: " << host.os_family << "\n";
     std::cout << "Readiness: " << (rd.ready ? "READY" : "NOT READY");
@@ -510,7 +514,7 @@ int run_setup_command(const GlobalOptions& global) {
     for (const auto& step : plan.steps) {
         std::cout << " " << step.component;
     }
-    std::cout << " (install commands: Setup/recipes.conf)\n";
+    std::cout << " (install commands: Setup/recipes.jtext)\n";
     for (const std::string& comp : plan.unsupported) {
         std::cout << "  note: '" << comp << "' is needed but has no recipe for family '"
                   << host.os_family << "'.\n";
@@ -1414,7 +1418,7 @@ void safe_rmdir(const fs::path& source_dir, const fs::path& target) {
 }
 
 // Resolve this machine's pinned gcc/clang to a compiler path — DEFINED below the pin helpers
-// (read_compiler_pins / CompilerPinRow live further down in this file).
+// (find_pin_for_host lives further down in this file).
 std::string resolve_pinned_cc(const fs::path& src, bool want_gcc);
 
 // Does a 'build' row already exist for (this host group, compiler, front-end, target)?
@@ -2305,7 +2309,7 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
     }
 
     // Preset gates run BOTH compilers (gcc first, then clang), using THIS machine's pinned
-    // labels from Setup/compilers.pin — or highest-available from compilers.conf when unpinned
+    // labels from Setup/compilers.pin.jtext — or highest-available from compilers.jtext when unpinned
     // (gcc16 on Fedora, gcc15 on RHEL/Mint, etc.). User --compiler/--gcc/--clang is ignored.
     const auto [gcc_label, clang_label] = pinned_or_highest_labels(root);
     if (gcc_label.empty() || clang_label.empty()) {
@@ -2497,34 +2501,11 @@ int run_group_id_command(const GlobalOptions& global) {
     }
 }
 
-// ---- compiler pin (Setup/compilers.pin): committed, per-machine {gcc,clang} toolchain labels so the
-// choice is DETERMINISTIC — no "highest changes when a newer compiler lands" drift. Keyed on the
-// hardware identity (the group_id tuple), labeled jac313-###. bootstrap does find-or-create; you
-// change a row by editing it or `pin --gcc <label> --clang <label>`. No pin -> highest-available. ----
-struct CompilerPinRow {
-    std::string label, cpu, os, gcc_label, clang_label;
-    int cores = 0, ram_gb = 0;
-};
-fs::path compiler_pin_path(const fs::path& source_dir) { return source_dir / "Setup" / "compilers.pin"; }
-
-std::vector<CompilerPinRow> read_compiler_pins(const fs::path& source_dir) {
-    std::vector<CompilerPinRow> rows;
-    std::ifstream in(compiler_pin_path(source_dir));
-    std::string line;
-    while (std::getline(in, line)) {
-        if (line.empty() || line[0] == '#') continue;
-        std::vector<std::string> f; std::string cur;
-        for (char c : line) { if (c == '\t') { f.push_back(cur); cur.clear(); } else cur += c; }
-        f.push_back(cur);
-        if (f.size() < 7) continue;
-        CompilerPinRow r; r.label = f[0]; r.cpu = f[1];
-        try { r.cores = std::stoi(f[2]); r.ram_gb = std::stoi(f[3]); } catch (...) {}
-        r.os = f[4]; r.gcc_label = f[5]; r.clang_label = f[6];
-        rows.push_back(r);
-    }
-    return rows;
-}
-
+// ---- compiler pin (Setup/compilers.pin.jtext, settings.cpp): committed, per-machine {gcc,clang}
+// toolchain labels so the choice is DETERMINISTIC — no "highest changes when a newer compiler lands"
+// drift. Keyed on the hardware identity (the group_id tuple), labeled jac313-###. bootstrap does
+// find-or-create; you change a row by editing it or `pin --gcc <label> --clang <label>`. No pin ->
+// highest-available. ----
 const CompilerPinRow* find_pin_for_host(const std::vector<CompilerPinRow>& rows, const HostHardwareRecord& hw) {
     for (const auto& r : rows)
         if (r.cpu == hw.cpu_model && r.cores == hw.cpu_cores && r.ram_gb == hw.ram_gb
@@ -2548,7 +2529,7 @@ std::string highest_toolchain_label(const std::vector<ResolvedToolchain>& probes
 std::string resolve_pinned_cc(const fs::path& src, bool want_gcc) {
     CompilerResolveRequest request; request.source_dir = src;
     const HostHardwareRecord hw = collect_host_hardware_record(machine_disk_tier("."));
-    const auto rows = read_compiler_pins(src);
+    const auto rows = load_compiler_pins(src);
     const CompilerPinRow* row = find_pin_for_host(rows, hw);
     std::string label = row ? (want_gcc ? row->gcc_label : row->clang_label)
                             : highest_toolchain_label(probe_compilers(src), want_gcc ? "gcc" : "clang");
@@ -2557,22 +2538,10 @@ std::string resolve_pinned_cc(const fs::path& src, bool want_gcc) {
     try { return resolve_compiler(request).cc_path; } catch (...) { return {}; }
 }
 
-void write_compiler_pins(const fs::path& source_dir, const std::vector<CompilerPinRow>& rows) {
-    std::ofstream out(compiler_pin_path(source_dir));
-    out << "# Committed per-machine compiler pin. One row per machine, keyed on the hardware identity\n"
-           "# (cpu / cores / ram_gb / os), labeled jac313-###. bootstrap find-or-creates a row; the\n"
-           "# chosen gcc/clang are then DETERMINISTIC across runs. Change by editing a row, or:\n"
-           "#   jac313_test_cli pin --gcc <label> --clang <label>   (labels are from Setup/compilers.conf)\n"
-           "# TAB-separated: label  cpu_model  cores  ram_gb  os_pretty  gcc_label  clang_label\n";
-    for (const auto& r : rows)
-        out << r.label << '\t' << r.cpu << '\t' << r.cores << '\t' << r.ram_gb << '\t'
-            << r.os << '\t' << r.gcc_label << '\t' << r.clang_label << '\n';
-}
-
 // {gcc_label, clang_label} for this machine: the committed pin if present, else highest-available.
 std::pair<std::string, std::string> pinned_or_highest_labels(const fs::path& source_dir) {
     const HostHardwareRecord hw = collect_host_hardware_record(machine_disk_tier("."));
-    const auto rows = read_compiler_pins(source_dir);
+    const auto rows = load_compiler_pins(source_dir);
     if (const CompilerPinRow* row = find_pin_for_host(rows, hw))
         return {row->gcc_label, row->clang_label};
     const auto probes = probe_compilers(source_dir);
@@ -2581,7 +2550,7 @@ std::pair<std::string, std::string> pinned_or_highest_labels(const fs::path& sou
 
 // --run-everything: the full battery, orchestrated IN CODE (per-step exit codes, continue-on-error,
 // a failure summary). Re-invokes this CLI's own subcommands per step. Uses THIS machine's PINNED
-// gcc/clang (Setup/compilers.pin) so the run is deterministic. Run from v002/.
+// gcc/clang (Setup/compilers.pin.jtext) so the run is deterministic. Run from v002/.
 int run_everything_command(const GlobalOptions& global) {
     namespace fs = std::filesystem;
     std::error_code ec;
@@ -2761,7 +2730,7 @@ int refuse_root_unless_allowed(int& argc, char** argv) {
 } // namespace
 
 // `compiler-versions`: the gcc and the clang a run uses on this machine (pinned in
-// Setup/compilers.pin, else the newest installed), one line each: "gcc gcc16 16.2.1",
+// Setup/compilers.pin.jtext, else the newest installed), one line each: "gcc gcc16 16.2.1",
 // "clang clang 22.1.8" ("-" when missing), then the contract modes it has on this OS
 // (Setup/contracts.jtext, e.g. "enforce,observe,quick_enforce,ignore"). Jac313Runner shows the versions
 // beside its choices and enables only those contract modes.
@@ -2787,7 +2756,7 @@ int run_compiler_versions_command(const GlobalOptions& global) {
     return 0;
 }
 
-int main(int argc, char** argv) {
+static int run_main(int argc, char** argv) {
     // flush every line at once: through a pipe (Jac313Runner, tee) std::cout is block-buffered,
     // so its lines arrived late and out of order with the build tools' output
     std::cout << std::unitbuf;
@@ -2903,7 +2872,7 @@ int main(int argc, char** argv) {
         return rc;
     }
 
-    if (command == "pin") {   // committed per-machine compiler pin (Setup/compilers.pin); find-or-create
+    if (command == "pin") {   // committed per-machine compiler pin (Setup/compilers.pin.jtext); find-or-create
         fs::path src = "."; bool ensure = false; std::string set_gcc, set_clang;
         for (int i = 2; i < argc; ++i) {
             const std::string a = argv[i];
@@ -2913,7 +2882,7 @@ int main(int argc, char** argv) {
             else if (a == "--source-dir" && i + 1 < argc) src = argv[++i];
         }
         const HostHardwareRecord hw = collect_host_hardware_record(machine_disk_tier("."));
-        auto rows = read_compiler_pins(src);
+        auto rows = load_compiler_pins(src);
         const CompilerPinRow* existing = find_pin_for_host(rows, hw);
         if (!ensure && set_gcc.empty() && set_clang.empty()) {   // default: show this machine's pin
             if (existing) std::cout << "pinned " << existing->label << ": gcc=" << existing->gcc_label
@@ -2933,7 +2902,7 @@ int main(int argc, char** argv) {
         const std::string clang_label = !set_clang.empty() ? set_clang
             : (existing ? existing->clang_label : highest_toolchain_label(probes, "clang"));
         if (gcc_label.empty() && clang_label.empty()) {
-            std::cerr << "pin: no gcc or clang toolchain available to pin (see Setup/compilers.conf)\n"; return 1;
+            std::cerr << "pin: no gcc or clang toolchain available to pin (see Setup/compilers.jtext)\n"; return 1;
         }
         std::string row_label = existing ? existing->label : std::string{};
         if (row_label.empty()) {
@@ -3157,7 +3126,7 @@ int main(int argc, char** argv) {
                 "A matrix run is a correctness gate only. Throughput is the `--bench --report` gate,\n"
                 "and `jac313_test_cli --report` renders every result from test-summary/results.db.\n\n"
                 "matrix options:\n"
-                "  --params <file>   Params file (default: tests/test_params.txt)\n"
+                "  --params <file>   Params file (default: tests/test_params.jtext)\n"
                 "  --dry-run         List scenarios only\n"
                 "  --modules         Configure+build with modules before run\n"
                 "  --filter <regex>  Match test, persist (binary|jtext|html|json|sql|none),\n"
@@ -3166,7 +3135,7 @@ int main(int argc, char** argv) {
                 + std::to_string(kSmokeFailsafeSec) + ", full: " + std::to_string(kFullFailsafeSec)
                 + ", 0=off)\n"
                 "  --clang           Force the clang toolchain (registry-resolved) for results path / build dir\n"
-                "  --compiler <cxx>  Explicit compiler (skips auto-detect; any compilers.conf label)\n";
+                "  --compiler <cxx>  Explicit compiler (skips auto-detect; any Setup/compilers.jtext label)\n";
             return argc < 3 ? 1 : 0;
         }
         const std::string sub = argv[2];
@@ -3178,7 +3147,7 @@ int main(int argc, char** argv) {
 
         if (sub == "runner") {
             // Explicit-options primitive: every dimension named, no ad-hoc flags.
-            // This is the unit `run-all` composes. Accepts any compilers.conf label.
+            // This is the unit `run-all` composes. Accepts any Setup/compilers.jtext label.
             std::string compiler, build_type, size, modules = "on";
             std::optional<std::string> build_dir_override;
             for (int i = 3; i < argc; ++i) {
@@ -3200,7 +3169,7 @@ int main(int argc, char** argv) {
                 } else if (a == "--help" || a == "-h") {
                     std::cout <<
                         "matrix runner — run ONE configuration (the primitive run-all composes)\n\n"
-                        "  --compiler gcc15|gcc16|clang  (required; any compilers.conf label)\n"
+                        "  --compiler gcc15|gcc16|clang  (required; any Setup/compilers.jtext label)\n"
                         "  --build-type Debug|Release (required)\n"
                         "  --modules on|off           (default on)\n"
                         "  --size smoke|full          (required)\n"
@@ -3217,7 +3186,7 @@ int main(int argc, char** argv) {
                 matrix_opts.compiler_label = "clang";
             } else if (!compiler.empty()) {
                 // Any gcc label (gcc15, gcc16, future toolchains): resolved by label
-                // via compilers.conf; the run is recorded under that exact label.
+                // via Setup/compilers.jtext; the run is recorded under that exact label.
                 configure_opts.compiler = compiler;
                 matrix_opts.compiler_label = compiler;
             } else {
@@ -3239,9 +3208,9 @@ int main(int argc, char** argv) {
                 return 2;
             }
             if (size == "smoke") {
-                matrix_opts.params_file = "tests/test_params.txt";
+                matrix_opts.params_file = "tests/test_params.jtext";
             } else if (size == "full") {
-                matrix_opts.params_file = "tests/test_params_full.txt";
+                matrix_opts.params_file = "tests/test_params_full.jtext";
             } else {
                 std::cerr << "matrix runner: --size must be smoke|full\n";
                 return 2;
@@ -3389,4 +3358,15 @@ int main(int argc, char** argv) {
     }
     print_usage();
     return 1;
+}
+
+// A settings table that does not read (Setup/*.jtext, tests/*.jtext) ends the command with its
+// reason, not with an uncaught exception.
+int main(int argc, char** argv) {
+    try {
+        return run_main(argc, argv);
+    } catch (const std::exception& e) {
+        std::cerr << "jac313_test_cli: " << e.what() << '\n';
+        return 1;
+    }
 }

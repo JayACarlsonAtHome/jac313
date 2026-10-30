@@ -247,7 +247,7 @@ inline void create_results_tables(Sqlite& db) {
             ")");
     // testControl: per-test runtime controls (timeouts, memory limits, etc.) that drive the test harness.
     // Values live here in the DB (not hardcoded in source or flat files at runtime).
-    // The human-editable tests/test_limits.txt (or equivalent) is used to seed/refresh this table.
+    // The human-editable tests/test_limits.jtext seeds/refreshes this table (jac313_test_cli run).
     db.exec("CREATE TABLE IF NOT EXISTS testControl (\n"
             "    name TEXT PRIMARY KEY NOT NULL\n"
             "  , timeout_sec INTEGER NOT NULL DEFAULT 300\n"
@@ -784,7 +784,7 @@ inline std::string package_version_get(Sqlite& db, std::int64_t gid, const std::
 
 // ---- testControl: runtime controls per test name (timeouts etc.) stored in DB ----
 
-// Upsert a control row for a test. Call this when loading from test_limits.txt or admin tools.
+// Upsert a control row for a test. Call this when loading tests/test_limits.jtext or from admin tools.
 inline void upsert_test_control(Sqlite& db, const std::string& name, int timeout_sec, int memory_mb = 0,
                                 const std::string& description = "") {
     db.exec("INSERT INTO testControl(name, timeout_sec, memory_mb, description) VALUES(?,?,?,?) "
@@ -808,26 +808,6 @@ inline int get_test_memory_mb(Sqlite& db, const std::string& test_name, int fall
     { auto st = db.prepare("SELECT memory_mb FROM testControl WHERE name=?");
       st.bind(test_name); if (st.step()) st.get(v); }
     return v > 0 ? static_cast<int>(v) : fallback;
-}
-
-// Load/refresh controls from a limits file into the DB (source of truth for values stays editable
-// in the file for humans; working data is in the DB table).
-// Format: name timeout_sec [memory_mb]
-inline void seed_test_controls_from_file(Sqlite& db, const std::filesystem::path& limits_file) {
-    std::ifstream in(limits_file);
-    if (!in) return;
-    std::string line;
-    while (std::getline(in, line)) {
-        if (line.empty() || line[0] == '#') continue;
-        std::istringstream iss(line);
-        std::string name;
-        int secs = 0;
-        if (iss >> name >> secs && secs > 0) {
-            int mem = 0;
-            iss >> mem;  // optional
-            upsert_test_control(db, name, secs, mem);
-        }
-    }
 }
 
 // Simple UTC timestamp for logs.

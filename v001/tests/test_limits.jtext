@@ -1,0 +1,46 @@
+//File:    test_limits.jtext
+//Date:    2026-10-30
+//Purpose: Human-editable seed for per-test control parameters (v001).
+//
+// Values here are loaded into the results.db testControl table at the start of runs.
+// The DB is the runtime/authoritative store for these test control values.
+//
+// test_control: one row per test.
+//   test         the test name, as add_test registers it
+//   timeout_sec  the timeout in seconds
+//   memory_mb    virtual memory limit for the test process (ulimit -v style, in MB).
+//                0 = unlimited. Recommended for ctest, smoke, verify etc. to prevent
+//                runaway memory usage.
+//
+=== jText File ===
+ 1. ?# test_limits.jtext
+ 2. ?# 2026-10-30
+ 3. ?# Per-test timeouts and memory limits (v001)
+ 4. ?# 0.8
+
+=== Section: test_control ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# test/String/Not Null/Not Empty            # the name add_test registers
+ 3. /# timeout_sec/Integer/Not Null              # 0 = none
+ 4. /# memory_mb/Integer/Not Null                # 0 = none
+=== End Fields ===
+=== Data ===
+ 1. |# 1|jac313_store_binary_to_jtext_smoke|30|256
+ 1. |# 2|jac313_store_binary_persist_smoke|30|256
+ 1. |# 3|jac313_store_jtext_persist_smoke|30|256
+ 1. |# 4|jac313_store_sql_persist_smoke|60|512
+ 1. |# 5|jac313_store_flag_routing_smoke|30|256
+ 1. |# 6|jac313_store_binary_reader_test|60|256
+ 1. |# 7|jac313_store_v001_test|120|1024
+ 1. |# 8|jac313_store_metric_view_test|60|256
+ 1. |# 9|jac313_jtext_v001_test|60|512
+ 1. |# 10|jac313_jtext_v001_parser_validator_test|60|256
+ 1. |# 11|jac313_jtext_v001_module_test|60|256
+ 1. |# 12|jac313_qlite_v001_test|60|256
+ 1. |# 13|jac313_qlite_v001_module_test|60|256
+ 1. |# 14|jac313_run_identity_test|30|128
+ 1. |# 15|jac313_identity_dedup_test|30|128
+=== End Data ===
+=== End Section ===
+=== End File ===

@@ -36,7 +36,7 @@ using namespace jac313::Store::v001;
 using namespace std::chrono;
 
 // ———————————————————— Test configuration ————————————————————
-// Runtime configurable via --threads --events-per-thread (from runner/test_params.txt)
+// Runtime configurable via --threads --events-per-thread (from runner/test_params.jtext)
 // MAX_ENTRIES is compile-time upper bound for the tracking array (safe for high/full).
 size_t WRITER_THREADS;
 size_t OPS_PER_THREAD;

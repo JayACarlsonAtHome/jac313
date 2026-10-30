@@ -2,8 +2,8 @@
 
 // contract_modes.hpp — the contract evaluation modes (--contracts) a toolchain can run on this
 // OS, read from the version's Setup/contracts.jtext: one row per OS and toolchain, a true/false
-// column per mode (enforce, observe, quick_enforce, ignore). A toolchain with no row there, or a
-// CLI built without jText, has enforce and ignore; ignore is always one of them.
+// column per mode (enforce, observe, quick_enforce, ignore), read through settings.hpp. A toolchain
+// with no row there has enforce and ignore; ignore is always one of them.
 
 #include <filesystem>
 #include <string>

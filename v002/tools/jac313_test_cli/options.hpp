@@ -28,7 +28,7 @@ struct GlobalOptions {
     std::string readback;                // --readback off|count|sample|all (empty = test default)
     std::string pg_cleanup;              // --pg-cleanup keep-last|delete (empty = keep-last)
     std::filesystem::path summary_json;  // --summary-json PATH: JSON summary for Jac313Runner
-    std::string size_override;           // --size smoke|full (overrides tests/test_params.txt)
+    std::string size_override;           // --size smoke|full (overrides tests/test_params.jtext)
     std::string pg_remote;               // --pg-remote "host=.. dbname=.. user=..": sets $JAC313_PG_REMOTE
     std::string pg_local;                // --pg-local  "...": sets $JAC313_PG_LOCAL (default localhost)
     std::filesystem::path connections;   // --connections FILE (jText; see connections.hpp)
@@ -91,7 +91,7 @@ inline int effective_failsafe_sec(const RunOptions& opts, const std::string& mat
 }
 
 struct MatrixOptions {
-    std::filesystem::path params_file{"tests/test_params.txt"};
+    std::filesystem::path params_file{"tests/test_params.jtext"};
     std::string compiler_label{"gcc15"};
     bool dry_run{false};
     bool no_summary{false};

@@ -4,7 +4,7 @@ target_link_libraries(jac313_store_v001_example PRIVATE jac313::Store)
 macro(jac313_store_add_smoke_test target)
     if(TARGET ${target})
         add_test(NAME ${target} COMMAND ${target})
-        # Time limits from tests/test_limits.txt (prevents infinite runs).
+        # Time limits from tests/test_limits.jtext (prevents infinite runs).
         if("${target}" MATCHES "binary_to_jtext|binary_persist|jtext_persist|html_persist|json_persist|flag_routing")
             set_tests_properties(${target} PROPERTIES TIMEOUT 30)
         else()

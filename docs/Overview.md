@@ -141,11 +141,11 @@ flexible structure that others could emulate:
   build orchestration, the matrix, the results DB, valgrind gates — lives in one C++ tool,
   not in scattered shell or pipeline config. Shell is reduced to a thin `bsir.sh`
   that exists only because you can't run a compiled tool before you have a compiler.
-- **A data-driven, activation-aware compiler registry** (`Setup/compilers.conf`) — handles
+- **A data-driven, activation-aware compiler registry** (`Setup/compilers.jtext`, a jText table with an OS column) — handles
   gcc-toolset activation (scl / env-launcher / source-script) so new platforms are config,
-  not code. Per-platform install commands are data too (`Setup/recipes.conf`).
+  not code. Per-platform install commands are data too (`Setup/recipes.jtext`).
 - **One command: `./bsir.sh`** (BSIR: Bootstrap, Setup, Install & Run). It senses the host, installs what is missing from
-  `Setup/recipes.conf` (one question, one sudo password, continue-on-failure), builds the test
+  `Setup/recipes.jtext` (one question, one sudo password, continue-on-failure), builds the test
   tool and the Jac313Runner window, and opens the Runner.
 - **Self-contained major versions** with everything anchored to each version root, so the
   worlds never cross-write — and results are *ported*, not re-run, when the structure

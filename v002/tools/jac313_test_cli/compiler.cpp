@@ -1,4 +1,5 @@
 #include "compiler.hpp"
+#include "settings.hpp"
 
 #include <cstdlib>
 #include <filesystem>
@@ -131,8 +132,16 @@ std::optional<std::string> find_on_path(const std::string& name) {
     return find_executable(name);
 }
 
+std::vector<Toolchain> load_registry(const fs::path& source_dir) {
+    return load_toolchains(source_dir, jac313::Setup::v002::sense_host().os_family);
+}
+
 std::vector<ResolvedToolchain> probe_compilers(const fs::path& source_dir) {
-    return resolve_registry(source_dir);
+    return jac313::Setup::v002::resolve_registry(load_registry(source_dir));
+}
+
+bool write_filecheck_list(const fs::path& source_dir, const std::vector<ResolvedToolchain>& probes) {
+    return jac313::Setup::v002::write_filecheck_list(source_dir, probes, load_recipes(source_dir));
 }
 
 void print_compiler_probe(const std::vector<ResolvedToolchain>& probes) {
@@ -204,7 +213,7 @@ CompilerSelection resolve_compiler(const CompilerResolveRequest& request) {
         return selection_from(*chosen, "auto (" + chosen->spec.label + ")");
     }
 
-    throw std::runtime_error("no supported compiler found on this host (see compilers.conf)");
+    throw std::runtime_error("no supported compiler found on this host (see Setup/compilers.jtext)");
 }
 
 } // namespace jac313::test_cli

@@ -3,8 +3,8 @@
 // Massive multi-threaded throughput + correctness test.
 // Full mode sizing from runner (currently 50×2k × 3 runs). Only last run persists.
 // Only the last run performs persistence (previous runs are clean hot-path measurement).
-// Size controlled at runtime via --threads --events-per-thread --runs (or via test_params.txt).
-// See tests/test_params.txt and ./scripts/Build (FileCheckList.txt).
+// Size controlled at runtime via --threads --events-per-thread --runs (or via test_params.jtext).
+// See tests/test_params.jtext and ./scripts/Build (FileCheckList.txt).
 
 #include <array>
 #include <atomic>
@@ -28,7 +28,7 @@
 using namespace jac313::Store::v001;
 using namespace std::chrono;
 
-// These are set at runtime from CLI / config (see test_params.txt and runner).
+// These are set at runtime from CLI / config (see test_params.jtext and runner).
 // Defaults come from TestOptions (high intensity); smoke uses small via --test-size=smoke or explicit.
 size_t THREADS;
 size_t EVENTS_PER_THREAD;

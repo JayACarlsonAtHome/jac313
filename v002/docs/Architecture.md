@@ -85,7 +85,7 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    A[test_params.txt] --> B[build matrix scenarios]
+    A[tests/test_params.jtext] --> B[build matrix scenarios]
     B --> C[expand persist grid]
     C --> D[run each scenario]
     D --> E[test-results/.../logs]

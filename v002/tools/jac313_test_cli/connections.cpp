@@ -1,9 +1,7 @@
 #include "connections.hpp"
 
-#ifdef JAC313_TEST_CLI_HAS_JTEXT
 #include "parser/section.hpp"
 #include "validator/validator.hpp"
-#endif
 
 #include <algorithm>
 #include <cstdlib>
@@ -69,10 +67,6 @@ bool load_connections(const fs::path& file, std::vector<PgConnection>& out, std:
     out.clear();
     std::ifstream in(file);
     if (!in) { err = "cannot read " + file.string(); return false; }
-#ifndef JAC313_TEST_CLI_HAS_JTEXT
-    err = "this jac313_test_cli was built without jText";
-    return false;
-#else
     std::stringstream ss;
     ss << in.rdbuf();
     const std::string text = ss.str();
@@ -106,7 +100,6 @@ bool load_connections(const fs::path& file, std::vector<PgConnection>& out, std:
     }
     if (out.empty()) { err = file.string() + ": no rows with a backend and a host"; return false; }
     return true;
-#endif
 }
 
 void apply_connections(const std::vector<PgConnection>& rows, bool overwrite,

@@ -741,7 +741,7 @@ Runner::Runner()
 	// gcc / clang: the newest of each on this machine (the CLI's --gcc / --clang); lCompVer shows
 	// which versions those are (jac313_test_cli compiler-versions)
 	comp.Add("gcc", "gcc").Add("clang", "clang").Add("both", "both");
-	comp.Tip("gcc and clang: the newest of each on this machine (pinned in Setup/compilers.pin). "
+	comp.Tip("gcc and clang: the newest of each on this machine (pinned in Setup/compilers.pin.jtext). "
 	         "The versions are shown to the right.");
 	type.Add("Debug", "Debug").Add("Release", "Release");
 	front.Add("textual", "textual").Add("modules", "modules");

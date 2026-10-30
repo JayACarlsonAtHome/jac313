@@ -7,7 +7,7 @@
 // with a {CMD} placeholder. Every activation mechanism — a plain PATH binary, a
 // gcc-toolset env launcher (RHEL 10), SCL (RHEL 9), a sourced enable-script, a future
 // Fedora module — reduces to "run something so the compiler becomes reachable in the
-// resulting environment." Adding a platform is a config line, not code.
+// resulting environment." Adding a platform is a few table rows, not code.
 //
 // This package is self-contained (its own command-runner, no external deps beyond the
 // C++23 standard library) so it can be reused by any build tooling, including via the
@@ -62,18 +62,16 @@ struct EnvSnapshot {
     std::map<std::string, std::string> vars;
 };
 
-// Load the toolchain table. Reads, in order of precedence:
-//   <source_dir>/compilers.local.conf   (optional, gitignored, machine-specific)
-//   <source_dir>/Setup/compilers.conf   (tracked default)
-// Falls back to a compiled-in table if neither file is present.
-std::vector<Toolchain> load_registry(const std::filesystem::path& source_dir);
+// The toolchain table itself is data (Setup/compilers.jtext). This package does not read it:
+// it links nothing but the standard library, so the caller (jac313_test_cli) loads the table
+// and hands the toolchains in.
 
 // Sense one toolchain: walk activations x cc_names, version-sniff, capture cc_path
 // and the activation env delta. First viable (activation, cc) wins.
 ResolvedToolchain resolve_toolchain(const Toolchain& tc, const EnvSnapshot& baseline);
 
-// Convenience: load + resolve every toolchain in registry order.
-std::vector<ResolvedToolchain> resolve_registry(const std::filesystem::path& source_dir);
+// Convenience: resolve every toolchain, in registry order.
+std::vector<ResolvedToolchain> resolve_registry(const std::vector<Toolchain>& toolchains);
 
 const Toolchain* find_toolchain_by_label(const std::vector<Toolchain>& tcs,
                                          const std::string& label);
@@ -100,8 +98,11 @@ struct HostSnapshot {
 
 HostSnapshot sense_host();
 
+struct ProvisionRecipe;
+
 // Readiness is EARNED by sensing, not claimed: a toolchain is required when its
-// `required_on` lists the host's OS family. READY iff every required toolchain resolved.
+// `required_on` lists the host's OS family, and a recipe marked `required` when its `check`
+// fails. READY iff every required toolchain resolved and every required check passed.
 struct ReadinessReport {
     bool ready{false};
     std::vector<std::string> required; // required toolchain labels for this host
@@ -110,18 +111,20 @@ struct ReadinessReport {
 
 ReadinessReport assess_readiness(const std::vector<ResolvedToolchain>& resolved,
                                  const std::string& os_family,
-                                 const std::filesystem::path& source_dir);
+                                 const std::vector<ProvisionRecipe>& recipes);
 
 // Write <source_dir>/FileCheckList.txt — the merged visibility + readiness manifest:
 // a STATUS verdict, host block, and one [x]/[ ] line per sensed toolchain. Controls
 // nothing; the bootstrap flow consults it. disk_type is an optional informational label.
 bool write_filecheck_list(const std::filesystem::path& source_dir,
                           const std::vector<ResolvedToolchain>& resolved,
+                          const std::vector<ProvisionRecipe>& recipes,
                           const std::string& disk_type = "");
 
 // ---- provisioning: data-driven per-platform install recipes ----
 
-// One provisionable prerequisite, from Setup/recipes.conf.
+// One provisionable prerequisite: a row of Setup/recipes.jtext (components), with its install
+// command per OS family (recipe_os). The caller loads the table.
 struct ProvisionRecipe {
     std::string component;                              // gcc15, ninja, ...
     std::string desc;                                  // human description
@@ -130,9 +133,6 @@ struct ProvisionRecipe {
     bool required{false};                              // true -> part of the readiness gate
     std::map<std::string, std::string> install_by_family; // family -> install command
 };
-
-// Load Setup/recipes.conf (+ optional repo-root recipes.local.conf override).
-std::vector<ProvisionRecipe> load_recipes(const std::filesystem::path& source_dir);
 
 // A concrete provision plan for this host: the steps to run, and any needed
 // components that have no recipe for this OS family.
@@ -149,9 +149,9 @@ struct ProvisionPlan {
 
 // Decide what to provision: a recipe applies when its `for` toolchain is a missing
 // required toolchain, or its `check` command fails (non-zero / absent).
-ProvisionPlan plan_provision(const std::filesystem::path& source_dir,
-                             const std::vector<ResolvedToolchain>& resolved,
-                             const std::string& os_family);
+ProvisionPlan plan_provision(const std::vector<ResolvedToolchain>& resolved,
+                             const std::string& os_family,
+                             const std::vector<ProvisionRecipe>& recipes);
 
 // Drop inherited exported bash functions (BASH_FUNC_*) so activation probes via
 // /bin/sh -c don't emit "error importing function definition" noise.

@@ -17,13 +17,10 @@ using jac313::Setup::v001::ResolvedToolchain;
 using jac313::Setup::v001::EnvSnapshot;
 using jac313::Setup::v001::CaptureResult;
 using jac313::Setup::v001::run_capture;
-using jac313::Setup::v001::load_registry;
 using jac313::Setup::v001::resolve_toolchain;
-using jac313::Setup::v001::resolve_registry;
 using jac313::Setup::v001::find_toolchain_by_label;
 using jac313::Setup::v001::find_toolchain_by_flag;
 using jac313::Setup::v001::parse_version_major;
-using jac313::Setup::v001::write_filecheck_list;
 using jac313::Setup::v001::scrub_exported_shell_functions;
 using jac313::Setup::v001::snapshot_env;
 using jac313::Setup::v001::apply_env_delta;
@@ -43,7 +40,7 @@ struct CompilerSelection {
 };
 
 struct CompilerResolveRequest {
-    std::filesystem::path source_dir;     // where to load the registry from
+    std::filesystem::path source_dir;     // where to load the registry from (Setup/compilers.jtext)
     std::optional<std::string> explicit_compiler;  // --compiler value
     bool prefer_gcc{false};
     bool prefer_clang{false};
@@ -51,9 +48,17 @@ struct CompilerResolveRequest {
 
 constexpr int kMinClangMajorVersion = 20;
 
+// The registry for this host's OS family: the toolchains of <source_dir>/Setup/compilers.jtext.
+std::vector<Toolchain> load_registry(const std::filesystem::path& source_dir);
+
 // Sense every registry toolchain on this host (for `compilers` + FileCheckList).
 std::vector<ResolvedToolchain> probe_compilers(const std::filesystem::path& source_dir);
 void print_compiler_probe(const std::vector<ResolvedToolchain>& probes);
+
+// Write <source_dir>/FileCheckList.txt from `probes`, with the recipes of Setup/recipes.jtext
+// (their required checks are part of the readiness verdict).
+bool write_filecheck_list(const std::filesystem::path& source_dir,
+                          const std::vector<ResolvedToolchain>& probes);
 
 // Resolve the requested toolchain (or throw with a helpful message if unavailable).
 CompilerSelection resolve_compiler(const CompilerResolveRequest& request);

@@ -44,14 +44,8 @@ kept-logs/**
 # Auto-generated, per-machine sensed-environment snapshot (informational only)
 /FileCheckList.txt
 
-# Machine-local compiler registry override
-/compilers.local.conf
-
 # Machine-local host label (anonymizes results: hostname() reads this instead of uname)
 /host_label.local
-
-# Local recipe override
-/recipes.local.conf
 
 # Left behind by older bootstraps (they wrote these; bsir.sh no longer does)
 /Setup.sh

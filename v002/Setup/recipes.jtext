@@ -1,0 +1,138 @@
+//File:    recipes.jtext
+//Date:    2026-10-30
+//Purpose: Provision recipes (v002): the build prerequisites and, per OS family, the command that
+//         installs each. bsir.sh runs these commands itself (one question, one sudo password);
+//         jac313_test_cli setup names what is still missing.
+//
+// Data-driven, like compilers.jtext: to support a new OS, add its recipe_os rows, no code
+// change. Readiness stays earned by sensing: after installing, bootstrap senses again, which
+// refreshes FileCheckList.txt.
+//
+// components: one row per prerequisite.
+//   component  its name; a compiler toolchain's recipe is named for the compilers.jtext label
+//   desc       human description, shown as the heading while bootstrap installs it
+//   for        toolchain label this provides: include when that REQUIRED toolchain is
+//              missing per sensing (FileCheckList readiness). '' for standalone tools.
+//   required   true = part of the readiness gate (earned by check)
+//   check      shell test; exit 0 = already satisfied. Include the recipe when it FAILS.
+//              '' = no check.
+// recipe_os: one row per component per OS family.
+//   os         OS family: rhel | fedora | linuxmint (FileCheckList's sensed os_family)
+//   command    the install command on that OS family
+//
+// gcc15, gcc16, clang: the compiler toolchains (tied to compilers.jtext labels via for).
+// sqlite: REQUIRED build dependency. Qlite links libsqlite3, so the dev headers must be
+//   present BEFORE the build. Checked in bootstrap's baseline (bsir.sh) so bootstrap installs
+//   it pre-build; without it `find_package(SQLite3)` fails on a fresh clone.
+// pg18: REQUIRED for the Postgres persist sink and the PG local / PG remote gates: libpq 18+
+//   client dev headers (PostgreSQL 18; the build needs libpq 18+). RHEL family: the PGDG
+//   repo's postgresql18-devel (installs under /usr/pgsql-18; its perl-IPC-Run dependency
+//   comes from CRB / CodeReady Builder, enabled here if missing). Fedora / Mint: the distro
+//   or PGDG libpq dev package, version 18+.
+// ninja: Ninja >= 1.11, required for C++23 module builds.
+// cmake: the baseline is CMake >= 3.26 and module builds want >= 3.28: the distro packages
+//   are enough.
+// vim: not needed by the build: an editor so a fresh machine has more than vi to fix files with.
+// valgrind: REQUIRED prerequisite. memcheck + helgrind + DRD all ship INSIDE the one valgrind
+//   package, so this single install covers the whole `matrix verify` / `verify-lite` gate.
+//   Readiness is NOT READY without it (required = true: part of the readiness gate, earned by
+//   check). The check requires BOTH the binary AND the dev header: the annotated verify tree
+//   (-DJAC313_STORE_HELGRIND_ANNOTATE=ON) #includes <valgrind/helgrind.h>, which on
+//   RHEL/Fedora ships in the SEPARATE valgrind-devel package (Debian bundles headers in
+//   `valgrind`).
+// upp_gui: the U++ GUI build (Jac313Runner / JTextGui). On purpose there is no check and no
+//   for: only the bootstrap's GUI step uses it (skipped with --no-gui), after its own
+//   pkg-config check. It installs GTK3 (U++'s Wayland-first GUI goes through GTK),
+//   libnotify, FreeType, Fontconfig and the X11 libs that U++ CtrlCore links. U++ itself
+//   comes from upp_basefix into $HOME/upp_basefix (pinned GitHub commit + SHA-256-checked
+//   tree, no sudo).
+// dbeaver: the GUI step (skipped with --no-gui): DBeaver Community, a database browser for
+//   results.db (SQLite) and the PostgreSQL / MariaDB tables. DBeaver's own package from its
+//   GitHub release (Java included, about 130 MB), pinned to 26.2.3 with the sha256 GitHub
+//   publishes. The Flathub Flatpak was 2.1 GB.
+// chrome: the GUI step (skipped with --no-gui): Google Chrome, required by Jac313Runner's
+//   "Open Reports in Chrome". Google's own repository, so dnf / apt check Google's
+//   signature and keep Chrome updated. Google ships Chrome for Linux on x86_64 only.
+//
+// Formatter ^~ on the data rows (splice ^, comment ~): the commands hold |, ', &&, $(...),
+// ; and {}, and bsir.sh reads this file with POSIX awk before anything is built. Keep one
+// row per line and no comments on data rows.
+//
+=== jText File ===
+ 1. ?# recipes.jtext
+ 2. ?# 2026-10-30
+ 3. ?# Provision recipes: prerequisites and install commands by OS (v002)
+ 4. ?# 0.8
+
+=== Section: components ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# component/String/Not Null/Not Empty
+ 3. /# desc/String/Not Null/Not Empty            # heading while it installs
+ 4. /# for/String/Not Null                       # toolchain label it provides; '' = none
+ 5. /# required/Bool/Not Null                    # part of the readiness gate
+ 6. /# check/String/Not Null                     # exit 0 = present; '' = no check
+=== End Fields ===
+=== Data ===
+ 1. ^~ 1^gcc15^GCC 15 toolchain^gcc15^false^
+ 1. ^~ 2^gcc16^GCC 16 toolchain (Fedora 44+ system gcc)^gcc16^false^
+ 1. ^~ 3^clang^Clang 20+ with module scan-deps (clang-scan-deps)^clang^false^
+ 1. ^~ 4^sqlite^SQLite3 dev libraries (Qlite links libsqlite3)^^false^[ -e /usr/include/sqlite3.h ]
+ 1. ^~ 5^pg18^PostgreSQL 18 client dev libraries (libpq: Postgres persist sink + PG gates)^^false^[ -e /usr/pgsql-18/include/libpq-fe.h ] || { v=$(pkg-config --modversion libpq 2>/dev/null); v=${v%%[!0-9]*}; [ -n "$v" ] && [ "$v" -ge 18 ]; }
+ 1. ^~ 6^ninja^Ninja >= 1.11 (required for C++23 module builds)^^false^v=$(ninja --version 2>/dev/null); [ -n "$v" ] && [ "$(printf '1.11\n%s\n' "$v" | sort -V | head -n1)" = 1.11 ]
+ 1. ^~ 7^cmake^CMake >= 3.26 (module builds: >= 3.28; the distro package is enough)^^false^command -v cmake >/dev/null 2>&1
+ 1. ^~ 8^vim^Vim (text editor; the full vim, not only vi)^^false^command -v vim >/dev/null 2>&1
+ 1. ^~ 9^valgrind^Valgrind + dev headers — memcheck + helgrind + DRD (the matrix verify gate)^^true^command -v valgrind >/dev/null 2>&1 && [ -e /usr/include/valgrind/valgrind.h ] && [ -e /usr/include/valgrind/helgrind.h ] && [ -e /usr/include/valgrind/drd.h ]
+ 1. ^~ 10^upp_gui^U++ GUI build libraries (GTK3, libnotify, FreeType, Fontconfig, X11, zlib) for Jac313Runner and JTextGui; patch + rsync to build the patched U++ (not on Fedora Workstation by default)^^false^
+ 1. ^~ 11^dbeaver^DBeaver Community 26.2.3 (database browser; DBeaver's own RPM / DEB, sha256-checked)^^false^rpm -q dbeaver-ce >/dev/null 2>&1 || dpkg-query -W -f='${Status}' dbeaver-ce 2>/dev/null | grep -q 'install ok installed'
+ 1. ^~ 12^chrome^Google Chrome stable (Open Reports in Chrome; Google's signed repository, x86_64 only)^^false^command -v google-chrome >/dev/null 2>&1 || command -v google-chrome-stable >/dev/null 2>&1
+=== End Data ===
+=== End Section ===
+
+=== Section: recipe_os ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# os/String/Not Null/Not Empty              # rhel | fedora | linuxmint
+ 3. /# component/String/Not Null/Not Empty       # a component in components
+ 4. /# command/String/Not Null/Not Empty         # the install command
+=== End Fields ===
+=== Data ===
+ 1. ^~ 1^rhel^gcc15^sudo dnf install -y gcc-toolset-15
+ 1. ^~ 2^fedora^gcc15^sudo dnf install -y gcc gcc-c++
+ 1. ^~ 3^linuxmint^gcc15^sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install -y g++-15
+ 1. ^~ 4^rhel^gcc16^sudo dnf install -y gcc-toolset-16
+ 1. ^~ 5^fedora^gcc16^sudo dnf install -y gcc gcc-c++
+ 1. ^~ 6^linuxmint^gcc16^sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install -y g++-16
+ 1. ^~ 7^rhel^clang^sudo dnf install -y clang clang-tools-extra
+ 1. ^~ 8^fedora^clang^sudo dnf install -y clang clang-tools-extra
+ 1. ^~ 9^linuxmint^clang^sudo apt-get install -y clang-20 clang-tools-20 && (command -v clang >/dev/null 2>&1 || sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 1000 >/dev/null 2>&1) && (command -v clang++ >/dev/null 2>&1 || sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 1000 >/dev/null 2>&1) || true
+ 1. ^~ 10^rhel^sqlite^sudo dnf install -y sqlite-devel
+ 1. ^~ 11^fedora^sqlite^sudo dnf install -y sqlite-devel
+ 1. ^~ 12^linuxmint^sqlite^sudo apt-get install -y libsqlite3-dev
+ 1. ^~ 13^rhel^pg18^(rpm -q pgdg-redhat-repo >/dev/null 2>&1 || sudo dnf install -y "https://download.postgresql.org/pub/repos/yum/reporpms/EL-$(rpm -E %rhel)-$(uname -m)/pgdg-redhat-repo-latest.noarch.rpm") && (rpm -q perl-IPC-Run >/dev/null 2>&1 || sudo dnf config-manager --set-enabled crb 2>/dev/null || sudo subscription-manager repos --enable "codeready-builder-for-rhel-$(rpm -E %rhel)-$(uname -m)-rpms") && sudo dnf install -y postgresql18-devel
+ 1. ^~ 14^fedora^pg18^sudo dnf install -y libpq-devel
+ 1. ^~ 15^linuxmint^pg18^sudo apt-get install -y postgresql-common && sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y "$(. /etc/os-release; echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")" && sudo apt-get install -y libpq-dev
+ 1. ^~ 16^rhel^ninja^sudo dnf install -y python3-pip && python3 -m pip install --user ninja
+ 1. ^~ 17^fedora^ninja^sudo dnf install -y python3-pip && python3 -m pip install --user ninja
+ 1. ^~ 18^linuxmint^ninja^sudo apt-get install -y ninja-build
+ 1. ^~ 19^rhel^cmake^sudo dnf install -y cmake
+ 1. ^~ 20^fedora^cmake^sudo dnf install -y cmake
+ 1. ^~ 21^linuxmint^cmake^sudo apt-get install -y cmake
+ 1. ^~ 22^rhel^vim^sudo dnf install -y vim-enhanced
+ 1. ^~ 23^fedora^vim^sudo dnf install -y vim-enhanced
+ 1. ^~ 24^linuxmint^vim^sudo apt-get install -y vim
+ 1. ^~ 25^rhel^valgrind^sudo dnf install -y valgrind valgrind-devel
+ 1. ^~ 26^fedora^valgrind^sudo dnf install -y valgrind valgrind-devel
+ 1. ^~ 27^linuxmint^valgrind^sudo apt-get install -y valgrind
+ 1. ^~ 28^rhel^upp_gui^sudo dnf install -y 'pkgconfig(gtk+-3.0)' 'pkgconfig(libnotify)' 'pkgconfig(freetype2)' 'pkgconfig(fontconfig)' 'pkgconfig(x11)' 'pkgconfig(xinerama)' 'pkgconfig(xrender)' 'pkgconfig(xft)' 'pkgconfig(xcb)' 'pkgconfig(xext)' 'pkgconfig(expat)' bzip2-devel zlib-devel openssl-devel make patch rsync
+ 1. ^~ 29^fedora^upp_gui^sudo dnf install -y 'pkgconfig(gtk+-3.0)' 'pkgconfig(libnotify)' 'pkgconfig(freetype2)' 'pkgconfig(fontconfig)' 'pkgconfig(x11)' 'pkgconfig(xinerama)' 'pkgconfig(xrender)' 'pkgconfig(xft)' 'pkgconfig(xcb)' 'pkgconfig(xext)' 'pkgconfig(expat)' bzip2-devel zlib-devel openssl-devel make patch rsync
+ 1. ^~ 30^linuxmint^upp_gui^sudo apt-get install -y libgtk-3-dev libnotify-dev libfreetype-dev libfontconfig-dev libx11-dev libxinerama-dev libxrender-dev libxft-dev libxcb1-dev libxext-dev libexpat1-dev libbz2-dev zlib1g-dev libssl-dev make pkg-config patch rsync
+ 1. ^~ 31^rhel^dbeaver^v=26.2.3; case $(uname -m) in x86_64) a=x86_64 s=499f2b80a8fc5044e711116996a31c850236750ba32f99208c57526b3df61320 ;; aarch64) a=aarch64 s=12bad1814132d5c31df5dce67e798a7cc9a4c0f49304f2b8b2fbdb5102763a67 ;; *) echo "DBeaver: no package for $(uname -m)"; exit 1 ;; esac; f=dbeaver-ce-$v-linux-$a.rpm; d=$(mktemp -d) && curl -fL --progress-bar -o "$d/$f" "https://github.com/dbeaver/dbeaver/releases/download/$v/$f" && echo "$s  $d/$f" | sha256sum -c --quiet - && sudo dnf install -y "$d/$f"; rc=$?; rm -rf "$d"; exit $rc
+ 1. ^~ 32^fedora^dbeaver^v=26.2.3; case $(uname -m) in x86_64) a=x86_64 s=499f2b80a8fc5044e711116996a31c850236750ba32f99208c57526b3df61320 ;; aarch64) a=aarch64 s=12bad1814132d5c31df5dce67e798a7cc9a4c0f49304f2b8b2fbdb5102763a67 ;; *) echo "DBeaver: no package for $(uname -m)"; exit 1 ;; esac; f=dbeaver-ce-$v-linux-$a.rpm; d=$(mktemp -d) && curl -fL --progress-bar -o "$d/$f" "https://github.com/dbeaver/dbeaver/releases/download/$v/$f" && echo "$s  $d/$f" | sha256sum -c --quiet - && sudo dnf install -y "$d/$f"; rc=$?; rm -rf "$d"; exit $rc
+ 1. ^~ 33^linuxmint^dbeaver^v=26.2.3; case $(uname -m) in x86_64) a=x86_64 s=66a9d989dc36bdaf71f95e4186efc022399c0dfcfb37e69034038502f2fb3d21 ;; aarch64) a=aarch64 s=79daaeee8b64ade4a06505bcc5ea17f22e11bde6a4a366ef208f1c3d3e06b6e2 ;; *) echo "DBeaver: no package for $(uname -m)"; exit 1 ;; esac; f=dbeaver-ce-$v-linux-$a.deb; d=$(mktemp -d) && curl -fL --progress-bar -o "$d/$f" "https://github.com/dbeaver/dbeaver/releases/download/$v/$f" && echo "$s  $d/$f" | sha256sum -c --quiet - && sudo apt-get install -y "$d/$f"; rc=$?; rm -rf "$d"; exit $rc
+ 1. ^~ 34^rhel^chrome^[ "$(uname -m)" = x86_64 ] || { echo "Google Chrome: no Linux package for $(uname -m)"; exit 1; }; printf '[google-chrome]\nname=google-chrome\nbaseurl=https://dl.google.com/linux/chrome/rpm/stable/x86_64\nenabled=1\ngpgcheck=1\ngpgkey=https://dl.google.com/linux/linux_signing_key.pub\n' | sudo tee /etc/yum.repos.d/google-chrome.repo >/dev/null && sudo dnf install -y google-chrome-stable
+ 1. ^~ 35^fedora^chrome^[ "$(uname -m)" = x86_64 ] || { echo "Google Chrome: no Linux package for $(uname -m)"; exit 1; }; printf '[google-chrome]\nname=google-chrome\nbaseurl=https://dl.google.com/linux/chrome/rpm/stable/x86_64\nenabled=1\ngpgcheck=1\ngpgkey=https://dl.google.com/linux/linux_signing_key.pub\n' | sudo tee /etc/yum.repos.d/google-chrome.repo >/dev/null && sudo dnf install -y google-chrome-stable
+ 1. ^~ 36^linuxmint^chrome^[ "$(dpkg --print-architecture)" = amd64 ] || { echo "Google Chrome: no Linux package for $(dpkg --print-architecture)"; exit 1; }; curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor --yes -o /usr/share/keyrings/google-chrome.gpg && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list >/dev/null && sudo apt-get update && sudo apt-get install -y google-chrome-stable
+=== End Data ===
+=== End Section ===
+=== End File ===

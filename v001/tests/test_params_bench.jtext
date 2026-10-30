@@ -1,0 +1,61 @@
+//File:    test_params_bench.jtext
+//Date:    2026-10-30
+//Purpose: Benchmark-tier matrix selection and settings for `jac313_test_cli matrix` (v001), picked with
+//         --params <file>.
+//
+// Big in-memory benchmark tier (SIZE=bench): 005 + 007 at ~1M events/run.
+//
+// Measures the store hot-path peak ops/sec at amortized scale and records it to the
+// results DB under size_label "Bench". Best built in Release:
+//
+//   ./build/tools/jac313_test_cli all --gcc --release --build-dir build-gcc15-release
+//   ./build/tools/jac313_test_cli matrix run --params tests/test_params_bench.jtext \
+//       --gcc --build-dir build-gcc15-release --filter none
+//
+// --filter none = pure in-memory hot path (compare to the historical peak).
+// Drop --filter to also measure binary/jText/SQL throughput at 1M events.
+// Then: ./build/tools/jac313_test_cli matrix top
+//
+// selection: one row per package or test to include (include false leaves it out):
+//   qlite, jtext, store   a package: every ctest smoke/unit in it
+//   001 ... 008, flags, metric_view   a matrix stress test (ported ts_store 001-008 TS/XS + flags)
+//   any other name        one ctest test, named without its path
+//                         (e.g. jac313_store_binary_persist_smoke)
+// settings: one row per key.
+//   DISK_TYPE  auto | xssd rssd xx7k xr7k x10k r10k x15k r15k  (results layout label; x = one
+//              disk, r = RAID; a machine sets its own in ~/.config/jac313/disk_type or
+//              JAC313_DISK_TYPE)
+//   SIZE       smoke | full | bench  (smoke = default; full uses per-test scaling via
+//              test_params_full.jtext; bench is test_params_bench.jtext)
+//   OS_ID      optional (e.g. OS_001) for test-results/OS_001/... layout
+//
+=== jText File ===
+ 1. ?# test_params_bench.jtext
+ 2. ?# 2026-10-30
+ 3. ?# Benchmark-tier matrix selection and settings (v001)
+ 4. ?# 0.8
+
+=== Section: selection ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# name/String/Not Null/Not Empty            # package or test
+ 3. /# include/Bool/Not Null
+=== End Fields ===
+=== Data ===
+ 1. |# 1|005|true
+ 1. |# 2|007|true
+=== End Data ===
+=== End Section ===
+
+=== Section: settings ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# key/String/Not Null/Not Empty             # DISK_TYPE | SIZE | OS_ID
+ 3. /# value/String/Not Null
+=== End Fields ===
+=== Data ===
+ 1. |# 1|DISK_TYPE|xssd
+ 1. |# 2|SIZE|bench
+=== End Data ===
+=== End Section ===
+=== End File ===

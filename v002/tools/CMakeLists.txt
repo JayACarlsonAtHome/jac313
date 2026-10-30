@@ -17,6 +17,7 @@ add_executable(jac313_test_cli
     jac313_test_cli/summary.cpp
     jac313_test_cli/connections.cpp
     jac313_test_cli/contract_modes.cpp
+    jac313_test_cli/settings.cpp
     jac313_test_cli/vendor.cpp
     jac313_test_cli/run_identity.cpp
 )
@@ -33,11 +34,12 @@ if(TARGET jac313::store_pg_persist)
     target_link_libraries(jac313_test_cli PRIVATE jac313::store_pg_persist)
     target_compile_definitions(jac313_test_cli PRIVATE JAC313_TEST_CLI_HAS_PG=1)
 endif()
-# jText reads the PostgreSQL connections file (connections.cpp)
-if(TARGET jac313_jText)
-    target_link_libraries(jac313_test_cli PRIVATE jac313::jText)
-    target_compile_definitions(jac313_test_cli PRIVATE JAC313_TEST_CLI_HAS_JTEXT=1)
+# jText reads the CLI's settings (settings.cpp: Setup/*.jtext, tests/*.jtext) and the PostgreSQL
+# connections file (connections.cpp), so the CLI needs it.
+if(NOT TARGET jac313_jText)
+    message(FATAL_ERROR "jac313_test_cli reads its settings with jText: configure with JAC313_BUILD_JTEXT=ON")
 endif()
+target_link_libraries(jac313_test_cli PRIVATE jac313::jText)
 
 # Unit tests for the tool's own primitives (RunIdentity, ...). Registered with ctest
 # so they run as part of the standard suite.
@@ -70,6 +72,24 @@ if(TARGET jac313::Qlite)
     target_link_libraries(jac313_host_group_test PRIVATE jac313::Qlite)
 endif()
 add_test(NAME jac313_host_group_test COMMAND jac313_host_group_test)
+
+# The settings tables (Setup/*.jtext, tests/*.jtext) read through settings.cpp, validated, and
+# checked against one another (every recipe on every OS family, every toolchain activated).
+add_executable(jac313_settings_tables_test
+    jac313_test_cli/settings.cpp
+    jac313_test_cli/tests/settings_tables_test.cpp
+)
+target_include_directories(jac313_settings_tables_test PRIVATE jac313_test_cli)
+target_compile_features(jac313_settings_tables_test PRIVATE cxx_std_26)
+target_link_libraries(jac313_settings_tables_test PRIVATE jac313::jText)
+if(TARGET jac313::Setup)
+    target_link_libraries(jac313_settings_tables_test PRIVATE jac313::Setup)
+endif()
+target_compile_definitions(jac313_settings_tables_test PRIVATE JAC313_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME jac313_settings_tables_test COMMAND jac313_settings_tables_test)
+
+# Setup/jtext_table.sh: the sh + awk reader bsir.sh uses on compilers.jtext and recipes.jtext.
+add_test(NAME jac313_jtext_table_sh_test COMMAND bash ${CMAKE_SOURCE_DIR}/Setup/jtext_table_test.sh)
 
 add_executable(jac313_results_schema_test
     jac313_test_cli/tests/results_schema_test.cpp

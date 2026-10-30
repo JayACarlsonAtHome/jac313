@@ -17,7 +17,7 @@
 === Fields ===
  1. /# id/Integer/Not Null
  2. /# os/String/Not Null             # rhel | fedora | linuxmint (Setup's OS family)
- 3. /# toolchain/String/Not Null      # a label in Setup/compilers.conf
+ 3. /# toolchain/String/Not Null      # a label in Setup/compilers.jtext
  4. /# enforce/Bool/Not Null
  5. /# observe/Bool/Not Null
  6. /# quick_enforce/Bool/Not Null

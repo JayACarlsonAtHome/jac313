@@ -1,9 +1,9 @@
 #include "params.hpp"
 #include "host_hardware.hpp"
+#include "settings.hpp"
 
 #include <algorithm>
 #include <cctype>
-#include <fstream>
 #include <iostream>
 #include <string_view>
 
@@ -22,11 +22,6 @@ std::string lower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return s;
-}
-
-bool is_truthy(const std::string& value) {
-    const std::string v = lower(value);
-    return v == "x" || v == "1" || v == "true" || v == "yes";
 }
 
 // The disk tier (4 characters, see normalize_disk_type): this machine's own setting first, then
@@ -52,10 +47,13 @@ void resolve_disk_type(MatrixParams& params) {
 
 } // namespace
 
+// A tests/test_params*.jtext file: its selection rows pick packages (qlite, jtext, store) and tests
+// (001-008, flags, metric_view, or a ctest name), its settings rows set SIZE, DISK_TYPE and OS_ID.
+// No file selects every package.
 MatrixParams load_matrix_params(const std::filesystem::path& config_file) {
     MatrixParams params;
-    std::ifstream file(config_file);
-    if (!file) {
+    std::error_code ec;
+    if (!std::filesystem::exists(config_file, ec)) {
         params.selected_packages["qlite"] = true;
         params.selected_packages["jtext"] = true;
         params.selected_packages["store"] = true;
@@ -63,41 +61,28 @@ MatrixParams load_matrix_params(const std::filesystem::path& config_file) {
         return params;
     }
 
-    std::string line;
-    while (std::getline(file, line)) {
-        if (auto hash = line.find('#'); hash != std::string::npos) {
-            line = line.substr(0, hash);
-        }
-        line = trim(line);
-        if (line.empty() || line.find('=') == std::string::npos) {
-            continue;
-        }
-
-        const auto eq = line.find('=');
-        std::string key = trim(line.substr(0, eq));
-        std::string value = trim(line.substr(eq + 1));
-        const std::string key_lower = lower(key);
-
+    const ParamsTable table = load_params_table(config_file);
+    for (const auto& [key, value] : table.settings) {
+        const std::string key_lower = lower(trim(key));
         if (key_lower == "size") {
             params.size = value;
         } else if (key_lower == "disk_type") {
             params.disk_type = value;
         } else if (key_lower == "os_id") {
             params.os_id = value;
-        } else if (key_lower == "qlite" || key_lower == "jtext" || key_lower == "store") {
-            if (is_truthy(value)) {
-                params.selected_packages[key_lower] = true;
-            }
-        } else if (key.size() == 3 && std::all_of(key.begin(), key.end(), ::isdigit)) {
-            if (is_truthy(value)) {
-                params.selected_tests[key] = true;
-            }
+        }
+    }
+    for (const auto& [name, include] : table.selection) {
+        if (!include) {
+            continue;
+        }
+        const std::string key_lower = lower(name);
+        if (key_lower == "qlite" || key_lower == "jtext" || key_lower == "store") {
+            params.selected_packages[key_lower] = true;
         } else if (key_lower == "flags") {
-            if (is_truthy(value)) {
-                params.selected_tests["flags"] = true;
-            }
-        } else if (is_truthy(value)) {
-            params.selected_tests[key] = true;
+            params.selected_tests["flags"] = true;
+        } else {
+            params.selected_tests[name] = true;
         }
     }
 

@@ -1,0 +1,34 @@
+//File:    compilers.pin.jtext
+//Date:    2026-10-30
+//Purpose: The committed per-machine compiler pin (v001). One row per machine, keyed on the
+//         hardware identity (cpu / cores / ram_gb / os), labeled jac313-###. bootstrap
+//         find-or-creates a row; the chosen gcc / clang are then DETERMINISTIC across runs.
+//
+// Change a row by editing it, or: jac313_test_cli pin --gcc <label> --clang <label>
+// (labels are from the toolchains table of Setup/compilers.jtext).
+// Written by jac313_test_cli pin through jText's writer.
+//
+=== jText File ===
+ 1. ▮▌ compilers.pin.jtext
+ 2. ▮▌ 2026-10-30
+ 3. ▮▌ Per-machine compiler pin (v001)
+ 4. ▮▌ 0.8
+ 5. ▮▌ Insensitive
+ 8. ▮▌ true
+
+=== Section: pins ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# label/String/Not Null/Not Empty
+ 3. /# cpu_model/String/Not Null
+ 4. /# cores/Integer/Not Null
+ 5. /# ram_gb/Integer/Not Null
+ 6. /# os_pretty/String/Not Null
+ 7. /# gcc_label/String/Not Null
+ 8. /# clang_label/String/Not Null
+=== End Fields ===
+=== Data ===
+=== End Data ===
+=== End Section ===
+
+=== End File ===

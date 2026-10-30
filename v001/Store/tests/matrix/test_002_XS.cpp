@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     }
 
-    // Respect runner / test_params.txt scaling (progressive difficulty).
+    // Respect runner / test_params.jtext scaling (progressive difficulty).
     // Defaults kept at the historical small values for this test.
     size_t num_threads       = 25;
     size_t events_per_thread = 100;

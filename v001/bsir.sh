@@ -15,7 +15,7 @@
 #      needed to build AND run the gates, so a fresh box is provisioned in ONE pass.
 #   3. If any of it is missing -> after the one "Install everything?" yes and one sudo
 #      password, first update the system (dnf upgrade / apt upgrade), then install it here,
-#      item by item, from Setup/recipes.conf, then go on.
+#      item by item, from Setup/recipes.jtext, then go on.
 #   4. Build jac313_test_cli once and let it check this machine ('setup' for readiness;
 #      '--run-everything' for the full battery).
 #   5. Sense + pin this machine as jac313-### (host_spec + current_host). Auto-pins when
@@ -30,7 +30,10 @@
 set -eu
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-RECIPES="$ROOT/Setup/recipes.conf"
+RECIPES="$ROOT/Setup/recipes.jtext"
+COMPILERS="$ROOT/Setup/compilers.jtext"
+# jtext_rows / jtext_fields / jtext_select: read those jText tables with sh + awk (nothing is built yet)
+. "$ROOT/Setup/jtext_table.sh"
 
 WANT_GUI=1   # the Runner window is part of a normal bootstrap; --no-gui skips it
 ASSUME_YES=0
@@ -63,7 +66,7 @@ fi
 
 lc() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
 
-# --- 1. detect OS family (tokens match Setup/recipes.conf + compilers.conf) ---
+# --- 1. detect OS family (tokens match the os column of Setup/recipes.jtext + compilers.jtext) ---
 family="unknown"
 if [ -r /etc/os-release ]; then
   # shellcheck disable=SC1091
@@ -105,10 +108,29 @@ enable_utf8_console() {
 }
 enable_utf8_console
 
-# look up an install command from recipes.conf:  recipe_cmd <component> <family>
+# look up a recipe in recipes.jtext:  recipe_cmd <component> <family> -> its install command there;
+# recipe_cmd <component> desc|for|required|check -> that column of its components row
 recipe_cmd() {
   [ -r "$RECIPES" ] || return 1
-  sed -n "s/^[[:space:]]*$1\\.$2[[:space:]]*=[[:space:]]*//p" "$RECIPES" | head -n1
+  case "$2" in
+    desc|for|required|check) jtext_select "$RECIPES" components "$2" component "$1" | head -n1 ;;
+    *) jtext_select "$RECIPES" recipe_os command component "$1" os "$2" | head -n1 ;;
+  esac
+}
+
+# the gcc toolchain labels of compilers.jtext, highest version first
+gcc_toolchains() {
+  jtext_select "$COMPILERS" toolchains version,label kind gcc | sort -rn | cut -f2
+}
+
+# the gcc toolchain this OS family requires (the highest; else the highest there is): its recipe
+# installs a gcc when none is found
+required_gcc() {
+  for tc in $(gcc_toolchains); do
+    [ "$(jtext_select "$COMPILERS" toolchain_os required toolchain "$tc" os "$family" | head -n1)" = true ] \
+      && { echo "$tc"; return 0; }
+  done
+  gcc_toolchains | head -n1
 }
 
 ninja_ok() {
@@ -117,21 +139,38 @@ ninja_ok() {
 }
 
 # --- compiler + baseline detection (factored so we can re-detect after provisioning) ---
+# From compilers.jtext: every gcc toolchain, highest version first; for each, its activations on
+# this OS family in order (every activation listed when the family has no rows), each with each
+# of its cc_names. The first g++ that reports the toolchain's version wins. Only an activation of
+# the form "<prefix> {CMD}" (or "{CMD}") can be used here: the build steps run as $ACT <command>.
 detect_cxx() {
   CXX=""; ACT=""
-  try_cxx "" g++-15 \
-    || try_cxx "" g++-14 \
-    || try_cxx "gcc-toolset-15-env" g++ \
-    || try_cxx "scl enable gcc-toolset-15 --" g++ \
-    || try_cxx "gcc-toolset-14-env" g++ \
-    || try_cxx "scl enable gcc-toolset-14 --" g++ \
-    || try_cxx "" g++ \
-    || true
+  for tc in $(gcc_toolchains); do
+    want=$(jtext_select "$COMPILERS" toolchains version label "$tc")
+    min=$(jtext_select "$COMPILERS" toolchains min_version label "$tc")
+    names=$(jtext_select "$COMPILERS" toolchains cc_names label "$tc")
+    acts=$(jtext_select "$COMPILERS" toolchain_os activation_seq,activation toolchain "$tc" os "$family")
+    [ -n "$acts" ] || acts=$(jtext_select "$COMPILERS" toolchain_os activation_seq,activation toolchain "$tc")
+    acts=$(printf '%s\n' "$acts" | sort -n -k1,1 | cut -f2- | awk '!seen[$0]++')
+    while IFS= read -r act; do
+      case "$act" in
+        "{CMD}") prefix="" ;;
+        *" {CMD}") prefix=${act% \{CMD\}} ;;
+        *) continue ;;
+      esac
+      for cc in $names; do
+        try_cxx "$prefix" "$cc" "$want" "$min" && return 0
+      done
+    done <<ACTS
+$acts
+ACTS
+  done
+  return 0
 }
 
 compute_missing() {
   missing=""
-  [ -n "$CXX" ]                    || missing="$missing gcc15"
+  [ -n "$CXX" ]                    || missing="$missing $(required_gcc)"
   ( command -v clang >/dev/null 2>&1 || command -v clang-20 >/dev/null 2>&1 ) || missing="$missing clang"
   command -v cmake >/dev/null 2>&1 || missing="$missing cmake"
   command -v vim >/dev/null 2>&1   || missing="$missing vim"
@@ -146,12 +185,13 @@ compute_missing() {
       && [ -e /usr/include/valgrind/drd.h ]; }  || missing="$missing valgrind"
 }
 
-try_cxx() {  # $1 = activation prefix (may be empty), $2 = compiler name
+try_cxx() {  # $1 = activation prefix (may be empty), $2 = compiler name, $3 = version,
+             # $4 = min_version (0: the major must be $3; else at least $4)
   p=$($1 sh -c "command -v $2" 2>/dev/null) || return 1
   [ -n "$p" ] || return 1
   major=$($1 "$2" -dumpversion 2>/dev/null | cut -d. -f1) || return 1
   case "$major" in ''|*[!0-9]*) return 1 ;; esac
-  [ "$major" -ge 14 ] || return 1
+  if [ "$4" -gt 0 ]; then [ "$major" -ge "$4" ] || return 1; else [ "$major" -eq "$3" ] || return 1; fi
   CXX="$p"; ACT="$1"; return 0
 }
 
@@ -214,7 +254,7 @@ bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner
   if ! upp_gui_libs_ok; then
     cmd=$(recipe_cmd upp_gui "$family")
     if [ -z "$cmd" ]; then
-      echo "No upp_gui recipe for '$family' in Setup/recipes.conf. Install the GTK3, libnotify,"
+      echo "No upp_gui recipe for '$family' in Setup/recipes.jtext. Install the GTK3, libnotify,"
       echo "FreeType, Fontconfig and X11 development packages by hand, then: ./bsir.sh"
       return 1
     fi
@@ -249,7 +289,7 @@ dbeaver_ok() { sh -c "$(recipe_cmd dbeaver check)"; }
 install_dbeaver() {  # DBeaver for browsing results.db and the database tables ([Y/n])
   dbeaver_ok && { echo "DBeaver: installed."; return 0; }
   cmd=$(recipe_cmd dbeaver "$family")
-  [ -n "$cmd" ] || { echo "No dbeaver recipe for '$family' in Setup/recipes.conf."; return 1; }
+  [ -n "$cmd" ] || { echo "No dbeaver recipe for '$family' in Setup/recipes.jtext."; return 1; }
   ans=y
   if [ "$ASSUME_YES" != 1 ]; then
     [ -t 0 ] || { echo "(non-interactive — DBeaver not installed; run: $cmd)"; return 0; }
@@ -269,7 +309,7 @@ chrome_ok() { sh -c "$(recipe_cmd chrome check)"; }
 install_chrome() {  # Google Chrome for Jac313Runner's "Open Reports in Chrome" (required by the GUI)
   chrome_ok && { echo "Google Chrome: installed."; return 0; }
   cmd=$(recipe_cmd chrome "$family")
-  [ -n "$cmd" ] || { echo "No chrome recipe for '$family' in Setup/recipes.conf."; return 1; }
+  [ -n "$cmd" ] || { echo "No chrome recipe for '$family' in Setup/recipes.jtext."; return 1; }
   ans=y
   if [ "$ASSUME_YES" != 1 ]; then
     [ -t 0 ] || { echo "Google Chrome is required for the GUI and is missing (non-interactive). Run: $cmd"; return 1; }
@@ -466,7 +506,7 @@ else
   echo "  (no sudo: the system update was skipped)"
 fi
 
-# --- 3. install what is missing (recipes in Setup/recipes.conf), then continue ---
+# --- 3. install what is missing (recipes in Setup/recipes.jtext), then continue ---
 # The valgrind check requires the memcheck header AND the helgrind + DRD headers: the
 # annotated verify tree (-DJAC313_STORE_HELGRIND_ANNOTATE=ON) #includes <valgrind/helgrind.h>
 # and the DRD annotations, which ship in valgrind-devel (Debian bundles them in `valgrind`).

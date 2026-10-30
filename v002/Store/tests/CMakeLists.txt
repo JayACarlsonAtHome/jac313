@@ -40,7 +40,7 @@ if(JAC313_STORE_BUILD_TESTS)
         target_link_libraries(jac313_store_jtext_text_test PRIVATE jac313::Store jac313::store_jtext_persist)
         add_test(NAME jac313_store_jtext_text_test COMMAND jac313_store_jtext_text_test)
     endif()
-    # Toughened limit from test_limits.txt table (reader was part of the stall path)
+    # Toughened limit from the tests/test_limits.jtext table (reader was part of the stall path)
     set_tests_properties(jac313_store_binary_reader_test PROPERTIES TIMEOUT 60)
 
     # C++26 saturating-arithmetic safety for ts_store capacity / memory guard.

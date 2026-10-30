@@ -1,0 +1,254 @@
+#include "settings.hpp"
+
+#include "parser/section.hpp"
+#include "validator/validator.hpp"
+
+#include <jac313/jText/v002.hpp>
+
+#include <algorithm>
+#include <cctype>
+#include <charconv>
+#include <chrono>
+#include <format>
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+#include <system_error>
+
+namespace jac313::test_cli {
+namespace fs = std::filesystem;
+namespace setup = jac313::Setup::v002;
+
+namespace {
+
+std::string where(const fs::path& path, std::string_view section) {
+    return path.string() + " (section " + std::string(section) + ")";
+}
+
+std::vector<std::string> split_words(const std::string& value) {
+    std::vector<std::string> out;
+    std::istringstream in(value);
+    for (std::string w; in >> w;) out.push_back(w);
+    return out;
+}
+
+int to_int(const std::map<std::string, std::string>& row, const std::string& column,
+           const fs::path& path, std::string_view section) {
+    const std::string& v = row.at(column);
+    int out = 0;
+    const auto [end, ec] = std::from_chars(v.data(), v.data() + v.size(), out);
+    if (ec != std::errc{} || end != v.data() + v.size())
+        throw std::runtime_error(where(path, section) + ": " + column + " '" + v + "' is not an integer");
+    return out;
+}
+
+} // namespace
+
+SettingsTable read_jtext_table(const fs::path& path, std::string_view section) {
+    std::ifstream in(path);
+    if (!in) throw std::runtime_error("cannot read " + path.string());
+    std::stringstream ss;
+    ss << in.rdbuf();
+    const std::string text = ss.str();
+    auto pf = jtext::parse_file_structure(std::string_view(text));
+    if (!pf) throw std::runtime_error(path.string() + ": " + pf.error().to_string());
+    const auto vr = jtext::validate(*pf);
+    if (vr.report.error_count() > 0) {
+        std::string err = path.string() + ": " + std::to_string(vr.report.error_count()) + " jText error(s)";
+        for (const auto& is : vr.report.issues)
+            if (is.severity == jtext::issue_severity::error) err += "\n  " + is.to_string();
+        throw std::runtime_error(err);
+    }
+    for (const auto& sec : vr.file.sections) {
+        if (sec.name != section) continue;
+        SettingsTable table;
+        for (const auto& f : sec.fields) table.columns.push_back(f.name);
+        for (const auto& rec : sec.records) {
+            std::map<std::string, std::string> row;
+            for (std::size_t i = 0; i < table.columns.size(); ++i)
+                row[table.columns[i]] = i < rec.values.size() ? rec.values[i] : std::string{};
+            table.rows.push_back(std::move(row));
+        }
+        return table;
+    }
+    throw std::runtime_error(path.string() + ": no section " + std::string(section));
+}
+
+void require_columns(const SettingsTable& table, const fs::path& path, std::string_view section,
+                     const std::vector<std::string>& columns) {
+    for (const auto& c : columns)
+        if (std::find(table.columns.begin(), table.columns.end(), c) == table.columns.end())
+            throw std::runtime_error(where(path, section) + ": no column " + c);
+}
+
+bool jtext_bool(std::string_view value) {
+    std::string v(value);
+    std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return v == "true" || v == "yes" || v == "y" || v == "t" || v == "1";
+}
+
+std::vector<setup::Toolchain> load_toolchains(const fs::path& source_dir, const std::string& os_family) {
+    const fs::path path = source_dir / "Setup" / "compilers.jtext";
+    const SettingsTable tcs = read_jtext_table(path, "toolchains");
+    require_columns(tcs, path, "toolchains",
+                    {"label", "kind", "version", "min_version", "build_dir", "flag", "cc_names", "scan_deps"});
+    const SettingsTable os = read_jtext_table(path, "toolchain_os");
+    require_columns(os, path, "toolchain_os", {"os", "toolchain", "required", "activation_seq", "activation"});
+
+    const bool family_listed = std::any_of(os.rows.begin(), os.rows.end(),
+                                           [&](const auto& r) { return r.at("os") == os_family; });
+    std::vector<setup::Toolchain> out;
+    for (const auto& r : tcs.rows) {
+        setup::Toolchain tc;
+        tc.label = r.at("label");
+        tc.kind = r.at("kind");
+        tc.version_major = to_int(r, "version", path, "toolchains");
+        if (const int min = to_int(r, "min_version", path, "toolchains"); min > 0) tc.min_version = min;
+        tc.build_dir = r.at("build_dir");
+        tc.flag = r.at("flag");
+        tc.cc_names = split_words(r.at("cc_names"));
+        tc.scan_deps = split_words(r.at("scan_deps"));
+
+        std::vector<std::pair<int, std::string>> acts;
+        for (const auto& o : os.rows) {
+            if (o.at("toolchain") != tc.label) continue;
+            if (jtext_bool(o.at("required"))
+                && std::find(tc.required_on.begin(), tc.required_on.end(), o.at("os")) == tc.required_on.end())
+                tc.required_on.push_back(o.at("os"));
+            if (family_listed && o.at("os") != os_family) continue;
+            acts.emplace_back(to_int(o, "activation_seq", path, "toolchain_os"), o.at("activation"));
+        }
+        std::stable_sort(acts.begin(), acts.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+        for (auto& [seq, act] : acts)
+            if (std::find(tc.activations.begin(), tc.activations.end(), act) == tc.activations.end())
+                tc.activations.push_back(std::move(act));
+        if (tc.activations.empty())
+            throw std::runtime_error(where(path, "toolchain_os") + ": no activation for " + tc.label);
+        out.push_back(std::move(tc));
+    }
+    return out;
+}
+
+std::vector<setup::ProvisionRecipe> load_recipes(const fs::path& source_dir) {
+    const fs::path path = source_dir / "Setup" / "recipes.jtext";
+    const SettingsTable comps = read_jtext_table(path, "components");
+    require_columns(comps, path, "components", {"component", "desc", "for", "required", "check"});
+    const SettingsTable os = read_jtext_table(path, "recipe_os");
+    require_columns(os, path, "recipe_os", {"os", "component", "command"});
+
+    std::vector<setup::ProvisionRecipe> out;
+    for (const auto& r : comps.rows) {
+        setup::ProvisionRecipe rec;
+        rec.component = r.at("component");
+        rec.desc = r.at("desc");
+        rec.for_toolchain = r.at("for");
+        rec.required = jtext_bool(r.at("required"));
+        rec.check = r.at("check");
+        for (const auto& o : os.rows)
+            if (o.at("component") == rec.component) rec.install_by_family.emplace(o.at("os"), o.at("command"));
+        out.push_back(std::move(rec));
+    }
+    return out;
+}
+
+fs::path compiler_pin_path(const fs::path& source_dir) { return source_dir / "Setup" / "compilers.pin.jtext"; }
+
+std::vector<CompilerPinRow> load_compiler_pins(const fs::path& source_dir) {
+    const fs::path path = compiler_pin_path(source_dir);
+    std::error_code ec;
+    if (!fs::exists(path, ec)) return {};
+    const SettingsTable pins = read_jtext_table(path, "pins");
+    require_columns(pins, path, "pins",
+                    {"label", "cpu_model", "cores", "ram_gb", "os_pretty", "gcc_label", "clang_label"});
+    std::vector<CompilerPinRow> out;
+    for (const auto& r : pins.rows) {
+        CompilerPinRow p;
+        p.label = r.at("label");
+        p.cpu = r.at("cpu_model");
+        p.cores = to_int(r, "cores", path, "pins");
+        p.ram_gb = to_int(r, "ram_gb", path, "pins");
+        p.os = r.at("os_pretty");
+        p.gcc_label = r.at("gcc_label");
+        p.clang_label = r.at("clang_label");
+        out.push_back(std::move(p));
+    }
+    return out;
+}
+
+void write_compiler_pins(const fs::path& source_dir, const std::vector<CompilerPinRow>& rows) {
+    using namespace jac313::jText::v002;
+    const fs::path path = compiler_pin_path(source_dir);
+    std::ostringstream out;
+    out << "//File:    compilers.pin.jtext\n"
+        << "//Date:    " << std::format("{:%Y-%m-%d}", std::chrono::floor<std::chrono::days>(
+                                                         std::chrono::system_clock::now())) << "\n"
+        << "//Purpose: The committed per-machine compiler pin (v002). One row per machine, keyed on the\n"
+        << "//         hardware identity (cpu / cores / ram_gb / os), labeled jac313-###. bootstrap\n"
+        << "//         find-or-creates a row; the chosen gcc / clang are then DETERMINISTIC across runs.\n"
+        << "//\n"
+        << "// Change a row by editing it, or: jac313_test_cli pin --gcc <label> --clang <label>\n"
+        << "// (labels are from the toolchains table of Setup/compilers.jtext).\n"
+        << "// Written by jac313_test_cli pin through jText's writer.\n"
+        << "//\n";
+    {
+        JTextWriter w(out);
+        w.set_profile(JTextProfile::Full);
+        w.set_filename("compilers.pin.jtext");
+        w.set_purpose("Per-machine compiler pin (v002)");
+        w.write_header();
+        w.begin_section("pins");
+        w.begin_fields();
+        const std::vector<std::vector<std::string>> fields = {
+            {"id", "Integer", "Not Null"},          {"label", "String", "Not Null", "Not Empty"},
+            {"cpu_model", "String", "Not Null"},    {"cores", "Integer", "Not Null"},
+            {"ram_gb", "Integer", "Not Null"},      {"os_pretty", "String", "Not Null"},
+            {"gcc_label", "String", "Not Null"},    {"clang_label", "String", "Not Null"}};
+        for (std::size_t f = 0; f < fields.size(); ++f) {
+            JTextEntry e;
+            e.number = f + 1;
+            e.delimiter = U'#';
+            e.level_sep = U'/';
+            for (const auto& level : fields[f]) e.fields.emplace_back(level);
+            w.append_entry(e);
+        }
+        w.begin_data();
+        for (std::size_t n = 0; n < rows.size(); ++n) {
+            const CompilerPinRow& r = rows[n];
+            w.append_row(1, {std::to_string(n + 1), r.label, r.cpu, std::to_string(r.cores),
+                             std::to_string(r.ram_gb), r.os, r.gcc_label, r.clang_label});
+            w.end_record();
+        }
+        w.finalize();
+    }
+    // Write beside it, then rename over it: a reader never sees half a file.
+    const fs::path tmp = path.string() + ".tmp";
+    {
+        std::ofstream f(tmp, std::ios::trunc);
+        f << out.str();
+        if (!f.flush()) throw std::runtime_error("cannot write " + tmp.string());
+    }
+    fs::rename(tmp, path);
+}
+
+std::vector<TestLimit> load_test_limits(const fs::path& path) {
+    const SettingsTable t = read_jtext_table(path, "test_control");
+    require_columns(t, path, "test_control", {"test", "timeout_sec", "memory_mb"});
+    std::vector<TestLimit> out;
+    for (const auto& r : t.rows)
+        out.push_back({r.at("test"), to_int(r, "timeout_sec", path, "test_control"),
+                       to_int(r, "memory_mb", path, "test_control")});
+    return out;
+}
+
+ParamsTable load_params_table(const fs::path& path) {
+    const SettingsTable sel = read_jtext_table(path, "selection");
+    require_columns(sel, path, "selection", {"name", "include"});
+    const SettingsTable set = read_jtext_table(path, "settings");
+    require_columns(set, path, "settings", {"key", "value"});
+    ParamsTable out;
+    for (const auto& r : sel.rows) out.selection.emplace_back(r.at("name"), jtext_bool(r.at("include")));
+    for (const auto& r : set.rows) out.settings.emplace_back(r.at("key"), r.at("value"));
+    return out;
+}
+
+} // namespace jac313::test_cli

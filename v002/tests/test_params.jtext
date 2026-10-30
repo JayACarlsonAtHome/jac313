@@ -1,0 +1,61 @@
+//File:    test_params.jtext
+//Date:    2026-10-30
+//Purpose: Smoke matrix selection and settings for `jac313_test_cli matrix` (v002), picked with
+//         --params <file>.
+//
+// jac313 test parameters (local matrix runner).
+//
+// selection: one row per package or test to include (include false leaves it out):
+//   qlite, jtext, store   a package: every ctest smoke/unit in it
+//   001 ... 008, flags, metric_view   a matrix stress test (ported ts_store 001-008 TS/XS + flags)
+//   any other name        one ctest test, named without its path
+//                         (e.g. jac313_store_binary_persist_smoke)
+// settings: one row per key.
+//   DISK_TYPE  auto | xssd rssd xx7k xr7k x10k r10k x15k r15k  (results layout label; x = one
+//              disk, r = RAID; a machine sets its own in ~/.config/jac313/disk_type or
+//              JAC313_DISK_TYPE)
+//   SIZE       smoke | full | bench  (smoke = default; full uses per-test scaling via
+//              test_params_full.jtext; bench is test_params_bench.jtext)
+//   OS_ID      optional (e.g. OS_001) for test-results/OS_001/... layout
+//
+=== jText File ===
+ 1. ?# test_params.jtext
+ 2. ?# 2026-10-30
+ 3. ?# Smoke matrix selection and settings (v002)
+ 4. ?# 0.8
+
+=== Section: selection ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# name/String/Not Null/Not Empty            # package or test
+ 3. /# include/Bool/Not Null
+=== End Fields ===
+=== Data ===
+ 1. |# 1|qlite|true
+ 1. |# 2|jtext|true
+ 1. |# 3|store|true
+ 1. |# 4|001|true
+ 1. |# 5|002|true
+ 1. |# 6|003|true
+ 1. |# 7|004|true
+ 1. |# 8|005|true
+ 1. |# 9|006|true
+ 1. |# 10|007|true
+ 1. |# 11|008|true
+ 1. |# 12|flags|true
+ 1. |# 13|metric_view|true
+=== End Data ===
+=== End Section ===
+
+=== Section: settings ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# key/String/Not Null/Not Empty             # DISK_TYPE | SIZE | OS_ID
+ 3. /# value/String/Not Null
+=== End Fields ===
+=== Data ===
+ 1. |# 1|DISK_TYPE|auto
+ 1. |# 2|SIZE|smoke
+=== End Data ===
+=== End Section ===
+=== End File ===
