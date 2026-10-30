@@ -2,6 +2,7 @@
 # Round-trip helpers so jText <-> SQL works out of the box:
 #   jtext_xtox_sql : jText -> SQL. Parses + validates a .jtFull/.jtext file and
 #                    emits SQL by {N} template substitution (parser+validator via jac313::jText).
+#   jtext_close    : adds the closers a file is missing, so it reads again.
 #   jtext_to_xml   : the canonical XML export (XML_EXPORT.md), the compare standard
 #                    for every round trip.
 #   jtext_to_ods / jtext_from_ods : jText <-> OpenDocument spreadsheet (ODS.md).
@@ -21,6 +22,14 @@ if(JAC313_JTEXT_BUILD_TOOLS)
     target_link_libraries(jtext_to_xml PRIVATE jac313::jText)
     target_compile_features(jtext_to_xml PRIVATE cxx_std_26)
     set_target_properties(jtext_to_xml PROPERTIES CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+
+    # jtext_close: adds the closers a file is missing (cut off mid-write, or written before
+    # closers were required), so it reads again. Its source is synced from canonical jText.
+    add_executable(jtext_close jtext_close.cpp)
+    target_link_libraries(jtext_close PRIVATE jac313::jText)
+    target_compile_features(jtext_close PRIVATE cxx_std_26)
+    set_target_properties(jtext_close PROPERTIES CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+
 
     # jtext_from_sql reads each database through its client library (never a text dump).
     # A backend whose library is installed is built from from_sql/<db>.cpp; one whose
