@@ -492,13 +492,16 @@ bool build_matrix_targets_before_run(const GlobalOptions& global,
     return timed_build_targets(global.build_dir, targets, build_jobs, false, failsafe_sec) >= 0;
 }
 
-// Parse the test's "READBACK key=value key=value ... error="text"" line (the last one wins).
-std::map<std::string, std::string> parse_readback_line(const std::string& out) {
+// Parse the test's "<TAG> key=value key=value ... error="text"" line (the last one wins): the
+// READBACK line (read-back outcome) and the BATCH line (the persistence batch the test used).
+std::map<std::string, std::string> parse_tagged_line(const std::string& out, const std::string& tag) {
     std::map<std::string, std::string> kv;
-    const auto at = out.rfind("READBACK ");
+    const std::string head = tag + " ";
+    const auto at = out.rfind(head);
     if (at == std::string::npos || (at > 0 && out[at - 1] != '\n')) return kv;
     const auto end = out.find('\n', at);
-    const std::string line = out.substr(at + 9, end == std::string::npos ? std::string::npos : end - at - 9);
+    const auto from = at + head.size();
+    const std::string line = out.substr(from, end == std::string::npos ? std::string::npos : end - from);
     std::size_t i = 0;
     while (i < line.size()) {
         while (i < line.size() && line[i] == ' ') ++i;
@@ -564,7 +567,10 @@ std::vector<MatrixRunResult> run_matrix(const std::vector<MatrixScenario>& scena
             scen_mem = it->second;
         run.result = run_test_with_args(scen.entry.command, args, opts.verbose, scen_sec, scen_mem);
         run.result.entry = scen.entry;
-        run.readback = parse_readback_line(run.result.stdout_tail);
+        run.readback = parse_tagged_line(run.result.stdout_tail, "READBACK");
+        if (const auto b = parse_tagged_line(run.result.stdout_tail, "BATCH"); b.count("batch")) {
+            try { run.batch = std::stoll(b.at("batch")); } catch (...) { run.batch = 0; }
+        }
         // A failed read-back makes the scenario fail even if the test's own exit path missed it.
         if (run.result.status == TestStatus::Passed && run.readback.count("status")
             && run.readback["status"] != "PASS") {

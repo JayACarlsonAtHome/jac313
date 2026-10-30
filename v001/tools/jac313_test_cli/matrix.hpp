@@ -5,6 +5,7 @@
 #include "params.hpp"
 #include "runner.hpp"
 
+#include <cstdint>
 #include <filesystem>
 #include <map>
 #include <optional>
@@ -49,6 +50,8 @@ struct MatrixRunResult {
     std::optional<std::uint64_t> persist_log_bytes;
     // Parsed from the test's "READBACK key=value ..." line (empty when the test printed none).
     std::map<std::string, std::string> readback;
+    // The persistence batch from the test's "BATCH ... batch=N" line (0 when it persisted nothing).
+    std::int64_t batch = 0;
 };
 
 void print_matrix_scenario_line(const MatrixScenario& scen,

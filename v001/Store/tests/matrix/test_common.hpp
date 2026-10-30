@@ -142,6 +142,10 @@ void print_targets(const Store& store, size_t index, std::string_view backend, s
     }
 }
 
+/// The persistence batch (rows per sink call) every matrix test attaches its sink with. The test
+/// prints it as "BATCH backend=<b> batch=<n>" (finish_persistence) and the test runner records it.
+inline constexpr size_t kPersistBatch = 10'000;
+
 template<typename Config, typename Store>
 bool attach_persistence_from_opts(Store& prod, const TestOptions& opts) {
     std::string ptype = opts.persist.empty() ? "jtext" : opts.persist;
@@ -157,7 +161,7 @@ bool attach_persistence_from_opts(Store& prod, const TestOptions& opts) {
     auto sink = make_persistence_sink(ptype, bname, im, dm, PersistMode::All);
     if (!sink) return false;
 
-    prod.attach_persistence(std::move(sink), 10'000);
+    prod.attach_persistence(std::move(sink), kPersistBatch);
     prod.set_max_persist_rows(opts.max_persist_rows);
     return true;
 }
@@ -175,6 +179,7 @@ bool finish_persistence(Store& prod, const TestOptions& opts) {
     const std::string ptype = opts.persist.empty() ? "jtext" : opts.persist;
     if (persist_skips_sink(ptype)) return true;
     prod.finalize_persistence();
+    std::cout << "BATCH backend=" << ptype << " batch=" << kPersistBatch << "\n";
     for (size_t i = 0; i < prod.persistence_count(); ++i) print_targets(prod, i, ptype, "persist");
     if (opts.readback == "off") return true;
     const std::string bname = opts.base_name.empty() ? "persist" : opts.base_name;

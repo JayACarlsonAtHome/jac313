@@ -1557,6 +1557,15 @@ int main(int argc, char** argv) {
         // single config — one measurement set
         const bool prod_run = p.persist == "production";
         if (p.label.empty()) p.label = generated_label(p);
+        // --max-runs / --max-records: lower runs and events per run (never raise them), as in the suite;
+        // the name says so, so the report keeps the capped run apart from the full-size one.
+        bool capped = false;
+        if (p.max_runs > 0 && p.runs > p.max_runs) { p.runs = p.max_runs; capped = true; }
+        if (p.max_records > 0 && p.threads * p.events_per_thread > p.max_records) {
+            p.events_per_thread = std::max<std::size_t>(1, p.max_records / p.threads);
+            capped = true;
+        }
+        if (capped) p.label += " [capped]";
         std::cout << "store_bench: threads=" << p.threads << " events/thread=" << p.events_per_thread
                   << " runs=" << p.runs << " persist=" << p.persist << " batch=" << p.batch;
         if (prod_run) std::cout << " production=" << p.prod.spec();
