@@ -23,11 +23,11 @@
 
 1. #|# 2|canonical_dir|jText/v002
 
-1. #|# 3|canonical_commit|02d8a644f733
+1. #|# 3|canonical_commit|7269fa9e022d
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v002.030
+1. #|# 5|canonical_version|v002.031
 
 1. #|# 6|transform|jac313-prefix
 
@@ -82,7 +82,7 @@
 
 1. #|# 12|include/jac313/jText/v002.hpp|include/jText/v002.hpp|3b0b42253b9287078698f9fc97e6aea14b740b3d059a15d970dd3f68b69748a9|4d8477911f65c529a9abcef74a6cf2c8922300b4004996e8608cfcecd9c5dab5
 
-1. #|# 13|jText.api.inc|jText.api.inc|bc2351b125b653ecbc95530305f792389dcf8be540537b5ba105e2c3b976d047|e7fdcfcc5d68169c1d4412de4d6c51c6f62ac9b1faa827ab5059d09a30797b43
+1. #|# 13|jText.api.inc|jText.api.inc|2e3140bd3413c0e4df6e99a9f062d349f8e24aa8e8580fbd123252965a3277a3|4167df02cd9a0fb6e9d5ebbdad781dd5e3823f800b64f3a205b4b70de5bd37a6
 
 1. #|# 14|jText.cpp|jText.cpp|4b3bed76b30fb05a30e6c68740887623e75f970de9dd63125dfdea480dfd1351|ec360a886dddeee6779672c727fc497e8c1c3b9047c1683d19cd563f9c4369fc
 
@@ -120,17 +120,17 @@
 
 1. #|# 31|src/parser/utf8.hpp|src/parser/utf8.hpp|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea
 
-1. #|# 32|src/validator/validator.cpp|src/validator/validator.cpp|ee314d49ac7ceba1f0c08ef4fb5ff6c743d2b84aac511fd32372f253694ace0c|ee314d49ac7ceba1f0c08ef4fb5ff6c743d2b84aac511fd32372f253694ace0c
+1. #|# 32|src/validator/validator.cpp|src/validator/validator.cpp|33c57057908b2aedfeb5247dc29cc9e674b1a41d081020ce63b05dd745564b4c|33c57057908b2aedfeb5247dc29cc9e674b1a41d081020ce63b05dd745564b4c
 
-1. #|# 33|src/validator/validator.hpp|src/validator/validator.hpp|668f8a8fbc754a57255419b8840f3cf9c55b5bff8f77c222d5aa5b73924d759c|668f8a8fbc754a57255419b8840f3cf9c55b5bff8f77c222d5aa5b73924d759c
+1. #|# 33|src/validator/validator.hpp|src/validator/validator.hpp|5a3ea9a121feeff5d5042a339d575c9a60d9b1ed371806027778d606f0f17118|5a3ea9a121feeff5d5042a339d575c9a60d9b1ed371806027778d606f0f17118
 
 1. #|# 34|tests/contracts_test.cpp|tests/contracts_test.cpp|7328a9b46b3160989cfbefb8055813ad8816530f1271a38d833894261a39c67d|b5ffbb39d8126894661b380dfc2be1327c802d27b4657310cf4da3ae0b0e2a2f
 
 1. #|# 35|tests/module/v002_module_test.cpp|tests/module/v002_module_test.cpp|7c2d3fc4efcd67195ee1e51f8101d0f78ab48163a2ec3bf7b5910edd29df39c4|045c35793aca4068213e04a3573e4a0ae8aed5c6c87f076cf771975273161d53
 
-1. #|# 36|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|3531e8d11b33c745132feee513fee2444b8069cc58a046cdb374fea045018502|036433b198e88cf0c4be9e3cb28be9e9c051d6abcc4b9ad23fda23c7c3bfa2e1
+1. #|# 36|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|680b60cd42ee565ed2c6a653b273d48eaaf5d1d52d83311e6a7ffee097dd2069|06ed5e1421b57997e6466de868c31f862a75c78e0fdf8e91c5e7f0f0134a064f
 
-1. #|# 37|tests/v002_test.cpp|tests/v002_test.cpp|6d854a3bee22314af3487c96e992f6d484b862dec62573ddf7d9cdd0da670faf|2410b4a073af8280a8e58ce98f72ba10820da1d7476e94d54290e571a31fa5c2
+1. #|# 37|tests/v002_test.cpp|tests/v002_test.cpp|57b436bd6250163942b4ebdef475ab4fcd7369dde16c20230488748fe43354d3|58b1331f2676071101814b152e384e9703040c1062212c064c05f93ed74091f6
 
 1. #|# 38|tools/common/record_lines.hpp|tools/common/record_lines.hpp|28b77d7aeacf51d8ba3150a4a1f92bb2540250d1ba3441828905dac82e108dc6|97289be2126eda4303b20de6bca338743afd1181d2b950568d166e188fbafdc5
 
@@ -168,7 +168,7 @@
 
 1. #|# 55|tools/jtext_to_xml.cpp|tools/jtext_to_xml.cpp|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724|cd0eb483cdca6290271111c923ffda3b8971c9ab8bd14368c50e0fd5b45f1724
 
-1. #|# 56|tools/jtext_xtox_sql.cpp|tools/jtext_xtox_sql.cpp|0b0ff614636c864533955c837d028f987ac9e6748288a0c50c58da76b71f0a9c|153643fb41f1af32334b556e3e02b967a8f309bd229b039cc2598076fb3020fa
+1. #|# 56|tools/jtext_xtox_sql.cpp|tools/jtext_xtox_sql.cpp|a634b2716bff1f4fb076717f7c824afbc4f2b6eb3f654cd29c06a4f766331972|accd8ed9e19abfc89a3f42115d96733beb78e6e76db9c1a5152b57dacf3e3db9
 
 1. #|# 57|tools/ods/ods.cpp|tools/ods/ods.cpp|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2
 

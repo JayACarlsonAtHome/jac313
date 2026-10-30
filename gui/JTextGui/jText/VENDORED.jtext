@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/jText
 
-1. #|# 3|canonical_commit|f67e50192c6e
+1. #|# 3|canonical_commit|f26c94620678
 
 1. #|# 4|canonical_dirty|No
 
@@ -78,7 +78,7 @@
 
 1. #|# 10|Qlite/include/Qlite/v001/contracts.hpp|Qlite/include/Qlite/v001/contracts.hpp|9e95e89e942c3428bc60d17f278e3611091d2b049925810e77848be0881091c3|9e95e89e942c3428bc60d17f278e3611091d2b049925810e77848be0881091c3
 
-1. #|# 11|jText.api.inc|jText.api.inc|6e3f5b90d41e4bc819c21ee62caeeba2adec10771b759dfd27a1b52534fb0ee7|6e3f5b90d41e4bc819c21ee62caeeba2adec10771b759dfd27a1b52534fb0ee7
+1. #|# 11|jText.api.inc|jText.api.inc|b30d71e1ba4f655967357b0c3848ee5e57dbb60435415a1ce96bdfbef6ededa4|b30d71e1ba4f655967357b0c3848ee5e57dbb60435415a1ce96bdfbef6ededa4
 
 1. #|# 12|jText.cpp|jText.cpp|2004c32952a36a6d5bed4725c47347dab99f34d8aec9c80cb159ee4c4687746e|2004c32952a36a6d5bed4725c47347dab99f34d8aec9c80cb159ee4c4687746e
 
@@ -108,9 +108,9 @@
 
 1. #|# 25|src/parser/utf8.hpp|src/parser/utf8.hpp|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea
 
-1. #|# 26|src/validator/validator.cpp|src/validator/validator.cpp|ee314d49ac7ceba1f0c08ef4fb5ff6c743d2b84aac511fd32372f253694ace0c|ee314d49ac7ceba1f0c08ef4fb5ff6c743d2b84aac511fd32372f253694ace0c
+1. #|# 26|src/validator/validator.cpp|src/validator/validator.cpp|33c57057908b2aedfeb5247dc29cc9e674b1a41d081020ce63b05dd745564b4c|33c57057908b2aedfeb5247dc29cc9e674b1a41d081020ce63b05dd745564b4c
 
-1. #|# 27|src/validator/validator.hpp|src/validator/validator.hpp|668f8a8fbc754a57255419b8840f3cf9c55b5bff8f77c222d5aa5b73924d759c|668f8a8fbc754a57255419b8840f3cf9c55b5bff8f77c222d5aa5b73924d759c
+1. #|# 27|src/validator/validator.hpp|src/validator/validator.hpp|5a3ea9a121feeff5d5042a339d575c9a60d9b1ed371806027778d606f0f17118|5a3ea9a121feeff5d5042a339d575c9a60d9b1ed371806027778d606f0f17118
 
 === End Data ===
 === End Section ===
