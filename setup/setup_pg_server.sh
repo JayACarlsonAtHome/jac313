@@ -22,7 +22,7 @@
 # Exit:    0 ready, role jac313 created with the new password   3 ready, role jac313 already
 #          existed (its password is unchanged)   1 failed or declined   2 usage
 # Related: v001/bsir.sh install_pg_local (the same install steps, for PG local on a test machine),
-#          v001/schema/fleet_v0_1.sql (made by the first test run that registers, not here).
+#          v001/schema/fleet_v0_2.sql (made by the first test run that registers, not here).
 set -u
 
 ALLOW="" PWFILE="" YES=0 DRY=0

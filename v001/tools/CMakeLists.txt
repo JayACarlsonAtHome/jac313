@@ -109,7 +109,7 @@ target_compile_features(jac313_instance_hash_test PRIVATE cxx_std_23)
 add_test(NAME jac313_instance_hash_test COMMAND jac313_instance_hash_test)
 
 # jac313_wipe_all — standalone results.db reset tool (schema + testType enum kept;
-# data + host_spec + current_host pin cleared). Built by bootstrap; symlinked at the v001 root.
+# data + machine + os + current_host pin cleared). Built by bootstrap; symlinked at the v001 root.
 add_executable(jac313_wipe_all jac313_wipe_all.cpp)
 target_compile_features(jac313_wipe_all PRIVATE cxx_std_23)
 target_include_directories(jac313_wipe_all PRIVATE ${CMAKE_SOURCE_DIR}/shared)   # jac313_results_db.hpp
@@ -126,8 +126,8 @@ if(TARGET jac313::Qlite)
     target_link_libraries(jac313_wipe_one PRIVATE jac313::Qlite)
 endif()
 
-# jac313_wipe_jac — wipe a WHOLE machine (group_id): all its runs + testRuns + specs
-# (host_spec, io_best_fit, current_host pin). Built by bootstrap; symlinked at the v001 root.
+# jac313_wipe_jac — wipe a WHOLE machine (machine_id): all its runs + testRuns + every row
+# that names it (machine, io_best_fit, package_version, fleet_sync, current_host pin). Built by bootstrap; symlinked at the v001 root.
 add_executable(jac313_wipe_jac jac313_wipe_jac.cpp)
 target_compile_features(jac313_wipe_jac PRIVATE cxx_std_23)
 target_include_directories(jac313_wipe_jac PRIVATE ${CMAKE_SOURCE_DIR}/shared)   # jac313_results_db.hpp

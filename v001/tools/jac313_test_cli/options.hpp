@@ -97,7 +97,6 @@ struct MatrixOptions {
     std::string compiler_label{"gcc15"};
     bool dry_run{false};
     bool no_summary{false};
-    std::optional<std::int64_t> group_id;
     std::optional<std::string> group_run_utc;
     std::optional<std::string> run_utc;
     // run-all sweep position (1-based). combo_count>0 enables the global

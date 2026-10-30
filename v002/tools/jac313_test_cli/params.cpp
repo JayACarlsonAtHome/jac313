@@ -27,8 +27,11 @@ std::string lower(std::string s) {
 // The disk tier (4 characters, see normalize_disk_type): this machine's own setting first, then
 // DISK_TYPE from the params file, else detected from the disk backing the repo/cwd ("xssd" if
 // undeterminable). Old names (ssd/x7k/10k/15k) are mapped; an unknown name is reported and
-// detection used instead.
+// detection used instead. A valid params DISK_TYPE is also what the machine row records
+// (set_params_disk_type -> machine_disk_tier).
 void resolve_disk_type(MatrixParams& params) {
+    const std::string from_params = normalize_disk_type(lower(trim(params.disk_type)));
+    set_params_disk_type(from_params);
     for (const std::string& wanted : {machine_disk_type(), params.disk_type}) {
         const std::string w = lower(trim(wanted));
         if (w.empty() || w == "auto") {
@@ -48,7 +51,7 @@ void resolve_disk_type(MatrixParams& params) {
 } // namespace
 
 // A tests/test_params*.jtext file: its selection rows pick packages (qlite, jtext, store) and tests
-// (001-008, flags, metric_view, or a ctest name), its settings rows set SIZE, DISK_TYPE and OS_ID.
+// (001-008, flags, metric_view, or a ctest name), its settings rows set SIZE and DISK_TYPE.
 // No file selects every package.
 MatrixParams load_matrix_params(const std::filesystem::path& config_file) {
     MatrixParams params;
@@ -68,8 +71,6 @@ MatrixParams load_matrix_params(const std::filesystem::path& config_file) {
             params.size = value;
         } else if (key_lower == "disk_type") {
             params.disk_type = value;
-        } else if (key_lower == "os_id") {
-            params.os_id = value;
         }
     }
     for (const auto& [name, include] : table.selection) {

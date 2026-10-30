@@ -77,7 +77,7 @@ std::vector<TestLimit> load_test_limits(const std::filesystem::path& path);
 // ---- tests/test_params*.jtext: a matrix run's selection and settings ----
 struct ParamsTable {
     std::vector<std::pair<std::string, bool>> selection;          // name -> include
-    std::vector<std::pair<std::string, std::string>> settings;    // key -> value (DISK_TYPE, SIZE, OS_ID)
+    std::vector<std::pair<std::string, std::string>> settings;    // key -> value (DISK_TYPE, SIZE)
 };
 ParamsTable load_params_table(const std::filesystem::path& path);
 

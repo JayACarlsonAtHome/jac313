@@ -65,7 +65,7 @@ int main() {
         check(one_int(db, "SELECT COUNT(*) FROM testType") == 6, "testType seeded once (6 rows)");
 
         const auto tables = table_names(db);
-        check(tables.size() == 15, "15 tables");
+        check(tables.size() == 16, "16 tables");
         for (const auto& t : tables) {
             const std::int64_t cols = one_int(db, "SELECT COUNT(*) FROM pragma_table_info('" + t + "')");
             const std::int64_t nn   = one_int(db, "SELECT COUNT(*) FROM pragma_table_info('" + t + "') WHERE \"notnull\"=1");
@@ -78,7 +78,7 @@ int main() {
                   std::string("testRun has ") + col);
 
         // Schema 3: parameter.contracts, NOT NULL DEFAULT 'enforce', part of the UNIQUE key.
-        check(R::kResultsSchemaVersion == 4, "kResultsSchemaVersion == 4");
+        check(R::kResultsSchemaVersion == 5, "kResultsSchemaVersion == 5");
         check(one_int(db, "SELECT COUNT(*) FROM pragma_table_info('parameter') WHERE name='contracts' "
                           "AND \"notnull\"=1 AND dflt_value='''enforce'''") == 1,
               "parameter.contracts NOT NULL DEFAULT 'enforce'");
@@ -143,16 +143,69 @@ int main() {
         check(one_int(db, "SELECT COUNT(*) FROM run_target WHERE run_id=8 AND server='#2'") == 1,
               "a server from the connections file is named by its id");
 
-        // host_spec is unique on the identity too: --assign-new-### for a machine already filed
+        // Schema 5: os and machine replace host_spec; run carries os_id + machine_id (NOT NULL, no
+        // default: a run row always names both); the per-machine tables key on machine_id.
+        check(one_int(db, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='host_spec'") == 0,
+              "no host_spec table");
+        check(one_int(db, "SELECT COUNT(*) FROM pragma_table_info('os')") == 6, "os has 6 columns");
+        check(one_int(db, "SELECT COUNT(*) FROM pragma_table_info('machine')") == 9, "machine has 9 columns");
+        check(one_int(db, "SELECT COUNT(*) FROM pragma_table_info('machine') WHERE name='os'") == 0,
+              "machine has no OS column");
+        for (const char* col : {"os_id", "machine_id"})
+            check(one_int(db, std::string("SELECT COUNT(*) FROM pragma_table_info('run') WHERE name='") + col
+                              + "' AND \"notnull\"=1 AND dflt_value IS NULL") == 1,
+                  std::string("run.") + col + " NOT NULL without a default");
+        check(one_int(db, "SELECT COUNT(*) FROM pragma_foreign_key_list('run') WHERE \"table\"='os' AND \"from\"='os_id'") == 1,
+              "run.os_id references os");
+        check(one_int(db, "SELECT COUNT(*) FROM pragma_foreign_key_list('run') WHERE \"table\"='machine' "
+                          "AND \"from\"='machine_id'") == 1, "run.machine_id references machine");
+        for (const char* col : {"host", "group_id"})
+            check(one_int(db, std::string("SELECT COUNT(*) FROM pragma_table_info('run') WHERE name='") + col + "'") == 0,
+                  std::string("run has no ") + col);
+        for (const char* t : {"current_host", "safeness", "io_best_fit", "package_version", "fleet_sync"})
+            check(one_int(db, std::string("SELECT COUNT(*) FROM pragma_table_info('") + t + "') WHERE name='machine_id'") == 1
+                  && one_int(db, std::string("SELECT COUNT(*) FROM pragma_table_info('") + t + "') WHERE name='group_id'") == 0,
+                  std::string(t) + " keys on machine_id");
+        check(one_int(db, "SELECT COUNT(*) FROM pragma_table_info('safeness') WHERE name='os_id' AND pk > 0") == 1,
+              "safeness.os_id is in its key");
+        threw = false;
+        try { db.exec("INSERT INTO run(run_id, machine_id) VALUES(900, 1)"); } catch (const std::exception&) { threw = true; }
+        check(threw, "a run without os_id is refused");
+
+        // The UNIQUE keys: an identical os row and an identical machine are refused.
+        const R::OsInfo fedora{"fedora", "Fedora Linux 44", "44", "7.2.13", "x86_64"};
+        const R::OsInfo rhel{"rhel", "Red Hat Enterprise Linux 10.0", "10.0", "6.12.0", "x86_64"};
+        const std::int64_t os_fedora = R::os_id(db, fedora);
+        check(R::os_id(db, fedora) == os_fedora && one_int(db, "SELECT COUNT(*) FROM os") == 1, "os is found, not duplicated");
+        threw = false;
+        try { db.exec("INSERT INTO os(family, name, version, kernel, arch) VALUES('fedora', 'Fedora Linux 44', '44', "
+                      "'7.2.13', 'x86_64')"); } catch (const std::exception&) { threw = true; }
+        check(threw, "os UNIQUE(family, name, version, kernel, arch)");
+        threw = false;
+        try { db.exec("INSERT INTO machine(id, cpu, cores, ram_gb, disk, instance_hash) VALUES(1, 'c', 1, 1, 'xssd', 'h'), "
+                      "(2, 'c', 1, 1, 'xssd', 'h')"); } catch (const std::exception&) { threw = true; }
+        check(threw, "machine UNIQUE(cpu, cores, ram_gb, disk, instance_hash)");
+        check(one_int(db, "SELECT COUNT(*) FROM machine") == 0, "the refused insert left no machine");
+
+        // A second OS for the same hardware does not create a second machine.
+        const R::MachineId h{"cpu", 8, 32, "ssd", "hash", 4, 1000, 2000};
+        check(R::pin_host(db, h, "v002") == 1, "first pin is machine 1");
+        R::insert_run(db, 901, os_fedora, 1, "v002");
+        const std::int64_t os_rhel = R::os_id(db, rhel);
+        check(R::pin_host(db, h, "v002") == 1, "the same hardware under RHEL is still machine 1");
+        R::insert_run(db, 902, os_rhel, 1, "v002");
+        check(one_int(db, "SELECT COUNT(*) FROM machine") == 1, "one machine row for two OSes");
+        check(one_int(db, "SELECT COUNT(*) FROM os") == 2, "two os rows");
+        check(one_int(db, "SELECT COUNT(DISTINCT os_id) FROM run WHERE machine_id=1") == 2, "its runs name both OSes");
+
+        // machine is unique on the identity too: --assign-new-### for a machine already filed
         // under another number moves its row instead of failing on (or duplicating) the identity.
-        const R::HostId h{"cpu", 8, 32, "os", "ssd", "hash", 4, 1000, 2000};
-        check(R::pin_host(db, h, "v002") == 1, "first pin is group 1");
         R::HostPinOptions opts;
         opts.assign_new = 5;
         const auto moved = R::resolve_and_pin(db, h, opts, false, "v002");
-        check(moved.error == R::HostPinError::None && moved.gid == 5, "assign-new 5 succeeds");
-        check(one_int(db, "SELECT COUNT(*) FROM host_spec") == 1, "one host_spec row after the move");
-        check(one_int(db, "SELECT group_id FROM host_spec") == 5, "the row is now group 5");
+        check(moved.error == R::HostPinError::None && moved.mid == 5, "assign-new 5 succeeds");
+        check(one_int(db, "SELECT COUNT(*) FROM machine") == 1, "one machine row after the move");
+        check(one_int(db, "SELECT id FROM machine") == 5, "the row is now machine 5");
     }
 
     // Another schema version (here 99) plus a stray table: rebuilt from scratch on open.
@@ -167,7 +220,7 @@ int main() {
         check(one_int(db, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='stray'") == 0, "stray table dropped");
         check(one_int(db, "PRAGMA user_version") == R::kResultsSchemaVersion, "user_version back to kResultsSchemaVersion");
         check(one_int(db, "SELECT COUNT(*) FROM parameter") == 0, "rebuilt DB starts empty");
-        check(table_names(db).size() == 15, "15 tables after rebuild");
+        check(table_names(db).size() == 16, "16 tables after rebuild");
     }
 
     fs::remove(path);

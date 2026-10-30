@@ -22,12 +22,11 @@
 //   any other name        one ctest test, named without its path
 //                         (e.g. jac313_store_binary_persist_smoke)
 // settings: one row per key.
-//   DISK_TYPE  auto | xssd rssd xx7k xr7k x10k r10k x15k r15k  (results layout label; x = one
+//   DISK_TYPE  auto | xssd rssd xx7k xr7k x10k r10k x15k r15k  (results layout label and the machine's disk; x = one
 //              disk, r = RAID; a machine sets its own in ~/.config/jac313/disk_type or
 //              JAC313_DISK_TYPE)
 //   SIZE       smoke | full | bench  (smoke = default; full uses per-test scaling via
 //              test_params_full.jtext; bench is test_params_bench.jtext)
-//   OS_ID      optional (e.g. OS_001) for test-results/OS_001/... layout
 //
 === jText File ===
  1. ?# test_params_bench.jtext
@@ -50,7 +49,7 @@
 === Section: settings ===
 === Fields ===
  1. /# id/Integer/Not Null
- 2. /# key/String/Not Null/Not Empty             # DISK_TYPE | SIZE | OS_ID
+ 2. /# key/String/Not Null/Not Empty             # DISK_TYPE | SIZE
  3. /# value/String/Not Null
 === End Fields ===
 === Data ===

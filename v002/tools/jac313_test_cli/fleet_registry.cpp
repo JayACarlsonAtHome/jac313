@@ -48,7 +48,7 @@ std::string fleet_server_key() {
 #endif
 }
 
-FleetResult fleet_register(const jac313::results::HostId& h, std::int64_t preferred,
+FleetResult fleet_register(const jac313::results::MachineId& h, std::int64_t preferred,
                            const std::filesystem::path& source_dir) {
     FleetResult r;
     const char* remote = remote_conninfo();
@@ -61,7 +61,7 @@ FleetResult fleet_register(const jac313::results::HostId& h, std::int64_t prefer
     r.error = "this jac313_test_cli was built without libpq 18+";
     return r;
 #else
-    const std::filesystem::path ddl_path = source_dir / "schema" / "fleet_v0_1.sql";
+    const std::filesystem::path ddl_path = source_dir / "schema" / "fleet_v0_2.sql";
     const std::string ddl = read_file(ddl_path);
     if (ddl.empty()) {
         r.error = "missing " + ddl_path.string();
@@ -83,32 +83,32 @@ FleetResult fleet_register(const jac313::results::HostId& h, std::int64_t prefer
         }
         const std::string ident =
             "cpu = " + lit(h.cpu) + " AND cores = " + std::to_string(h.cores)
-            + " AND ram_gb = " + std::to_string(h.ram_gb) + " AND os = " + lit(h.os)
+            + " AND ram_gb = " + std::to_string(h.ram_gb)
             + " AND disk = " + lit(h.disk) + " AND instance_hash = " + lit(h.instance_hash);
         const std::string pref = std::to_string(preferred > 0 ? preferred : 0);
-        c.exec("BEGIN; LOCK TABLE fleet.host_spec IN SHARE ROW EXCLUSIVE MODE;");
+        c.exec("BEGIN; LOCK TABLE fleet.machine IN SHARE ROW EXCLUSIVE MODE;");
         const auto rows = c.query(
             "WITH hit AS (\n"
-            "  UPDATE fleet.host_spec SET last_seen = now(), p_cores = " + std::to_string(h.p_cores)
+            "  UPDATE fleet.machine SET last_seen = now(), p_cores = " + std::to_string(h.p_cores)
             + ", cpu_mhz_min = " + std::to_string(h.cpu_mhz_min) + ", cpu_mhz_max = " + std::to_string(h.cpu_mhz_max)
-            + "\n  WHERE " + ident + " RETURNING group_id),\n"
+            + "\n  WHERE " + ident + " RETURNING id),\n"
             "ins AS (\n"
-            "  INSERT INTO fleet.host_spec(group_id, cpu, cores, ram_gb, os, disk, instance_hash, "
+            "  INSERT INTO fleet.machine(id, cpu, cores, ram_gb, disk, instance_hash, "
             "p_cores, cpu_mhz_min, cpu_mhz_max)\n"
-            "  SELECT CASE WHEN " + pref + " > 0 AND NOT EXISTS (SELECT 1 FROM fleet.host_spec WHERE group_id = "
+            "  SELECT CASE WHEN " + pref + " > 0 AND NOT EXISTS (SELECT 1 FROM fleet.machine WHERE id = "
             + pref + ")\n"
-            "              THEN " + pref + " ELSE (SELECT COALESCE(MAX(group_id), 0) + 1 FROM fleet.host_spec) END,\n"
+            "              THEN " + pref + " ELSE (SELECT COALESCE(MAX(id), 0) + 1 FROM fleet.machine) END,\n"
             "         " + lit(h.cpu) + ", " + std::to_string(h.cores) + ", " + std::to_string(h.ram_gb) + ", "
-            + lit(h.os) + ", " + lit(h.disk) + ", " + lit(h.instance_hash) + ", " + std::to_string(h.p_cores)
+            + lit(h.disk) + ", " + lit(h.instance_hash) + ", " + std::to_string(h.p_cores)
             + ", " + std::to_string(h.cpu_mhz_min) + ", " + std::to_string(h.cpu_mhz_max) + "\n"
-            "  WHERE NOT EXISTS (SELECT 1 FROM hit) RETURNING group_id)\n"
-            "SELECT group_id FROM hit UNION ALL SELECT group_id FROM ins");
+            "  WHERE NOT EXISTS (SELECT 1 FROM hit) RETURNING id)\n"
+            "SELECT id FROM hit UNION ALL SELECT id FROM ins");
         c.exec("COMMIT");
         if (rows.empty() || rows[0].empty() || !rows[0][0]) {
-            r.error = "the server returned no group_id";
+            r.error = "the server returned no machine id";
             return r;
         }
-        r.gid = std::stoll(*rows[0][0]);
+        r.mid = std::stoll(*rows[0][0]);
     } catch (const std::exception& e) {
         // the connection's destructor ends an open transaction (rolled back)
         r.error = e.what();

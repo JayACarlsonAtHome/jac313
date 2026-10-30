@@ -448,9 +448,18 @@ std::string machine_disk_type() {
     return word;
 }
 
+namespace {
+std::string g_params_disk_type;   // set_params_disk_type: the params table's DISK_TYPE tier
+} // namespace
+
+void set_params_disk_type(const std::string& tier) { g_params_disk_type = tier; }
+
 std::string machine_disk_tier(const std::string& dir) {
     if (const std::string tier = normalize_disk_type(machine_disk_type()); !tier.empty()) {
         return tier;
+    }
+    if (!g_params_disk_type.empty()) {
+        return g_params_disk_type;
     }
     return detect_disk_type(dir);
 }

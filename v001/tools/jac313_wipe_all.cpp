@@ -1,5 +1,5 @@
 // jac313_wipe_all — reset results.db to a blank slate: the schema and the testType enum are kept;
-// all data, the host_spec rows, the current_host pin and the per-machine tables (safeness,
+// all data, the machine and os rows, the current_host pin and the per-machine tables (safeness,
 // package_version, io_best_fit) are cleared; testControl (test timeouts) is configuration and
 // stays. A dedicated tool so the reset is reliable and repeatable without re-deriving the SQL.
 // --dry-run and --yes are mutually exclusive.
@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
         else if (a == "-h" || a == "--help") {
             std::cout << "jac313_wipe_all — reset results.db to blank (schema + testType enum kept).\n"
                          "  --dry-run          preview what would be cleared; change nothing\n"
-                         "  --yes              clear results + host_spec + current_host pin + the per-machine\n"
+                         "  --yes              clear results + machine + os + current_host pin + the per-machine\n"
                          "                     tables (safeness, package_version, io_best_fit)\n"
                          "  --source-dir DIR   version root (default: .)\n"
                          "  (--dry-run and --yes are mutually exclusive)\n";
@@ -44,17 +44,17 @@ int main(int argc, char** argv) {
                                     if (st.step()) st.get(n);
                                     return n; };
     std::cout << "target: " << db_path << "\n  run=" << cnt("run") << " testRun=" << cnt("testRun")
-              << " runEvent=" << cnt("runEvent") << " host_spec=" << cnt("host_spec") << " current_host=" << cnt("current_host")
+              << " runEvent=" << cnt("runEvent") << " machine=" << cnt("machine") << " os=" << cnt("os") << " current_host=" << cnt("current_host")
               << " compiler=" << cnt("compiler") << " parameter=" << cnt("parameter")
               << " testList=" << cnt("testList") << " safeness=" << cnt("safeness")
               << " package_version=" << cnt("package_version") << " io_best_fit=" << cnt("io_best_fit")
               << "  (testType enum + testControl kept)\n";
     if (dry) { std::cout << "  dry-run — nothing changed; re-run with --yes to clear.\n"; return 0; }
-    for (const char* t : {"testRun", "runEvent", "run_target", "run", "parameter", "compiler", "testList", "current_host", "host_spec",
+    for (const char* t : {"testRun", "runEvent", "run_target", "run", "parameter", "compiler", "testList", "current_host", "machine", "os",
                           "safeness", "package_version", "io_best_fit"})
         db.exec(std::string("DELETE FROM ") + t);
     db.exec("VACUUM");
-    std::cout << "  CLEAN SLATE - results, host_spec, the current_host pin and the per-machine tables cleared\n"
+    std::cout << "  CLEAN SLATE - results, machine, os, the current_host pin and the per-machine tables cleared\n"
                  "  (schema, testType and testControl kept).\n";
     return 0;
 }

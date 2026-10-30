@@ -10,7 +10,6 @@ namespace jac313::test_cli {
 struct MatrixParams {
     std::string size{"smoke"};
     std::string disk_type{"auto"};  // "auto" -> detect from repo disk; ssd/x7k/10k = override
-    std::string os_id;
     std::map<std::string, bool> selected_packages;
     std::map<std::string, bool> selected_tests;
     // Set by the runner from --persist / --max-persist-rows / --readback / --pg-cleanup:

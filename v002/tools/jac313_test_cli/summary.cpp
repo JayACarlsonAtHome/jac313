@@ -123,14 +123,14 @@ bool assemble_summary(const GlobalOptions& g, const std::map<std::string, std::s
         for (std::string line; std::getline(in, line);) if (!line.empty()) parts.push_back(line);
     }
     long pass = 0, fail = 0;
-    std::string run_id, host;
+    std::string run_id, host, os;
     for (const auto& p : parts) {
         // the result's own status is the FIRST "status" key (a nested readback status follows it)
         const auto st = p.find("\"status\":\"");
         const std::string status = st == std::string::npos ? "" : p.substr(st + 10, p.find('"', st + 10) - st - 10);
         if (status == "PASS") ++pass;
         else if (status != "SKIP") ++fail;
-        // the last recorded run id / host win (the summary header shows the latest)
+        // the last recorded run id / host / os win (the summary header shows the latest)
         auto field = [&](std::string_view key) -> std::string {
             const std::string k = "\"" + std::string(key) + "\":";
             const auto at = p.find(k);
@@ -141,6 +141,7 @@ bool assemble_summary(const GlobalOptions& g, const std::map<std::string, std::s
         };
         if (auto r = field("run_id"); !r.empty()) run_id = r;
         if (auto h = field("host"); !h.empty()) host = h;
+        if (auto o = field("os"); !o.empty()) os = o;
     }
     std::error_code ec;
     fs::create_directories(g.summary_json.parent_path(), ec);
@@ -155,6 +156,7 @@ bool assemble_summary(const GlobalOptions& g, const std::map<std::string, std::s
     out << "  \"contract\": " << kRunnerContract << ",\n";
     out << "  \"run_id\": " << (run_id.empty() ? "null" : run_id) << ",\n";
     out << "  \"host\": " << quote(host) << ",\n";
+    out << "  \"os\": " << quote(os) << ",\n";
     for (const auto& [k, v] : meta) out << "  " << quote(k) << ": " << quote(v) << ",\n";
     out << "  \"totals\": {\"pass\": " << pass << ", \"fail\": " << fail << "},\n";
     out << "  \"results\": [\n";

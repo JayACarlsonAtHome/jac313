@@ -47,7 +47,12 @@ std::string normalize_disk_type(const std::string& name);
 // ~/.config/jac313/disk_type; "" when neither is set. For what detection cannot see (a VM on RAID).
 std::string machine_disk_type();
 
-// The tier every record of this machine uses: its own setting when valid, else detected.
+// The DISK_TYPE setting of the params table this run loaded (tests/test_params*.jtext settings),
+// already a valid tier; "" (the default) = none. Set by load_matrix_params.
+void set_params_disk_type(const std::string& tier);
+
+// The tier every record of this machine uses (machine.disk): its own setting when valid, else the
+// params table's DISK_TYPE, else detected.
 std::string machine_disk_tier(const std::string& dir = ".");
 
 std::string format_group_environment_line(const std::string& hardware_specs,

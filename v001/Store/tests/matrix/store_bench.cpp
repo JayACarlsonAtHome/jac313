@@ -857,9 +857,10 @@ void record_to_results_db(const Params& p, const BenchSummary& s, const ProdSumm
         jac313::Qlite::v001::Sqlite db(results_db_path(p.db_path).string());
         ensure_results_schema(db);
         // Read the pinned machine (set by the CLI/bootstrap). store_bench no longer self-senses the
-        // host, so it can't disagree on disk/cores and split the machine into a separate group.
-        const std::int64_t group_id = jac313::results::current_host(db, bench_harness_version());
-        if (group_id == 0) {
+        // host, so it can't disagree on disk/cores and split the machine in two. The OS is sensed
+        // here, per run, like every recorded run.
+        const std::int64_t machine_id = jac313::results::current_host(db, bench_harness_version());
+        if (machine_id == 0) {
             std::cerr << "[results] no current_host pinned (run a CLI gate or ./bsir.sh first) — "
                          "not recording bench rows.\n";
             return;
@@ -871,11 +872,10 @@ void record_to_results_db(const Params& p, const BenchSummary& s, const ProdSumm
         // if the table is somehow unpinned (same value; belt-and-suspenders), jText to empty.
         namespace R = jac313::results;
         const std::string& jver = bench_harness_version();   // 'v001'|'v002' — the world scope for package_version
-        jac313::results::insert_run(db, run_id, group_id, jac313::results::host_label(group_id),
-                                    jver,
-                                    R::package_version_get(db, group_id, jver, "Store", std::string(jac313::Store::v001::version())),
-                                    R::package_version_get(db, group_id, jver, "Qlite", std::string(jac313::Qlite::v001::version())),
-                                    R::package_version_get(db, group_id, jver, "jText"));
+        R::insert_run(db, run_id, R::current_os_id(db), machine_id, jver,
+                      R::package_version_get(db, machine_id, jver, "Store", std::string(jac313::Store::v001::version())),
+                      R::package_version_get(db, machine_id, jver, "Qlite", std::string(jac313::Qlite::v001::version())),
+                      R::package_version_get(db, machine_id, jver, "jText"));
         // The config name as run ("durable sql @10M [capped]"): a capped or rescaled config keeps a
         // name of its own, so it never merges with the full-size one on the report.
         db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", p.label);
@@ -989,13 +989,13 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
     if (base.db_path.empty()) { std::cerr << "ERROR: --calibrate needs --db <results.db>\n"; return 2; }
     if (schedule.empty()) { std::cerr << "ERROR: empty calibrate schedule (check --cal-* range)\n"; return 2; }
 
-    std::int64_t gid = 0;
+    std::int64_t mid = 0;
     try {
         jac313::Qlite::v001::Sqlite db(results_db_path(base.db_path).string());
         ensure_results_schema(db);
-        gid = jac313::results::current_host(db, bench_harness_version());
+        mid = jac313::results::current_host(db, bench_harness_version());
     } catch (const std::exception& e) { std::cerr << "[calibrate] DB error: " << e.what() << "\n"; return 1; }
-    if (gid == 0) {
+    if (mid == 0) {
         std::cerr << "[calibrate] no current_host pinned (run ./bsir.sh or a CLI gate first)\n";
         return 1;
     }
@@ -1003,8 +1003,7 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
     std::cout << "\n===============================================================\n";
     std::cout <<   "--- calibrating persistence batch best size for this machine ---\n";
     std::cout <<   "===============================================================\n";
-    std::cout << "host " << jac313::results::host_label(gid) << " (group " << gid << ")"
-              << "   threads=" << base.threads
+    std::cout << "host " << jac313::results::host_label(mid) << "   threads=" << base.threads
               << "  events/thread=" << bench_group_thousands(base.events_per_thread)
               << "  runs=" << base.runs
               << "  batch " << sched_desc << " (" << schedule.size() << " pts)"
@@ -1064,7 +1063,7 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
         try {
             jac313::Qlite::v001::Sqlite db(results_db_path(base.db_path).string());
             ensure_results_schema(db);
-            jac313::results::upsert_io_best_fit(db, gid, ty,
+            jac313::results::upsert_io_best_fit(db, mid, ty,
                 static_cast<std::int64_t>(low_b), static_cast<std::int64_t>(high_b),
                 static_cast<std::int64_t>(best_batch), static_cast<std::int64_t>(best_median),
                 static_cast<std::int64_t>(use));
@@ -1072,8 +1071,7 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
     }
 
     std::cout << "\n===============================================================\n";
-    std::cout <<   "--- calibration summary: " << jac313::results::host_label(gid)
-              << " (group " << gid << ") ---\n";
+    std::cout <<   "--- calibration summary: " << jac313::results::host_label(mid) << " ---\n";
     std::cout <<   "===============================================================\n";
     // Right-justify every number to its column's widest value so the columns line up.
     auto rjust = [](const std::string& s, std::size_t w) {
@@ -1105,9 +1103,9 @@ std::int64_t calibrated_use(const std::string& db_path, const std::string& type,
     try {
         jac313::Qlite::v001::Sqlite db(results_db_path(db_path).string());
         ensure_results_schema(db);
-        const std::int64_t gid = jac313::results::current_host(db, bench_harness_version());
-        if (gid == 0) return fallback;
-        return jac313::results::io_best_fit_use(db, gid, type, fallback);
+        const std::int64_t mid = jac313::results::current_host(db, bench_harness_version());
+        if (mid == 0) return fallback;
+        return jac313::results::io_best_fit_use(db, mid, type, fallback);
     } catch (...) { return fallback; }
 }
 #else

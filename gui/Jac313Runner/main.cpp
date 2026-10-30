@@ -123,7 +123,7 @@ static int DumpSummary(const String& file)
 	String root = EffectiveRoot(o, gCmdRoot);
 	Cout() << "rows=" << s.rows.GetCount() << "\n";
 	Cout() << "totals pass=" << s.pass << " fail=" << s.fail << "\n";
-	Cout() << "run_id=" << Dash(s.runId) << " host=" << Dash(s.host) << " version=" << Dash(s.version)
+	Cout() << "run_id=" << Dash(s.runId) << " host=" << Dash(s.host) << " os=" << Dash(s.os) << " version=" << Dash(s.version)
 	       << " compiler=" << Dash(s.compiler) << " build_type=" << Dash(s.buildType) << "\n";
 	Cout() << "Test\tBackend\tRows\tCount\tChecksum\tSample\tms\tPing ms\tWrite ms\tStatus\n";
 	for(int i = 0; i < min(3, s.rows.GetCount()); i++) {
@@ -1599,7 +1599,7 @@ void Runner::ShowResults()
 		const Summary& s = sums[i];
 		if(i)
 			h << "   |   ";
-		h << "run " << Dash(s.runId) << " · " << Dash(s.host) << " · " << Dash(s.version) << " · "
+		h << "run " << Dash(s.runId) << " · " << Dash(s.host) << " · " << Dash(s.os) << " · " << Dash(s.version) << " · "
 		  << Dash(s.compiler) << " " << Dash(s.buildType) << " · pass " << s.pass << " fail " << s.fail
 		  << " (" << s.rows.GetCount() << " rows)";
 		for(const ResultRow& r : s.rows)

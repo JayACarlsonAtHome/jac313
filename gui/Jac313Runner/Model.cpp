@@ -655,6 +655,7 @@ bool Summary::Parse(const String& text, String& err)
 	}
 	runId     = Str(v["run_id"]);
 	host      = Str(v["host"]);
+	os        = Str(v["os"]);
 	version   = Str(v["version"]);
 	compiler  = Str(v["compiler"]);
 	buildType = Str(v["build_type"]);
@@ -789,6 +790,7 @@ String BuildAiReport(const Array<Summary>& sums, const String& root, const AiExt
 	meta("Build type", [](const Summary& s) { return s.buildType; });
 	meta("Contracts", [](const Summary& s) { return s.contracts; });
 	meta("Machine", [](const Summary& s) { return s.host; });
+	meta("OS", [](const Summary& s) { return s.os; });
 	meta("Remote PostgreSQL", [](const Summary& s) { return s.pgRemote; });
 	meta("Run id", [](const Summary& s) { return s.runId; });
 	meta("Started (UTC)", [](const Summary& s) { return s.started; });

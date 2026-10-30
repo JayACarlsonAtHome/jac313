@@ -16,7 +16,7 @@ HostPinFlags parse_host_pin_flags(int argc, char** argv, int start) {
             flags.claim = argv[++i];
         } else if (arg.rfind("--assign-new-", 0) == 0) {
             // Suffix after the "--assign-new-" prefix (length-derived, not a magic offset — the old
-            // hardcoded 15 skipped two extra chars, so "--assign-new-42" parsed to "" / wrong group).
+            // hardcoded 15 skipped two extra chars, so "--assign-new-42" parsed to "" / wrong number).
             const std::string num = arg.substr(std::string("--assign-new-").size());
             if (!num.empty()) {
                 try { flags.assign_new = std::stoll(num); }
@@ -35,21 +35,20 @@ jac313::results::HostPinOptions to_pin_options(const HostPinFlags& flags) {
 }
 
 void print_fleet_table(std::ostream& out, jac313::Qlite::v002::Sqlite& db) {
-    out << "  gid | jac313-### | cpu (cores/ram)              | disk | os              | hash\n"
-        << "  ----+------------+------------------------------+------+-----------------+--------\n";
-    auto st = db.prepare("SELECT group_id, cpu, cores, ram_gb, disk, os, instance_hash FROM host_spec "
-                         "ORDER BY group_id");
+    out << "   id | jac313-### | cpu (cores/ram)              | disk | hash\n"
+        << "  ----+------------+------------------------------+------+--------\n";
+    auto st = db.prepare("SELECT id, cpu, cores, ram_gb, disk, instance_hash FROM machine ORDER BY id");
     bool any = false;
     while (st.step()) {
-        std::int64_t gid = 0, cores = 0, ram = 0;
-        std::string cpu, disk, os, hash;
-        st.get(gid, cpu, cores, ram, disk, os, hash);
+        std::int64_t mid = 0, cores = 0, ram = 0;
+        std::string cpu, disk, hash;
+        st.get(mid, cpu, cores, ram, disk, hash);
         any = true;
-        const std::string label = jac313::results::host_label(gid);
+        const std::string label = jac313::results::host_label(mid);
         const std::string hwd = cpu + " (" + std::to_string(cores) + "c/" + std::to_string(ram) + "G)";
         char line[512];
-        std::snprintf(line, sizeof line, "  %3lld | %-10.10s | %-28.28s | %-4.4s | %-15.15s | %s\n",
-                      static_cast<long long>(gid), label.c_str(), hwd.c_str(), disk.c_str(), os.c_str(),
+        std::snprintf(line, sizeof line, "  %3lld | %-10.10s | %-28.28s | %-4.4s | %s\n",
+                      static_cast<long long>(mid), label.c_str(), hwd.c_str(), disk.c_str(),
                       jac313::results::hash_prefix(hash).c_str());
         out << line;
     }
@@ -59,16 +58,16 @@ void print_fleet_table(std::ostream& out, jac313::Qlite::v002::Sqlite& db) {
 }
 
 void print_ambiguity_help(std::ostream& out, const jac313::results::HostPinResult& r,
-                          const jac313::results::HostId& h) {
-    out << "Cannot auto-assign group_id: " << r.message << "\n"
+                          const jac313::results::MachineId& h) {
+    out << "Cannot auto-assign a machine number: " << r.message << "\n"
         << "This machine instance_hash: " << jac313::results::hash_prefix(h.instance_hash) << "\n"
-        << "Use --claim jac313-### to bind to an existing slot (same OS+hardware),\n"
+        << "Use --claim jac313-### to bind to an existing slot (same hardware),\n"
         << "or --assign-new-### to create a new slot at an explicit number.\n";
 }
 
 int exit_ambiguous(std::ostream& err, jac313::Qlite::v002::Sqlite& db,
-                   const jac313::results::HostPinResult& r, const jac313::results::HostId& h) {
-    err << "\nFleet (host_spec):\n";
+                   const jac313::results::HostPinResult& r, const jac313::results::MachineId& h) {
+    err << "\nFleet (machine):\n";
     print_fleet_table(err, db);
     err << '\n';
     print_ambiguity_help(err, r, h);
@@ -83,14 +82,14 @@ std::optional<jac313::results::RunTarget> g_registry_target;
 // The shared server's number for this machine, pinned locally (local rows renumbered to it), or
 // nullopt to fall back to local numbering: no server set, unreachable, or built without libpq.
 std::optional<std::int64_t> pin_from_fleet(jac313::Qlite::v002::Sqlite& db,
-                                           const jac313::results::HostId& h,
+                                           const jac313::results::MachineId& h,
                                            const std::string& version,
                                            const std::filesystem::path& source_dir,
                                            std::ostream& err) {
     namespace R = jac313::results;
     const std::string server = fleet_server_key();
     if (server.empty()) return std::nullopt;
-    const std::int64_t local = R::find_exact_group(db, h);
+    const std::int64_t local = R::find_exact_machine(db, h);
     // confirmed in the last day: no round trip. An older confirmation is checked again (quietly
     // when nothing changed), so after a server wipe this machine registers again within a day.
     if (local != 0 && R::fleet_synced_within(db, local, server, 24)) {
@@ -104,34 +103,34 @@ std::optional<std::int64_t> pin_from_fleet(jac313::Qlite::v002::Sqlite& db,
     if (!tried) {
         tried = true;
         // a new machine asks for the next number free here, so other machines' local rows stay put
-        fr = fleet_register(h, local ? local : R::next_free_group_id(db), source_dir);
+        fr = fleet_register(h, local ? local : R::next_free_machine_id(db), source_dir);
         if (!fr.host.empty())
             g_registry_target = R::RunTarget{"registry", "pg-remote", fr.host, fr.address, fr.port, fr.dbname,
-                                             "fleet.host_spec"};
-        if (fr.gid == 0)
+                                             "fleet.machine"};
+        if (fr.mid == 0)
             err << "[fleet] remote PG registry not used (" << fr.error << "); this machine keeps its local "
                 << (local ? R::host_label(local) : std::string("number")) << " for now and is checked again next run\n";
     }
-    if (fr.gid == 0) return std::nullopt;
-    if (local != 0 && local != fr.gid) {
-        R::renumber_group(db, local, fr.gid);
+    if (fr.mid == 0) return std::nullopt;
+    if (local != 0 && local != fr.mid) {
+        R::renumber_machine(db, local, fr.mid);
         g_fleet_renumbered = true;
-        err << "[fleet] this machine is " << R::host_label(fr.gid) << " on the shared server: local results moved from "
+        err << "[fleet] this machine is " << R::host_label(fr.mid) << " on the shared server: local results moved from "
             << R::host_label(local) << "\n";
-    } else if (local == fr.gid) {
+    } else if (local == fr.mid) {
         if (!known)
-            err << "[fleet] " << R::host_label(fr.gid) << " is registered on the shared server\n";
+            err << "[fleet] " << R::host_label(fr.mid) << " is registered on the shared server\n";
     } else {
-        if (R::group_in_use(db, fr.gid)) {   // another machine's local rows sat on that number
-            R::renumber_group(db, fr.gid, R::next_free_group_id(db));
+        if (R::machine_in_use(db, fr.mid)) {   // another machine's local rows sat on that number
+            R::renumber_machine(db, fr.mid, R::next_free_machine_id(db));
             g_fleet_renumbered = true;
         }
-        err << "[fleet] this machine is " << R::host_label(fr.gid) << " (registered on the shared server)\n";
+        err << "[fleet] this machine is " << R::host_label(fr.mid) << " (registered on the shared server)\n";
     }
-    R::upsert_host_spec(db, fr.gid, h);
-    R::set_current_host(db, fr.gid, version);
-    R::mark_fleet_synced(db, fr.gid, server, R::utc_now_iso());
-    return fr.gid;
+    R::upsert_machine(db, fr.mid, h);
+    R::set_current_host(db, fr.mid, version);
+    R::mark_fleet_synced(db, fr.mid, server, R::utc_now_iso());
+    return fr.mid;
 }
 
 } // namespace
@@ -146,11 +145,11 @@ std::optional<std::int64_t> try_resolve_and_pin(jac313::Qlite::v002::Sqlite& db,
                                                 const std::string& version,
                                                 std::ostream& err,
                                                 const std::filesystem::path& source_dir) {
-    const jac313::results::HostId h = make_host_id(hw);
+    const jac313::results::MachineId h = make_machine_id(hw);
     const bool generic = is_generic_nodename(nodename_for_hash());
     // --claim / --assign-new and generic nodenames (no telling VMs apart) stay on the local path
     if (flags.claim.empty() && flags.assign_new == 0 && !generic) {
-        if (const auto gid = pin_from_fleet(db, h, version, source_dir, err)) return gid;
+        if (const auto mid = pin_from_fleet(db, h, version, source_dir, err)) return mid;
     }
     const jac313::results::HostPinResult r =
         jac313::results::resolve_and_pin(db, h, to_pin_options(flags), generic, version);
@@ -162,13 +161,13 @@ std::optional<std::int64_t> try_resolve_and_pin(jac313::Qlite::v002::Sqlite& db,
         err << "host pin failed: " << r.message << "\n";
         return std::nullopt;
     }
-    return r.gid;
+    return r.mid;
 }
 
-jac313::results::HostPinResult propose_host_group(jac313::Qlite::v002::Sqlite& db,
+jac313::results::HostPinResult propose_host_machine(jac313::Qlite::v002::Sqlite& db,
                                                   const HostHardwareRecord& hw) {
-    const jac313::results::HostId h = make_host_id(hw);
-    return jac313::results::propose_group_id(db, h, is_generic_nodename(nodename_for_hash()));
+    const jac313::results::MachineId h = make_machine_id(hw);
+    return jac313::results::propose_machine_id(db, h, is_generic_nodename(nodename_for_hash()));
 }
 
 } // namespace jac313::test_cli

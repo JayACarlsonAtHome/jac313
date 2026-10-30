@@ -27,17 +27,17 @@ jac313::results::HostPinOptions to_pin_options(const HostPinFlags& flags);
 void print_fleet_table(std::ostream& out, jac313::Qlite::v001::Sqlite& db);
 
 void print_ambiguity_help(std::ostream& out, const jac313::results::HostPinResult& r,
-                          const jac313::results::HostId& h);
+                          const jac313::results::MachineId& h);
 
 // Print fleet table + help and return 1.
 int exit_ambiguous(std::ostream& err, jac313::Qlite::v001::Sqlite& db,
-                   const jac313::results::HostPinResult& r, const jac313::results::HostId& h);
+                   const jac313::results::HostPinResult& r, const jac313::results::MachineId& h);
 
 // Resolve + pin; on ambiguity prints table and returns nullopt. With a remote PG server set
 // ($JAC313_PG_REMOTE) and no --claim / --assign-new, the number comes from the server's fleet
 // registry (fleet_registry.hpp) and the local rows are renumbered to it; when the server cannot
 // be reached the local number is used and checked again on the next run. source_dir is the
-// version dir (it holds schema/fleet_v0_1.sql).
+// version dir (it holds schema/fleet_v0_2.sql).
 std::optional<std::int64_t> try_resolve_and_pin(jac313::Qlite::v001::Sqlite& db,
                                                 const HostHardwareRecord& hw,
                                                 const HostPinFlags& flags,
@@ -50,11 +50,11 @@ std::optional<std::int64_t> try_resolve_and_pin(jac313::Qlite::v001::Sqlite& db,
 bool fleet_renumbered();
 
 // The fleet registry server this process reached while pinning (role registry, backend pg-remote,
-// table fleet.host_spec), for the run_target rows of the runs it records; nullopt when it reached none.
+// table fleet.machine), for the run_target rows of the runs it records; nullopt when it reached none.
 std::optional<jac313::results::RunTarget> fleet_registry_target();
 
 // Read-only propose (no write).
-jac313::results::HostPinResult propose_host_group(jac313::Qlite::v001::Sqlite& db,
+jac313::results::HostPinResult propose_host_machine(jac313::Qlite::v001::Sqlite& db,
                                                   const HostHardwareRecord& hw);
 
 } // namespace jac313::test_cli

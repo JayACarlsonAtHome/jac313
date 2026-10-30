@@ -96,7 +96,7 @@ void print_usage() {
         "                       (alone; every gate run renders them at its end anyway)\n"
         "  --verify-lite        valgrind: ctest + matrix 001 (binary; 001 across jtext/html/json/sql)\n"
         "  --verify             valgrind: full smoke matrix (all sinks incl. html/json) + helgrind/DRD\n"
-        "  --group-id           read-only precheck: which jac313-<group_id> this machine records under\n"
+        "  --machine-id         read-only precheck: which jac313-### (machine) this machine records under\n"
         "  --claim <jac313-###> bind this machine to an existing fleet slot (same OS+hardware)\n"
         "  --assign-new-###     create a new slot at explicit ### (e.g. --assign-new-003)\n"
         "  --run-everything     the FULL battery: every gate on both compilers + build-times + report\n"
@@ -219,7 +219,9 @@ void seed_test_catalog(const fs::path& /*source_dir*/, const std::vector<TestEnt
 // Defined further down (next to the other results.db recorders); declared here for run_tests_command.
 std::int64_t record_ctest_results(const fs::path& source_dir, const fs::path& build_dir,
                                   const std::vector<TestResult>& results);
-std::string run_host_label(std::int64_t run_id);
+// A recorded run's machine ("jac313-004") and OS ("Fedora Linux 44 · 7.2.13-..."), "" when unknown.
+struct RunWhere { std::string host, os; };
+RunWhere run_where(std::int64_t run_id);
 std::string short_test_name(const std::string& n);
 const char* matrix_status_str(TestStatus s);
 // Status as the summary JSON spells it (PASS / FAIL / SKIP / ERROR).
@@ -251,10 +253,10 @@ std::string read_version_literal(const fs::path& file) {
     return {};
 }
 
-// Pin each package's code version() into results.db for THIS machine (group), sourced from the
+// Pin each package's code version() into results.db for THIS machine, sourced from the
 // version() literals — so every tool (store_bench included, which can't reach jText's header from
 // its TU) reads current versions straight from the DB. Paths match version-check's version files.
-void write_package_versions(jac313::Qlite::v001::Sqlite& db, std::int64_t gid,
+void write_package_versions(jac313::Qlite::v001::Sqlite& db, std::int64_t mid,
                             const fs::path& src, const std::string& version) {
     struct Pkg { const char* name; const char* file; };
     static const Pkg pkgs[] = {
@@ -264,7 +266,7 @@ void write_package_versions(jac313::Qlite::v001::Sqlite& db, std::int64_t gid,
     };
     for (const auto& p : pkgs) {
         const std::string v = read_version_literal(src / p.file);
-        if (!v.empty()) jac313::results::upsert_package_version(db, gid, version, p.name, v);
+        if (!v.empty()) jac313::results::upsert_package_version(db, mid, version, p.name, v);
     }
 }
 
@@ -273,23 +275,23 @@ int run_report_command(const fs::path& source_dir);
 std::optional<std::int64_t> pin_current_host(jac313::Qlite::v001::Sqlite& db, const GlobalOptions& global,
                                                std::ostream& err = std::cerr) {
     const auto hw = collect_host_hardware_record(machine_disk_tier("."));
-    const auto gid = try_resolve_and_pin(db, hw, host_pin_flags_from(global), harness_version(global), err,
+    const auto mid = try_resolve_and_pin(db, hw, host_pin_flags_from(global), harness_version(global), err,
                                          global.source_dir);
-    if (gid) write_package_versions(db, *gid, global.source_dir, harness_version(global));   // refresh code versions (per group+world)
+    if (mid) write_package_versions(db, *mid, global.source_dir, harness_version(global));   // refresh code versions (per machine+world)
     // a renumber (the shared server's jac313-###) relabels results.db at once; re-render this
     // version's report pages now so none keeps the old label (the other version's pages follow
     // on its next run). Once per process: the flag stays set after the first renumber.
     static bool reported = false;
-    if (gid && fleet_renumbered() && !reported) {
+    if (mid && fleet_renumbered() && !reported) {
         reported = true;
         err << "[fleet] re-rendering the report pages with the new jac313-### labels\n";
         run_report_command(global.source_dir);
     }
-    return gid;
+    return mid;
 }
 
 // "jac313-### · compiler · disk" — the host/compiler/disk line shown above each summary's pass/fail.
-// compiler comes from the build dir (build-gcc15 -> gcc15); jac313-### is resolved against host_spec.
+// compiler comes from the build dir (build-gcc15 -> gcc15); jac313-### is resolved against the machine table.
 inline std::string summary_context_line(const GlobalOptions& global) {
     const auto hw = collect_host_hardware_record(machine_disk_tier("."));
     std::string cc = global.build_dir.filename().string();
@@ -298,9 +300,9 @@ inline std::string summary_context_line(const GlobalOptions& global) {
     try {
         jac313::Qlite::v001::Sqlite db(JAC313_RESULTS_DB);
         jac313::results::ensure_schema(db);
-        const auto propose = propose_host_group(db, hw);
-        if (propose.error == jac313::results::HostPinError::None && propose.gid > 0) {
-            label = jac313::results::host_label(propose.gid);
+        const auto propose = propose_host_machine(db, hw);
+        if (propose.error == jac313::results::HostPinError::None && propose.mid > 0) {
+            label = jac313::results::host_label(propose.mid);
         }
     } catch (...) {}
     return label + "  ·  " + cc + "  ·  " + (hw.disk_type_label.empty() ? "?" : hw.disk_type_label);
@@ -353,13 +355,13 @@ int run_tests_command(const GlobalOptions& global, const RunOptions& opts,
 
     const std::int64_t ctest_run = record_ctest_results(global.source_dir, global.build_dir, results);   // capture into results.db
     if (!global.summary_json.empty()) {
-        const std::string host = run_host_label(ctest_run);
+        const RunWhere where = run_where(ctest_run);
         const std::string cc = compiler_label_from_build(global.build_dir);
         for (const auto& r : results) {
             append_summary_part(global, std::format(
-                R"({{"gate":"ctest","test":"{}","backend":"-","status":"{}","ms":{},"compiler":"{}","run_id":{},"host":"{}"}})",
+                R"({{"gate":"ctest","test":"{}","backend":"-","status":"{}","ms":{},"compiler":"{}","run_id":{},"host":"{}","os":"{}"}})",
                 json_escape(short_test_name(r.entry.name)), summary_status(r.status),
-                r.duration.count(), json_escape(cc), ctest_run, json_escape(host)));
+                r.duration.count(), json_escape(cc), ctest_run, json_escape(where.host), json_escape(where.os)));
         }
     }
     write_ctest_logs(global, compiler_label_from_build(global.build_dir), results);
@@ -572,23 +574,21 @@ const char* matrix_status_str(TestStatus s) {
 
 // Harness version (v001/v002/...) is derived from global.source_dir — see harness_version() in options.hpp.
 
-// Ensure schema, resolve this machine's group_id (hardware+os, matching store_bench), create a fresh
-// run row, and return its run_id. Shared by the smoke/ctest/verify recorders. Uses the shared helpers.
+// Ensure schema, resolve this machine's number (the hardware, matching store_bench) and the OS it runs
+// under (sensed now), create a fresh run row with both, and return its run_id. Shared by the smoke/ctest/verify recorders. Uses the shared helpers.
 std::int64_t cli_begin_run(jac313::Qlite::v001::Sqlite& db, const GlobalOptions& global) {
     jac313::results::ensure_schema(db);
-    const auto gid = pin_current_host(db, global);
-    if (!gid) {
+    const auto mid = pin_current_host(db, global);
+    if (!mid) {
         throw std::runtime_error("host pin required before recording (run `host` or use --claim / --assign-new-###)");
     }
-    const std::int64_t group_id = *gid;
     // Do NOT delete the prior run here. Each gate (ctest/smoke/verify/build-times) records its OWN run
-    // and safeness SUMS across all of a group's runs, so "delete the prior run" would drop the sibling
+    // and safeness SUMS across all of a machine's runs, so "delete the prior run" would drop the sibling
     // gate that ran just before this one — which is what emptied the run-everything verdict. The
-    // explicit fresh-start (delete_prior_run_for_group / group wipe) belongs to run-everything's
-    // top-of-run cleanup and the jac313_wipe_* tools, NOT to every per-gate recorder.
+    // explicit fresh-start (machine wipe) belongs to run-everything's top-of-run cleanup and the
+    // jac313_wipe_* tools, NOT to every per-gate recorder.
     const std::int64_t run_id   = jac313::results::next_run_id(db);
-    jac313::results::insert_run(db, run_id, group_id, jac313::results::host_label(group_id),
-                                harness_version(global));
+    jac313::results::insert_run(db, run_id, jac313::results::current_os_id(db), *mid, harness_version(global));
     // The fleet registry server, when pinning reached it (run_target role registry).
     if (const auto reg = fleet_registry_target()) jac313::results::insert_run_targets(db, run_id, {*reg});
     return run_id;
@@ -635,6 +635,25 @@ std::string run_label_md(std::int64_t run_id) {
     char b[24]; std::snprintf(b, sizeof b, "Run_%03lld", static_cast<long long>(run_id)); return b;
 }
 std::string dash(const std::string& s) { return s.empty() ? "-" : s; }
+
+// "jac313-002 — Intel(R) Core(TM) i7 · 8 cores · 31 GB · xssd": a machine section heading (the
+// hardware; the OS is per run, see each run's header and the machines page).
+std::string machine_heading(jac313::Qlite::v001::Sqlite& db, std::int64_t mid) {
+    std::string cpu, disk; std::int64_t cores = 0, ram = 0;
+    { auto st = db.prepare("SELECT cpu, cores, ram_gb, disk FROM machine WHERE id=? LIMIT 1");
+      st.bind(mid); if (st.step()) st.get(cpu, cores, ram, disk); }
+    return jac313::results::host_label(mid) + " — " + dash(cpu) + " · " + std::to_string(cores) + " cores · "
+         + std::to_string(ram) + " GB" + (disk.empty() ? std::string() : " · " + disk);
+}
+
+// SQL for an OS release as a column suffix ("fedora 44"), over the os alias o.
+constexpr const char* kOsReleaseSql = "o.family || ' ' || o.version";
+
+// " · fedora 44" when a machine's runs of one kind span more than one OS release, else "": the
+// compiler columns of a page then show which OS each ran under.
+std::string os_suffix(bool multi_os, const std::string& release) {
+    return multi_os ? " · " + release : std::string();
+}
 // " [observe]" after a row key or compiler when a run's contract mode is not enforce (the default).
 std::string contracts_tag(const std::string& mode) { return mode == "enforce" ? std::string() : " [" + mode + "]"; }
 // "Release", "Debug · strict · hardened": the build type and the strict / hardened options that were on.
@@ -780,14 +799,14 @@ void write_run_detail(jac313::Qlite::v001::Sqlite& db, const fs::path& dir, cons
     nav_top(det, "README.md");
     det << "# " << type << " — " << rl << "\n\n";
     { auto st = db.prepare(
-        "SELECT r.host, c.name, c.version, p.build_type, p.strict, p.hardened, p.modules, p.import_std, p.size, "
+        "SELECT c.name, c.version, p.build_type, p.strict, p.hardened, p.modules, p.import_std, p.size, "
         "p.contracts, r.ts_utc "
         "FROM testRun tr JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id "
         "JOIN compiler c ON c.id=p.compiler_id WHERE tr.run_id=? LIMIT 1");
       st.bind(run_id);
-      if (st.step()) { std::string host, name, version, bt, strict, hardened, mod, imp, size, contracts, ts;
-          st.get(host, name, version, bt, strict, hardened, mod, imp, size, contracts, ts);
-          det << "_" << host << " · " << name << " " << version << " · " << build_label(bt, strict, hardened) << " · "
+      if (st.step()) { std::string name, version, bt, strict, hardened, mod, imp, size, contracts, ts;
+          st.get(name, version, bt, strict, hardened, mod, imp, size, contracts, ts);
+          det << "_" << jac313::results::run_header(db, run_id) << " · " << name << " " << version << " · " << build_label(bt, strict, hardened) << " · "
               << frontend_label(mod, imp) << " · contracts " << contracts
               << (size.empty() ? "" : (" · " + size)) << " · " << ts << "_\n\n"; } }
     det << "| test | persist | mode | tool | status | ms |\n|---|---|---|---|---|--:|\n";
@@ -808,14 +827,15 @@ void write_run_detail(jac313::Qlite::v001::Sqlite& db, const fs::path& dir, cons
 }
 
 // Per-type page = a HOST-SCOPED compiler comparison: each machine (jac313-###) is its own section
-// with a hardware header (cpu/cores/ram/os) and its OWN compiler columns. Scenario rows × compiler
-// columns; cell = ms (pass) or status. (ctest/smoke = ms; verify/verify-lite = pass·ms.)
+// with a hardware header (cpu/cores/ram/disk) and its OWN compiler columns (one per compiler and OS
+// release when the machine ran under more than one). Scenario rows × compiler columns; cell = ms
+// (pass) or status. (ctest/smoke = ms; verify/verify-lite = pass·ms.)
 void write_type_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out, const std::string& type) {
-    std::vector<std::int64_t> groups;
-    { auto st = db.prepare("SELECT DISTINCT r.group_id FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
-        "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name=? ORDER BY r.group_id");
-      st.bind(type); while (st.step()) { std::int64_t g = 0; st.get(g); groups.push_back(g); } }
-    if (groups.empty()) return;
+    std::vector<std::int64_t> machines;
+    { auto st = db.prepare("SELECT DISTINCT r.machine_id FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
+        "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name=? ORDER BY r.machine_id");
+      st.bind(type); while (st.step()) { std::int64_t m = 0; st.get(m); machines.push_back(m); } }
+    if (machines.empty()) return;
     std::error_code ec; fs::create_directories(out / type, ec);
     std::ofstream md(out / type / "README.md");
     nav_top(md, "../README.md");
@@ -823,23 +843,25 @@ void write_type_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out, cons
           "own section. Columns are that host's compilers (latest run each); cell = ms (pass) or status._\n";
 
     const bool is_verify = (type == "verify" || type == "verify-lite");
-    for (const std::int64_t g : groups) {
-        std::vector<std::pair<std::string, std::int64_t>> comps;   // this host's compilers (latest run each)
-        { auto st = db.prepare(
-            "SELECT c.name, c.major, MAX(tr.run_id) FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
+    for (const std::int64_t g : machines) {
+        // this host's compilers, latest run each, per OS release (labelled when there are several)
+        std::vector<std::pair<std::string, std::int64_t>> comps;
+        { std::int64_t releases = 0;
+          { auto st = db.prepare(std::string("SELECT COUNT(DISTINCT ") + kOsReleaseSql + ") FROM testRun tr "
+              "JOIN run r ON r.run_id=tr.run_id JOIN os o ON o.id=r.os_id "
+              "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name=? AND r.machine_id=?");
+            st.bind(type, g); if (st.step()) st.get(releases); }
+          auto st = db.prepare(std::string("SELECT c.name, c.major, ") + kOsReleaseSql + ", MAX(tr.run_id) "
+            "FROM testRun tr JOIN run r ON r.run_id=tr.run_id JOIN os o ON o.id=r.os_id "
             "JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
-            "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name=? AND r.group_id=? "
-            "GROUP BY c.id ORDER BY c.name, c.major");
+            "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name=? AND r.machine_id=? "
+            "GROUP BY c.id, o.family, o.version ORDER BY c.name, c.major, o.family, o.version");
           st.bind(type, g);
-          while (st.step()) { std::string name; std::int64_t major = 0, run = 0; st.get(name, major, run);
-              comps.push_back({comp_label(name, major), run}); } }
+          while (st.step()) { std::string name, release; std::int64_t major = 0, run = 0; st.get(name, major, release, run);
+              comps.push_back({comp_label(name, major) + os_suffix(releases > 1, release), run}); } }
         if (comps.empty()) continue;
 
-        std::string cpu, os, disk; std::int64_t cores = 0, ram = 0;
-        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os, disk FROM host_spec WHERE group_id=? LIMIT 1");
-          st.bind(g); if (st.step()) st.get(cpu, cores, ram, os, disk); }
-        md << "\n## " << jac313::results::host_label(g) << " — " << dash(cpu) << " · " << cores
-           << " cores · " << ram << " GB · " << dash(os) << (disk.empty() ? std::string() : " · " + disk) << "\n\n";
+        md << "\n## " << machine_heading(db, g) << "\n\n";
 
         std::string inlist;
         for (const auto& c : comps) { if (!inlist.empty()) inlist += ","; inlist += std::to_string(c.second); }
@@ -885,16 +907,17 @@ void write_type_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out, cons
         // Run history for this host+gate: list EVERY run (each linked to its detail page) — not just
         // the latest two in the column headers — and write a detail page for each so the links resolve
         // and older runs are no longer orphaned.
-        std::vector<std::pair<std::int64_t, std::string>> hist;   // run_id -> "compiler [mode] · recorded"
+        std::vector<std::pair<std::int64_t, std::string>> hist;   // run_id -> "compiler [mode] · run header · recorded"
         { auto st = db.prepare(
             "SELECT DISTINCT tr.run_id, c.name||c.major, p.contracts, r.ts_utc FROM testRun tr "
             "JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id "
             "JOIN compiler c ON c.id=p.compiler_id JOIN testType tt ON tt.id=tr.test_type_id "
-            "WHERE tt.name=? AND r.group_id=? ORDER BY tr.run_id DESC");
+            "WHERE tt.name=? AND r.machine_id=? ORDER BY tr.run_id DESC");
           st.bind(type, g);
           while (st.step()) { std::int64_t run = 0; std::string cc, mode, ts; st.get(run, cc, mode, ts);
-              hist.push_back({run, cc + contracts_tag(mode) + (ts.empty() ? std::string() : " · " + ts)}); } }
-        md << "\n**Runs** (newest first):\n\n| run | compiler · recorded |\n|---|---|\n";
+              hist.push_back({run, cc + contracts_tag(mode) + " · " + jac313::results::run_header(db, run)
+                                   + (ts.empty() ? std::string() : " · " + ts)}); } }
+        md << "\n**Runs** (newest first):\n\n| run | compiler · machine · OS · kernel · recorded |\n|---|---|\n";
         for (const auto& h : hist)
             md << "| [" << run_label_md(h.first) << "](" << run_label_md(h.first) << ".md) | " << h.second << " |\n";
         for (const auto& h : hist) write_run_detail(db, out / type, type, h.first);
@@ -935,14 +958,14 @@ void write_bench_detail(jac313::Qlite::v001::Sqlite& db, const fs::path& dir, st
     std::ofstream det(dir / (rl + ".md"));
     nav_top(det, "README.md");
     det << "# bench — " << rl << "\n\n";
-    { auto st = db.prepare("SELECT r.host, c.name, c.version, p.build_type, p.strict, p.hardened, p.modules, "
+    { auto st = db.prepare("SELECT c.name, c.version, p.build_type, p.strict, p.hardened, p.modules, "
         "p.import_std, p.contracts, r.ts_utc FROM testRun tr "
         "JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
         "WHERE tr.run_id=? LIMIT 1");
       st.bind(run_id);
-      if (st.step()) { std::string host, name, ver, bt, strict, hardened, mod, imp, contracts, ts;
-          st.get(host, name, ver, bt, strict, hardened, mod, imp, contracts, ts);
-          det << "_" << host << " · " << name << " " << ver << " · " << build_label(bt, strict, hardened) << " · "
+      if (st.step()) { std::string name, ver, bt, strict, hardened, mod, imp, contracts, ts;
+          st.get(name, ver, bt, strict, hardened, mod, imp, contracts, ts);
+          det << "_" << jac313::results::run_header(db, run_id) << " · " << name << " " << ver << " · " << build_label(bt, strict, hardened) << " · "
               << frontend_label(mod, imp) << " · contracts " << contracts << " · " << ts << "_\n\n"; } }
     det << "_Production rows: hot path = producers until they join (before finalize); drain = attach → "
            "that sink's finalize done, binary / keeper / database; durable total = the whole process "
@@ -988,16 +1011,16 @@ void write_bench_detail(jac313::Qlite::v001::Sqlite& db, const fs::path& dir, st
 }
 
 // Bench page = a HOST-SCOPED compiler comparison: throughput is hardware-specific, so each machine
-// (jac313-###) is its own section with a hardware header (cpu/cores/ram/os) and its OWN compiler
-// columns. Groups in order: Production, Databases, Files, Non-durable, each split @1M / @10M.
+// (jac313-###) is its own section with a hardware header (cpu/cores/ram/disk) and its OWN compiler
+// columns (per OS release when the machine ran under more than one). Groups in order: Production, Databases, Files, Non-durable, each split @1M / @10M.
 // Config rows × compiler columns; cell = median ops/sec · low–high band · footprint (latest run per
 // compiler, for that host); production rows add the hot path and the three drain times.
 void write_bench_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
-    std::vector<std::int64_t> groups;
-    { auto st = db.prepare("SELECT DISTINCT r.group_id FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
-        "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' ORDER BY r.group_id");
-      while (st.step()) { std::int64_t g = 0; st.get(g); groups.push_back(g); } }
-    if (groups.empty()) return;
+    std::vector<std::int64_t> machines;
+    { auto st = db.prepare("SELECT DISTINCT r.machine_id FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
+        "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' ORDER BY r.machine_id");
+      while (st.step()) { std::int64_t m = 0; st.get(m); machines.push_back(m); } }
+    if (machines.empty()) return;
     std::error_code ec; fs::create_directories(out / "bench", ec);
     std::ofstream md(out / "bench" / "README.md");
     nav_top(md, "../README.md");
@@ -1014,28 +1037,32 @@ void write_bench_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
 
     struct Cell { std::string median = "-", band = "-", size = "-", hot = "-", drain = "-"; };
     struct Row { std::string key; int group; int scale; std::vector<Cell> cells; };   // scale 1 = @1M, 2 = @10M
-    for (const std::int64_t g : groups) {
-        // This host's compilers, one column each, linked to the latest enforce run (else the latest
-        // run). Every contract mode's latest run fills the same column; its rows carry the mode.
+    for (const std::int64_t g : machines) {
+        // This host's compilers (per OS release when there are several), one column each, linked to
+        // the latest enforce run (else the latest run). Every contract mode's latest run fills the
+        // same column; its rows carry the mode.
         std::vector<std::pair<std::string, std::int64_t>> comps;
-        std::map<std::int64_t, int> run_col;   // latest run per (compiler, mode) -> its compiler's column
-        { auto st = db.prepare(
-            "SELECT c.name, c.major, p.contracts, MAX(tr.run_id) FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
+        std::map<std::int64_t, int> run_col;   // latest run per (compiler, release, mode) -> its column
+        { std::int64_t releases = 0;
+          { auto st = db.prepare(std::string("SELECT COUNT(DISTINCT ") + kOsReleaseSql + ") FROM testRun tr "
+              "JOIN run r ON r.run_id=tr.run_id JOIN os o ON o.id=r.os_id "
+              "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' AND r.machine_id=?");
+            st.bind(g); if (st.step()) st.get(releases); }
+          auto st = db.prepare(std::string("SELECT c.name, c.major, ") + kOsReleaseSql + ", p.contracts, MAX(tr.run_id) "
+            "FROM testRun tr JOIN run r ON r.run_id=tr.run_id JOIN os o ON o.id=r.os_id "
             "JOIN parameter p ON p.id=tr.parameter_id JOIN compiler c ON c.id=p.compiler_id "
-            "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' AND r.group_id=? "
-            "GROUP BY c.id, p.contracts ORDER BY c.name, c.major, p.contracts <> 'enforce', p.contracts");
+            "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='bench' AND r.machine_id=? "
+            "GROUP BY c.id, o.family, o.version, p.contracts "
+            "ORDER BY c.name, c.major, o.family, o.version, p.contracts <> 'enforce', p.contracts");
           st.bind(g);
-          while (st.step()) { std::string name, mode; std::int64_t major = 0, run = 0; st.get(name, major, mode, run);
-              const std::string label = comp_label(name, major);
+          while (st.step()) { std::string name, release, mode; std::int64_t major = 0, run = 0;
+              st.get(name, major, release, mode, run);
+              const std::string label = comp_label(name, major) + os_suffix(releases > 1, release);
               if (comps.empty() || comps.back().first != label) comps.push_back({label, run});
               run_col[run] = static_cast<int>(comps.size()) - 1; } }
         if (comps.empty()) continue;
 
-        std::string cpu, os, disk; std::int64_t cores = 0, ram = 0;
-        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os, disk FROM host_spec WHERE group_id=? LIMIT 1");
-          st.bind(g); if (st.step()) st.get(cpu, cores, ram, os, disk); }
-        md << "\n## " << jac313::results::host_label(g) << " — " << dash(cpu) << " · " << cores
-           << " cores · " << ram << " GB · " << dash(os) << (disk.empty() ? std::string() : " · " + disk) << "\n\n";
+        md << "\n## " << machine_heading(db, g) << "\n\n";
 
         std::string inlist;
         for (const auto& [run, col] : run_col) { if (!inlist.empty()) inlist += ","; inlist += std::to_string(run); }
@@ -1107,11 +1134,12 @@ void write_bench_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
             "SELECT DISTINCT tr.run_id, c.name||c.major, p.contracts, r.ts_utc FROM testRun tr "
             "JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id "
             "JOIN compiler c ON c.id=p.compiler_id JOIN testType tt ON tt.id=tr.test_type_id "
-            "WHERE tt.name='bench' AND r.group_id=? ORDER BY tr.run_id DESC");
+            "WHERE tt.name='bench' AND r.machine_id=? ORDER BY tr.run_id DESC");
           st.bind(g);
           while (st.step()) { std::int64_t run = 0; std::string cc, mode, ts; st.get(run, cc, mode, ts);
-              hist.push_back({run, cc + contracts_tag(mode) + (ts.empty() ? std::string() : " · " + ts)}); } }
-        md << "\n**Runs** (newest first):\n\n| run | compiler · recorded |\n|---|---|\n";
+              hist.push_back({run, cc + contracts_tag(mode) + " · " + jac313::results::run_header(db, run)
+                                   + (ts.empty() ? std::string() : " · " + ts)}); } }
+        md << "\n**Runs** (newest first):\n\n| run | compiler · machine · OS · kernel · recorded |\n|---|---|\n";
         for (const auto& h : hist)
             md << "| [" << run_label_md(h.first) << "](" << run_label_md(h.first) << ".md) | " << h.second << " |\n";
         for (const auto& h : hist) write_bench_detail(db, out / "bench", h.first);
@@ -1120,15 +1148,15 @@ void write_bench_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
 }
 
 // build = a HOST-SCOPED compile-time matrix: compile time is hardware-specific, so each machine
-// (jac313-###) is its own section with a hardware header (cpu/cores/ram/os) and its OWN config
+// (jac313-###) is its own section with a hardware header (cpu/cores/ram/disk) and its OWN config
 // columns (different boxes run different compilers). Rows = tests, columns = config (compiler ×
 // front-end: hdr/mod). Cell = compile+link seconds · status · binary size (latest build).
 void write_build_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
-    std::vector<std::int64_t> groups;
-    { auto st = db.prepare("SELECT DISTINCT r.group_id FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
-        "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='build' ORDER BY r.group_id");
-      while (st.step()) { std::int64_t g = 0; st.get(g); groups.push_back(g); } }
-    if (groups.empty()) return;
+    std::vector<std::int64_t> machines;
+    { auto st = db.prepare("SELECT DISTINCT r.machine_id FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
+        "JOIN testType tt ON tt.id=tr.test_type_id WHERE tt.name='build' ORDER BY r.machine_id");
+      while (st.step()) { std::int64_t m = 0; st.get(m); machines.push_back(m); } }
+    if (machines.empty()) return;
     // Output dir is compiler-build-times/ (NOT build/) so the **/build/ ignore rule for CMake trees
     // doesn't swallow this report page. testType name in the DB stays 'build'.
     std::error_code ec; fs::create_directories(out / "compiler-build-times", ec);
@@ -1143,19 +1171,15 @@ void write_build_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
           "Cell = compile+link seconds · status · binary size (latest build); per test × front-end × compiler._\n";
 
     struct Config { std::string label, cname, bt, mod, imp, contracts, strict, hardened; std::int64_t cmajor; };
-    for (const std::int64_t g : groups) {
-        std::string cpu, os, disk; std::int64_t cores = 0, ram = 0;
-        { auto st = db.prepare("SELECT cpu, cores, ram_gb, os, disk FROM host_spec WHERE group_id=? LIMIT 1");
-          st.bind(g); if (st.step()) st.get(cpu, cores, ram, os, disk); }
-        md << "\n## " << jac313::results::host_label(g) << " — " << dash(cpu) << " · " << cores
-           << " cores · " << ram << " GB · " << dash(os) << (disk.empty() ? std::string() : " · " + disk) << "\n\n";
+    for (const std::int64_t g : machines) {
+        md << "\n## " << machine_heading(db, g) << "\n\n";
 
         std::vector<Config> configs;
         { auto st = db.prepare("SELECT DISTINCT c.name, c.major, p.build_type, p.modules, p.import_std, p.contracts, "
             "p.strict, p.hardened "
             "FROM testRun tr JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id "
             "JOIN compiler c ON c.id=p.compiler_id JOIN testType tt ON tt.id=tr.test_type_id "
-            "WHERE tt.name='build' AND r.group_id=? "
+            "WHERE tt.name='build' AND r.machine_id=? "
             "ORDER BY c.name, c.major, p.modules, p.import_std, p.build_type, p.strict, p.hardened, p.contracts");
           st.bind(g);
           while (st.step()) { std::string cn, bt, mod, imp, ct, strict, hardened; std::int64_t cm = 0;
@@ -1168,7 +1192,7 @@ void write_build_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
         std::vector<std::string> tests;
         { auto st = db.prepare("SELECT DISTINCT tl.name FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
             "JOIN testList tl ON tl.id=tr.test_list_id JOIN testType tt ON tt.id=tr.test_type_id "
-            "WHERE tt.name='build' AND r.group_id=? ORDER BY tl.name");
+            "WHERE tt.name='build' AND r.machine_id=? ORDER BY tl.name");
           st.bind(g); while (st.step()) { std::string n; st.get(n); tests.push_back(n); } }
 
         md << "| test";
@@ -1184,7 +1208,7 @@ void write_build_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
                     "FROM testRun tr JOIN run r ON r.run_id=tr.run_id JOIN parameter p ON p.id=tr.parameter_id "
                     "JOIN compiler c ON c.id=p.compiler_id JOIN testList tl ON tl.id=tr.test_list_id "
                     "JOIN testType tt ON tt.id=tr.test_type_id "
-                    "WHERE tt.name='build' AND r.group_id=? AND tl.name=? AND c.name=? AND c.major=? "
+                    "WHERE tt.name='build' AND r.machine_id=? AND tl.name=? AND c.name=? AND c.major=? "
                     "AND p.build_type=? AND p.modules=? AND p.import_std=? AND p.contracts=? AND p.strict=? "
                     "AND p.hardened=? ORDER BY tr.run_id DESC LIMIT 1");
                 st.bind(g, t, cf.cname, cf.cmajor, cf.bt, cf.mod, cf.imp, cf.contracts, cf.strict, cf.hardened);
@@ -1285,6 +1309,52 @@ std::string not_safe_reason(std::initializer_list<GateState> gates) {
     return why;
 }
 
+// test-summary/machines/README.md: one section per machine (jac313-###): its hardware, then every OS
+// it ran under (os, from its runs) with the run count and the latest run, linked.
+void write_machines_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
+    std::error_code ec; fs::create_directories(out / "machines", ec);
+    std::ofstream md(out / "machines" / "README.md");
+    nav_top(md, "../README.md");
+    md << "# Machines\n\n_Generated from `results.db` (`machine`, `os`, `run`). A machine is its hardware "
+          "(`jac313-###`); the OS is recorded per run, so a machine that boots two OSes is one machine "
+          "with two OS rows. \\* P.Cores = Physical Cores; T.Cores = Threading Cores._\n";
+    struct M { std::int64_t id = 0, mhz_lo = 0, mhz_hi = 0, p_cores = 0, t_cores = 0, ram = 0;
+               std::string cpu, disk, hash; };
+    std::vector<M> machines;
+    { auto st = db.prepare("SELECT id, cpu, cpu_mhz_min, cpu_mhz_max, p_cores, cores, ram_gb, disk, instance_hash "
+                           "FROM machine ORDER BY id");
+      while (st.step()) { M m; st.get(m.id, m.cpu, m.mhz_lo, m.mhz_hi, m.p_cores, m.t_cores, m.ram, m.disk, m.hash);
+                          machines.push_back(m); } }
+    if (machines.empty()) md << "\n_No machine is recorded yet._\n";
+    for (const M& m : machines) {
+        std::string speed = "-";
+        if (m.mhz_hi > 0) { char b[40];
+            if (m.mhz_lo == m.mhz_hi) std::snprintf(b, sizeof b, "%.1f GHz", static_cast<double>(m.mhz_hi) / 1000.0);
+            else std::snprintf(b, sizeof b, "%.1f–%.1f GHz",
+                               static_cast<double>(m.mhz_lo) / 1000.0, static_cast<double>(m.mhz_hi) / 1000.0);
+            speed = b; }
+        md << "\n## " << jac313::results::host_label(m.id) << "\n\n"
+              "| CPU | Speed | P.Cores | T.Cores | RAM | Disk | instance |\n|---|--:|--:|--:|--:|---|---|\n"
+           << "| " << dash(m.cpu) << " | " << speed << " | " << m.p_cores << " | " << m.t_cores << " | "
+           << m.ram << " GB | " << dash(m.disk) << " | " << dash(jac313::results::hash_prefix(m.hash)) << " |\n\n";
+        // The OSes this machine ran under: one row per os row its runs reference.
+        auto st = db.prepare("SELECT o.name, o.version, o.kernel, o.arch, COUNT(*), MAX(r.run_id) FROM run r "
+                             "INNER JOIN os o ON o.id = r.os_id WHERE r.machine_id=? "
+                             "GROUP BY o.id ORDER BY MAX(r.run_id) DESC");
+        st.bind(m.id);
+        bool any = false;
+        while (st.step()) {
+            if (!any) { md << "| OS | kernel | arch | runs | latest run |\n|---|---|---|--:|---|\n"; any = true; }
+            std::string name, version, kernel, arch; std::int64_t runs = 0, latest = 0;
+            st.get(name, version, kernel, arch, runs, latest);
+            md << "| " << dash(jac313::results::os_display(name, version)) << " | " << dash(kernel) << " | "
+               << dash(arch) << " | " << runs << " | " << run_link(db, latest) << " |\n";
+        }
+        if (!any) md << "_No run recorded on this machine yet._\n";
+    }
+    nav_bottom(md, "../README.md");
+}
+
 // Top-level landing index: test-summary/README.md, linking to the compiler page and every test
 // type that has data (with its run/row counts).
 void write_index_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
@@ -1299,83 +1369,69 @@ void write_index_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
         if (!ver.empty()) md << "**jac313 version:** " << ver << " (runs, deletes, and safeness are scoped by this)\n\n";
     }
 
-    // Machines table — decodes each jac313-### (latest run per group) with its hardware spec.
-    {
-        bool any = false;
-        auto st = db.prepare(
-            "SELECT group_id, cpu, cpu_mhz_min, cpu_mhz_max, p_cores, cores, ram_gb, disk, os "
-            "FROM host_spec ORDER BY group_id");
-        while (st.step()) {
-            if (!any) { md << "## Machines\n\n| machine | CPU | Speed | P.Cores | T.Cores | RAM | Disk | OS |\n"
-                              "|---|---|--:|--:|--:|--:|---|---|\n"; any = true; }
-            std::int64_t gid = 0, mhz_lo = 0, mhz_hi = 0, p_cores = 0, t_cores = 0, ram = 0;
-            std::string cpu, disk, os;
-            st.get(gid, cpu, mhz_lo, mhz_hi, p_cores, t_cores, ram, disk, os);
-            std::string speed = "-";
-            if (mhz_hi > 0) { char b[40];
-                if (mhz_lo == mhz_hi) std::snprintf(b, sizeof b, "%.1f GHz", static_cast<double>(mhz_hi) / 1000.0);
-                else std::snprintf(b, sizeof b, "%.1f–%.1f GHz",
-                              static_cast<double>(mhz_lo) / 1000.0, static_cast<double>(mhz_hi) / 1000.0);
-                speed = b; }
-            md << "| " << jac313::results::host_label(gid) << " | " << dash(cpu) << " | " << speed
-               << " | " << p_cores << " | " << t_cores << " | " << ram << " GB | " << dash(disk)
-               << " | " << dash(os) << " |\n";
-        }
-        if (any) md << "\n\\* P.Cores = Physical Cores; T.Cores = Threading Cores\n\n";
-    }
-
-    // Safeness — summary-of-summary verdict per machine, read from the `safeness` table (never recounts).
+    // Safeness — summary-of-summary verdict per machine and OS (the same machine under two OSes is two
+    // results), read from the `safeness` table (never recounts).
     {
         struct GatePF { std::int64_t pass = 0, fail = 0, ran = 0; };
-        auto gate_pf = [&](std::int64_t g, const char* gate) {
+        struct MachineOs { std::int64_t machine = 0, os = 0; };
+        auto gate_pf = [&](const MachineOs& g, const char* gate) {
             GatePF x;
-            // Prefer data for the latest recorded JAC313_VERSION on this group (v001 vs v002 isolation)
+            // Prefer data for the latest recorded JAC313_VERSION on this machine (v001 vs v002 isolation)
             std::string ver;
-            { auto vst = db.prepare("SELECT version FROM run WHERE group_id=? AND version <> '' ORDER BY run_id DESC LIMIT 1");
-              vst.bind(g); if (vst.step()) vst.get(ver); }
+            { auto vst = db.prepare("SELECT version FROM run WHERE machine_id=? AND version <> '' ORDER BY run_id DESC LIMIT 1");
+              vst.bind(g.machine); if (vst.step()) vst.get(ver); }
             // COALESCE kept: SUM over no matching rows is NULL.
-            std::string sql = "SELECT COALESCE(SUM(pass),0), COALESCE(SUM(fail),0), COUNT(*) FROM safeness WHERE group_id=? AND gate=?";
+            std::string sql = "SELECT COALESCE(SUM(pass),0), COALESCE(SUM(fail),0), COUNT(*) FROM safeness "
+                              "WHERE machine_id=? AND os_id=? AND gate=?";
             if (!ver.empty()) sql += " AND (version=? OR version='')";
             auto st = db.prepare(sql);
             // Bind ALL params in ONE call: Sqlite::bind() does sqlite3_clear_bindings() first, so a
-            // second bind() would wipe group_id/gate and rebind ver into param 1 (group_id) — the
+            // second bind() would wipe the earlier values and rebind ver into param 1 — the
             // version-scoping regression that zeroed the verdict. Branch on ver instead of re-binding.
-            if (ver.empty()) st.bind(g, std::string(gate));
-            else             st.bind(g, std::string(gate), ver);
+            if (ver.empty()) st.bind(g.machine, g.os, std::string(gate));
+            else             st.bind(g.machine, g.os, std::string(gate), ver);
             if (st.step()) st.get(x.pass, x.fail, x.ran);
             return x; };
+        // "jac313-002 · Fedora Linux 44 (Workstation Edition) · 7.2.13-200.fc44.x86_64"
+        auto label = [&](const MachineOs& g) {
+            std::string name, version, kernel;
+            { auto st = db.prepare("SELECT name, version, kernel FROM os WHERE id=?");
+              st.bind(g.os); if (st.step()) st.get(name, version, kernel); }
+            const std::string os = jac313::results::os_display(name, version);
+            return jac313::results::host_label(g.machine) + (os.empty() ? std::string() : " · " + os)
+                 + (kernel.empty() ? std::string() : " · " + kernel); };
         auto pf_cell = [](const GatePF& x) { return x.ran ? (std::to_string(x.pass) + "/" + std::to_string(x.fail)) : std::string("-"); };
         auto vg_cell = [](const GatePF& x) { return x.ran ? std::string(x.fail == 0 ? "✅" : "❌") : std::string("n/a"); };
-        std::vector<std::int64_t> groups;
-        { auto st = db.prepare("SELECT DISTINCT group_id FROM safeness ORDER BY group_id");
-          while (st.step()) { std::int64_t g = 0; st.get(g); groups.push_back(g); } }
+        std::vector<MachineOs> groups;
+        { auto st = db.prepare("SELECT DISTINCT machine_id, os_id FROM safeness ORDER BY machine_id, os_id");
+          while (st.step()) { MachineOs g; st.get(g.machine, g.os); groups.push_back(g); } }
         if (!groups.empty()) {
-            md << "## Safeness\n\n| machine | verdict | ctest | smoke | bench | mem | hel | drd |\n"
+            md << "## Safeness\n\n| machine · OS · kernel | verdict | ctest | smoke | bench | mem | hel | drd |\n"
                   "|---|---|--:|--:|--:|:--:|:--:|:--:|\n";
-            for (const std::int64_t g : groups) {
+            for (const MachineOs& g : groups) {
                 const GatePF ct = gate_pf(g, "ctest"), sm = gate_pf(g, "smoke"), bn = gate_pf(g, "bench");
                 const GatePF me = gate_pf(g, "memcheck"), he = gate_pf(g, "helgrind"), dr = gate_pf(g, "drd");
                 const bool ran  = ct.ran && sm.ran && bn.ran && me.ran && he.ran && dr.ran;
                 const bool clean = (ct.fail + sm.fail + bn.fail + me.fail + he.fail + dr.fail) == 0;
-                md << "| " << jac313::results::host_label(g) << " | "
+                md << "| " << label(g) << " | "
                    << ((ran && clean) ? "✅ PRESUMED SAFE" : !ran ? "❌ NOT SAFE: tests missing" : "❌ NOT SAFE: failures")
                    << " | " << pf_cell(ct) << " | " << pf_cell(sm) << " | " << pf_cell(bn)
                    << " | " << vg_cell(me) << " | " << vg_cell(he) << " | " << vg_cell(dr) << " |\n";
             }
             md << "\n\\* ✅ PRESUMED SAFE = builds + ctest/smoke/bench 0-fail + memcheck/helgrind/drd clean, "
                   "both compilers. Presumed, not proven.\n\n";
-            for (const std::int64_t g : groups) {
+            for (const MachineOs& g : groups) {
                 const GatePF ct = gate_pf(g, "ctest"), sm = gate_pf(g, "smoke"), bn = gate_pf(g, "bench");
                 const GatePF me = gate_pf(g, "memcheck"), he = gate_pf(g, "helgrind"), dr = gate_pf(g, "drd");
                 const std::string why = not_safe_reason({ {"ctest", ct.ran != 0, ct.fail}, {"smoke", sm.ran != 0, sm.fail},
                     {"bench", bn.ran != 0, bn.fail}, {"memcheck", me.ran != 0, me.fail},
                     {"helgrind", he.ran != 0, he.fail}, {"drd", dr.ran != 0, dr.fail} });
-                if (!why.empty()) md << "❌ **" << jac313::results::host_label(g) << "** is NOT SAFE: " << why << ".\n\n";
+                if (!why.empty()) md << "❌ **" << label(g) << "** is NOT SAFE: " << why << ".\n\n";
             }
-            for (const std::int64_t g : groups) {
+            for (const MachineOs& g : groups) {
                 const GatePF ct = gate_pf(g, "ctest"), sm = gate_pf(g, "smoke"), bn = gate_pf(g, "bench");
                 const GatePF me = gate_pf(g, "memcheck"), he = gate_pf(g, "helgrind"), dr = gate_pf(g, "drd");
-                md << "### " << jac313::results::host_label(g) << " — gate detail\n\n"
+                md << "### " << label(g) << " — gate detail\n\n"
                       "| gate | pass | fail | memcheck | helgrind | drd |\n|---|--:|--:|:--:|:--:|:--:|\n"
                    << "| ctest | " << ct.pass << " | " << ct.fail << " | " << vg_cell(me) << " | " << vg_cell(he) << " | " << vg_cell(dr) << " |\n"
                    << "| smoke | " << sm.pass << " | " << sm.fail << " | n/a | n/a | n/a |\n"
@@ -1385,6 +1441,7 @@ void write_index_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
     }
 
     md << "| area | runs | rows |\n|---|--:|--:|\n"
+          "| [machines](machines/README.md) (each machine's hardware and the OSes it ran under) | — | — |\n"
           "| [compilers](compiler/README.md) | — | — |\n"
           "| [servers](servers/README.md) (what each run wrote where) | — | — |\n";
     // testType name (DB) vs. output dir/link name (GitHub-facing): they match except for
@@ -1433,6 +1490,7 @@ int run_report_command(const fs::path& source_dir) {
         write_bench_pages(db, out);
         write_build_pages(db, out);
         write_servers_page(db, out);
+        write_machines_page(db, out);
         write_index_page(db, out);
         // Self-clean: a Run_<id>.md belongs in area <X>'s dir only if run <id> actually recorded rows of
         // type <X>. Drop any page whose run is gone OR is a different gate's run (stale pages left behind
@@ -1453,7 +1511,7 @@ int run_report_command(const fs::path& source_dir) {
                 }
             }
         }
-        std::cout << "[report] wrote test-summary/README.md + {compiler,ctest,smoke,verify-lite,verify,bench,compiler-build-times,servers}/ from results.db"
+        std::cout << "[report] wrote test-summary/README.md + {compiler,ctest,smoke,verify-lite,verify,bench,compiler-build-times,servers,machines}/ from results.db"
                   << (swept ? (" (swept " + std::to_string(swept) + " orphan run page(s))") : std::string()) << "\n";
         return 0;
     } catch (const std::exception& e) { std::cerr << "report failed: " << e.what() << "\n"; return 1; }
@@ -1505,10 +1563,10 @@ std::int64_t exe_size_in_tree(const fs::path& build_dir, const std::string& targ
 }
 
 // Capture compile+link times from a freshly-built tree's .ninja_log and UPSERT them as 'build'
-// rows for THIS host (group). Banks every target that actually built, so a normal ctest/smoke
+// rows for THIS machine. Banks every target that actually built, so a normal ctest/smoke
 // build records its times for free. Front-end (headers/modules) is read from the tree unless
-// overridden. Group-scoped upsert: a prior row for the same (this host, config, test) is replaced;
-// other hosts' rows (same config, different group_id) are left intact.
+// overridden. Machine-scoped upsert: a prior row for the same (this machine, config, test) is replaced;
+// other machines' rows (same config, different machine_id) are left intact.
 void capture_build_times(const fs::path& source_dir, const fs::path& build_dir,
                          const std::string& modules_override = "",
                          const std::string& import_std_override = "") {
@@ -1527,8 +1585,8 @@ void capture_build_times(const fs::path& source_dir, const fs::path& build_dir,
         jac313::Qlite::v001::Sqlite db(db_path.string());
         GlobalOptions rec; rec.source_dir = source_dir;
         const std::int64_t run_id  = cli_begin_run(db, rec);   // one run for the whole capture batch
-        std::int64_t gid = 0;
-        { auto st = db.prepare("SELECT group_id FROM run WHERE run_id=?"); st.bind(run_id); if (st.step()) st.get(gid); }
+        std::int64_t mid = 0;
+        { auto st = db.prepare("SELECT machine_id FROM run WHERE run_id=?"); st.bind(run_id); if (st.step()) st.get(mid); }
         const std::int64_t type_id = cli_results_id(db, "SELECT id FROM testType WHERE name=?", std::string("build"));
         const std::int64_t comp_id = cli_compiler_id(db, read_compiler_info(build_dir));
         const BuildAxes axes = build_axes(read_build_features(build_dir), modules_override, import_std_override);
@@ -1542,7 +1600,7 @@ void capture_build_times(const fs::path& source_dir, const fs::path& build_dir,
             const std::int64_t list_id = cli_results_id(db, "SELECT id FROM testList WHERE name=?", t);
             const std::int64_t bytes = exe_size_in_tree(build_dir, t);
             db.exec("DELETE FROM testRun WHERE test_type_id=? AND test_list_id=? AND parameter_id=? "
-                    "AND run_id IN (SELECT run_id FROM run WHERE group_id=?)", type_id, list_id, param_id, gid);
+                    "AND run_id IN (SELECT run_id FROM run WHERE machine_id=?)", type_id, list_id, param_id, mid);
             db.exec("INSERT INTO testRun(run_id, test_type_id, test_list_id, parameter_id, status, duration_ms, bytes) "
                     "VALUES(?,?,?,?,?,?,?)", run_id, type_id, list_id, param_id, std::string("built"), ms, bytes);
             ++banked;
@@ -1550,7 +1608,7 @@ void capture_build_times(const fs::path& source_dir, const fs::path& build_dir,
         tx.commit();
         const std::string fe = (modules == "on") ? "mod" : "hdr";
         std::cout << "[results] build-times: banked " << banked << " target(s) under "
-                  << jac313::results::host_label(gid) << " " << read_compiler_info(build_dir).name
+                  << jac313::results::host_label(mid) << " " << read_compiler_info(build_dir).name
                   << "·" << fe << " (run " << run_id << ")\n";
     } catch (const std::exception& e) {
         std::cerr << "[results] build-times capture failed: " << e.what() << "\n";
@@ -1594,16 +1652,16 @@ void safe_rmdir(const fs::path& source_dir, const fs::path& target) {
 // (find_pin_for_host lives further down in this file).
 std::string resolve_pinned_cc(const fs::path& src, bool want_gcc);
 
-// Does a 'build' row already exist for (this host group, compiler, front-end, target)?
-bool build_row_exists(jac313::Qlite::v001::Sqlite& db, std::int64_t gid, std::int64_t comp_id,
+// Does a 'build' row already exist for (this machine, compiler, front-end, target)?
+bool build_row_exists(jac313::Qlite::v001::Sqlite& db, std::int64_t mid, std::int64_t comp_id,
                       const std::string& modules, const std::string& istd, const std::string& target) {
     auto st = db.prepare(
         "SELECT 1 FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
         "JOIN testType tt ON tt.id=tr.test_type_id JOIN testList tl ON tl.id=tr.test_list_id "
         "JOIN parameter p ON p.id=tr.parameter_id "
-        "WHERE tt.name='build' AND r.group_id=? AND p.compiler_id=? AND p.modules=? AND p.import_std=? "
+        "WHERE tt.name='build' AND r.machine_id=? AND p.compiler_id=? AND p.modules=? AND p.import_std=? "
         "AND tl.name=? LIMIT 1");
-    st.bind(gid, comp_id, modules, istd, target);
+    st.bind(mid, comp_id, modules, istd, target);
     return st.step();
 }
 
@@ -1629,15 +1687,15 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
     jac313::Qlite::v001::Sqlite db(db_path.string());
     jac313::results::ensure_schema(db);
     const HostHardwareRecord hw = collect_host_hardware_record(machine_disk_tier("."));
-    const jac313::results::HostId h = make_host_id(hw);
-    const bool new_setup = jac313::results::find_exact_group(db, h) == 0
-        && jac313::results::propose_group_id(db, h, is_generic_nodename(nodename_for_hash())).gid
-               == jac313::results::next_auto_group_id(db);
+    const jac313::results::MachineId h = make_machine_id(hw);
+    const bool new_setup = jac313::results::find_exact_machine(db, h) == 0
+        && jac313::results::propose_machine_id(db, h, is_generic_nodename(nodename_for_hash())).mid
+               == jac313::results::next_auto_machine_id(db);
     GlobalOptions pin_global;
-    const auto gid_opt = pin_current_host(db, pin_global);
-    if (!gid_opt) return 1;
-    const std::int64_t gid = *gid_opt;
-    const std::string host = jac313::results::host_label(gid);
+    const auto mid_opt = pin_current_host(db, pin_global);
+    if (!mid_opt) return 1;
+    const std::int64_t mid = *mid_opt;
+    const std::string host = jac313::results::host_label(mid);
     std::cout << "=== build-times gate — " << host << (new_setup ? "  *** NEW SETUP (full collection) ***" : "")
               << " ===\n";
     if (dry_run) {
@@ -1661,9 +1719,9 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
         auto st = db.prepare(
             "SELECT COUNT(DISTINCT tr.test_list_id) FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
             "JOIN testType tt ON tt.id=tr.test_type_id JOIN parameter p ON p.id=tr.parameter_id "
-            "JOIN compiler c ON c.id=p.compiler_id WHERE tt.name='build' AND r.group_id=? "
+            "JOIN compiler c ON c.id=p.compiler_id WHERE tt.name='build' AND r.machine_id=? "
             "GROUP BY c.name, c.major, p.modules, p.import_std");
-        st.bind(gid);
+        st.bind(mid);
         while (st.step()) { std::int64_t n = 0; st.get(n); ++combos; if (lo < 0 || n < lo) lo = n; if (n > hi) hi = n; }
         if (combos >= expected && lo == hi && lo > 0) {
             std::cout << "  complete: " << combos << " configs × " << lo << " targets already recorded for "
@@ -1693,7 +1751,7 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
         const std::int64_t comp_id = cli_compiler_id(db, read_compiler_info(dir));
         std::vector<std::string> missing;
         for (const auto& t : targets)
-            if (force || !build_row_exists(db, gid, comp_id, c.mod, c.istd, t)) missing.push_back(t);
+            if (force || !build_row_exists(db, mid, comp_id, c.mod, c.istd, t)) missing.push_back(t);
         if (missing.empty()) {
             std::cout << "  " << c.label << ": complete (" << targets.size() << " targets) — skip\n";
             safe_rmdir(source_dir, dir); ++skipped; continue;
@@ -1816,18 +1874,22 @@ std::int64_t record_matrix_results(const fs::path& source_dir, const fs::path& b
     return 0;
 }
 
-// The host label ("jac313-004") recorded for a run id, or "" if unknown.
-std::string run_host_label(std::int64_t run_id) {
-    if (run_id <= 0) return {};
+RunWhere run_where(std::int64_t run_id) {
+    RunWhere w;
+    if (run_id <= 0) return w;
     try {
         jac313::Qlite::v001::Sqlite db(JAC313_RESULTS_DB);
-        auto st = db.prepare("SELECT host FROM run WHERE run_id=?");
+        auto st = db.prepare("SELECT r.machine_id, o.name, o.version, o.kernel FROM run r "
+                             "INNER JOIN os o ON o.id = r.os_id WHERE r.run_id=?");
         st.bind(run_id);
-        std::string host;
-        if (st.step()) st.get(host);
-        return host;
+        if (st.step()) {
+            std::int64_t mid = 0; std::string name, version, kernel;
+            st.get(mid, name, version, kernel);
+            w.host = jac313::results::host_label(mid);
+            w.os = jac313::results::os_display(name, version) + (kernel.empty() ? std::string() : " · " + kernel);
+        }
     } catch (...) {}
-    return {};
+    return w;
 }
 
 // Short test name for the summary: "jac313_store_006_TS" -> "006_TS".
@@ -1900,9 +1962,6 @@ int run_matrix_run_command(const GlobalOptions& global,
     std::cout << "=== jac313 test matrix ===\n";
     std::cout << "Params:  " << params_path.string() << '\n';
     std::cout << "SIZE=" << params.size << " DISK=" << params.disk_type;
-    if (!params.os_id.empty()) {
-        std::cout << " OS_ID=" << params.os_id;
-    }
     std::cout << " COMPILER=" << matrix_opts.compiler_label
               << " BUILD=" << build_type << " CONTRACTS=" << features.contracts << '\n';
     if (!run_opts.filter.empty()) {
@@ -1994,15 +2053,15 @@ int run_matrix_run_command(const GlobalOptions& global,
     const std::int64_t smoke_run = record_matrix_results(global.source_dir, global.build_dir, results, params.size,
                           static_cast<std::int64_t>(global.max_persist_rows.value_or(0)));
     if (!global.summary_json.empty()) {
-        const std::string host = run_host_label(smoke_run);
+        const RunWhere where = run_where(smoke_run);
         for (const auto& r : results) {
             const bool persisting = r.scenario.category == "matrix" && r.scenario.persist != "none"
                                     && r.scenario.persist != "flags" && r.scenario.persist != "unit";
             std::string obj = std::format(
-                R"({{"gate":"smoke","test":"{}","backend":"{}","output_mode":"{}","status":"{}","ms":{},"compiler":"{}","run_id":{},"host":"{}","log":"{}")",
+                R"({{"gate":"smoke","test":"{}","backend":"{}","output_mode":"{}","status":"{}","ms":{},"compiler":"{}","run_id":{},"host":"{}","os":"{}","log":"{}")",
                 json_escape(short_test_name(r.scenario.entry.name)), json_escape(r.scenario.persist),
                 r.scenario.output_mode, summary_status(r.result.status), r.result.duration.count(),
-                json_escape(matrix_opts.compiler_label), smoke_run, json_escape(host),
+                json_escape(matrix_opts.compiler_label), smoke_run, json_escape(where.host), json_escape(where.os),
                 json_escape(r.log_path.string()));
             if (!r.readback.empty()) {
                 obj += ",\"rows_written\":" + (r.readback.count("expected") ? r.readback.at("expected") : "0");
@@ -2440,7 +2499,7 @@ struct PresetOptions {
     bool report{false};        // modifies --bench: also record the DB + render the report
     bool verify_lite{false};
     bool verify{false};
-    bool group_id{false};      // read-only precheck: which jac313-<group_id> this machine records under
+    bool machine_id{false};    // read-only precheck: which jac313-### (machine) this machine records under
     bool run_everything{false}; // the full battery on both compilers + matrix + report (C++ orchestrated)
 };
 
@@ -2646,52 +2705,49 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
     return WIFEXITED(rc) ? WEXITSTATUS(rc) : 1;
 }
 
-// Read-only bench-group precheck: ensure a Release store_bench is built (incremental), then run its
-// `--group-id` mode against the tracked DB — list existing groups + this machine's proposed
-// group_id, so you can see whether recording reuses a group or makes a new one. Inspection only:
-// it does NOT write run_latest_config.sh, so it won't clobber your last preset run.
-// --group-id precheck (read-only): list the machine groups already in results.db, then resolve and
-// show which group_id / jac313-<id> label THIS machine would record under (matched on cpu+cores+ram+os,
-// hostname never used) and whether that REUSES an existing group or creates a new one. Writes nothing.
-int run_group_id_command(const GlobalOptions& global) {
+// --machine-id precheck (read-only): list the machines already in results.db, then resolve and show
+// which jac313-### THIS machine would record under (matched on cpu+cores+ram+disk+instance_hash, the
+// hardware only; hostname never used) and whether that REUSES an existing machine or creates a new
+// one. Writes nothing. It does NOT write run_latest_config.sh, so it won't clobber your last preset run.
+int run_machine_id_command(const GlobalOptions& global) {
     const fs::path db_path = JAC313_RESULTS_DB;
     try {
         jac313::Qlite::v001::Sqlite db(db_path.string());
         jac313::results::ensure_schema(db);
         const auto hw = collect_host_hardware_record(machine_disk_tier("."));
-        const jac313::results::HostId h = make_host_id(hw);
-        std::cout << "=== group-id precheck (read-only — test-summary/results.db) ===\n\n"
-                     "Existing machine groups (from host_spec):\n";
+        const jac313::results::MachineId h = make_machine_id(hw);
+        std::cout << "=== machine-id precheck (read-only — test-summary/results.db) ===\n\n"
+                     "Existing machines (from machine):\n";
         print_fleet_table(std::cout, db);
-        const auto propose = propose_host_group(db, hw);
+        const auto propose = propose_host_machine(db, hw);
         const bool stale_pin = jac313::results::current_host_is_stale(db, h, harness_version(global));
         std::cout << "\nThis machine:\n  cpu:   " << h.cpu << "\n  cores: " << h.cores
                   << "    ram_gb: " << h.ram_gb << "\n  disk:  " << h.disk
-                  << "\n  os:    " << h.os << "  (" << hw.os_pretty << ")\n"
+                  << "\n  os:    " << hw.os_pretty << "  (recorded per run, not part of the machine)\n"
                   << "  hash:  " << jac313::results::hash_prefix(h.instance_hash) << "\n"
                   << (stale_pin ? "\n  NOTE: current_host pin in results.db names another machine — "
                                   "run `host` or bootstrap to re-pin.\n" : "");
         if (propose.error == jac313::results::HostPinError::Ambiguous) {
-            std::cout << "\nProposed group_id: (ambiguous — pin required before recording)\n";
+            std::cout << "\nProposed machine: (ambiguous — pin required before recording)\n";
             print_ambiguity_help(std::cout, propose, h);
             return 1;
         }
-        const std::string label = jac313::results::host_label(propose.gid);
-        std::cout << "\nProposed group_id: " << propose.gid << "   (" << label << ")\n"
-                  << "   (matched on cpu+cores+ram+disk+os+instance_hash; pin is set only after this compare)\n"
-                  << (jac313::results::find_exact_group(db, h) != 0
-                        ? "  -> REUSES an existing group: recording ADDS rows under " + label + ".\n"
-                        : "  -> NEW group: recording creates a fresh group; nothing existing is touched.\n");
+        const std::string label = jac313::results::host_label(propose.mid);
+        std::cout << "\nProposed machine: " << propose.mid << "   (" << label << ")\n"
+                  << "   (matched on cpu+cores+ram+disk+instance_hash; pin is set only after this compare)\n"
+                  << (jac313::results::find_exact_machine(db, h) != 0
+                        ? "  -> REUSES an existing machine: recording ADDS rows under " + label + ".\n"
+                        : "  -> NEW machine: recording creates a fresh one; nothing existing is touched.\n");
         (void)global;
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "group-id precheck failed: " << e.what() << "\n"; return 1;
+        std::cerr << "machine-id precheck failed: " << e.what() << "\n"; return 1;
     }
 }
 
 // ---- compiler pin (Setup/compilers.pin.jtext, settings.cpp): committed, per-machine {gcc,clang}
 // toolchain labels so the choice is DETERMINISTIC — no "highest changes when a newer compiler lands"
-// drift. Keyed on the hardware identity (the group_id tuple), labeled jac313-###. bootstrap does
+// drift. Keyed on cpu+cores+ram and the OS (Setup/compilers.pin.jtext rows), labeled jac313-###. bootstrap does
 // find-or-create; you change a row by editing it or `pin --gcc <label> --clang <label>`. No pin ->
 // highest-available. ----
 const CompilerPinRow* find_pin_for_host(const std::vector<CompilerPinRow>& rows, const HostHardwareRecord& hw) {
@@ -2763,9 +2819,9 @@ int run_everything_command(const GlobalOptions& global) {
               << "  clang=" << clang_label << "  (pinned)"
               << "  keep-logs=" << (global.keep_logs ? "on" : "off (default)") << " ########\n";
     print_keep_logs_status(global);
-    // Clear ONLY this machine's prior results (the pinned group), NOT the whole fleet DB — every
-    // other machine's committed results survive. host_spec + the current_host pin are kept (we
-    // re-record the SAME machine, reusing its group_id); the gates below repopulate this group.
+    // Clear ONLY this machine's prior results (the pinned machine), NOT the whole fleet DB — every
+    // other machine's committed results survive. The machine row + the current_host pin are kept (we
+    // re-record the SAME machine, reusing its number); the gates below repopulate it.
     const std::string& SHARED_DB = JAC313_RESULTS_DB;
     if (std::error_code dec; fs::exists(SHARED_DB, dec)) {
         try {
@@ -2777,14 +2833,14 @@ int run_everything_command(const GlobalOptions& global) {
             const std::int64_t g = *g_opt;
             if (g != 0) {
                 // Version-scoped on the SHARED DB: clear only THIS version's prior runs for this
-                // machine — never the OTHER version's data for the same hardware group.
+                // machine — never the OTHER version's data for the same machine.
                 const std::string ver = harness_version(global);
-                db.exec("DELETE FROM testRun WHERE run_id IN (SELECT run_id FROM run WHERE group_id=? AND version=?)", g, ver);
-                db.exec("DELETE FROM run_target WHERE run_id IN (SELECT run_id FROM run WHERE group_id=? AND version=?)", g, ver);
-                db.exec("DELETE FROM run WHERE group_id=? AND version=?", g, ver);
-                db.exec("DELETE FROM io_best_fit WHERE group_id=?", g);
+                db.exec("DELETE FROM testRun WHERE run_id IN (SELECT run_id FROM run WHERE machine_id=? AND version=?)", g, ver);
+                db.exec("DELETE FROM run_target WHERE run_id IN (SELECT run_id FROM run WHERE machine_id=? AND version=?)", g, ver);
+                db.exec("DELETE FROM run WHERE machine_id=? AND version=?", g, ver);
+                db.exec("DELETE FROM io_best_fit WHERE machine_id=?", g);
                 jac313::results::rebuild_safeness(db);
-                std::cout << "Cleared prior results for this machine (group " << g
+                std::cout << "Cleared prior results for this machine (" << jac313::results::host_label(g)
                           << ", version " << ver << "); other machines/versions untouched.\n";
             }
         } catch (const std::exception& e) {
@@ -2839,23 +2895,28 @@ int run_everything_command(const GlobalOptions& global) {
         jac313::Qlite::v001::Sqlite db(SHARED_DB);
         const std::int64_t g = jac313::results::current_host(db, harness_version(global));
         if (g != 0) {
-            std::string cpu, os, disk;
-            { auto st = db.prepare("SELECT cpu, os, disk FROM host_spec WHERE group_id=?");
-              st.bind(g); if (st.step()) st.get(cpu, os, disk); }
+            // This machine under the OS it runs now (safeness is per machine and OS).
+            const jac313::results::OsInfo os_now = jac313::results::sense_os();
+            const std::int64_t os_id = jac313::results::os_id(db, os_now);
+            std::string disk;
+            { auto st = db.prepare("SELECT disk FROM machine WHERE id=?");
+              st.bind(g); if (st.step()) st.get(disk); }
+            const std::string os = jac313::results::os_display(os_now.name, os_now.version);
             struct PF { std::int64_t pass = 0, fail = 0, ran = 0; };
             auto pf = [&](const char* gate) { PF x;
                 std::string ver;
-                { auto vst = db.prepare("SELECT version FROM run WHERE group_id=? AND version <> '' ORDER BY run_id DESC LIMIT 1");
+                { auto vst = db.prepare("SELECT version FROM run WHERE machine_id=? AND version <> '' ORDER BY run_id DESC LIMIT 1");
                   vst.bind(g); if (vst.step()) vst.get(ver); }
                 // COALESCE kept: SUM over no matching rows is NULL.
-                std::string sql = "SELECT COALESCE(SUM(pass),0), COALESCE(SUM(fail),0), COUNT(*) FROM safeness WHERE group_id=? AND gate=?";
+                std::string sql = "SELECT COALESCE(SUM(pass),0), COALESCE(SUM(fail),0), COUNT(*) FROM safeness "
+                                  "WHERE machine_id=? AND os_id=? AND gate=?";
                 if (!ver.empty()) sql += " AND (version=? OR version='')";
                 auto st = db.prepare(sql);
                 // Bind ALL params in ONE call: Sqlite::bind() does sqlite3_clear_bindings() first, so
-                // a second bind() would wipe group_id/gate and rebind ver into param 1 (group_id) —
+                // a second bind() would wipe the earlier values and rebind ver into param 1 —
                 // the version-scoping regression that zeroed this verdict. Branch instead of re-binding.
-                if (ver.empty()) st.bind(g, std::string(gate));
-                else             st.bind(g, std::string(gate), ver);
+                if (ver.empty()) st.bind(g, os_id, std::string(gate));
+                else             st.bind(g, os_id, std::string(gate), ver);
                 if (st.step()) st.get(x.pass, x.fail, x.ran);
                 return x; };
             const PF ct = pf("ctest"), sm = pf("smoke"), bn = pf("bench"),
@@ -3117,7 +3178,7 @@ static int run_main(int argc, char** argv) {
             else if (a == "--source-dir" && i + 1 < argc) src = argv[++i]; }
         return run_build_times_gate(src, dry, force);
     }
-    if (command == "host") {   // sense + pin THIS machine (host_spec + current_host) and show the grid
+    if (command == "host") {   // sense + pin THIS machine (machine + current_host) and show the grid
         GlobalOptions host_global = global;
         const HostPinFlags pin_flags = parse_host_pin_flags(argc, argv, 2);   // --claim / --assign-new[-###]
         host_global.host_claim = pin_flags.claim;
@@ -3128,21 +3189,24 @@ static int run_main(int argc, char** argv) {
         jac313::Qlite::v001::Sqlite db(db_path.string());
         jac313::results::ensure_schema(db);
         const auto hw = collect_host_hardware_record(machine_disk_tier("."));
-        const auto gid_opt = pin_current_host(db, host_global);
-        if (!gid_opt) return 1;
-        const jac313::results::HostId h = make_host_id(hw);
-        const std::int64_t gid = *gid_opt;
+        const auto mid_opt = pin_current_host(db, host_global);
+        if (!mid_opt) return 1;
+        const jac313::results::MachineId h = make_machine_id(hw);
+        const std::int64_t mid = *mid_opt;
+        const jac313::results::OsInfo os_now = jac313::results::sense_os();
+        const std::int64_t os_row = jac313::results::os_id(db, os_now);
         char speed[40];
         if (h.cpu_mhz_min == h.cpu_mhz_max) std::snprintf(speed, sizeof speed, "%.1f GHz", static_cast<double>(h.cpu_mhz_max) / 1000.0);
         else std::snprintf(speed, sizeof speed, "%.1f-%.1f GHz",
             static_cast<double>(h.cpu_mhz_min) / 1000.0, static_cast<double>(h.cpu_mhz_max) / 1000.0);
-        std::cout << "=== host — " << jac313::results::host_label(gid) << " (pinned as current_host) ===\n"
+        std::cout << "=== host — " << jac313::results::host_label(mid) << " (pinned as current_host) ===\n"
                   << "  CPU      " << h.cpu << "\n"
                   << "  Speed    " << (h.cpu_mhz_max > 0 ? speed : "-") << "\n"
                   << "  P.Cores  " << h.p_cores << "      T.Cores  " << h.cores << "\n"
                   << "  RAM      " << h.ram_gb << " GB\n"
                   << "  Disk     " << dash(h.disk) << "\n"
-                  << "  OS       " << hw.os_pretty << "  (key: " << h.os << ")\n"
+                  << "  OS       " << jac313::results::os_display(os_now.name, os_now.version) << " · " << dash(os_now.kernel)
+                  << " · " << dash(os_now.arch) << "  (os row " << os_row << ", recorded per run)\n"
                   << "  Hash     " << jac313::results::hash_prefix(h.instance_hash) << "  (SHA256 nodename)\n"
                   << "  * P.Cores = Physical Cores; T.Cores = Threading Cores\n";
         return 0;
@@ -3192,8 +3256,8 @@ static int run_main(int argc, char** argv) {
                 preset.verify = true;
             } else if (arg == "--verify-lite") {
                 preset.verify_lite = true;
-            } else if (arg == "--group-id") {
-                preset.group_id = true;
+            } else if (arg == "--machine-id") {
+                preset.machine_id = true;
             } else if (arg == "--claim" && i + 1 < argc) {
                 global.host_claim = argv[++i];
             } else if (arg.rfind("--assign-new-", 0) == 0 || (arg == "--assign-new" && i + 1 < argc)) {
@@ -3505,8 +3569,8 @@ static int run_main(int argc, char** argv) {
         return run_list_command(global);
     }
     if (command == "run") {
-        if (preset.group_id) {
-            return run_group_id_command(global);
+        if (preset.machine_id) {
+            return run_machine_id_command(global);
         }
         if (global.wipe_logs) {
             if (run_wipe_logs_command(global) != 0) return 1;

@@ -18,7 +18,7 @@
 #      item by item, from Setup/recipes.jtext, then go on.
 #   4. Build jac313_test_cli once and let it check this machine ('setup' for readiness;
 #      '--run-everything' for the full battery).
-#   5. Sense + pin this machine as jac313-### (host_spec + current_host). Auto-pins when
+#   5. Sense + pin this machine as jac313-### (machine + current_host). Auto-pins when
 #      unambiguous; otherwise bootstrap stops with --claim / --assign-new-### directions.
 #
 #   6. A PostgreSQL 18 server for the PG local gate (role + database jac313).
@@ -655,7 +655,7 @@ echo
 echo "=== checking this machine ==="
 $ACT "$CLI" setup
 
-# Sense + pin THIS machine (host_spec + current_host) and show the hardware grid, so every later
+# Sense + pin THIS machine (machine + current_host) and show the hardware grid, so every later
 # gate — and store_bench — record under the same jac313-### without re-sensing.
 echo
 if ! $ACT "$CLI" host; then
@@ -665,11 +665,11 @@ if ! $ACT "$CLI" host; then
   echo
   echo "  1. Inspect the fleet table and this machine's hardware (printed above)."
   echo "  2. Choose ONE:"
-  echo "       $ACT $CLI host --claim jac313-###       # reuse an existing slot (same OS+hardware)"
+  echo "       $ACT $CLI host --claim jac313-###       # reuse an existing slot (same hardware)"
   echo "       $ACT $CLI host --assign-new-###         # new slot (e.g. --assign-new-002)"
   echo "  3. Re-run: ./bsir.sh"
   echo
-  echo "Read-only precheck: $ACT $CLI --group-id"
+  echo "Read-only precheck: $ACT $CLI --machine-id"
   echo "Details: the version README (Machine identity)"
   exit 1
 fi

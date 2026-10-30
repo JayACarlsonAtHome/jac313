@@ -9,6 +9,7 @@
 #include <jac313/Qlite/v002.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -22,6 +23,8 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+#include <sys/utsname.h>
 
 namespace jac313::results {
 
@@ -85,7 +88,10 @@ inline const std::string& resolve_results_db(const std::filesystem::path& source
 // 3: parameter.contracts (the contract evaluation mode the binaries were built under).
 // 4: run_target (what each run wrote where); parameter.strict / hardened; testRun.batch_keeper /
 //    batch_database / batch_binary (the batch each sink used).
-inline constexpr int kResultsSchemaVersion = 4;
+// 5: os (sensed per run) and machine (hardware only, keyed by the fleet number) replace host_spec;
+//    run.os_id + run.machine_id (run.host dropped); every per-machine table keys on machine_id;
+//    safeness gains os_id.
+inline constexpr int kResultsSchemaVersion = 5;
 
 namespace detail {
 // Every table and index, all idempotent (IF NOT EXISTS): cheap to run on every open.
@@ -132,24 +138,27 @@ inline void create_results_tables(Sqlite& db) {
             "  , UNIQUE(compiler_id, build_type, modules, import_std, size, persist, output_mode, threads,\n"
             "           events_per_thread, runs, batch, flag_count, valgrind_tool, contracts, strict, hardened)\n"
             ")");
-    // run = per-run metadata only. The hardware lives in host_spec (one row per machine), so it is
-    // NOT duplicated across every run; run references the machine via group_id.
-    db.exec("CREATE TABLE IF NOT EXISTS run (\n"
-            "    run_id INTEGER PRIMARY KEY NOT NULL\n"
-            "  , ts_utc TEXT NOT NULL DEFAULT ''\n"
-            "  , group_id INTEGER NOT NULL DEFAULT 0\n"
-            "  , host TEXT NOT NULL DEFAULT ''\n"
-            "  , version TEXT NOT NULL DEFAULT ''\n"   // JAC313_VERSION e.g. "v001" / "v002" — scopes runs, deletes, reports, safeness
-            "  , store_ver TEXT NOT NULL DEFAULT ''\n"
-            "  , qlite_ver TEXT NOT NULL DEFAULT ''\n"
-            "  , jtext_ver TEXT NOT NULL DEFAULT ''\n"
+    // os = the operating system a run ran under, sensed at the start of every recorded run
+    // (sense_os) and found-or-inserted: family = /etc/os-release ID (fedora | rhel | linuxmint, as
+    // Setup's OS family), name = PRETTY_NAME, version = VERSION_ID, kernel = uname release, arch =
+    // uname machine. A kernel update is a new row.
+    db.exec("CREATE TABLE IF NOT EXISTS os (\n"
+            "    id INTEGER PRIMARY KEY NOT NULL\n"
+            "  , family TEXT NOT NULL DEFAULT ''\n"
+            "  , name TEXT NOT NULL DEFAULT ''\n"
+            "  , version TEXT NOT NULL DEFAULT ''\n"
+            "  , kernel TEXT NOT NULL DEFAULT ''\n"
+            "  , arch TEXT NOT NULL DEFAULT ''\n"
+            "  , UNIQUE(family, name, version, kernel, arch)\n"
             ")");
-    // host_spec = the hardware identity, ONE row per machine (group_id). cpu/cores/ram_gb/os/disk/
-    // instance_hash are the group_id key (disk in the key: x7k vs 10k vs ssd on one box -> distinct
-    // groups; instance_hash = SHA256(uname nodename) distinguishes same-hw/same-os VMs), UNIQUE as on
-    // the fleet server (schema/fleet_v0_1.sql). p_cores / cpu_mhz_min / cpu_mhz_max are display-only.
-    db.exec("CREATE TABLE IF NOT EXISTS host_spec (\n"
-            "    group_id INTEGER PRIMARY KEY NOT NULL\n"
+    // machine = the hardware, ONE row per machine; id is the fleet number (jac313-###). The identity
+    // is hardware only: cpu, cores, ram_gb, disk, instance_hash (UNIQUE, as on the fleet server,
+    // schema/fleet_v0_2.sql), so one box that boots two OSes is one machine with two os rows.
+    // disk: the disk tier (the DISK_TYPE setting when set, else detected): checkouts on two drives
+    // are two machines. instance_hash = SHA-256 of the uname nodename tells apart same-hardware VMs.
+    // p_cores / cpu_mhz_min / cpu_mhz_max are display-only.
+    db.exec("CREATE TABLE IF NOT EXISTS machine (\n"
+            "    id INTEGER PRIMARY KEY NOT NULL\n"
             "  , cpu TEXT NOT NULL DEFAULT ''\n"
             "  , cores INTEGER NOT NULL DEFAULT 0\n"
             "  , p_cores INTEGER NOT NULL DEFAULT 0\n"
@@ -157,22 +166,33 @@ inline void create_results_tables(Sqlite& db) {
             "  , cpu_mhz_min INTEGER NOT NULL DEFAULT 0\n"
             "  , cpu_mhz_max INTEGER NOT NULL DEFAULT 0\n"
             "  , disk TEXT NOT NULL DEFAULT ''\n"
-            "  , os TEXT NOT NULL DEFAULT ''\n"
             "  , instance_hash TEXT NOT NULL DEFAULT ''\n"
-            "  , UNIQUE(cpu, cores, ram_gb, os, disk, instance_hash)\n"
+            "  , UNIQUE(cpu, cores, ram_gb, disk, instance_hash)\n"
             ")");
-    // current_host = per JAC313_VERSION pin (group_id) for THIS checkout. v001 and v002 on the same
-    // machine share host_spec (one jac313-###) but each tree keeps its own pin row so neither
+    // run = one recorded run: the OS it ran under and the machine it ran on (one join away, never
+    // copied into the run's data tables, which carry only run_id), plus its own metadata.
+    db.exec("CREATE TABLE IF NOT EXISTS run (\n"
+            "    run_id INTEGER PRIMARY KEY NOT NULL\n"
+            "  , ts_utc TEXT NOT NULL DEFAULT ''\n"
+            "  , os_id INTEGER NOT NULL REFERENCES os(id)\n"
+            "  , machine_id INTEGER NOT NULL REFERENCES machine(id)\n"
+            "  , version TEXT NOT NULL DEFAULT ''\n"   // JAC313_VERSION e.g. "v001" / "v002" — scopes runs, deletes, reports, safeness
+            "  , store_ver TEXT NOT NULL DEFAULT ''\n"
+            "  , qlite_ver TEXT NOT NULL DEFAULT ''\n"
+            "  , jtext_ver TEXT NOT NULL DEFAULT ''\n"
+            ")");
+    // current_host = per JAC313_VERSION pin (machine_id) for THIS checkout. v001 and v002 on the same
+    // machine share its machine row (one jac313-###) but each tree keeps its own pin row so neither
     // overwrites the other's committed pin in results.db. store_bench READS its version's row.
     db.exec("CREATE TABLE IF NOT EXISTS current_host (\n"
             "    version TEXT PRIMARY KEY NOT NULL\n"
-            "  , group_id INTEGER NOT NULL DEFAULT 0\n"
+            "  , machine_id INTEGER NOT NULL DEFAULT 0\n"
             ")");
-    // fleet_sync = the local group_ids the shared (pg-remote) server has confirmed, and which server
+    // fleet_sync = the local machine ids the shared (pg-remote) server has confirmed, and which server
     // (password-free conninfo). A confirmed number needs no round trip on later runs; one taken
     // offline (no row here) is checked with the server, and renumbered to its number, next time.
     db.exec("CREATE TABLE IF NOT EXISTS fleet_sync (\n"
-            "    group_id INTEGER PRIMARY KEY NOT NULL\n"
+            "    machine_id INTEGER PRIMARY KEY NOT NULL\n"
             "  , server TEXT NOT NULL DEFAULT ''\n"
             "  , ts_utc TEXT NOT NULL DEFAULT ''\n"
             ")");
@@ -246,46 +266,49 @@ inline void create_results_tables(Sqlite& db) {
             "  , message TEXT NOT NULL DEFAULT ''\n"
             "  , duration_ms INTEGER NOT NULL DEFAULT 0\n"
             ")");
-    // safeness = per (machine x version x gate x compiler) pass/fail summary, recomputed from testRun
-    // at record time by rebuild_safeness() so the report + run-everything verdict READ it (never recount).
+    // safeness = per (machine x OS x version x gate x compiler) pass/fail summary (the same machine
+    // under two OSes is two results), recomputed from testRun at record time by rebuild_safeness() so
+    // the report + run-everything verdict READ it (never recount).
     db.exec("CREATE TABLE IF NOT EXISTS safeness (\n"
-            "    group_id INTEGER NOT NULL DEFAULT 0\n"
+            "    machine_id INTEGER NOT NULL DEFAULT 0\n"
+            "  , os_id INTEGER NOT NULL DEFAULT 0\n"
             "  , version TEXT NOT NULL DEFAULT ''\n"  // JAC313_VERSION for isolation (v001 vs v002)
             "  , gate TEXT NOT NULL DEFAULT ''\n"
             "  , compiler TEXT NOT NULL DEFAULT ''\n"
             "  , pass INTEGER NOT NULL DEFAULT 0\n"
             "  , fail INTEGER NOT NULL DEFAULT 0\n"
-            "  , PRIMARY KEY(group_id, version, gate, compiler)\n"
+            "  , PRIMARY KEY(machine_id, os_id, version, gate, compiler)\n"
             ")");
     // io_best_fit = the per-machine durable persistence batch calibration for each backend. The peak of a
     // batch sweep is noisy, so we record the PLATEAU: low_size/high_size are the batch sizes at the
     // bottom/top of the near-peak band, and useThis is a robust pick in the MIDDLE of that band (what
     // the recorded bench actually runs at). best_size/best_ops are the raw peak (batch + median ops/sec)
-    // kept for reference. One row per (group_id, type).
+    // kept for reference. One row per (machine_id, type): batch throughput is bound to the hardware
+    // (disk tier, cores), so it stays per machine, not per OS.
     db.exec("CREATE TABLE IF NOT EXISTS io_best_fit (\n"
             "    id INTEGER PRIMARY KEY NOT NULL\n"
-            "  , group_id INTEGER NOT NULL DEFAULT 0\n"
+            "  , machine_id INTEGER NOT NULL DEFAULT 0\n"
             "  , type TEXT NOT NULL DEFAULT ''\n"
             "  , low_size INTEGER NOT NULL DEFAULT 0\n"
             "  , high_size INTEGER NOT NULL DEFAULT 0\n"
             "  , best_size INTEGER NOT NULL DEFAULT 0\n"
             "  , best_ops INTEGER NOT NULL DEFAULT 0\n"
             "  , useThis INTEGER NOT NULL DEFAULT 0\n"
-            "  , UNIQUE(group_id, type)\n"
+            "  , UNIQUE(machine_id, type)\n"
             ")");
-    // package_version: the code version() of each package (Store/Qlite/jText) for THIS machine (group)
+    // package_version: the code version() of each package (Store/Qlite/jText) for THIS machine
     // and world, sourced from the version() literals at host-pin time. Version-scoped like run/current_host
-    // because v001 and v002 share a hardware group_id — without the world key their rows would collide
-    // (last pin wins). Columns: group_id (machine), version (JAC313_VERSION world 'v001'|'v002', matches
+    // because v001 and v002 share a machine_id — without the world key their rows would collide
+    // (last pin wins). Columns: machine_id, version (JAC313_VERSION world 'v001'|'v002', matches
     // run.version), package ('Store'|'Qlite'|'jText'), pkg_version (the code version() literal, e.g.
-    // 'v002.008'). One row per (group_id, version, package) so any tool reads current versions straight
+    // 'v002.008'). One row per (machine_id, version, package) so any tool reads current versions straight
     // from the DB — store_bench included, which can't reach jText's header from its TU — without a run row.
     db.exec("CREATE TABLE IF NOT EXISTS package_version (\n"
-            "    group_id INTEGER NOT NULL DEFAULT 0\n"
+            "    machine_id INTEGER NOT NULL DEFAULT 0\n"
             "  , version TEXT NOT NULL DEFAULT ''\n"
             "  , package TEXT NOT NULL DEFAULT ''\n"
             "  , pkg_version TEXT NOT NULL DEFAULT ''\n"
-            "  , UNIQUE(group_id, version, package)\n"
+            "  , UNIQUE(machine_id, version, package)\n"
             ")");
     // testControl: per-test runtime controls (timeouts, memory limits, etc.) that drive the test harness.
     // Values live here in the DB (not hardcoded in source or flat files at runtime).
@@ -300,7 +323,8 @@ inline void create_results_tables(Sqlite& db) {
     db.exec("CREATE INDEX IF NOT EXISTS ix_testRun_parameter ON testRun(parameter_id)");
     db.exec("CREATE INDEX IF NOT EXISTS ix_runEvent_run ON runEvent(run_id)");
     db.exec("CREATE INDEX IF NOT EXISTS ix_run_target_run ON run_target(run_id)");
-    db.exec("CREATE INDEX IF NOT EXISTS ix_run_group_version ON run(group_id, version)");
+    db.exec("CREATE INDEX IF NOT EXISTS ix_run_machine_version ON run(machine_id, version)");
+    db.exec("CREATE INDEX IF NOT EXISTS ix_run_os ON run(os_id)");
 }
 
 inline std::int64_t results_user_version(Sqlite& db) {
@@ -356,8 +380,8 @@ inline std::int64_t lookup_id(Sqlite& db, const char* sql, const std::string& na
 }
 
 // Recompute the safeness summary from testRun. Called at the END of every recorder so the report +
-// run-everything verdict just READ the table (never recount). Keyed on JAC313_VERSION too, so v001
-// and v002 data stay isolated even for the same group/hardware. One transaction: its own, or the
+// run-everything verdict just READ the table (never recount). Keyed on the run's machine and OS, and
+// on JAC313_VERSION too, so v001 and v002 data stay isolated even on the same machine. One transaction: its own, or the
 // recorder's when the caller already opened one (then the caller commits).
 inline void rebuild_safeness(Sqlite& db) {
     std::optional<Sqlite::Transaction> tx;
@@ -365,7 +389,8 @@ inline void rebuild_safeness(Sqlite& db) {
     db.exec("DELETE FROM safeness");
     // Only 'fail'/'error' count as failures; pass/skip (and bench rows, always 'pass') count as passes.
     db.exec("INSERT INTO safeness (\n"
-            "    group_id\n"
+            "    machine_id\n"
+            "  , os_id\n"
             "  , version\n"
             "  , gate\n"
             "  , compiler\n"
@@ -373,7 +398,8 @@ inline void rebuild_safeness(Sqlite& db) {
             "  , fail\n"
             ")\n"
             "SELECT \n"
-            "    r.group_id\n"
+            "    r.machine_id\n"
+            "  , r.os_id\n"
             "  , r.version\n"
             "  , tt.name\n"
             "  , c.name || c.major\n"
@@ -385,9 +411,10 @@ inline void rebuild_safeness(Sqlite& db) {
             "INNER JOIN parameter p ON p.id = tr.parameter_id\n"
             "INNER JOIN compiler c ON c.id = p.compiler_id\n"
             "WHERE tt.name IN ('ctest', 'smoke', 'bench')\n"
-            "GROUP BY r.group_id, r.version, tt.name, c.name || c.major");
+            "GROUP BY r.machine_id, r.os_id, r.version, tt.name, c.name || c.major");
     db.exec("INSERT INTO safeness (\n"
-            "    group_id\n"
+            "    machine_id\n"
+            "  , os_id\n"
             "  , version\n"
             "  , gate\n"
             "  , compiler\n"
@@ -395,7 +422,8 @@ inline void rebuild_safeness(Sqlite& db) {
             "  , fail\n"
             ")\n"
             "SELECT \n"
-            "    r.group_id\n"
+            "    r.machine_id\n"
+            "  , r.os_id\n"
             "  , r.version\n"
             "  , p.valgrind_tool\n"
             "  , c.name || c.major\n"
@@ -407,7 +435,7 @@ inline void rebuild_safeness(Sqlite& db) {
             "INNER JOIN parameter p ON p.id = tr.parameter_id\n"
             "INNER JOIN compiler c ON c.id = p.compiler_id\n"
             "WHERE tt.name IN ('verify', 'verify-lite') AND p.valgrind_tool <> ''\n"
-            "GROUP BY r.group_id, r.version, p.valgrind_tool, c.name || c.major");
+            "GROUP BY r.machine_id, r.os_id, r.version, p.valgrind_tool, c.name || c.major");
     if (tx) tx->commit();
 }
 
@@ -421,135 +449,205 @@ inline std::int64_t compiler_id(Sqlite& db, const CompilerInfo& c) {
     return id;
 }
 
-// ---- machine identity + run ----
-// Identity (group_id key) = cpu, cores, ram_gb, os, disk, instance_hash. The trailing p_cores /
-// cpu_mhz_min / cpu_mhz_max are DISPLAY-ONLY (machines table) — carried here for convenience,
-// NOT part of the key.
-struct HostId { std::string cpu; std::int64_t cores = 0; std::int64_t ram_gb = 0; std::string os; std::string disk;
-                std::string instance_hash;
-                std::int64_t p_cores = 0; std::int64_t cpu_mhz_min = 0; std::int64_t cpu_mhz_max = 0; };
+// ---- os: the operating system a run ran under (sensed per run) ----
+struct OsInfo { std::string family; std::string name; std::string version; std::string kernel; std::string arch; };
 
-inline std::string host_label(std::int64_t group_id) {
+namespace detail {
+// One KEY=value from an /etc/os-release body (quotes stripped); "" when absent.
+inline std::string os_release_value(const std::string& text, const std::string& key) {
+    std::istringstream in(text);
+    for (std::string line; std::getline(in, line);) {
+        if (line.rfind(key + "=", 0) != 0) continue;
+        std::string v = line.substr(key.size() + 1);
+        if (v.size() >= 2 && (v.front() == '"' || v.front() == '\'') && v.back() == v.front())
+            v = v.substr(1, v.size() - 2);
+        return v;
+    }
+    return {};
+}
+} // namespace detail
+
+// This machine's OS now: /etc/os-release ID (lowercased) / PRETTY_NAME / VERSION_ID, uname release
+// and machine. Fields that cannot be read stay ''.
+inline OsInfo sense_os() {
+    OsInfo o;
+    std::ifstream in("/etc/os-release");
+    std::ostringstream ss;
+    ss << in.rdbuf();
+    const std::string text = ss.str();
+    o.family = detail::os_release_value(text, "ID");
+    std::transform(o.family.begin(), o.family.end(), o.family.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    o.name = detail::os_release_value(text, "PRETTY_NAME");
+    o.version = detail::os_release_value(text, "VERSION_ID");
+    utsname u{};
+    if (::uname(&u) == 0) { o.kernel = u.release; o.arch = u.machine; }
+    return o;
+}
+
+// The os row for `o` (found, else inserted).
+inline std::int64_t os_id(Sqlite& db, const OsInfo& o) {
+    db.exec("INSERT OR IGNORE INTO os(family, name, version, kernel, arch) VALUES(?,?,?,?,?)",
+            o.family, o.name, o.version, o.kernel, o.arch);
+    std::int64_t id = 0;
+    { auto st = db.prepare("SELECT id FROM os WHERE family=? AND name=? AND version=? AND kernel=? AND arch=?");
+      st.bind(o.family, o.name, o.version, o.kernel, o.arch); if (st.step()) st.get(id); }
+    return id;
+}
+
+// The os row of the OS this process runs under: what every recorded run stores as run.os_id.
+inline std::int64_t current_os_id(Sqlite& db) { return os_id(db, sense_os()); }
+
+// "Fedora Linux 44 (Workstation Edition)": the name, with the version appended when the name does
+// not already carry it.
+inline std::string os_display(const std::string& name, const std::string& version) {
+    if (version.empty() || name.find(version) != std::string::npos) return name;
+    return name.empty() ? version : name + " " + version;
+}
+
+// ---- machine identity + run ----
+// Identity (the machine.id key) = cpu, cores, ram_gb, disk, instance_hash: hardware only, no OS.
+// The trailing p_cores / cpu_mhz_min / cpu_mhz_max are DISPLAY-ONLY (machines page) — carried here
+// for convenience, NOT part of the key.
+struct MachineId { std::string cpu; std::int64_t cores = 0; std::int64_t ram_gb = 0; std::string disk;
+                   std::string instance_hash;
+                   std::int64_t p_cores = 0; std::int64_t cpu_mhz_min = 0; std::int64_t cpu_mhz_max = 0; };
+
+inline std::string host_label(std::int64_t machine_id) {
     // 32: "jac313-" + up to 20 characters of a long long + NUL (24 could cut a big id short)
-    char b[32]; std::snprintf(b, sizeof b, "jac313-%03lld", static_cast<long long>(group_id)); return b;
+    char b[32]; std::snprintf(b, sizeof b, "jac313-%03lld", static_cast<long long>(machine_id)); return b;
+}
+
+// "jac313-002 · Fedora Linux 44 (Workstation Edition) · 7.2.13-200.fc44.x86_64": a run's machine and
+// the OS it ran under, from run.machine_id and run.os_id. "" when the run is unknown.
+inline std::string run_header(Sqlite& db, std::int64_t run_id) {
+    std::int64_t mid = 0;
+    std::string name, version, kernel;
+    auto st = db.prepare("SELECT r.machine_id, o.name, o.version, o.kernel FROM run r "
+                         "INNER JOIN os o ON o.id = r.os_id WHERE r.run_id=?");
+    st.bind(run_id);
+    if (!st.step()) return {};
+    st.get(mid, name, version, kernel);
+    std::string h = host_label(mid);
+    if (const std::string os = os_display(name, version); !os.empty()) h += " · " + os;
+    if (!kernel.empty()) h += " · " + kernel;
+    return h;
 }
 
 inline std::string hash_prefix(const std::string& hash, std::size_t n = 8) {
     return hash.size() <= n ? hash : hash.substr(0, n);
 }
 
-inline std::int64_t parse_group_label(const std::string& label) {
+inline std::int64_t parse_machine_label(const std::string& label) {
     std::string s = label;
     if (s.rfind("jac313-", 0) == 0) {
         s = s.substr(7);
     }
     if (s.empty()) {
-        throw std::invalid_argument("empty group label");
+        throw std::invalid_argument("empty machine label");
     }
     for (char c : s) {
         if (c < '0' || c > '9') {
-            throw std::invalid_argument("group label must be numeric: " + label);
+            throw std::invalid_argument("machine label must be numeric: " + label);
         }
     }
     return std::stoll(s);
 }
 
-inline bool host_identity_matches(const HostId& a, const HostId& b) {
+inline bool machine_identity_matches(const MachineId& a, const MachineId& b) {
     return a.cpu == b.cpu && a.cores == b.cores && a.ram_gb == b.ram_gb
-        && a.os == b.os && a.disk == b.disk && a.instance_hash == b.instance_hash;
+        && a.disk == b.disk && a.instance_hash == b.instance_hash;
 }
 
-inline bool same_os_hw(const HostId& a, const HostId& b) {
-    return a.cpu == b.cpu && a.cores == b.cores && a.ram_gb == b.ram_gb
-        && a.os == b.os && a.disk == b.disk;
+inline bool same_hw(const MachineId& a, const MachineId& b) {
+    return a.cpu == b.cpu && a.cores == b.cores && a.ram_gb == b.ram_gb && a.disk == b.disk;
 }
 
-inline bool load_host_spec(Sqlite& db, std::int64_t gid, HostId& out) {
-    auto st = db.prepare("SELECT cpu, cores, ram_gb, os, disk, instance_hash, p_cores, cpu_mhz_min, cpu_mhz_max "
-                         "FROM host_spec WHERE group_id=? LIMIT 1");
-    st.bind(gid);
+inline bool load_machine(Sqlite& db, std::int64_t mid, MachineId& out) {
+    auto st = db.prepare("SELECT cpu, cores, ram_gb, disk, instance_hash, p_cores, cpu_mhz_min, cpu_mhz_max "
+                         "FROM machine WHERE id=? LIMIT 1");
+    st.bind(mid);
     if (!st.step()) return false;
-    st.get(out.cpu, out.cores, out.ram_gb, out.os, out.disk, out.instance_hash,
+    st.get(out.cpu, out.cores, out.ram_gb, out.disk, out.instance_hash,
            out.p_cores, out.cpu_mhz_min, out.cpu_mhz_max);
     return true;
 }
 
-inline std::int64_t find_exact_group(Sqlite& db, const HostId& h) {
-    std::int64_t gid = 0;
-    auto st = db.prepare("SELECT group_id FROM host_spec WHERE cpu=? AND cores=? AND ram_gb=? AND os=? AND disk=? "
+inline std::int64_t find_exact_machine(Sqlite& db, const MachineId& h) {
+    std::int64_t mid = 0;
+    auto st = db.prepare("SELECT id FROM machine WHERE cpu=? AND cores=? AND ram_gb=? AND disk=? "
                          "AND instance_hash=? LIMIT 1");
-    st.bind(h.cpu, h.cores, h.ram_gb, h.os, h.disk, h.instance_hash);
-    if (st.step()) st.get(gid);
-    return gid;
+    st.bind(h.cpu, h.cores, h.ram_gb, h.disk, h.instance_hash);
+    if (st.step()) st.get(mid);
+    return mid;
 }
 
-inline std::vector<std::int64_t> find_same_os_hw_candidates(Sqlite& db, const HostId& h) {
+inline std::vector<std::int64_t> find_same_hw_candidates(Sqlite& db, const MachineId& h) {
     std::vector<std::int64_t> out;
-    auto st = db.prepare("SELECT group_id FROM host_spec WHERE cpu=? AND cores=? AND ram_gb=? AND os=? AND disk=? "
-                         "AND instance_hash<>? ORDER BY group_id");
-    st.bind(h.cpu, h.cores, h.ram_gb, h.os, h.disk, h.instance_hash);
+    auto st = db.prepare("SELECT id FROM machine WHERE cpu=? AND cores=? AND ram_gb=? AND disk=? "
+                         "AND instance_hash<>? ORDER BY id");
+    st.bind(h.cpu, h.cores, h.ram_gb, h.disk, h.instance_hash);
     while (st.step()) {
-        std::int64_t gid = 0;
-        st.get(gid);
-        out.push_back(gid);
+        std::int64_t mid = 0;
+        st.get(mid);
+        out.push_back(mid);
     }
     return out;
 }
 
-inline std::int64_t next_auto_group_id(Sqlite& db) {
-    std::int64_t gid = 1;
-    auto st = db.prepare("SELECT COALESCE(MAX(group_id),0)+1 FROM host_spec");
-    if (st.step()) st.get(gid);
-    return gid;
+inline std::int64_t next_auto_machine_id(Sqlite& db) {
+    std::int64_t mid = 1;
+    auto st = db.prepare("SELECT COALESCE(MAX(id),0)+1 FROM machine");
+    if (st.step()) st.get(mid);
+    return mid;
 }
 
-inline bool group_id_taken(Sqlite& db, std::int64_t gid) {
+inline bool machine_id_taken(Sqlite& db, std::int64_t mid) {
     std::int64_t n = 0;
-    auto st = db.prepare("SELECT COUNT(*) FROM host_spec WHERE group_id=?");
-    st.bind(gid);
+    auto st = db.prepare("SELECT COUNT(*) FROM machine WHERE id=?");
+    st.bind(mid);
     if (st.step()) st.get(n);
     return n > 0;
 }
 
-// File machine `h` under group `gid`. host_spec is unique on both group_id and the identity, so an
-// identity already filed under ANOTHER group (--assign-new-### / --claim for a known machine) moves
-// to gid: gid's old row (if any) gives way, then the identity row is renumbered. Other tables keep
-// their group_id (renumber_group() moves those).
-inline void upsert_host_spec(Sqlite& db, std::int64_t gid, const HostId& h) {
-    if (const std::int64_t old = find_exact_group(db, h); old != 0 && old != gid) {
-        db.exec("DELETE FROM host_spec WHERE group_id=?", gid);
-        db.exec("UPDATE host_spec SET group_id=? WHERE group_id=?", gid, old);
+// File machine `h` under number `mid`. machine is unique on both id and the identity, so an
+// identity already filed under ANOTHER number (--assign-new-### / --claim for a known machine) moves
+// to mid: mid's old row (if any) gives way, then the identity row is renumbered. Other tables keep
+// their machine_id (renumber_machine() moves those).
+inline void upsert_machine(Sqlite& db, std::int64_t mid, const MachineId& h) {
+    if (const std::int64_t old = find_exact_machine(db, h); old != 0 && old != mid) {
+        db.exec("DELETE FROM machine WHERE id=?", mid);
+        db.exec("UPDATE machine SET id=? WHERE id=?", mid, old);
     }
-    db.exec("INSERT INTO host_spec(group_id, cpu, cores, p_cores, ram_gb, cpu_mhz_min, cpu_mhz_max, "
-            "disk, os, instance_hash) VALUES(?,?,?,?,?,?,?,?,?,?) "
-            "ON CONFLICT(group_id) DO UPDATE SET cpu=excluded.cpu, cores=excluded.cores, "
+    db.exec("INSERT INTO machine(id, cpu, cores, p_cores, ram_gb, cpu_mhz_min, cpu_mhz_max, "
+            "disk, instance_hash) VALUES(?,?,?,?,?,?,?,?,?) "
+            "ON CONFLICT(id) DO UPDATE SET cpu=excluded.cpu, cores=excluded.cores, "
             "p_cores=excluded.p_cores, ram_gb=excluded.ram_gb, cpu_mhz_min=excluded.cpu_mhz_min, "
-            "cpu_mhz_max=excluded.cpu_mhz_max, disk=excluded.disk, os=excluded.os, "
-            "instance_hash=excluded.instance_hash",
-            gid, h.cpu, h.cores, h.p_cores, h.ram_gb, h.cpu_mhz_min, h.cpu_mhz_max, h.disk, h.os, h.instance_hash);
+            "cpu_mhz_max=excluded.cpu_mhz_max, disk=excluded.disk, instance_hash=excluded.instance_hash",
+            mid, h.cpu, h.cores, h.p_cores, h.ram_gb, h.cpu_mhz_min, h.cpu_mhz_max, h.disk, h.instance_hash);
 }
 
-inline void set_current_host(Sqlite& db, std::int64_t gid, const std::string& version) {
-    db.exec("INSERT OR REPLACE INTO current_host(version, group_id) VALUES(?, ?)", version, gid);
+inline void set_current_host(Sqlite& db, std::int64_t mid, const std::string& version) {
+    db.exec("INSERT OR REPLACE INTO current_host(version, machine_id) VALUES(?, ?)", version, mid);
 }
 
 inline std::int64_t current_host(Sqlite& db, const std::string& version) {
-    std::int64_t gid = 0;
-    { auto st = db.prepare("SELECT group_id FROM current_host WHERE version=?");
-      st.bind(version); if (st.step()) st.get(gid); }
-    return gid;
+    std::int64_t mid = 0;
+    { auto st = db.prepare("SELECT machine_id FROM current_host WHERE version=?");
+      st.bind(version); if (st.step()) st.get(mid); }
+    return mid;
 }
 
-inline bool current_host_is_stale(Sqlite& db, const HostId& h, const std::string& version) {
+inline bool current_host_is_stale(Sqlite& db, const MachineId& h, const std::string& version) {
     const std::int64_t pinned = current_host(db, version);
     if (pinned == 0) return false;
-    HostId stored{};
-    if (!load_host_spec(db, pinned, stored)) return true;
-    return !host_identity_matches(h, stored);
+    MachineId stored{};
+    if (!load_machine(db, pinned, stored)) return true;
+    return !machine_identity_matches(h, stored);
 }
 
 enum class HostPinError {
-    None, Ambiguous, InvalidLabel, ClaimNotFound, ClaimOsMismatch, ClaimHwMismatch,
+    None, Ambiguous, InvalidLabel, ClaimNotFound, ClaimHwMismatch,
     ClaimHashConflict, AssignTaken, ConflictingFlags,
 };
 
@@ -560,85 +658,80 @@ struct HostPinOptions {
 
 struct HostPinResult {
     HostPinError error = HostPinError::None;
-    std::int64_t gid = 0;
+    std::int64_t mid = 0;
     std::string message;
     std::vector<std::int64_t> ambiguous_candidates;
     bool generic_nodename = false;
 };
 
-inline HostPinResult propose_group_id(Sqlite& db, const HostId& h, bool generic_nodename) {
+inline HostPinResult propose_machine_id(Sqlite& db, const MachineId& h, bool generic_nodename) {
     HostPinResult r;
     r.generic_nodename = generic_nodename;
-    if (const std::int64_t exact = find_exact_group(db, h); exact != 0) {
-        r.gid = exact;
+    if (const std::int64_t exact = find_exact_machine(db, h); exact != 0) {
+        r.mid = exact;
         return r;
     }
-    r.ambiguous_candidates = find_same_os_hw_candidates(db, h);
+    r.ambiguous_candidates = find_same_hw_candidates(db, h);
     if (!r.ambiguous_candidates.empty() || generic_nodename) {
         r.error = HostPinError::Ambiguous;
         r.message = generic_nodename
             ? "generic nodename — use --claim jac313-### or --assign-new-###"
-            : "same hardware+OS, different instance_hash — use --claim jac313-### or --assign-new-###";
+            : "same hardware, different instance_hash — use --claim jac313-### or --assign-new-###";
         return r;
     }
-    r.gid = next_auto_group_id(db);
+    r.mid = next_auto_machine_id(db);
     return r;
 }
 
-inline HostPinResult claim_group(Sqlite& db, const HostId& h, const std::string& label) {
+inline HostPinResult claim_machine(Sqlite& db, const MachineId& h, const std::string& label) {
     HostPinResult r;
-    std::int64_t gid = 0;
+    std::int64_t mid = 0;
     try {
-        gid = parse_group_label(label);
+        mid = parse_machine_label(label);
     } catch (const std::exception& e) {
         r.error = HostPinError::InvalidLabel;
         r.message = e.what();
         return r;
     }
-    HostId stored{};
-    if (!load_host_spec(db, gid, stored)) {
+    MachineId stored{};
+    if (!load_machine(db, mid, stored)) {
         r.error = HostPinError::ClaimNotFound;
-        r.message = "no host_spec row for " + host_label(gid);
+        r.message = "no machine row for " + host_label(mid);
         return r;
     }
-    if (stored.os != h.os) {
-        r.error = HostPinError::ClaimOsMismatch;
-        r.message = host_label(gid) + " is " + stored.os + ", this machine is " + h.os;
-        return r;
-    }
-    if (!same_os_hw(h, stored)) {
+    if (!same_hw(h, stored)) {
         r.error = HostPinError::ClaimHwMismatch;
-        r.message = host_label(gid) + " hardware does not match this machine";
+        r.message = host_label(mid) + " hardware does not match this machine";
         return r;
     }
     if (!stored.instance_hash.empty() && stored.instance_hash != h.instance_hash) {
         r.error = HostPinError::ClaimHashConflict;
-        r.message = host_label(gid) + " is bound to instance_hash " + hash_prefix(stored.instance_hash)
+        r.message = host_label(mid) + " is bound to instance_hash " + hash_prefix(stored.instance_hash)
                   + " (this machine is " + hash_prefix(h.instance_hash) + ")";
         return r;
     }
-    r.gid = gid;
+    r.mid = mid;
     return r;
 }
 
-inline HostPinResult assign_new_group(Sqlite& db, const HostId& /*h*/, std::int64_t gid) {
+inline HostPinResult assign_new_machine(Sqlite& db, std::int64_t mid) {
     HostPinResult r;
-    if (gid <= 0) {
+    if (mid <= 0) {
         r.error = HostPinError::InvalidLabel;
-        r.message = "assign-new requires a positive group number";
+        r.message = "assign-new requires a positive machine number";
         return r;
     }
-    if (group_id_taken(db, gid)) {
+    if (machine_id_taken(db, mid)) {
         r.error = HostPinError::AssignTaken;
-        r.message = host_label(gid) + " is already taken";
+        r.message = host_label(mid) + " is already taken";
         return r;
     }
-    r.gid = gid;
+    r.mid = mid;
     return r;
 }
 
-inline HostPinResult resolve_group_id(Sqlite& db, const HostId& h, const HostPinOptions& opts,
-                                     bool generic_nodename) {
+inline HostPinResult resolve_machine_id(Sqlite& db, const MachineId& h, const HostPinOptions& opts,
+                                        bool generic_nodename) {
     HostPinResult r;
     if (!opts.claim.empty() && opts.assign_new > 0) {
         r.error = HostPinError::ConflictingFlags;
@@ -646,60 +739,59 @@ inline HostPinResult resolve_group_id(Sqlite& db, const HostId& h, const HostPin
         return r;
     }
     if (!opts.claim.empty()) {
-        return claim_group(db, h, opts.claim);
+        return claim_machine(db, h, opts.claim);
     }
     if (opts.assign_new > 0) {
-        return assign_new_group(db, h, opts.assign_new);
+        return assign_new_machine(db, opts.assign_new);
     }
-    return propose_group_id(db, h, generic_nodename);
+    return propose_machine_id(db, h, generic_nodename);
 }
 
-inline HostPinResult resolve_and_pin(Sqlite& db, const HostId& h, const HostPinOptions& opts,
+inline HostPinResult resolve_and_pin(Sqlite& db, const MachineId& h, const HostPinOptions& opts,
                                      bool generic_nodename, const std::string& version) {
-    HostPinResult r = resolve_group_id(db, h, opts, generic_nodename);
+    HostPinResult r = resolve_machine_id(db, h, opts, generic_nodename);
     if (r.error != HostPinError::None) {
         return r;
     }
-    upsert_host_spec(db, r.gid, h);
-    set_current_host(db, r.gid, version);
+    upsert_machine(db, r.mid, h);
+    set_current_host(db, r.mid, version);
     return r;
 }
 
-inline std::int64_t pin_host(Sqlite& db, const HostId& h, const std::string& version) {
+inline std::int64_t pin_host(Sqlite& db, const MachineId& h, const std::string& version) {
     const HostPinResult r = resolve_and_pin(db, h, {}, false, version);
     if (r.error != HostPinError::None) {
         throw std::runtime_error(r.message.empty() ? "host pin failed" : r.message);
     }
-    return r.gid;
-}
-
-inline std::int64_t group_id(Sqlite& db, const HostId& h) {
-    return find_exact_group(db, h);
+    return r.mid;
 }
 
 // ---- fleet numbering (the shared server's jac313-###) ----
-// Every local table that holds a group_id. renumber_group() moves all of them together.
-inline constexpr const char* kGroupTables[] = {
-    "host_spec", "current_host", "run", "safeness", "io_best_fit", "package_version", "fleet_sync"};
+// Every local table that holds a machine number, and its column. renumber_machine() moves all of
+// them together; the wipe tools delete a machine from all of them.
+struct MachineTable { const char* table; const char* column; };
+inline constexpr MachineTable kMachineTables[] = {
+    {"machine", "id"}, {"current_host", "machine_id"}, {"run", "machine_id"}, {"safeness", "machine_id"},
+    {"io_best_fit", "machine_id"}, {"package_version", "machine_id"}, {"fleet_sync", "machine_id"}};
 
-// True when any local table already uses this group_id.
-inline bool group_in_use(Sqlite& db, std::int64_t gid) {
-    for (const char* t : kGroupTables) {
+// True when any local table already uses this machine number.
+inline bool machine_in_use(Sqlite& db, std::int64_t mid) {
+    for (const auto& t : kMachineTables) {
         std::int64_t n = 0;
-        auto st = db.prepare(std::string("SELECT COUNT(*) FROM ") + t + " WHERE group_id=?");
-        st.bind(gid);
+        auto st = db.prepare(std::string("SELECT COUNT(*) FROM ") + t.table + " WHERE " + t.column + "=?");
+        st.bind(mid);
         if (st.step()) st.get(n);
         if (n > 0) return true;
     }
     return false;
 }
 
-// One past the highest group_id in any local table.
-inline std::int64_t next_free_group_id(Sqlite& db) {
+// One past the highest machine number in any local table.
+inline std::int64_t next_free_machine_id(Sqlite& db) {
     std::int64_t top = 0;
-    for (const char* t : kGroupTables) {
+    for (const auto& t : kMachineTables) {
         std::int64_t m = 0;
-        auto st = db.prepare(std::string("SELECT COALESCE(MAX(group_id),0) FROM ") + t);
+        auto st = db.prepare(std::string("SELECT COALESCE(MAX(") + t.column + "),0) FROM " + t.table);
         if (st.step()) st.get(m);
         top = std::max(top, m);
     }
@@ -707,66 +799,44 @@ inline std::int64_t next_free_group_id(Sqlite& db) {
 }
 
 namespace detail {
-inline void renumber_group_rows(Sqlite& db, std::int64_t from, std::int64_t to) {
+inline void renumber_machine_rows(Sqlite& db, std::int64_t from, std::int64_t to) {
     if (from == to) return;
     // `to` belongs to another machine's local rows (e.g. one that has not registered yet): move
     // those out of the way first; that machine is renumbered when it registers.
-    if (group_in_use(db, to)) renumber_group_rows(db, to, next_free_group_id(db));
-    for (const char* t : kGroupTables)
-        db.exec(std::string("UPDATE ") + t + " SET group_id=? WHERE group_id=?", to, from);
-    db.exec("UPDATE run SET host=? WHERE group_id=?", host_label(to), to);
+    if (machine_in_use(db, to)) renumber_machine_rows(db, to, next_free_machine_id(db));
+    for (const auto& t : kMachineTables)
+        db.exec(std::string("UPDATE ") + t.table + " SET " + t.column + "=? WHERE " + t.column + "=?", to, from);
 }
 } // namespace detail
 
-// Move every local row of group `from` to group `to` (run.host relabelled too), in one transaction.
-inline void renumber_group(Sqlite& db, std::int64_t from, std::int64_t to) {
+// Move every local row of machine `from` to number `to`, in one transaction.
+inline void renumber_machine(Sqlite& db, std::int64_t from, std::int64_t to) {
     auto tx = db.transaction();
-    detail::renumber_group_rows(db, from, to);
+    detail::renumber_machine_rows(db, from, to);
     tx.commit();
 }
 
-inline bool fleet_synced(Sqlite& db, std::int64_t gid, const std::string& server) {
+inline bool fleet_synced(Sqlite& db, std::int64_t mid, const std::string& server) {
     std::int64_t n = 0;
-    auto st = db.prepare("SELECT COUNT(*) FROM fleet_sync WHERE group_id=? AND server=?");
-    st.bind(gid, server);
+    auto st = db.prepare("SELECT COUNT(*) FROM fleet_sync WHERE machine_id=? AND server=?");
+    st.bind(mid, server);
     if (st.step()) st.get(n);
     return n > 0;
 }
 
 // Confirmed by this server within the last `hours` (ts_utc is utc_now_iso()). An older confirmation
 // is checked again, so a server that was wiped or replaced makes the machine register again.
-inline bool fleet_synced_within(Sqlite& db, std::int64_t gid, const std::string& server, int hours) {
+inline bool fleet_synced_within(Sqlite& db, std::int64_t mid, const std::string& server, int hours) {
     std::int64_t n = 0;
-    auto st = db.prepare("SELECT COUNT(*) FROM fleet_sync WHERE group_id=? AND server=? "
+    auto st = db.prepare("SELECT COUNT(*) FROM fleet_sync WHERE machine_id=? AND server=? "
                          "AND julianday(ts_utc) > julianday('now') - ? / 24.0");
-    st.bind(gid, server, static_cast<std::int64_t>(hours));
+    st.bind(mid, server, static_cast<std::int64_t>(hours));
     if (st.step()) st.get(n);
     return n > 0;
 }
 
-inline void mark_fleet_synced(Sqlite& db, std::int64_t gid, const std::string& server, const std::string& ts_utc) {
-    db.exec("INSERT OR REPLACE INTO fleet_sync(group_id, server, ts_utc) VALUES(?, ?, ?)", gid, server, ts_utc);
-}
-
-// Delete the most recent run (and its testRun/runEvent rows) for this group + optional JAC313_VERSION.
-// Used for explicit "fresh start for this machine" (e.g. top of --run-everything,
-// and the jac313_wipe_* tools). 
-// Recorders scope deletes to the version so v001 cannot affect v002 data (same hardware group).
-inline void delete_prior_run_for_group(Sqlite& db, std::int64_t gid, const std::string& version = "") {
-    std::int64_t prior_run = 0;
-    if (version.empty()) {
-        auto st = db.prepare("SELECT run_id FROM run WHERE group_id=? ORDER BY run_id DESC LIMIT 1");
-        st.bind(gid); if (st.step()) st.get(prior_run);
-    } else {
-        auto st = db.prepare("SELECT run_id FROM run WHERE group_id=? AND version=? ORDER BY run_id DESC LIMIT 1");
-        st.bind(gid, version); if (st.step()) st.get(prior_run);  // ONE bind() call: a 2nd clears the 1st
-    }
-    if (prior_run > 0) {
-        db.exec("DELETE FROM testRun WHERE run_id=?", prior_run);
-        db.exec("DELETE FROM runEvent WHERE run_id=?", prior_run);
-        db.exec("DELETE FROM run_target WHERE run_id=?", prior_run);
-        db.exec("DELETE FROM run WHERE run_id=?", prior_run);
-    }
+inline void mark_fleet_synced(Sqlite& db, std::int64_t mid, const std::string& server, const std::string& ts_utc) {
+    db.exec("INSERT OR REPLACE INTO fleet_sync(machine_id, server, ts_utc) VALUES(?, ?, ?)", mid, server, ts_utc);
 }
 
 inline std::int64_t next_run_id(Sqlite& db) {
@@ -775,15 +845,16 @@ inline std::int64_t next_run_id(Sqlite& db) {
     return n;
 }
 
-// Insert a run row (idempotent on run_id). version = JAC313_VERSION ("v001"/"v002").
+// Insert a run row (idempotent on run_id): the OS it ran under (os_id, from current_os_id) and the
+// machine (machine_id, the pinned current_host). version = JAC313_VERSION ("v001"/"v002").
 // store_ver/qlite_ver/jtext_ver are the component versions under test (default empty for functional runs).
-inline void insert_run(Sqlite& db, std::int64_t run_id, std::int64_t gid, const std::string& host,
+inline void insert_run(Sqlite& db, std::int64_t run_id, std::int64_t os_id, std::int64_t machine_id,
                        const std::string& version = "",
                        const std::string& store_ver = "",
                        const std::string& qlite_ver = "", const std::string& jtext_ver = "") {
-    db.exec("INSERT OR IGNORE INTO run(run_id, ts_utc, group_id, host, version, store_ver, qlite_ver, jtext_ver) "
+    db.exec("INSERT OR IGNORE INTO run(run_id, ts_utc, os_id, machine_id, version, store_ver, qlite_ver, jtext_ver) "
             "VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?,?)",
-            run_id, gid, host, version, store_ver, qlite_ver, jtext_ver);
+            run_id, os_id, machine_id, version, store_ver, qlite_ver, jtext_ver);
 }
 
 // ---- run_target: what a run wrote where ----
@@ -872,41 +943,41 @@ inline void insert_run_targets(Sqlite& db, std::int64_t run_id, const std::vecto
 // ---- io_best_fit (per-machine durable-backend batch calibration) ----
 // Record (or refresh) one backend's calibration on this machine: the plateau band [low_size,high_size],
 // the raw peak (best_size + best_ops), and useThis = the chosen mid-band operating size.
-inline void upsert_io_best_fit(Sqlite& db, std::int64_t gid, const std::string& type,
+inline void upsert_io_best_fit(Sqlite& db, std::int64_t mid, const std::string& type,
                                std::int64_t low_size, std::int64_t high_size,
                                std::int64_t best_size, std::int64_t best_ops, std::int64_t use_this) {
-    db.exec("INSERT INTO io_best_fit(group_id, type, low_size, high_size, best_size, best_ops, useThis) "
+    db.exec("INSERT INTO io_best_fit(machine_id, type, low_size, high_size, best_size, best_ops, useThis) "
             "VALUES(?,?,?,?,?,?,?) "
-            "ON CONFLICT(group_id, type) DO UPDATE SET low_size=excluded.low_size, high_size=excluded.high_size, "
+            "ON CONFLICT(machine_id, type) DO UPDATE SET low_size=excluded.low_size, high_size=excluded.high_size, "
             "best_size=excluded.best_size, best_ops=excluded.best_ops, useThis=excluded.useThis",
-            gid, type, low_size, high_size, best_size, best_ops, use_this);
+            mid, type, low_size, high_size, best_size, best_ops, use_this);
 }
 
 // Read this machine's chosen batch (useThis) for a backend; returns fallback if not yet calibrated.
-inline std::int64_t io_best_fit_use(Sqlite& db, std::int64_t gid, const std::string& type,
+inline std::int64_t io_best_fit_use(Sqlite& db, std::int64_t mid, const std::string& type,
                                     std::int64_t fallback) {
     std::int64_t v = 0;
-    { auto st = db.prepare("SELECT useThis FROM io_best_fit WHERE group_id=? AND type=?");
-      st.bind(gid, type); if (st.step()) st.get(v); }
+    { auto st = db.prepare("SELECT useThis FROM io_best_fit WHERE machine_id=? AND type=?");
+      st.bind(mid, type); if (st.step()) st.get(v); }
     return v > 0 ? v : fallback;
 }
 
 // ---- package_version (per-machine code versions, sourced from the version() literals at pin time) ----
 // Record (or refresh) one package's code version for this machine. Called at host-pin time so the DB
 // always reflects what THIS checkout is running.
-inline void upsert_package_version(Sqlite& db, std::int64_t gid, const std::string& version,
+inline void upsert_package_version(Sqlite& db, std::int64_t mid, const std::string& version,
                                    const std::string& package, const std::string& pkg_version) {
-    db.exec("INSERT INTO package_version(group_id, version, package, pkg_version) VALUES(?,?,?,?) "
-            "ON CONFLICT(group_id, version, package) DO UPDATE SET pkg_version=excluded.pkg_version",
-            gid, version, package, pkg_version);
+    db.exec("INSERT INTO package_version(machine_id, version, package, pkg_version) VALUES(?,?,?,?) "
+            "ON CONFLICT(machine_id, version, package) DO UPDATE SET pkg_version=excluded.pkg_version",
+            mid, version, package, pkg_version);
 }
 
 // Read this machine+world's recorded version for a package; returns fallback if not yet pinned.
-inline std::string package_version_get(Sqlite& db, std::int64_t gid, const std::string& version,
+inline std::string package_version_get(Sqlite& db, std::int64_t mid, const std::string& version,
                                        const std::string& package, const std::string& fallback = "") {
     return get_top_one_string_or(db,
-        "SELECT pkg_version FROM package_version WHERE group_id=? AND version=? AND package=? LIMIT 1",
-        fallback, gid, version, package);
+        "SELECT pkg_version FROM package_version WHERE machine_id=? AND version=? AND package=? LIMIT 1",
+        fallback, mid, version, package);
 }
 
 // ---- testControl: runtime controls per test name (timeouts etc.) stored in DB ----
