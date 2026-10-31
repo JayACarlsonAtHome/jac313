@@ -43,7 +43,7 @@ bool LoadSettings(RunOptions& o)
 	s.readback  = OneOf(s.readback, "sample", "all");
 	s.pgCleanup = OneOf(s.pgCleanup, "keep-last", "delete");
 	s.maxRuns = max(s.maxRuns, 0);
-	s.maxRecords = max(s.maxRecords, 0);
+	s.maxRecords = LimitMaxRecords(s.maxRecords);
 	s.maxRows = max(s.maxRows, 0);
 	LimitPersistToRecords(s);
 	o = s;
@@ -534,6 +534,11 @@ bool SaveProduction(const String& file, const ProductionOptions& p, String& err)
 		return false;
 	}
 	return true;
+}
+
+int LimitMaxRecords(int n)
+{
+	return n <= 0 ? 0 : max(n, kMinMaxRecords);
 }
 
 void LimitPersistToRecords(RunOptions& o)

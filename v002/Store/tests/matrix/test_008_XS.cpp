@@ -36,9 +36,27 @@ size_t RUNS;
 
 namespace {
 
-// 1% of total per flag type (min 10): scales with runner N.
-size_t flagged_per_type(size_t total_events) {
-    return std::max<size_t>(10, total_events / 100);
+// One keeper, one database and one unflagged event: the fewest that test all three routes.
+constexpr size_t kMinEvents = 3;
+
+// 1% of total per flag type (min 10), leaving at least one unflagged event. Needs total >= 3.
+// Contract: each share gets at least one event and the two leave at least one unflagged
+// (1 <= r, r + r < total), so total - keeper_n - db_n and the index ranges never wrap.
+// Native pre()/post() on gcc16, the JAC313_PRE/POST runtime checks elsewhere.
+size_t flagged_per_type(const size_t total_events)
+#if defined(__cpp_contracts)
+    pre(total_events >= kMinEvents)
+    post(r : r >= 1 && r + r < total_events)
+#endif
+{
+#if !defined(__cpp_contracts)
+    JAC313_PRE(total_events >= kMinEvents);
+#endif
+    const size_t r = std::min(std::max<size_t>(10, total_events / 100), (total_events - 1) / 2);
+#if !defined(__cpp_contracts)
+    JAC313_POST(r >= 1 && r + r < total_events);
+#endif
+    return r;
 }
 
 void print_test_purpose(size_t total, size_t keeper_n, size_t db_n) {
@@ -140,6 +158,12 @@ int main(int argc, char** argv) {
     TOTAL = THREADS * EVENTS_PER_THREAD;
     RUNS = opts.runs > 0 ? opts.runs : 1;
 
+    // Too few events is an input error (reported), not a contract violation.
+    if (TOTAL < kMinEvents) {
+        std::cerr << "008 needs at least " << kMinEvents << " events (one keeper, one database, one unflagged); got "
+                  << TOTAL << " (--threads x --events-per-thread)\n";
+        return 1;
+    }
     const size_t keeper_n = flagged_per_type(TOTAL);
     const size_t db_n = keeper_n;
 

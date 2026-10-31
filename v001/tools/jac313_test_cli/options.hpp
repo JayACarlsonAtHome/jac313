@@ -10,6 +10,10 @@
 
 namespace jac313::test_cli {
 
+// --max-records is 0 (each test's default) or at least this: test 008 needs one keeper, one
+// database and one unflagged event. Jac313Runner holds its field to the same floor.
+inline constexpr std::size_t kMinMaxRecords = 3;
+
 struct GlobalOptions {
     std::filesystem::path build_dir{"build"};
     std::filesystem::path source_dir;

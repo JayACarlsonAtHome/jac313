@@ -12,6 +12,9 @@ namespace Upp {
 const int       kDefMaxRuns    = 20;
 const int       kDefMaxRecords = 10000;
 const int       kDefMaxRows    = 10000;
+// Max records is 0 (each test's default) or at least this, as jac313_test_cli --max-records checks:
+// test 008 needs one keeper, one database and one unflagged event.
+const int       kMinMaxRecords = 3;
 
 // ---- The bench's production run: the one row of the version's tests/production.jtext (it serves
 // the smoke, full and bench profiles). Shown in the Persist to box, saved back to that file (not
@@ -138,6 +141,7 @@ struct RunPlan {
 
 String          PersistList(const RunOptions& o);   // "sql,jtext,..." ("" = none chosen)
 Array<RunPlan>  BuildPlans(const RunOptions& o, const String& root);
+int             LimitMaxRecords(int n);   // 0 stays 0 (test default); 1..2 become kMinMaxRecords
 // Max persisted in a run can never exceed Max records in a run: with a records limit set,
 // a persisted limit of 0 (none) or above it becomes the records limit.
 void            LimitPersistToRecords(RunOptions& o);

@@ -38,9 +38,13 @@ size_t RUNS;
 
 namespace {
 
-// 1% of total per flag type (min 10): 1k→10, 10k→100, 1M→10k keeper + 10k database.
+// One keeper, one database and one unflagged event: the fewest that test all three routes.
+constexpr size_t kMinEvents = 3;
+
+// 1% of total per flag type (min 10), leaving at least one unflagged event:
+// 3→1, 10→4, 1k→10, 10k→100, 1M→10k keeper + 10k database. Needs total >= 3.
 size_t flagged_per_type(size_t total_events) {
-    return std::max<size_t>(10, total_events / 100);
+    return std::min(std::max<size_t>(10, total_events / 100), (total_events - 1) / 2);
 }
 
 void print_test_purpose(size_t total, size_t keeper_n, size_t db_n) {
@@ -150,8 +154,19 @@ int main(int argc, char** argv) {
     TOTAL = THREADS * EVENTS_PER_THREAD;
     RUNS = opts.runs > 0 ? opts.runs : 1;
 
+    if (TOTAL < kMinEvents) {
+        std::cerr << "008 needs at least " << kMinEvents << " events (one keeper, one database, one unflagged); got "
+                  << TOTAL << " (--threads x --events-per-thread)\n";
+        return 1;
+    }
     const size_t keeper_n = flagged_per_type(TOTAL);
     const size_t db_n = keeper_n;
+    // The shares leave at least one unflagged event, or total - keeper_n - db_n wraps (size_t).
+    if (keeper_n < 1 || keeper_n + db_n >= TOTAL) {
+        std::cerr << "008 sizing: keeper " << keeper_n << " + database " << db_n
+                  << " must leave an unflagged event of " << TOTAL << "\n";
+        return 1;
+    }
 
     if (std::cin.rdbuf()->in_avail() > 0) {
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');

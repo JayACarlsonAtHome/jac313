@@ -634,7 +634,9 @@ struct Runner : TopWindow {
 
 void Runner::LimitPersistField()
 {
-	ToOptions();   // ToOptions applies LimitPersistToRecords
+	ToOptions();   // ToOptions applies LimitMaxRecords and LimitPersistToRecords
+	if((int)~maxRecords != opt.maxRecords)
+		maxRecords <<= opt.maxRecords;
 	if((int)~maxRows != opt.maxRows)
 		maxRows <<= opt.maxRows;
 	UpdateCommand();
@@ -857,7 +859,7 @@ Runner::Runner()
 	lDefRec.SetText(def(kDefMaxRecords));
 	lDefRows.SetText(def(kDefMaxRows));
 	maxRuns.Tip("0 = the test's own default");
-	maxRecords.Tip("0 = the test's own default");
+	maxRecords.Tip("0 = the test's own default; otherwise at least 3 (raised to 3 on leaving)");
 	maxRows.Tip("0 = no limit (never more than Max records)");
 	maxRuns.Min(0);
 	maxRecords.Min(0);
@@ -1237,7 +1239,7 @@ void Runner::ToOptions()
 	opt.json = pJson;
 	opt.html = pHtml;
 	opt.maxRuns = IsNull(~maxRuns) ? 0 : max((int)~maxRuns, 0);
-	opt.maxRecords = IsNull(~maxRecords) ? 0 : max((int)~maxRecords, 0);
+	opt.maxRecords = IsNull(~maxRecords) ? 0 : LimitMaxRecords((int)~maxRecords);
 	opt.maxRows = IsNull(~maxRows) ? 0 : max((int)~maxRows, 0);
 	LimitPersistToRecords(opt);
 	opt.readback = AsString(~rb);

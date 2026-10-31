@@ -3889,6 +3889,11 @@ static int run_main(int argc, char** argv) {
                 global.max_runs = std::stoull(argv[++i]);
             } else if (arg == "--max-records" && i + 1 < argc) {
                 global.max_records = std::stoull(argv[++i]);
+                if (global.max_records > 0 && global.max_records < kMinMaxRecords) {
+                    std::cerr << "--max-records " << global.max_records << ": use 0 (each test's default) or at least "
+                              << kMinMaxRecords << " (test 008 needs one keeper, one database and one unflagged event)\n";
+                    std::exit(2);
+                }
             } else if (arg == "--readback" && i + 1 < argc) {
                 global.readback = argv[++i];
             } else if (arg == "--pg-cleanup" && i + 1 < argc) {
