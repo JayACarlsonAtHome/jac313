@@ -1,0 +1,74 @@
+//File:    STATUS.jtext
+//Purpose: Work status of this repo for the jacSTATUS page: what is in progress, what is next,
+//         and the questions waiting for an answer. Update it in the same commit as the work.
+//         Values never contain '|'. An empty cell means none (never NULL).
+//         questions: the question is open while answer is empty; fill answer to close it.
+//
+=== jText File ===
+ 1. #?# STATUS
+ 3. #?# Work status of jac313
+
+
+=== Section: in_progress ===
+
+
+=== Fields ===
+ 1. #/# id/Identity(1,1)/Not Null
+ 2. #/# item/String/Not Null
+ 3. #/# detail/String/Not Null
+ 4. #/# started/Date/Not Null
+ 5. #/# who/String/Not Null          # Jay, or the Claude session (e.g. Claude jay-35)
+=== End Fields ===
+
+
+=== Data ===
+
+=== End Data ===
+=== End Section ===
+
+
+=== Section: next ===
+
+
+=== Fields ===
+ 1. #/# id/Identity(1,1)/Not Null
+ 2. #/# priority/Integer/Not Null    # 1 = first
+ 3. #/# item/String/Not Null
+ 4. #/# detail/String/Not Null
+=== End Fields ===
+
+
+=== Data ===
+1. #|# 1|1|Docs pass with a BREAKING CHANGES section|Deferred by Jay until things shake out. Since 9710b52b: results.db schema 1 to 6 (every column NOT NULL; rebuild on older, refuse on newer; run_target; os and machine tables; every pickable setting recorded), settings files replaced by jText tables (compilers, recipes, pins, test_limits, test_params, production.jtext, local override tables), fleet registry DDL v0_2 (machine number per hardware), CLI flags (--machine-id, --production, --no-record, presets forward every flag), Store API (attach_persistence(sink, batch), several sinks at once, flag router gone, exact doubles, NaN carried with the SQLite NULL compromise), rendered reports no longer committed, Runner summary contract 5 (gui/README.md still says 1 to 4). Each with the why: the three goals.
+
+1. #|# 2|2|Run a real calibration on this machine|io_best_fit is empty after the schema rebuilds; a real bench needs jac313_store_bench --calibrate first.
+
+1. #|# 3|3|Remove the stale build trees under v002|Several build-* trees were configured from the old /run/media mount path and will not reconfigure (build-clang.stale-runmedia and others).
+
+1. #|# 4|4|Small nits from the end-to-end loop|A local override file must carry every section even when it overrides one; a single bench run outside the suite records no read-back result; host is not a run so a registry contact writes no run_target row.
+
+=== End Data ===
+=== End Section ===
+
+
+=== Section: questions ===
+
+
+=== Fields ===
+ 1. #/# id/Identity(1,1)/Not Null
+ 2. #/# question/String/Not Null
+ 3. #/# context/String/Not Null
+ 4. #/# asked/Date/Not Null
+ 5. #/# asked_by/String/Not Null
+ 6. #/# answer/String/Not Null       # empty = still open
+=== End Fields ===
+
+
+=== Data ===
+1. #|# 1|Run --assign-new for real, and to which number?|A real run renumbers this machine in results.db and in the R430 fleet registry (fleet.machine). The flag was proven to parse and reach the host step; --claim passed end to end. Alternative: accept that proof.|2026-10-30|Claude jay-35|
+
+1. #|# 2|Run --run-everything for real?|It wipes this machine's results first, then runs the full battery with a full-size calibration (hours). It forwards flags through the same code the presets use, which passed end to end.|2026-10-30|Claude jay-35|
+
+=== End Data ===
+=== End Section ===
+=== End File ===
