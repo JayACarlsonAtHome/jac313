@@ -39,10 +39,14 @@ option(JAC313_BUILD_TEST_CLI "Build jac313_test_cli local test runner" ON)
 # Conversion warnings, always on: a value silently narrowed or changing sign (size_t into int,
 # int into unsigned, 64-bit into float). Warnings, not errors; -Wsign-conversion makes gcc
 # report the signed/unsigned mixes clang's -Wconversion already does.
-add_compile_options(-Wformat=2 -Werror=format -Wconversion -Wsign-conversion)
+# Strict warnings, always on (they were the JAC313_STRICT option): warnings only, no runtime
+# effect. -Wnull-dereference is left out: on gcc 15 it fires only inside libstdc++ <streambuf>.
+add_compile_options(-Wformat=2 -Werror=format -Wconversion -Wsign-conversion
+    -Wall -Wextra -Wpedantic
+    -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Woverloaded-virtual
+    -Wimplicit-fallthrough)
 
-option(JAC313_STRICT "Extra warnings: -Wall -Wextra -Wpedantic and friends" OFF)
-option(JAC313_STRICT_WERROR "With JAC313_STRICT: treat those warnings as errors" OFF)
+option(JAC313_WERROR "Treat every warning as an error (-Werror)" OFF)
 # Runtime hardening. Changes behaviour, so keep it out of bench and valgrind builds:
 # -ftrivial-auto-var-init=zero hides the uninitialized reads memcheck exists to find.
 option(JAC313_HARDENED "Runtime hardening: libstdc++ assertions, zero-init locals, stack/CF protection" OFF)
@@ -65,33 +69,21 @@ if(JAC313_BUILD_MODULES)
 else()
     set(_jac313_modules_state off)
 endif()
-if(JAC313_STRICT)
-    set(_jac313_strict_state on)
-else()
-    set(_jac313_strict_state off)
-endif()
 if(JAC313_HARDENED)
     set(_jac313_hardened_state on)
 else()
     set(_jac313_hardened_state off)
 endif()
 add_compile_definitions(JAC313_BUILD_TYPE="${CMAKE_BUILD_TYPE}" JAC313_BUILD_MODULES="${_jac313_modules_state}"
-                        JAC313_STRICT="${_jac313_strict_state}" JAC313_HARDENED="${_jac313_hardened_state}")
+                        JAC313_STRICT="on" JAC313_HARDENED="${_jac313_hardened_state}")
 if(JAC313_CONTRACTS STREQUAL "enforce")
     set(JAC313_CONTRACTS_TERMINATE ON)   # the death tests hold only when violations terminate
 else()
     set(JAC313_CONTRACTS_TERMINATE OFF)
 endif()
 
-if(JAC313_STRICT)
-    # -Wnull-dereference is left out: on gcc 15 it fires only inside libstdc++ <streambuf>.
-    add_compile_options(
-        -Wall -Wextra -Wpedantic
-        -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Woverloaded-virtual
-        -Wimplicit-fallthrough)
-    if(JAC313_STRICT_WERROR)
-        add_compile_options(-Werror)
-    endif()
+if(JAC313_WERROR)
+    add_compile_options(-Werror)
 endif()
 
 if(JAC313_HARDENED)

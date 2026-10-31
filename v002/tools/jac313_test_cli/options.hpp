@@ -60,7 +60,6 @@ struct ConfigureOptions {
     bool modules{false};
     bool store_tests{true};
     bool helgrind_annotate{false};  // -DJAC313_STORE_HELGRIND_ANNOTATE=ON (cleancheck tree)
-    bool strict{false};    // --strict:   -DJAC313_STRICT=ON (extra warnings; ctest/smoke builds)
     bool hardened{false};  // --hardened: -DJAC313_HARDENED=ON (runtime hardening; ctest/smoke builds)
     std::string contracts{"enforce"};  // --contracts: -DJAC313_CONTRACTS=<mode> (ctest/smoke builds)
     std::string generator{"Ninja"};

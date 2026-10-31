@@ -12,7 +12,7 @@ void RunOptions::Jsonize(JsonIO& io)
 {
 	io("root", root)("version", version)
 	  ("ctest", ctest)("smoke", smoke)("bench", bench)("verify_lite", verifyLite)("verify", verify)
-	  ("compiler", compiler)("build_type", buildType)("strict", strict)("hardened", hardened)("contracts", contracts)("front_end", frontEnd)("size", size)
+	  ("compiler", compiler)("build_type", buildType)("hardened", hardened)("contracts", contracts)("front_end", frontEnd)("size", size)
 	  ("sqlite", sqlite)("pg_local", pgLocal)("pg_remote", pgRemote)
 	  ("jtext", jtext)("binary", binary)("json", json)("html", html)
 	  ("max_runs", maxRuns)("max_records", maxRecords)("max_persist_rows", maxRows)("readback", readback)("pg_cleanup", pgCleanup)
@@ -228,7 +228,7 @@ String LocalConninfo(const Vector<ConnRow>& rows)
 
 String FindDatasetTool(const String& root, const String& version)
 {
-	// any build dir (build-gcc15, build-gcc16, build-clang, -strict, -hardened, bench, ...):
+	// any build dir (build-gcc15, build-gcc16, build-clang, -hardened, bench, ...):
 	// the compiler preset names its folder, so the list is not fixed; the newest build wins
 	String vdir = AppendFileName(root, version);
 	String best;
@@ -580,7 +580,6 @@ Array<RunPlan> BuildPlans(const RunOptions& opts, const String& root)
 			a << "--connections" << cf;
 		if(o.pgRemote && RemoteConninfo(o).GetCount())   // the fields win (they may be unsaved edits)
 			a << "--pg-remote" << RemoteConninfo(o);
-		if(o.strict)                 a << "--strict";
 		if(o.hardened)               a << "--hardened";
 		// a mode this compiler lacks (with "both", observe on clang) runs it with enforce instead
 		Vector<String> has = Split(c == "clang" ? o.clangContracts : o.gccContracts, ',');
@@ -896,7 +895,7 @@ String BuildDirFor(const String& compiler, const String& buildType)
 		gcc = ToLower(compiler);
 	if(release)
 		return clang ? "build-bench-clang" : "build-bench-" + gcc;
-	// "Debug-strict-hardened" -> build-gcc16-strict-hardened (the CLI's --strict / --hardened trees)
+	// "Debug-hardened" -> build-gcc16-hardened (the CLI's --hardened trees)
 	String flavor;
 	int dash = buildType.Find('-');
 	if(dash >= 0)

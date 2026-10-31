@@ -216,23 +216,28 @@ wrote `"jac313-%03lld"` into a 24-byte buffer, which a large or negative id coul
 (GCC's `-Wformat-truncation`); the buffer is 32 bytes now. The U++ packages (Jac313Runner,
 JTextGui) have the same flags as package `options` in their `.upp` files.
 
-### Optional strictness (CMake options, all OFF by default)
+### Strict and conversion warnings (always on, 2026-10-30)
+
+Every build also has `-Wall -Wextra -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast
+-Wcast-align -Woverloaded-virtual -Wimplicit-fallthrough` (once the `JAC313_STRICT` option) and
+`-Wconversion -Wsign-conversion`. They are warnings only and change no code, so they cost no
+speed; jac313 and its vendored jText, Qlite and jText_GUI build with none.
+
+### Optional (CMake options, OFF by default)
 
 | Option | Adds |
 |---|---|
-| `JAC313_STRICT` | `-Wall -Wextra -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Woverloaded-virtual -Wimplicit-fallthrough` (the format checks are always on, above) |
-| `JAC313_STRICT_WERROR` | `-Werror` on top of `JAC313_STRICT` (fails today: about 25 pre-existing warning sites) |
+| `JAC313_WERROR` | `-Werror`: every warning fails the build |
 | `JAC313_HARDENED` | `-D_GLIBCXX_ASSERTIONS -ftrivial-auto-var-init=zero -fstack-protector-strong -fstack-clash-protection -fcf-protection=full`, plus `-D_FORTIFY_SOURCE=3` outside Debug (gcc's `-fhardened`, spelled so clang takes it) |
 
 ```bash
-cmake -G Ninja -S . -B build-strict -DJAC313_BUILD_STORE_TESTS=ON -DJAC313_STRICT=ON -DJAC313_HARDENED=ON
+cmake -G Ninja -S . -B build-hardened -DJAC313_BUILD_STORE_TESTS=ON -DJAC313_HARDENED=ON
 ```
 
-From the runner: `./jac313_test_cli --ctest --smoke --strict --hardened` (also in v001, and as
-two checkboxes in Jac313Runner). These build in `build-<cc>-strict-hardened` and record the
-build type as `Debug-strict-hardened`, so their results, logs and PG tables never mix with
-the everyday `Debug` ones. They apply to the ctest/smoke builds only; bench and valgrind
-builds ignore them.
+From the runner: `./jac313_test_cli --ctest --smoke --hardened` (also in v001, and as the
+hardened checkbox in Jac313Runner). It builds in `build-<cc>-hardened` and records the build
+type as `Debug-hardened`, so its results, logs and PG tables never mix with the everyday
+`Debug` ones. It applies to the ctest/smoke builds only; bench and valgrind builds ignore it.
 
 Checked 2026-10-16: gcc 15 Debug, clang 21 Debug and gcc 15 Release with both options
 build with 0 errors and pass ctest 42/42. Keep `JAC313_HARDENED` out of bench builds

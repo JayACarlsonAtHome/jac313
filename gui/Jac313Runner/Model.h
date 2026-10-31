@@ -44,7 +44,6 @@ struct RunOptions {
 	bool   verify     = false;
 	String compiler   = "gcc";      // gcc | clang | both (each: the newest on this machine)
 	String buildType  = "Debug";    // Debug | Release
-	bool   strict     = false;      // --strict   (extra compiler warnings)
 	bool   hardened   = false;      // --hardened (runtime hardening; ctest/smoke builds only)
 	// --contracts: how contract checks run (ctest/smoke builds only): enforce | observe |
 	// quick_enforce | ignore. The screen enables only the modes the chosen compiler has on this

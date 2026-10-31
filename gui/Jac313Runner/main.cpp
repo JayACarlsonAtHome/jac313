@@ -522,7 +522,7 @@ struct Runner : TopWindow {
 	LabelBox  boxVersion, boxGates, boxBuild, boxPersist, boxRows;
 	Switch    version, comp, type, front, size, rb, pg;
 	Option    gCtest, gSmoke, gBench, gVerifyLite, gVerify;
-	Option    bStrict, bHardened;
+	Option    bHardened;
 	Option    pSql, pPgL, pPgR, pJt, pBin, pJson, pHtml;
 	// The bench's production run (the row of the version's tests/production.jtext)
 	Label     lProd, lProdKeeper, lProdDb, lProdKPct, lProdDPct;
@@ -765,14 +765,11 @@ Runner::Runner()
 		Place(s1p.body, *bs[i], 110, y + 18 + 26 * i, 300, 22);
 	}
 	Place(s1p.body, lCompVer, 420, y + 18, 400, 22);   // on the Compiler row
-	bStrict.SetLabel("strict warnings");
 	bHardened.SetLabel("hardened");
-	bStrict.Tip("--strict: -Wall -Wextra -Wpedantic and friends (ctest/smoke builds); "
-	            "the format checks are on without it");
 	bHardened.Tip("--hardened: libstdc++ assertions, zero-init locals, stack/CF protection "
-	              "(ctest/smoke builds; not bench or valgrind)");
-	Place(s1p.body, bStrict, 420, y + 18 + 26, 130, 22);
-	Place(s1p.body, bHardened, 560, y + 18 + 26, 100, 22);
+	              "(ctest/smoke builds; not bench or valgrind). It costs some speed: once runs have "
+	              "been clean with it for a while, it can be left off.");
+	Place(s1p.body, bHardened, 420, y + 18 + 26, 100, 22);
 	lContracts.SetText("Contracts:");
 	contracts.Add("enforce", "enforce").Add("observe", "observe")
 	         .Add("quick_enforce", "quick_enforce").Add("ignore", "ignore");
@@ -784,12 +781,14 @@ Runner::Runner()
 	Place(s1p.body, lContracts, 420, y + 18 + 52, 80, 22);
 	Place(s1p.body, contracts, 500, y + 18 + 52, 380, 22);
 	comp.WhenAction << THISBACK(EnableContracts);
-	lFormat.SetText("Always on: -Wformat=2 -Werror=format -Wconversion -Wsign-conversion");
-	lFormat.Tip("Every build (any compiler, type or option) treats a printf-style call whose "
+	lFormat.SetText("Always on: strict warnings, -Wformat=2 -Werror=format, -Wconversion -Wsign-conversion");
+	lFormat.Tip("Every build (any compiler, type or option) has the strict warnings (-Wall -Wextra "
+	            "-Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align "
+	            "-Woverloaded-virtual -Wimplicit-fallthrough), treats a printf-style call whose "
 	            "arguments do not match its format, such as a 64-bit value given to %d, as an error, "
 	            "and warns when a value is silently narrowed or changes sign (size_t into int, "
-	            "int into unsigned, 64-bit into float).");
-	Place(s1p.body, lFormat, 420, y + 18 + 78, 480, 22);
+	            "int into unsigned, 64-bit into float). Warnings change no code: no speed cost.");
+	Place(s1p.body, lFormat, 420, y + 18 + 78, 600, 22);
 	y += 130;
 
 	boxPersist.SetLabel("Persist to");
@@ -988,7 +987,7 @@ Runner::Runner()
 	SetMinSize(minsz);
 
 	Ctrl *live[] = { &version, &comp, &type, &front, &size, &rb, &pg, &gCtest, &gSmoke, &gBench, &gVerifyLite,
-	                 &gVerify, &bStrict, &bHardened, &contracts, &pSql, &pPgL, &pPgR, &pJt, &pBin, &pJson, &pHtml,
+	                 &gVerify, &bHardened, &contracts, &pSql, &pPgL, &pPgR, &pJt, &pBin, &pJson, &pHtml,
 	                 &prodKeeper, &prodDb, &prodKPct, &prodDPct, &prodBinary, &pgName, &pgHost, &pgPort, &pgDb, &pgUser, &connFile, &maxRuns, &maxRecords, &maxRows };
 	for(Ctrl *c : live)
 		c->WhenAction << THISBACK(UpdateCommand);
@@ -1164,7 +1163,6 @@ void Runner::FromOptions()
 	gVerify <<= opt.verify;
 	comp <<= opt.compiler;
 	type <<= opt.buildType;
-	bStrict <<= opt.strict;
 	bHardened <<= opt.hardened;
 	contracts <<= opt.contracts;
 	front <<= opt.frontEnd;
@@ -1226,7 +1224,6 @@ void Runner::ToOptions()
 	opt.verify = gVerify;
 	opt.compiler = AsString(~comp);
 	opt.buildType = AsString(~type);
-	opt.strict = bStrict;
 	opt.hardened = bHardened;
 	opt.contracts = AsString(~contracts);
 	opt.gccContracts = Join(gccModes.GetKeys(), ",");

@@ -138,12 +138,12 @@ void print_usage() {
         "  --pg-local \"...\"     the local server for pg-local (default host=localhost dbname=jac313 user=jac313)\n"
         "  --connections FILE   both servers from a jText connections file kept outside git (default:\n"
         "                       <projects>/SQL_Secrets/jac313_connections.jtext; see `connections`)\n"
-        "  --strict             JAC313_STRICT=ON: -Wall -Wextra -Wpedantic and friends (ctest/smoke, bench, verify)\n"
-        "                       (format checks, -Wformat=2 -Werror=format, are on in every build)\n"
+        "  --strict             accepted and ignored: strict warnings (-Wall -Wextra -Wpedantic and friends),\n"
+        "                       the format checks and the conversion warnings are on in every build\n"
         "  --hardened           JAC313_HARDENED=ON: libstdc++ assertions, zero-init locals, stack/CF\n"
         "                       protection (ctest/smoke, bench and verify builds)\n"
-        "                       Either one builds in build-<cc>-strict / -hardened and records the\n"
-        "                       build type as Debug-strict / Debug-hardened / Debug-strict-hardened\n"
+        "                       It builds in build-<cc>-hardened and records the build type as\n"
+        "                       Debug-hardened\n"
         "  --contracts MODE     JAC313_CONTRACTS=MODE: how contracts run (ctest/smoke, bench, verify):\n"
         "                       enforce (default; a violation prints and ends the program),\n"
         "                       observe (prints, goes on), quick_enforce (ends it at once, silently),\n"
@@ -566,13 +566,13 @@ std::int64_t cli_results_id(jac313::Qlite::v002::Sqlite& db, const char* sql, co
 }
 
 // How a tree was built, as results.db parameter records it: CMAKE_BUILD_TYPE alone, the front end,
-// and JAC313_CONTRACTS / JAC313_STRICT / JAC313_HARDENED, all from the tree's CMakeCache.
+// and JAC313_CONTRACTS / JAC313_HARDENED from the tree's CMakeCache; strict is always on.
 struct BuildAxes { std::string build_type, modules, import_std, contracts, strict, hardened; };
 BuildAxes build_axes(const BuildFeatures& bf, const std::string& modules_override = "",
                      const std::string& import_std_override = "") {
     return {bf.cmake_build_type, modules_override.empty() ? (bf.modules ? "on" : "off") : modules_override,
             import_std_override.empty() ? "off" : import_std_override, bf.contracts,
-            bf.strict ? "on" : "off", bf.hardened ? "on" : "off"};
+            "on", bf.hardened ? "on" : "off"};
 }
 
 // A parameter row with the build axes filled in; the caller adds the test's own axes (size, persist,
@@ -2584,7 +2584,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
         return 1;
     }
     global.build_dir = global.build_dir.string()
-                     + build_flavor_suffix(configure_opts.strict, configure_opts.hardened, configure_opts.contracts)
+                     + build_flavor_suffix(configure_opts.hardened, configure_opts.contracts)
                      + "-" + name;
     std::cout << "Build dir:  " << global.build_dir.string()
               << " (annotated: JAC313_STORE_HELGRIND_ANNOTATE=ON)\n\n";
@@ -2962,7 +2962,7 @@ std::string shell_quote(const std::string& s) {
 // silently: `notes` holds one "# ..." comment line saying where it does not apply and why.
 struct StepFlags {
     std::vector<std::string> labels;   // the compilers to run (pinned/highest; --compiler / --gcc / --clang narrow)
-    std::string flavor;                // build-dir suffix of a strict / hardened / contracts tree
+    std::string flavor;                // build-dir suffix of a hardened / contracts tree
     std::string host;                  // "host --claim X" / "--assign-new N" step args ('' = none)
     std::string configure;             // the ctest/smoke tree's configure flags
     std::string build;                 // build flags (-j N)
@@ -2983,13 +2983,12 @@ StepFlags step_flags(const GlobalOptions& g, const ConfigureOptions& c, const Bu
     else if (c.prefer_gcc && !c.prefer_clang) f.labels = {gcc_label};
     else if (c.prefer_clang && !c.prefer_gcc) f.labels = {clang_label};
     else f.labels = {gcc_label, clang_label};
-    f.flavor = build_flavor_suffix(c.strict, c.hardened, c.contracts);
+    f.flavor = build_flavor_suffix(c.hardened, c.contracts);
 
     if (!g.host_claim.empty()) f.host = " --claim " + shell_quote(g.host_claim);
     else if (g.host_assign_new > 0) f.host = " --assign-new " + std::to_string(g.host_assign_new);
 
-    std::string flavor_flags;   // strict / hardened / contracts: every tree that is built takes them
-    if (c.strict) flavor_flags += " --strict";
+    std::string flavor_flags;   // hardened / contracts: every tree that is built takes them
     if (c.hardened) flavor_flags += " --hardened";
     if (c.contracts != "enforce") flavor_flags += " --contracts " + c.contracts;
 
@@ -3105,7 +3104,6 @@ SettingList preset_settings(const GlobalOptions& g, const ConfigureOptions& c, c
         {"compilers", or_dash(comps)},
         {"build type", per_gate(c.build_type, "Release", "Debug")},
         {"front end", per_gate(c.modules ? "modules" : "headers", "headers", "headers")},
-        {"strict", c.strict ? "on" : "off"},
         {"hardened", c.hardened ? "on" : "off"},
         {"contracts", c.contracts},
         {"store tests", per_gate(c.store_tests ? "on" : "off", "on", "on")},
@@ -3194,7 +3192,7 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
         fs::remove(global.summary_json, rm_ec);
         fs::remove(summary_parts_path(global), rm_ec);
     }
-    // A strict / hardened / contracts tree is its own build dir, so the everyday trees never
+    // A hardened / contracts tree is its own build dir, so the everyday trees never
     // rebuild for it.
     const std::string& flavor = sf.flavor;
 
@@ -3301,8 +3299,7 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
                 return s.find("password") == std::string::npos ? s : std::string("(set; contains a password, not shown)");
             }()},
             {"build_type", configure_opts.build_type   // the tree's label: the Runner finds its build dir by it
-                           + build_flavor_suffix(configure_opts.strict, configure_opts.hardened,
-                                                 configure_opts.contracts)},
+                           + build_flavor_suffix(configure_opts.hardened, configure_opts.contracts)},
             {"contracts", configure_opts.contracts},
             {"started_utc", started_utc},
             {"finished_utc", jac313::results::utc_now_iso()},
@@ -3972,7 +3969,7 @@ static int run_main(int argc, char** argv) {
             } else if (arg == "--modules") {
                 configure_opts.modules = true;
             } else if (arg == "--strict") {
-                configure_opts.strict = true;
+                std::cerr << "note: --strict is no longer an option: strict warnings are on in every build\n";
             } else if (arg == "--hardened") {
                 configure_opts.hardened = true;
             } else if (arg == "--contracts" && i + 1 < argc) {
@@ -4141,7 +4138,7 @@ static int run_main(int argc, char** argv) {
                 } else if (a == "--compiler" && i + 1 < argc) {
                     co.compiler = argv[++i];
                 } else if (a == "--strict") {
-                    co.strict = true;
+                    std::cerr << "note: --strict is no longer an option: strict warnings are on in every build\n";
                 } else if (a == "--hardened") {
                     co.hardened = true;
                 } else if (a == "--contracts" && i + 1 < argc) {
@@ -4162,7 +4159,7 @@ static int run_main(int argc, char** argv) {
                                       : "ctest + matrix 001 — representative sinks (binary; 001 across jtext/html/json/sql)")
                               << "; memcheck + helgrind/DRD)\n\n"
                                  "  --gcc | --clang | --compiler <cxx>   (default: auto-detect)\n"
-                                 "  --strict | --hardened | --contracts M (a tree of its own: build-<label>[-flavor]-" << sub << ")\n"
+                                 "  --hardened | --contracts M          (a tree of its own: build-<label>[-flavor]-" << sub << ")\n"
                                  "  -j N                                 parallel build jobs\n"
                                  "  --source-dir <path>\n";
                     return 0;

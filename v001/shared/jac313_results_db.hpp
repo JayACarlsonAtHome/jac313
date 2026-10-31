@@ -967,7 +967,7 @@ struct ParameterRow {
     std::int64_t compiler_id = 0;
     std::string build_type, modules, import_std = "off", size, persist, output_mode;
     std::int64_t threads = 0, events_per_thread = 0, runs = 0, batch = 0, flag_count = 0;
-    std::string valgrind_tool, contracts = "enforce", strict = "off", hardened = "off";
+    std::string valgrind_tool, contracts = "enforce", strict = "on", hardened = "off";   // strict: always on now
     std::int64_t flags_raw = 0, keeper_pct = 0, database_pct = 0, binary_log = 0, max_runs = 0, max_records = 0;
 };
 
