@@ -538,8 +538,8 @@ std::expected<JTextLoadResult, std::string> jtext_load(std::string_view path, st
     auto keep_comments = [&](const jText::v001::JTextEntry& e) {
         const std::size_t f = e.number - 1;
         if (!pending.empty()) {
-            auto& lines = cur.comment_lines[f];
-            lines.insert(lines.end(), pending.begin(), pending.end());
+            auto& kept = cur.comment_lines[f];
+            kept.insert(kept.end(), pending.begin(), pending.end());
             pending.clear();
         }
         if (!e.comment.empty()) cur.line_comments[f] = e.comment;

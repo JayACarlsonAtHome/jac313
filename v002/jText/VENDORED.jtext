@@ -23,11 +23,11 @@
 
 1. #|# 2|canonical_dir|jText/v002
 
-1. #|# 3|canonical_commit|f99224c082ae
+1. #|# 3|canonical_commit|7147c0551725
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v002.032
+1. #|# 5|canonical_version|v002.033
 
 1. #|# 6|transform|jac313-prefix
 
@@ -82,13 +82,13 @@
 
 1. #|# 12|include/jac313/jText/v002.hpp|include/jText/v002.hpp|3b0b42253b9287078698f9fc97e6aea14b740b3d059a15d970dd3f68b69748a9|4d8477911f65c529a9abcef74a6cf2c8922300b4004996e8608cfcecd9c5dab5
 
-1. #|# 13|jText.api.inc|jText.api.inc|6ad866ece82e77038b50d7fd5c860ffac72b4a1d3278986ca1304fec4294b196|a3271da252b18fbdefee24c452c9202b6de19a4cf820b150fa26522e2e5d409c
+1. #|# 13|jText.api.inc|jText.api.inc|01c495712acfee5c13b063eac9c34c0fd4dd27280406b15cb345aefa36ae88e0|5b0f8637422228e16b86c80d958ba3fdb6af7ec7a4f70d1b2f84a6a9c34c36ab
 
 1. #|# 14|jText.cpp|jText.cpp|4b3bed76b30fb05a30e6c68740887623e75f970de9dd63125dfdea480dfd1351|ec360a886dddeee6779672c727fc497e8c1c3b9047c1683d19cd563f9c4369fc
 
 1. #|# 15|jText.h|jText.h|bdfc5006dcda3fc7f1cc2a8c90f1265a52679eafc4e7cd0f01636d8b5767c92b|6e26cbe641d54b3d2a1124c51937cf275b76b5449b015554ffe513605cabe749
 
-1. #|# 16|jText.impl.inc|jText.impl.inc|c3878a6956be651ea469ce083c6251694d69069716f2372ee9dad6bc77990d69|6cd09785fa1d30c5df1666f493b7675c9d054a997627f4053cdbfba1d6adab29
+1. #|# 16|jText.impl.inc|jText.impl.inc|657a3da9c94a51a3c71a11a3fdf2fe1a17875c8e10e4481697d69c38e6c660ee|1d62935bc643b2f03ddc24e721717fa55d9c74c9a6da461107a445c58a83762f
 
 1. #|# 17|modules/jac313.jtext.v002.core.cppm|modules/jText.v002.core.cppm|47c836b45fc03588f153d0628dbe165c01f870588567b2bcba8af6dccfcb1150|37f5acbfddb6d4f3a019fbd57ad4576c477fe0ca6c05a41cca132ddef14dec90
 
@@ -104,7 +104,7 @@
 
 1. #|# 23|src/export/xml_export.hpp|src/export/xml_export.hpp|16cb0f2f81e56ca41746b46e3b04c793dc6e9d10945c96e46b191c6e21c8fda3|16cb0f2f81e56ca41746b46e3b04c793dc6e9d10945c96e46b191c6e21c8fda3
 
-1. #|# 24|src/parser/close.cpp|src/parser/close.cpp|c4774b3d137ad8002d179b4fe3873d46b87bd586c688aec9d691f86121337cfd|c4774b3d137ad8002d179b4fe3873d46b87bd586c688aec9d691f86121337cfd
+1. #|# 24|src/parser/close.cpp|src/parser/close.cpp|1f2db6326bbce8e04bb0db2320ef6fa57d43af962ce5421d26b244f367e8c177|1f2db6326bbce8e04bb0db2320ef6fa57d43af962ce5421d26b244f367e8c177
 
 1. #|# 25|src/parser/close.hpp|src/parser/close.hpp|4c7b26baf1477e4672019a2e15d633b381a8e937179472e01ec46b9ef306259e|4c7b26baf1477e4672019a2e15d633b381a8e937179472e01ec46b9ef306259e
 
@@ -130,7 +130,7 @@
 
 1. #|# 36|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|680b60cd42ee565ed2c6a653b273d48eaaf5d1d52d83311e6a7ffee097dd2069|06ed5e1421b57997e6466de868c31f862a75c78e0fdf8e91c5e7f0f0134a064f
 
-1. #|# 37|tests/v002_test.cpp|tests/v002_test.cpp|9015cbfdb2f35b65f1f4dd92685c1b7ebfe2f85e968c3569f32cb1c50597f86c|c5b1259b931b05ef10e70c121a0e1145141177e54c003356a272afe80381d4fc
+1. #|# 37|tests/v002_test.cpp|tests/v002_test.cpp|3732cab314a3142ace3c9b0c230f42692053bc5bcb13acc5ad43fd84d3937ef3|77a54622674c9ad313341d947b36edf95cf3e531374e2c28e14f56488744fa68
 
 1. #|# 38|tools/common/record_lines.hpp|tools/common/record_lines.hpp|28b77d7aeacf51d8ba3150a4a1f92bb2540250d1ba3441828905dac82e108dc6|97289be2126eda4303b20de6bca338743afd1181d2b950568d166e188fbafdc5
 
@@ -162,7 +162,7 @@
 
 1. #|# 52|tools/jtext_from_xml.cpp|tools/jtext_from_xml.cpp|c18edc69b18935648ebe0a4b46492bba397d3434dc7973014f73e50861871579|c18edc69b18935648ebe0a4b46492bba397d3434dc7973014f73e50861871579
 
-1. #|# 53|tools/jtext_to_html.cpp|tools/jtext_to_html.cpp|609f6e8400e1b80c5661068104d2298ad29b0b20605680e832ee7e37699f10a1|609f6e8400e1b80c5661068104d2298ad29b0b20605680e832ee7e37699f10a1
+1. #|# 53|tools/jtext_to_html.cpp|tools/jtext_to_html.cpp|4052c754860fc15fb958565a9bafde4e59c9c281389eac040d40482fcfa8a711|4052c754860fc15fb958565a9bafde4e59c9c281389eac040d40482fcfa8a711
 
 1. #|# 54|tools/jtext_to_ods.cpp|tools/jtext_to_ods.cpp|8b4ecb3d498ed519da3b3996c7511dda19c418de11ca86479443643f4aac356f|8b4ecb3d498ed519da3b3996c7511dda19c418de11ca86479443643f4aac356f
 
@@ -170,7 +170,7 @@
 
 1. #|# 56|tools/jtext_xtox_sql.cpp|tools/jtext_xtox_sql.cpp|a634b2716bff1f4fb076717f7c824afbc4f2b6eb3f654cd29c06a4f766331972|accd8ed9e19abfc89a3f42115d96733beb78e6e76db9c1a5152b57dacf3e3db9
 
-1. #|# 57|tools/ods/ods.cpp|tools/ods/ods.cpp|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2|6a4e303ab8b965e6c5aeff6983e7c5dfed9745cf019725af8996b9bb397f0fd2
+1. #|# 57|tools/ods/ods.cpp|tools/ods/ods.cpp|4fe4637f06d741264e3c832d1d514c185ec298983b0c440e8c6672558e445306|4fe4637f06d741264e3c832d1d514c185ec298983b0c440e8c6672558e445306
 
 1. #|# 58|tools/ods/ods.hpp|tools/ods/ods.hpp|83484d569dfc4f885d796a6c9b8076878bff1b9a10efd78b7dbbdd5e1fa833f3|83484d569dfc4f885d796a6c9b8076878bff1b9a10efd78b7dbbdd5e1fa833f3
 

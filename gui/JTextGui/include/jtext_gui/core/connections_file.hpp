@@ -25,7 +25,7 @@ struct SavedConnection {
     std::string connect_timeout;  // seconds ("" = driver default)
     std::string notes;
     /// Set when the row was read from a sibling catalog (jac313 / jac314). Not written.
-    std::string origin;
+    std::string origin{};
 };
 
 // $JTEXT_GUI_CONNECTIONS, else <dir above the git checkout that holds `start`>/SQL_Secrets/

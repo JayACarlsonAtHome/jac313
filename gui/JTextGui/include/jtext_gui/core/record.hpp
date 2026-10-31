@@ -101,11 +101,11 @@ struct Record {
     /// any of these set is saved as per-field lines "N. ^# value", one per field.
     std::vector<std::string> field_markers = std::vector<std::string>(kDefaultFields);
     /// Original primary-key value at load (empty if new / unknown). Used for UPDATE.
-    std::string original_key;
+    std::string original_key{};
     /// Comments (SPEC 3.2.1), by the field their line starts at (0-based): the comment on
     /// that line, and the comment lines standing before it. Saving puts each back.
-    std::map<std::size_t, std::string> line_comments;
-    std::map<std::size_t, std::vector<std::string>> comment_lines;
+    std::map<std::size_t, std::string> line_comments{};
+    std::map<std::size_t, std::vector<std::string>> comment_lines{};
     /// The file had this record vertical (more than one line, SPEC 2.6): it is saved a
     /// line per field again. Otherwise it is saved as a compact row when it can be.
     bool vertical = false;
