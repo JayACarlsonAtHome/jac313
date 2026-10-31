@@ -7,7 +7,7 @@
 // JSON object per result to "<summary-json>.parts" (one per line). The preset command deletes
 // both files before it starts and, when its script finishes, assembles <summary-json>:
 //   { run_id, host, os, version, compiler, build_type, contracts, started_utc, finished_utc, command,
-//     totals: {pass, fail}, results: [ ...parts... ] }
+//     settings: [[label, value], ...], totals: {pass, fail}, results: [ ...parts... ] }
 
 #include "options.hpp"
 
@@ -23,8 +23,9 @@ namespace jac313::test_cli {
 /// (only the options that were given), for commands generated into run_latest_config.sh.
 // Version of the CLI <-> Jac313Runner interface (flags + summary JSON fields), written as
 // "contract" in every summary. Must match kRunnerContract in <root>/gui/Jac313Runner/Model.h.
-inline constexpr int kRunnerContract = 4;   // 2: --pg-remote / --pg-local, summary "pg_remote"; 3: --connections;
-                                            // 4: --contracts, compiler-versions lists the contract modes
+inline constexpr int kRunnerContract = 5;   // 2: --pg-remote / --pg-local, summary "pg_remote"; 3: --connections;
+                                            // 4: --contracts, compiler-versions lists the contract modes;
+                                            // 5: summary "settings" (every setting the run was given)
 
 std::string persist_cli_suffix(const GlobalOptions& global);
 
@@ -48,7 +49,12 @@ void append_summary_part(const GlobalOptions& global, const std::string& json_ob
 /// JSON object text for a READBACK key/value map ("" when empty).
 std::string readback_json(const std::map<std::string, std::string>& rb);
 
-/// Assemble <summary-json> from its parts. `meta` holds the top-level string fields.
-bool assemble_summary(const GlobalOptions& global, const std::map<std::string, std::string>& meta);
+/// Every setting a run was given, in order: (label, value) pairs ("-" = not set / the default).
+using SettingList = std::vector<std::pair<std::string, std::string>>;
+
+/// Assemble <summary-json> from its parts. `meta` holds the top-level string fields, `settings`
+/// the run's settings (written as "settings": [[label, value], ...]).
+bool assemble_summary(const GlobalOptions& global, const std::map<std::string, std::string>& meta,
+                      const SettingList& settings = {});
 
 } // namespace jac313::test_cli

@@ -46,6 +46,8 @@ TestResult execute_command(const fs::path& command,
                            const int failsafe_sec, int memory_mb = 0)
 {
     TestResult result;
+    result.timeout_sec = failsafe_sec > 0 ? failsafe_sec : 0;   // the limits it runs under (results.db testRun)
+    result.memory_mb = memory_mb > 0 ? memory_mb : 0;
 
     if (!fs::exists(command)) {
         result.status = TestStatus::Skipped;

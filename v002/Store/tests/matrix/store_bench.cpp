@@ -144,8 +144,8 @@ struct Params {
             return "keeper=" + keeper + ",database=" + database + ",keeper_pct=" + std::to_string(keeper_pct)
                  + ",database_pct=" + std::to_string(database_pct) + ",binary=" + (binary ? "on" : "off");
         }
-        // results.db parameter.persist: the pair, binary implied ("jtext+sql"; "/nobinary" without it).
-        std::string persist_label() const { return keeper + "+" + database + (binary ? "" : "/nobinary"); }
+        // results.db parameter.persist: the pair ("jtext+sql"; the binary log is parameter.binary_log).
+        std::string persist_label() const { return keeper + "+" + database; }
         // The suite / testList name: "production jtext+sql 10/10".
         std::string config_name() const {
             return "production " + keeper + "+" + database + " " + std::to_string(keeper_pct) + "/"
@@ -888,33 +888,30 @@ std::int64_t compiler_id_for(jac313::Qlite::v002::Sqlite& db, const jac313::resu
 
 // Insert-or-find a bench parameter combo. How this binary was built (build type, modules, strict,
 // hardened, contracts) comes from the CMake tree (kBuild*, contracts_mode); batch is the persistence
-// batch the run used (0 = non-durable); size/output_mode/valgrind_tool N/A => ''. SELECT-then-INSERT.
-std::int64_t parameter_id_bench(jac313::Qlite::v002::Sqlite& db, std::int64_t compiler_id,
-                                const std::string& persist, std::int64_t threads, std::int64_t events,
-                                std::int64_t runs, std::int64_t batch, std::int64_t flags) {
-    const char* where =
-        "SELECT id FROM parameter WHERE compiler_id=? AND build_type=? AND modules=? AND import_std='off' "
-        "AND size='' AND persist=? AND output_mode='' AND threads=? AND events_per_thread=? AND runs=? "
-        "AND batch=? AND flag_count=? AND valgrind_tool='' AND contracts=? AND strict=? AND hardened=?";
-    const std::string build_type(kBuildType), modules(kBuildModules), strict(kBuildStrict), hardened(kBuildHardened);
-    const std::string contracts(jac313::contracts::contracts_mode);
-    auto find = [&]() -> std::int64_t {
-        std::int64_t id = 0; auto st = db.prepare(where);
-        st.bind(compiler_id, build_type, modules, persist, threads, events, runs, batch, flags, contracts, strict,
-                hardened);
-        if (st.step()) st.get(id);
-        return id;
-    };
-    std::int64_t id = find();
-    if (id == 0) {
-        db.exec("INSERT INTO parameter(compiler_id,build_type,modules,import_std,size,persist,output_mode,threads,"
-                "events_per_thread,runs,batch,flag_count,contracts,strict,hardened) "
-                "VALUES(?, ?, ?, 'off', '', ?, '', ?, ?, ?, ?, ?, ?, ?, ?)",
-                compiler_id, build_type, modules, persist, threads, events, runs, batch, flags, contracts, strict,
-                hardened);
-        id = find();
+// batch the run used (0 = non-durable); flags_raw the exact flag mask (flag_count its popcount); the
+// production run's mix (keeper / database %, binary log on); the --max-runs / --max-records caps
+// given; size/output_mode/valgrind_tool N/A => ''.
+std::int64_t parameter_id_bench(jac313::Qlite::v002::Sqlite& db, std::int64_t compiler_id, const Params& p,
+                                const std::string& persist, std::int64_t batch) {
+    jac313::results::ParameterRow r;
+    r.compiler_id = compiler_id;
+    r.build_type = kBuildType; r.modules = kBuildModules; r.strict = kBuildStrict; r.hardened = kBuildHardened;
+    r.contracts = jac313::contracts::contracts_mode;
+    r.persist = persist;
+    r.threads = static_cast<std::int64_t>(p.threads);
+    r.events_per_thread = static_cast<std::int64_t>(p.events_per_thread);
+    r.runs = static_cast<std::int64_t>(p.runs);
+    r.batch = batch;
+    r.flag_count = set_flag_count(p.flags);
+    r.flags_raw = static_cast<std::int64_t>(p.flags);
+    if (p.persist.rfind("production", 0) == 0) {   // "production", or "production/cap=N" when capped
+        r.keeper_pct = static_cast<std::int64_t>(p.prod.keeper_pct);
+        r.database_pct = static_cast<std::int64_t>(p.prod.database_pct);
+        r.binary_log = p.prod.binary ? 1 : 0;
     }
-    return id;
+    r.max_runs = static_cast<std::int64_t>(p.max_runs);
+    r.max_records = static_cast<std::int64_t>(p.max_records);
+    return jac313::results::parameter_id(db, r);
 }
 
 // The value of `key` in a READBACK line's "k=v k=v" text ("" when absent).
@@ -930,6 +927,32 @@ std::string readback_field(const std::string& line, const std::string& key) {
         return line.substr(v, line.find(' ', v) == std::string::npos ? std::string::npos : line.find(' ', v) - v);
     }
     return {};
+}
+
+// Insert this bench's run row (run_id 0 = the next free one) and return its id. All three component
+// versions come from the package_version table (pinned from the code version() literals by the CLI at
+// host-pin time) — the single source store_bench can reach for jText, whose header isn't visible in
+// this TU. Store/Qlite fall back to their in-process literal if the table is somehow unpinned (same
+// value; belt-and-suspenders), jText to empty. The run-wide settings: its command line, keep-logs,
+// what the PostgreSQL sinks did with their tables, the Store tests (store_bench is one), the pinned
+// disk's source.
+std::int64_t bench_insert_run(jac313::Qlite::v002::Sqlite& db, const Params& p, std::int64_t machine_id,
+                              std::int64_t run_id) {
+    namespace R = jac313::results;
+    if (run_id == 0) run_id = results_next_run_id(db);
+    const std::string& jver = bench_harness_version();   // 'v001'|'v002' — the world scope for package_version
+    R::RunSettings rs;
+    rs.command_line = R::JAC313_RUN_SETTINGS.command_line;
+    rs.keep_logs = p.keep_logs ? 1 : 0;
+    rs.keep_logs_dir = p.keep_logs_dir;
+    rs.pg_cleanup = p.pg_cleanup;
+    rs.store_tests = 1;
+    rs.disk_source = R::current_host_disk_source(db, jver);
+    R::insert_run(db, run_id, R::current_os_id(db), machine_id, jver,
+                  R::package_version_get(db, machine_id, jver, "Store", std::string(jac313::Store::v002::version())),
+                  R::package_version_get(db, machine_id, jver, "Qlite", std::string(jac313::Qlite::v002::version())),
+                  R::package_version_get(db, machine_id, jver, "jText"), rs);
+    return run_id;
 }
 
 // Write one normalized testRun fact (resolving run / parameter / testList / testType) into results.db.
@@ -948,23 +971,13 @@ void record_to_results_db(const Params& p, const BenchSummary& s, const ProdSumm
                          + " (run `jac313_test_cli host` or ./bsir.sh first)");
             return;
         }
-        const std::int64_t run_id = (p.run_id != 0) ? p.run_id : results_next_run_id(db);
-        // All three component versions come from the package_version table (pinned from the code
-        // version() literals by the CLI at host-pin time) — the single source store_bench can reach for
-        // jText, whose header isn't visible in this TU. Store/Qlite fall back to their in-process literal
-        // if the table is somehow unpinned (same value; belt-and-suspenders), jText to empty.
+        const std::int64_t run_id = bench_insert_run(db, p, machine_id, p.run_id);
         namespace R = jac313::results;
-        const std::string& jver = bench_harness_version();   // 'v001'|'v002' — the world scope for package_version
-        R::insert_run(db, run_id, R::current_os_id(db), machine_id, jver,
-                      R::package_version_get(db, machine_id, jver, "Store", std::string(jac313::Store::v002::version())),
-                      R::package_version_get(db, machine_id, jver, "Qlite", std::string(jac313::Qlite::v002::version())),
-                      R::package_version_get(db, machine_id, jver, "jText"));
         // The config name as run ("durable sql @10M [capped]"): a capped or rescaled config keeps a
         // name of its own, so it never merges with the full-size one on the report.
         db.exec("INSERT OR IGNORE INTO testList(name) VALUES(?)", p.label);
         const std::int64_t test_list_id = results_lookup_id(db, "SELECT id FROM testList WHERE name=?", p.label);
         const std::int64_t test_type_id = results_lookup_id(db, "SELECT id FROM testType WHERE name=?", std::string("bench"));
-        const std::int64_t flags = set_flag_count(p.flags);
         const std::int64_t comp_id = compiler_id_for(db, this_compiler());
         // A production config files under its sink pair ("jtext+sql", binary implied), so a different
         // pair is a different parameter row; its mix is in the testList name.
@@ -985,9 +998,7 @@ void record_to_results_db(const Params& p, const BenchSummary& s, const ProdSumm
             (sp.backend == "binary" ? batch_binary : is_db ? batch_database : batch_keeper)
                 = static_cast<std::int64_t>(sp.batch);
         }
-        const std::int64_t param_id = parameter_id_bench(db, comp_id, persist,
-            static_cast<std::int64_t>(p.threads), static_cast<std::int64_t>(p.events_per_thread),
-            static_cast<std::int64_t>(p.runs), batch, flags);
+        const std::int64_t param_id = parameter_id_bench(db, comp_id, p, persist, batch);
         const std::int64_t bytes = (p.persist == "none") ? 0
                                  : static_cast<std::int64_t>(measure_output_bytes(p.base_name));
         // status 'pass': a bench row is written only on success; duration_ms 0 (throughput is in the ops columns).
@@ -1001,6 +1012,7 @@ void record_to_results_db(const Params& p, const BenchSummary& s, const ProdSumm
         std::int64_t rows_persisted = 0, rows_checked = 0;
         double read_ms = 0, pg_connect = 0, pg_ping = 0, pg_write = 0;
         auto num = [](const std::string& v) { try { return v.empty() ? 0.0 : std::stod(v); } catch (...) { return 0.0; } };
+        if (p.persist != "none" && p.readbacks.empty()) rb_mode = p.readback;   // no read-back run: its mode (off)
         for (const auto& l : p.readbacks) {
             rb_mode = readback_field(l, "mode");
             const std::string st = readback_field(l, "status");
@@ -1089,6 +1101,13 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
         std::cout << "NOT RECORDED: calibration: no current_host pin in " << results_db_path(base.db_path).string() << "\n";
         return 1;
     }
+    // The calibration is a run of its own (its command line holds the knobs); each backend's result
+    // is a 'calibrate' runEvent and its io_best_fit row names the run.
+    std::int64_t cal_run = 0;
+    try {
+        jac313::Qlite::v002::Sqlite db(results_db_path(base.db_path).string());
+        cal_run = bench_insert_run(db, base, mid, 0);
+    } catch (const std::exception& e) { std::cerr << "[calibrate] DB error: " << e.what() << "\n"; return 1; }
 
     std::cout << "\n===============================================================\n";
     std::cout <<   "--- calibrating persistence batch best size for this machine ---\n";
@@ -1156,7 +1175,11 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
             jac313::results::upsert_io_best_fit(db, mid, ty,
                 static_cast<std::int64_t>(low_b), static_cast<std::int64_t>(high_b),
                 static_cast<std::int64_t>(best_batch), static_cast<std::int64_t>(best_median),
-                static_cast<std::int64_t>(use));
+                static_cast<std::int64_t>(use), cal_run);
+            jac313::results::log_run_event(db, cal_run, ty, "calibrate",
+                "band " + std::to_string(low_b) + ".." + std::to_string(high_b) + ", peak "
+                + std::to_string(best_median) + " ops/sec @ batch " + std::to_string(best_batch)
+                + ", useThis " + std::to_string(use));
         } catch (const std::exception& e) {
             std::cerr << "[calibrate] record failed: " << e.what() << "\n";
             std::cout << "NOT RECORDED: calibration: " << e.what() << "\n";
@@ -1249,6 +1272,17 @@ void append_bench_part(const Params& p, const char* status, const BenchSummary* 
     };
     std::string obj = std::format(R"({{"gate":"bench","test":"{}","backend":"{}","status":"{}","threads":{},"events_per_thread":{},"runs":{})",
                                   esc(p.label), esc(p.persist), status, p.threads, p.events_per_thread, p.runs);
+    // the recorded run and its machine (the summary header shows them; "" / 0 when not recorded)
+    if (p.run_id != 0) obj += std::format(R"(,"run_id":{})", p.run_id);
+#ifdef JAC313_STORE_HAS_SQL_PERSIST
+    if (!p.db_path.empty()) {
+        try {
+            jac313::Qlite::v002::Sqlite db(results_db_path(p.db_path).string());
+            if (const auto mid = jac313::results::current_host(db, bench_harness_version()); mid != 0)
+                obj += std::format(R"(,"host":"{}")", jac313::results::host_label(mid));
+        } catch (...) {}
+    }
+#endif
     if (sum) {
         obj += std::format(R"(,"median_ops":{},"low_ops":{},"high_ops":{},"events":{})",
                            sum->median, sum->low, sum->high, total);
@@ -1508,6 +1542,9 @@ int run_suite(Params base, bool dry, bool smoke, SuiteAxes given) {
 } // namespace
 
 int main(int argc, char** argv) {
+#ifdef JAC313_STORE_HAS_SQL_PERSIST
+    jac313::results::JAC313_RUN_SETTINGS.command_line = jac313::results::command_line_of(argc, argv);
+#endif
     Params p;
     p.flags = default_flags();
     std::optional<Sweep> sweep;
@@ -1678,8 +1715,22 @@ int main(int argc, char** argv) {
               << ", σ " << bench_group_thousands(best_stddev) << ")"
               << "   [" << host_tag() << ", persist=" << p.persist << "]\n";
     // machine-parseable peak line for the runner / DB
-    std::cout << "BENCHSWEEP axis=" << sweep->axis << " best_val=" << best_val
-              << " median=" << best_median << " high=" << best_high << " stddev=" << best_stddev
-              << " persist=" << p.persist << "\n";
-    return 0;
+    const std::string peak_line = "axis=" + sweep->axis + " best_val=" + std::to_string(best_val)
+        + " median=" + std::to_string(best_median) + " high=" + std::to_string(best_high)
+        + " stddev=" + std::to_string(best_stddev) + " persist=" + p.persist;
+    std::cout << "BENCHSWEEP " << peak_line << "\n";
+    // An exploratory sweep is recorded as what it ran and found: a run (its command line holds the
+    // axis and range) with one 'sweep' runEvent carrying the peak; no testRun rows.
+    if (!no_record && !p.db_path.empty()) {
+#ifdef JAC313_STORE_HAS_SQL_PERSIST
+        try {
+            jac313::Qlite::v002::Sqlite db(results_db_path(p.db_path).string());
+            ensure_results_schema(db);
+            const std::int64_t mid = jac313::results::current_host(db, bench_harness_version());
+            if (mid == 0) not_recorded("sweep: no current_host pin");
+            else jac313::results::log_run_event(db, bench_insert_run(db, p, mid, 0), "", "sweep", peak_line);
+        } catch (const std::exception& e) { not_recorded(std::string("sweep: ") + e.what()); }
+#endif
+    }
+    return finish(0);
 }

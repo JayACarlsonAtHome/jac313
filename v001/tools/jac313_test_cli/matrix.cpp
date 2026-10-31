@@ -316,6 +316,7 @@ BuildFeatures read_build_features(const fs::path& build_dir) {
         cmake_cache_bool(line, "JAC313_BUILD_MODULES", features.modules);
         cmake_cache_bool(line, "JAC313_STRICT", features.strict);
         cmake_cache_bool(line, "JAC313_HARDENED", features.hardened);
+        cmake_cache_bool(line, "JAC313_BUILD_STORE_TESTS", features.store_tests);
         if (line.rfind("JAC313_CONTRACTS:", 0) == 0) {
             if (const auto eq = line.find('='); eq != std::string::npos && eq + 1 < line.size())
                 features.contracts = line.substr(eq + 1);

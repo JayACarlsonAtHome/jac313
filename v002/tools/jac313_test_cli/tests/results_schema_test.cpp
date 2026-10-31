@@ -79,7 +79,7 @@ int main() {
                   std::string("testRun has ") + col);
 
         // Schema 3: parameter.contracts, NOT NULL DEFAULT 'enforce', part of the UNIQUE key.
-        check(R::kResultsSchemaVersion == 5, "kResultsSchemaVersion == 5");
+        check(R::kResultsSchemaVersion == 6, "kResultsSchemaVersion == 6");
         check(one_int(db, "SELECT COUNT(*) FROM pragma_table_info('parameter') WHERE name='contracts' "
                           "AND \"notnull\"=1 AND dflt_value='''enforce'''") == 1,
               "parameter.contracts NOT NULL DEFAULT 'enforce'");
@@ -207,6 +207,58 @@ int main() {
         check(moved.error == R::HostPinError::None && moved.mid == 5, "assign-new 5 succeeds");
         check(one_int(db, "SELECT COUNT(*) FROM machine") == 1, "one machine row after the move");
         check(one_int(db, "SELECT id FROM machine") == 5, "the row is now machine 5");
+
+        // Schema 6: every pickable setting is recorded. run carries the run-wide settings, parameter
+        // the per-configuration ones (in its UNIQUE key), testRun the limits each test ran under; all
+        // NOT NULL with a default ('' / 0 = none).
+        for (const char* col : {"command_line", "filter", "params_file", "selection", "keep_logs_dir", "pg_cleanup",
+                                "disk_source"})
+            check(one_int(db, std::string("SELECT COUNT(*) FROM pragma_table_info('run') WHERE name='") + col
+                              + "' AND \"notnull\"=1 AND dflt_value=''''''") == 1,
+                  std::string("run.") + col + " NOT NULL DEFAULT ''");
+        for (const char* col : {"jobs", "fail_fast", "keep_logs", "failsafe_sec", "store_tests"})
+            check(one_int(db, std::string("SELECT COUNT(*) FROM pragma_table_info('run') WHERE name='") + col
+                              + "' AND \"notnull\"=1 AND dflt_value='0'") == 1,
+                  std::string("run.") + col + " NOT NULL DEFAULT 0");
+        for (const char* col : {"flags_raw", "keeper_pct", "database_pct", "binary_log", "max_runs", "max_records"})
+            check(one_int(db, std::string("SELECT COUNT(*) FROM pragma_table_info('parameter') WHERE name='") + col
+                              + "' AND \"notnull\"=1 AND dflt_value='0'") == 1,
+                  std::string("parameter.") + col + " NOT NULL DEFAULT 0");
+        for (const char* col : {"timeout_sec", "memory_mb"})
+            check(one_int(db, std::string("SELECT COUNT(*) FROM pragma_table_info('testRun') WHERE name='") + col
+                              + "' AND \"notnull\"=1 AND dflt_value='0'") == 1,
+                  std::string("testRun.") + col + " NOT NULL DEFAULT 0");
+        check(one_int(db, "SELECT COUNT(*) FROM pragma_table_info('current_host') WHERE name='disk_source' "
+                          "AND \"notnull\"=1") == 1, "current_host.disk_source NOT NULL");
+
+        // insert_run writes the settings given; parameter_id finds-or-inserts over the whole key, so a
+        // configuration that differs only in a schema-6 axis is its own row.
+        R::RunSettings rs;
+        rs.command_line = "jac313_test_cli matrix run --filter 001";
+        rs.filter = "001"; rs.params_file = "tests/test_params.jtext"; rs.selection = "store,001";
+        rs.jobs = 4; rs.fail_fast = 1; rs.keep_logs = 1; rs.keep_logs_dir = "/tmp/k"; rs.failsafe_sec = 60;
+        rs.pg_cleanup = "delete"; rs.store_tests = 1; rs.disk_source = "detected";
+        R::insert_run(db, 903, os_fedora, 5, "v002", "", "", "", rs);
+        check(one_int(db, "SELECT COUNT(*) FROM run WHERE run_id=903 AND filter='001' AND jobs=4 AND fail_fast=1 "
+                          "AND keep_logs=1 AND keep_logs_dir='/tmp/k' AND failsafe_sec=60 AND pg_cleanup='delete' "
+                          "AND store_tests=1 AND disk_source='detected' AND selection='store,001' "
+                          "AND params_file='tests/test_params.jtext' AND command_line LIKE 'jac313_test_cli%'") == 1,
+              "insert_run records every run setting");
+        R::ParameterRow pr;
+        pr.compiler_id = 1; pr.build_type = "Release"; pr.persist = "jtext+sql"; pr.keeper_pct = 10;
+        pr.database_pct = 10; pr.binary_log = 1;
+        const std::int64_t p1 = R::parameter_id(db, pr);
+        check(p1 > 0 && R::parameter_id(db, pr) == p1, "parameter_id finds the row it inserted");
+        for (auto change : {+[](R::ParameterRow& r) { r.binary_log = 0; }, +[](R::ParameterRow& r) { r.keeper_pct = 20; },
+                            +[](R::ParameterRow& r) { r.database_pct = 5; }, +[](R::ParameterRow& r) { r.flags_raw = 3; },
+                            +[](R::ParameterRow& r) { r.max_runs = 2; }, +[](R::ParameterRow& r) { r.max_records = 10; }}) {
+            R::ParameterRow other = pr;
+            change(other);
+            check(R::parameter_id(db, other) != p1, "a schema-6 axis makes its own parameter row");
+        }
+        char arg0[] = "prog", arg1[] = "--filter", arg2[] = "a b", arg3[] = "it's";
+        char* argv[] = {arg0, arg1, arg2, arg3};
+        check(R::command_line_of(4, argv) == "prog --filter 'a b' 'it'\\''s'", "command_line_of quotes what needs it");
     }
 
     // A NEWER schema version (here 99): refused with both versions named, the file untouched.

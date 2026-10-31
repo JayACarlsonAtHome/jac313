@@ -88,8 +88,9 @@ String          FindRootFromExe();              // walk up from the executable t
 
 // The summary JSON / CLI flags this GUI understands. The CLI writes "contract": N in every
 // summary; a summary with a newer contract is refused (rebuild the GUI). Bump both together.
-const int       kRunnerContract = 4;   // 2: --pg-remote / --pg-local, summary "pg_remote"; 3: --connections;
-                                       // 4: --contracts, compiler-versions lists the contract modes
+const int       kRunnerContract = 5;   // 2: --pg-remote / --pg-local, summary "pg_remote"; 3: --connections;
+                                       // 4: --contracts, compiler-versions lists the contract modes;
+                                       // 5: summary "settings" (every setting the run was given)
 
 // ---- PostgreSQL connections file (jText; see the CLI's connections.hpp for the layout)
 struct ConnRow : Moveable<ConnRow> {
@@ -160,6 +161,9 @@ struct Summary {
 	String os;                // "os": the OS the run ran under, "<name> · <kernel>" ("" in older summaries)
 	String contracts;         // "contracts": the ctest/smoke builds' contract mode ("" in older summaries)
 	String pgRemote;          // "pg_remote": the remote PostgreSQL server the run used ("" = none)
+	// "settings": every setting the run was given, in order ("-" = not given; empty in older summaries)
+	Vector<String> settingName, settingValue;
+	String SettingsText() const;   // "name: value" lines
 	int    pass = 0, fail = 0;
 	int    contract = 1;      // "contract" (summaries written before it existed are 1)
 	Array<ResultRow> rows;

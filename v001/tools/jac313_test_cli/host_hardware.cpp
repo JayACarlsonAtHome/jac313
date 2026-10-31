@@ -464,6 +464,14 @@ std::string machine_disk_tier(const std::string& dir) {
     return detect_disk_type(dir);
 }
 
+std::string machine_disk_source() {
+    if (!normalize_disk_type(machine_disk_type()).empty()) {
+        const char* env = std::getenv("JAC313_DISK_TYPE");
+        return (env != nullptr && *env != '\0') ? "JAC313_DISK_TYPE" : "~/.config/jac313/disk_type";
+    }
+    return g_params_disk_type.empty() ? "detected" : "params DISK_TYPE";
+}
+
 std::string normalize_disk_type(const std::string& name) {
     std::string n;
     for (const char c : name) {

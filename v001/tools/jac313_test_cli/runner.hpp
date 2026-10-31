@@ -22,6 +22,8 @@ struct TestResult {
     std::string message;
     std::string stdout_tail;
     std::string stderr_tail;
+    int timeout_sec{0};   // the timeout it ran under (0 = none)
+    int memory_mb{0};     // the address-space limit it ran under, MB (0 = none)
 };
 
 struct RunOptions;

@@ -662,6 +662,13 @@ bool Summary::Parse(const String& text, String& err)
 	finished  = Str(v["finished_utc"]);
 	command   = Str(v["command"]);
 	pgRemote  = Str(v["pg_remote"]);
+	settingName.Clear();
+	settingValue.Clear();
+	Value set = v["settings"];
+	for(int i = 0; !Missing(set) && i < set.GetCount(); i++) {
+		settingName.Add(Str(set[i][0]));
+		settingValue.Add(Str(set[i][1]));
+	}
 	pass = Int(v["totals"]["pass"]);
 	fail = Int(v["totals"]["fail"]);
 	rows.Clear();
@@ -704,6 +711,14 @@ bool Summary::Parse(const String& text, String& err)
 		o.pgRemote  = pgRemote;
 	}
 	return true;
+}
+
+String Summary::SettingsText() const
+{
+	String t;
+	for(int i = 0; i < settingName.GetCount(); i++)
+		t << settingName[i] << ": " << settingValue[i] << "\n";
+	return t;
 }
 
 // ---------------------------------------------------------------- Copy for AI
@@ -795,6 +810,18 @@ String BuildAiReport(const Array<Summary>& sums, const String& root, const AiExt
 	meta("Finished (UTC)", [](const Summary& s) { return s.finished; });
 	meta("Passed", [](const Summary& s) { return AsString(s.pass); });
 	meta("Failed", [](const Summary& s) { return AsString(s.fail); });
+	Index<String> names;   // every setting any summary lists, in the order given
+	for(const Summary& s : sums)
+		for(const String& n : s.settingName)
+			names.FindAdd(n);
+	for(const String& n : names) {
+		md << "| " << Cell(n) << " | ";
+		for(const Summary& s : sums) {
+			int k = FindIndex(s.settingName, n);
+			md << Cell(k >= 0 ? s.settingValue[k] : String()) << " | ";
+		}
+		md << "\n";
+	}
 	for(const Summary& s : sums)
 		if(s.command.GetCount())
 			md << "\nCommand (" << Cell(s.compiler) << "): `" << s.command << "`\n";

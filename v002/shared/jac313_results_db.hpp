@@ -22,6 +22,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <sys/utsname.h>
@@ -93,7 +94,13 @@ inline const std::string& resolve_results_db(const std::filesystem::path& source
 // 5: os (sensed per run) and machine (hardware only, keyed by the fleet number) replace host_spec;
 //    run.os_id + run.machine_id (run.host dropped); every per-machine table keys on machine_id;
 //    safeness gains os_id.
-inline constexpr int kResultsSchemaVersion = 5;
+// 6: every pickable setting is recorded: run gains command_line, filter, params_file, selection,
+//    jobs, fail_fast, keep_logs, keep_logs_dir, failsafe_sec, pg_cleanup, store_tests, disk_source;
+//    parameter gains flags_raw, keeper_pct, database_pct, binary_log, max_runs, max_records (in its
+//    UNIQUE key); testRun gains timeout_sec and memory_mb (the limits each test ran under);
+//    current_host gains disk_source; io_best_fit gains run_id (the calibration run). A calibration
+//    or a bench sweep is a run of its own (no testRun rows; its results are runEvent rows).
+inline constexpr int kResultsSchemaVersion = 6;
 
 namespace detail {
 // Every table and index, all idempotent (IF NOT EXISTS): cheap to run on every open.
@@ -115,10 +122,14 @@ inline void create_results_tables(Sqlite& db) {
             "  , UNIQUE(name, version)\n"
             ")");
     // An axis that does not apply to a test kind is '' or 0 (never NULL), so the plain table-level
-    // UNIQUE over all 16 axes really dedupes (SQLite treats NULLs as distinct; there are none).
+    // UNIQUE over all 22 axes really dedupes (SQLite treats NULLs as distinct; there are none).
     // build_type is CMAKE_BUILD_TYPE as built (Debug | Release); strict / hardened are JAC313_STRICT /
     // JAC313_HARDENED of that tree (on | off). batch: the persistence batch (rows per sink call) the
-    // run used, 0 when nothing persisted (the per-sink values are on testRun).
+    // run used, 0 when nothing persisted (the per-sink values are on testRun). flags_raw: the bench's
+    // exact per-event flag mask (flag_count is its popcount). keeper_pct / database_pct / binary_log:
+    // the production run's mix (% of events flagged KeeperRecord / DatabaseEntry; 1 = the binary
+    // replay log written), 0 for every other row. max_runs / max_records: the --max-runs /
+    // --max-records caps the run was given (0 = none), also where they did not lower anything.
     db.exec("CREATE TABLE IF NOT EXISTS parameter (\n"
             "    id INTEGER PRIMARY KEY NOT NULL\n"
             "  , compiler_id INTEGER NOT NULL DEFAULT 0\n"
@@ -137,8 +148,15 @@ inline void create_results_tables(Sqlite& db) {
             "  , contracts TEXT NOT NULL DEFAULT 'enforce'\n"   // enforce | observe | quick_enforce | ignore (JAC313_CONTRACTS)
             "  , strict TEXT NOT NULL DEFAULT 'off'\n"           // on | off (JAC313_STRICT)
             "  , hardened TEXT NOT NULL DEFAULT 'off'\n"         // on | off (JAC313_HARDENED)
+            "  , flags_raw INTEGER NOT NULL DEFAULT 0\n"
+            "  , keeper_pct INTEGER NOT NULL DEFAULT 0\n"
+            "  , database_pct INTEGER NOT NULL DEFAULT 0\n"
+            "  , binary_log INTEGER NOT NULL DEFAULT 0\n"
+            "  , max_runs INTEGER NOT NULL DEFAULT 0\n"
+            "  , max_records INTEGER NOT NULL DEFAULT 0\n"
             "  , UNIQUE(compiler_id, build_type, modules, import_std, size, persist, output_mode, threads,\n"
-            "           events_per_thread, runs, batch, flag_count, valgrind_tool, contracts, strict, hardened)\n"
+            "           events_per_thread, runs, batch, flag_count, valgrind_tool, contracts, strict, hardened,\n"
+            "           flags_raw, keeper_pct, database_pct, binary_log, max_runs, max_records)\n"
             ")");
     // os = the operating system a run ran under, sensed at the start of every recorded run
     // (sense_os) and found-or-inserted: family = /etc/os-release ID (fedora | rhel | linuxmint, as
@@ -172,7 +190,18 @@ inline void create_results_tables(Sqlite& db) {
             "  , UNIQUE(cpu, cores, ram_gb, disk, instance_hash)\n"
             ")");
     // run = one recorded run: the OS it ran under and the machine it ran on (one join away, never
-    // copied into the run's data tables, which carry only run_id), plus its own metadata.
+    // copied into the run's data tables, which carry only run_id), plus its own metadata and the
+    // run-wide settings it ran under ('' / 0 where a setting does not apply to the gate):
+    //   command_line  the argv of the process that recorded the run, as run
+    //   filter        --filter RE ('' = every test)
+    //   params_file   the smoke matrix's params file; selection = its enabled selection rows
+    //   jobs          -j N for the builds the run made (0 = ninja's default)
+    //   fail_fast     1 = --fail-fast
+    //   keep_logs     1 = --keep-logs; keep_logs_dir = --keep-logs-dir ('' = the default)
+    //   failsafe_sec  the timeout of a test without a testControl one (0 = none / off)
+    //   pg_cleanup    keep-last | delete: what the PostgreSQL sinks did with their test tables
+    //   store_tests   1 = the tree was configured with the Store tests (JAC313_BUILD_STORE_TESTS)
+    //   disk_source   where machine.disk came from: JAC313_DISK_TYPE | disk_type file | params | detected
     db.exec("CREATE TABLE IF NOT EXISTS run (\n"
             "    run_id INTEGER PRIMARY KEY NOT NULL\n"
             "  , ts_utc TEXT NOT NULL DEFAULT ''\n"
@@ -182,13 +211,27 @@ inline void create_results_tables(Sqlite& db) {
             "  , store_ver TEXT NOT NULL DEFAULT ''\n"
             "  , qlite_ver TEXT NOT NULL DEFAULT ''\n"
             "  , jtext_ver TEXT NOT NULL DEFAULT ''\n"
+            "  , command_line TEXT NOT NULL DEFAULT ''\n"
+            "  , filter TEXT NOT NULL DEFAULT ''\n"
+            "  , params_file TEXT NOT NULL DEFAULT ''\n"
+            "  , selection TEXT NOT NULL DEFAULT ''\n"
+            "  , jobs INTEGER NOT NULL DEFAULT 0\n"
+            "  , fail_fast INTEGER NOT NULL DEFAULT 0\n"
+            "  , keep_logs INTEGER NOT NULL DEFAULT 0\n"
+            "  , keep_logs_dir TEXT NOT NULL DEFAULT ''\n"
+            "  , failsafe_sec INTEGER NOT NULL DEFAULT 0\n"
+            "  , pg_cleanup TEXT NOT NULL DEFAULT ''\n"
+            "  , store_tests INTEGER NOT NULL DEFAULT 0\n"
+            "  , disk_source TEXT NOT NULL DEFAULT ''\n"
             ")");
     // current_host = per JAC313_VERSION pin (machine_id) for THIS checkout. v001 and v002 on the same
     // machine share its machine row (one jac313-###) but each tree keeps its own pin row so neither
     // overwrites the other's committed pin in results.db. store_bench READS its version's row.
+    // disk_source: where the pinned machine's disk tier came from at the last pin (run.disk_source).
     db.exec("CREATE TABLE IF NOT EXISTS current_host (\n"
             "    version TEXT PRIMARY KEY NOT NULL\n"
             "  , machine_id INTEGER NOT NULL DEFAULT 0\n"
+            "  , disk_source TEXT NOT NULL DEFAULT ''\n"
             ")");
     // fleet_sync = the local machine ids the shared (pg-remote) server has confirmed, and which server
     // (password-free conninfo). A confirmed number needs no round trip on later runs; one taken
@@ -236,6 +279,10 @@ inline void create_results_tables(Sqlite& db) {
             "  , batch_keeper INTEGER NOT NULL DEFAULT 0\n"
             "  , batch_database INTEGER NOT NULL DEFAULT 0\n"
             "  , batch_binary INTEGER NOT NULL DEFAULT 0\n"
+            // The limits the test ran under: its timeout (testControl, else the run's failsafe;
+            // 0 = none) and its address-space limit in MB (testControl; 0 = none).
+            "  , timeout_sec INTEGER NOT NULL DEFAULT 0\n"
+            "  , memory_mb INTEGER NOT NULL DEFAULT 0\n"
             ")");
     // run_target = what a run wrote where, many rows per run: one per table or file a sink wrote,
     // plus a 'registry' row when the run's process reached the fleet registry server.
@@ -296,6 +343,7 @@ inline void create_results_tables(Sqlite& db) {
             "  , best_size INTEGER NOT NULL DEFAULT 0\n"
             "  , best_ops INTEGER NOT NULL DEFAULT 0\n"
             "  , useThis INTEGER NOT NULL DEFAULT 0\n"
+            "  , run_id INTEGER NOT NULL DEFAULT 0\n"            // the calibration run that found it
             "  , UNIQUE(machine_id, type)\n"
             ")");
     // package_version: the code version() of each package (Store/Qlite/jText) for THIS machine
@@ -639,7 +687,18 @@ inline void upsert_machine(Sqlite& db, std::int64_t mid, const MachineId& h) {
 }
 
 inline void set_current_host(Sqlite& db, std::int64_t mid, const std::string& version) {
-    db.exec("INSERT OR REPLACE INTO current_host(version, machine_id) VALUES(?, ?)", version, mid);
+    db.exec("INSERT INTO current_host(version, machine_id) VALUES(?, ?) "
+            "ON CONFLICT(version) DO UPDATE SET machine_id=excluded.machine_id", version, mid);
+}
+// Where the pinned machine's disk tier came from (set at every pin; read into each run's disk_source).
+inline void set_current_host_disk_source(Sqlite& db, const std::string& version, const std::string& source) {
+    db.exec("UPDATE current_host SET disk_source=? WHERE version=?", source, version);
+}
+inline std::string current_host_disk_source(Sqlite& db, const std::string& version) {
+    std::string s;
+    { auto st = db.prepare("SELECT disk_source FROM current_host WHERE version=?");
+      st.bind(version); if (st.step()) st.get(s); }
+    return s;
 }
 
 inline std::int64_t current_host(Sqlite& db, const std::string& version) {
@@ -856,16 +915,89 @@ inline std::int64_t next_run_id(Sqlite& db) {
     return n;
 }
 
+// The run-wide settings a run ran under (the run table's setting columns; see its comment there).
+// Each recording process fills the global JAC313_RUN_SETTINGS as it parses its flags and resolves
+// what applies, and every run row it inserts carries them.
+struct RunSettings {
+    std::string command_line, filter, params_file, selection, keep_logs_dir, pg_cleanup, disk_source;
+    std::int64_t jobs = 0, fail_fast = 0, keep_logs = 0, failsafe_sec = 0, store_tests = 0;
+};
+inline RunSettings JAC313_RUN_SETTINGS;
+
+// argv as one line, each argument single-quoted when it holds anything but [A-Za-z0-9_./=:,+@%-].
+inline std::string command_line_of(int argc, char** argv) {
+    std::string out;
+    for (int i = 0; i < argc; ++i) {
+        const std::string a = argv[i] ? argv[i] : "";
+        bool plain = !a.empty();
+        for (const char c : a)
+            if (!(std::isalnum(static_cast<unsigned char>(c)) || std::string_view("_./=:,+@%-").find(c) != std::string_view::npos))
+                plain = false;
+        std::string q = a;
+        if (!plain) {
+            q = "'";
+            for (const char c : a) q += (c == '\'') ? std::string("'\\''") : std::string(1, c);
+            q += "'";
+        }
+        out += (out.empty() ? "" : " ") + q;
+    }
+    return out;
+}
+
 // Insert a run row (idempotent on run_id): the OS it ran under (os_id, from current_os_id) and the
 // machine (machine_id, the pinned current_host). version = JAC313_VERSION ("v001"/"v002").
-// store_ver/qlite_ver/jtext_ver are the component versions under test (default empty for functional runs).
+// store_ver/qlite_ver/jtext_ver are the component versions under test (default empty for functional
+// runs); `s` = the run-wide settings it ran under.
 inline void insert_run(Sqlite& db, std::int64_t run_id, std::int64_t os_id, std::int64_t machine_id,
                        const std::string& version = "",
                        const std::string& store_ver = "",
-                       const std::string& qlite_ver = "", const std::string& jtext_ver = "") {
-    db.exec("INSERT OR IGNORE INTO run(run_id, ts_utc, os_id, machine_id, version, store_ver, qlite_ver, jtext_ver) "
-            "VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?,?)",
-            run_id, os_id, machine_id, version, store_ver, qlite_ver, jtext_ver);
+                       const std::string& qlite_ver = "", const std::string& jtext_ver = "",
+                       const RunSettings& s = {}) {
+    db.exec("INSERT OR IGNORE INTO run(run_id, ts_utc, os_id, machine_id, version, store_ver, qlite_ver, jtext_ver, "
+            "command_line, filter, params_file, selection, jobs, fail_fast, keep_logs, keep_logs_dir, failsafe_sec, "
+            "pg_cleanup, store_tests, disk_source) "
+            "VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?,?,?,?,?,?, ?,?,?,?,?,?,?,?,?,?,?,?)",
+            run_id, os_id, machine_id, version, store_ver, qlite_ver, jtext_ver,
+            s.command_line, s.filter, s.params_file, s.selection, s.jobs, s.fail_fast, s.keep_logs, s.keep_logs_dir,
+            s.failsafe_sec, s.pg_cleanup, s.store_tests, s.disk_source);
+}
+
+// One parameter row: every axis of a configuration ('' / 0 where it does not apply to the test kind).
+struct ParameterRow {
+    std::int64_t compiler_id = 0;
+    std::string build_type, modules, import_std = "off", size, persist, output_mode;
+    std::int64_t threads = 0, events_per_thread = 0, runs = 0, batch = 0, flag_count = 0;
+    std::string valgrind_tool, contracts = "enforce", strict = "off", hardened = "off";
+    std::int64_t flags_raw = 0, keeper_pct = 0, database_pct = 0, binary_log = 0, max_runs = 0, max_records = 0;
+};
+
+// Insert-or-find a parameter row (SELECT-then-INSERT over the whole UNIQUE key); its id.
+inline std::int64_t parameter_id(Sqlite& db, const ParameterRow& p) {
+    auto find = [&]() -> std::int64_t {
+        std::int64_t id = 0;
+        auto st = db.prepare(
+            "SELECT id FROM parameter WHERE compiler_id=? AND build_type=? AND modules=? AND import_std=? AND size=? "
+            "AND persist=? AND output_mode=? AND threads=? AND events_per_thread=? AND runs=? AND batch=? "
+            "AND flag_count=? AND valgrind_tool=? AND contracts=? AND strict=? AND hardened=? AND flags_raw=? "
+            "AND keeper_pct=? AND database_pct=? AND binary_log=? AND max_runs=? AND max_records=?");
+        st.bind(p.compiler_id, p.build_type, p.modules, p.import_std, p.size, p.persist, p.output_mode, p.threads,
+                p.events_per_thread, p.runs, p.batch, p.flag_count, p.valgrind_tool, p.contracts, p.strict, p.hardened,
+                p.flags_raw, p.keeper_pct, p.database_pct, p.binary_log, p.max_runs, p.max_records);
+        if (st.step()) st.get(id);
+        return id;
+    };
+    std::int64_t id = find();
+    if (id == 0) {
+        db.exec("INSERT INTO parameter(compiler_id, build_type, modules, import_std, size, persist, output_mode, "
+                "threads, events_per_thread, runs, batch, flag_count, valgrind_tool, contracts, strict, hardened, "
+                "flags_raw, keeper_pct, database_pct, binary_log, max_runs, max_records) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                p.compiler_id, p.build_type, p.modules, p.import_std, p.size, p.persist, p.output_mode, p.threads,
+                p.events_per_thread, p.runs, p.batch, p.flag_count, p.valgrind_tool, p.contracts, p.strict, p.hardened,
+                p.flags_raw, p.keeper_pct, p.database_pct, p.binary_log, p.max_runs, p.max_records);
+        id = find();
+    }
+    return id;
 }
 
 // ---- run_target: what a run wrote where ----
@@ -956,12 +1088,13 @@ inline void insert_run_targets(Sqlite& db, std::int64_t run_id, const std::vecto
 // the raw peak (best_size + best_ops), and useThis = the chosen mid-band operating size.
 inline void upsert_io_best_fit(Sqlite& db, std::int64_t mid, const std::string& type,
                                std::int64_t low_size, std::int64_t high_size,
-                               std::int64_t best_size, std::int64_t best_ops, std::int64_t use_this) {
-    db.exec("INSERT INTO io_best_fit(machine_id, type, low_size, high_size, best_size, best_ops, useThis) "
-            "VALUES(?,?,?,?,?,?,?) "
+                               std::int64_t best_size, std::int64_t best_ops, std::int64_t use_this,
+                               std::int64_t run_id = 0) {
+    db.exec("INSERT INTO io_best_fit(machine_id, type, low_size, high_size, best_size, best_ops, useThis, run_id) "
+            "VALUES(?,?,?,?,?,?,?,?) "
             "ON CONFLICT(machine_id, type) DO UPDATE SET low_size=excluded.low_size, high_size=excluded.high_size, "
-            "best_size=excluded.best_size, best_ops=excluded.best_ops, useThis=excluded.useThis",
-            mid, type, low_size, high_size, best_size, best_ops, use_this);
+            "best_size=excluded.best_size, best_ops=excluded.best_ops, useThis=excluded.useThis, run_id=excluded.run_id",
+            mid, type, low_size, high_size, best_size, best_ops, use_this, run_id);
 }
 
 // Read this machine's chosen batch (useThis) for a backend; returns fallback if not yet calibrated.

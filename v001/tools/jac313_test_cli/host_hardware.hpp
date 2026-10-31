@@ -57,6 +57,9 @@ void set_params_disk_type(const std::string& tier);
 // The tier every record of this machine uses (machine.disk): its own setting when valid, else the
 // params table's DISK_TYPE, else detected.
 std::string machine_disk_tier(const std::string& dir = ".");
+// Where machine_disk_tier's answer comes from (results.db run.disk_source): "JAC313_DISK_TYPE",
+// "~/.config/jac313/disk_type", "params DISK_TYPE" or "detected".
+std::string machine_disk_source();
 
 std::string format_group_environment_line(const std::string& hardware_specs,
                                           const std::string& os_specs);

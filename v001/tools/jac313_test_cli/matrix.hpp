@@ -81,6 +81,7 @@ struct BuildFeatures {
     bool strict{false};               // JAC313_STRICT
     bool hardened{false};             // JAC313_HARDENED
     std::string contracts{"enforce"}; // JAC313_CONTRACTS (results.db: parameter.contracts)
+    bool store_tests{false};          // JAC313_BUILD_STORE_TESTS (results.db: run.store_tests)
 
     // build_type plus "-contracts-<mode>" unless enforce: the label of this tree's log and
     // dataset directories, so runs under another contract mode never share them.

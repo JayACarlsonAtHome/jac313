@@ -125,6 +125,7 @@ static int DumpSummary(const String& file)
 	Cout() << "totals pass=" << s.pass << " fail=" << s.fail << "\n";
 	Cout() << "run_id=" << Dash(s.runId) << " host=" << Dash(s.host) << " os=" << Dash(s.os) << " version=" << Dash(s.version)
 	       << " compiler=" << Dash(s.compiler) << " build_type=" << Dash(s.buildType) << "\n";
+	Cout() << s.SettingsText();
 	Cout() << "Test\tBackend\tRows\tCount\tChecksum\tSample\tms\tPing ms\tWrite ms\tStatus\n";
 	for(int i = 0; i < min(3, s.rows.GetCount()); i++) {
 		const ResultRow& r = s.rows[i];
@@ -1612,6 +1613,10 @@ void Runner::ShowResults()
 			all.Add(&r);
 	}
 	header.SetText(h);
+	String tip;   // every setting each run was given, on hover
+	for(const Summary& s : sums)
+		tip << (tip.GetCount() ? "\n" : "") << "run " << Dash(s.runId) << " (" << Dash(s.compiler) << ")\n" << s.SettingsText();
+	header.Tip(tip);
 	Index<String> tests, backends;
 	for(const ResultRow *r : all) {
 		tests.FindAdd(r->test);

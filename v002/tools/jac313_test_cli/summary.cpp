@@ -115,7 +115,8 @@ std::string readback_json(const std::map<std::string, std::string>& rb) {
     return s + "}";
 }
 
-bool assemble_summary(const GlobalOptions& g, const std::map<std::string, std::string>& meta) {
+bool assemble_summary(const GlobalOptions& g, const std::map<std::string, std::string>& meta,
+                      const SettingList& settings) {
     if (g.summary_json.empty()) return true;
     std::vector<std::string> parts;
     {
@@ -158,6 +159,10 @@ bool assemble_summary(const GlobalOptions& g, const std::map<std::string, std::s
     out << "  \"host\": " << quote(host) << ",\n";
     out << "  \"os\": " << quote(os) << ",\n";
     for (const auto& [k, v] : meta) out << "  " << quote(k) << ": " << quote(v) << ",\n";
+    out << "  \"settings\": [";
+    for (std::size_t i = 0; i < settings.size(); ++i)
+        out << (i ? ",\n    " : "\n    ") << "[" << quote(settings[i].first) << ", " << quote(settings[i].second) << "]";
+    out << (settings.empty() ? "],\n" : "\n  ],\n");
     out << "  \"totals\": {\"pass\": " << pass << ", \"fail\": " << fail << "},\n";
     out << "  \"results\": [\n";
     for (std::size_t i = 0; i < parts.size(); ++i) {

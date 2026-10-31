@@ -102,6 +102,15 @@ if(TARGET jac313::Qlite)
 endif()
 add_test(NAME jac313_connections_test COMMAND jac313_connections_test)
 
+# The run summary JSON (summary.cpp): its contract and the "settings" list Jac313Runner shows.
+add_executable(jac313_summary_settings_test
+    jac313_test_cli/summary.cpp
+    jac313_test_cli/tests/summary_settings_test.cpp
+)
+target_include_directories(jac313_summary_settings_test PRIVATE jac313_test_cli ${CMAKE_SOURCE_DIR}/shared)
+target_compile_features(jac313_summary_settings_test PRIVATE cxx_std_26)
+add_test(NAME jac313_summary_settings_test COMMAND jac313_summary_settings_test)
+
 # Setup/jtext_table.sh: the sh + awk reader bsir.sh uses on compilers.jtext and recipes.jtext.
 add_test(NAME jac313_jtext_table_sh_test COMMAND bash ${CMAKE_SOURCE_DIR}/Setup/jtext_table_test.sh)
 
