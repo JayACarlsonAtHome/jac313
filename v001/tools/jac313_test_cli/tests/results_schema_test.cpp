@@ -163,10 +163,10 @@ int main() {
         for (const char* col : {"host", "group_id"})
             check(one_int(db, std::string("SELECT COUNT(*) FROM pragma_table_info('run') WHERE name='") + col + "'") == 0,
                   std::string("run has no ") + col);
-        for (const char* t : {"current_host", "safeness", "io_best_fit", "package_version", "fleet_sync"})
-            check(one_int(db, std::string("SELECT COUNT(*) FROM pragma_table_info('") + t + "') WHERE name='machine_id'") == 1
-                  && one_int(db, std::string("SELECT COUNT(*) FROM pragma_table_info('") + t + "') WHERE name='group_id'") == 0,
-                  std::string(t) + " keys on machine_id");
+        for (const char* table : {"current_host", "safeness", "io_best_fit", "package_version", "fleet_sync"})
+            check(one_int(db, std::string("SELECT COUNT(*) FROM pragma_table_info('") + table + "') WHERE name='machine_id'") == 1
+                  && one_int(db, std::string("SELECT COUNT(*) FROM pragma_table_info('") + table + "') WHERE name='group_id'") == 0,
+                  std::string(table) + " keys on machine_id");
         check(one_int(db, "SELECT COUNT(*) FROM pragma_table_info('safeness') WHERE name='os_id' AND pk > 0") == 1,
               "safeness.os_id is in its key");
         threw = false;

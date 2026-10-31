@@ -16,6 +16,7 @@
 #include <iostream>
 #include <map>
 #include <regex>
+#include <string_view>
 #include <sys/resource.h>
 #include <unistd.h>
 #include <vector>
@@ -26,6 +27,22 @@ namespace fs = std::filesystem;
 namespace {
 
 constexpr std::size_t kCaptureLimit = 16 * 1024;
+
+// A bare program name (add_test(... COMMAND bash script.sh) records "bash") is looked up on
+// PATH, as ctest does; a path is used as given. Not found -> the name unchanged.
+fs::path resolve_command(const fs::path& command) {
+    if (command.has_parent_path()) return command;
+    const char* path = std::getenv("PATH");
+    for (std::string_view rest = path ? path : ""; !rest.empty();) {
+        const auto colon = rest.find(':');
+        const std::string_view dir = rest.substr(0, colon);
+        rest = colon == std::string_view::npos ? std::string_view{} : rest.substr(colon + 1);
+        if (dir.empty()) continue;
+        const fs::path candidate = fs::path(dir) / command;
+        if (::access(candidate.c_str(), X_OK) == 0) return candidate;
+    }
+    return command;
+}
 
 } // namespace
 
@@ -41,7 +58,7 @@ bool matches_filter(const std::string& name, const std::string& filter) {
     }
 }
 
-TestResult execute_command(const fs::path& command,
+TestResult execute_command(const fs::path& command_in,
                            const std::vector<std::string>& args,
                            const bool verbose,
                            const int failsafe_sec, int memory_mb = 0)
@@ -50,6 +67,7 @@ TestResult execute_command(const fs::path& command,
     result.timeout_sec = failsafe_sec > 0 ? failsafe_sec : 0;   // the limits it runs under (results.db testRun)
     result.memory_mb = memory_mb > 0 ? memory_mb : 0;
 
+    const fs::path command = resolve_command(command_in);
     if (!fs::exists(command)) {
         result.status = TestStatus::Skipped;
         result.message = "executable not found (build first?)";
