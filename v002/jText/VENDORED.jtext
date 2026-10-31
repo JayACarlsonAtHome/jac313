@@ -23,11 +23,11 @@
 
 1. #|# 2|canonical_dir|jText/v002
 
-1. #|# 3|canonical_commit|7269fa9e022d
+1. #|# 3|canonical_commit|f99224c082ae
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v002.031
+1. #|# 5|canonical_version|v002.032
 
 1. #|# 6|transform|jac313-prefix
 
@@ -82,13 +82,13 @@
 
 1. #|# 12|include/jac313/jText/v002.hpp|include/jText/v002.hpp|3b0b42253b9287078698f9fc97e6aea14b740b3d059a15d970dd3f68b69748a9|4d8477911f65c529a9abcef74a6cf2c8922300b4004996e8608cfcecd9c5dab5
 
-1. #|# 13|jText.api.inc|jText.api.inc|2e3140bd3413c0e4df6e99a9f062d349f8e24aa8e8580fbd123252965a3277a3|4167df02cd9a0fb6e9d5ebbdad781dd5e3823f800b64f3a205b4b70de5bd37a6
+1. #|# 13|jText.api.inc|jText.api.inc|6ad866ece82e77038b50d7fd5c860ffac72b4a1d3278986ca1304fec4294b196|a3271da252b18fbdefee24c452c9202b6de19a4cf820b150fa26522e2e5d409c
 
 1. #|# 14|jText.cpp|jText.cpp|4b3bed76b30fb05a30e6c68740887623e75f970de9dd63125dfdea480dfd1351|ec360a886dddeee6779672c727fc497e8c1c3b9047c1683d19cd563f9c4369fc
 
 1. #|# 15|jText.h|jText.h|bdfc5006dcda3fc7f1cc2a8c90f1265a52679eafc4e7cd0f01636d8b5767c92b|6e26cbe641d54b3d2a1124c51937cf275b76b5449b015554ffe513605cabe749
 
-1. #|# 16|jText.impl.inc|jText.impl.inc|11ae71dd201ae21633e473e8f6765f86560a7d5af763d4b0281cc8296bbb5d8c|00274258281572bb15dcab7b5820fa22eb2de5dc420874d86de8679b847219be
+1. #|# 16|jText.impl.inc|jText.impl.inc|c3878a6956be651ea469ce083c6251694d69069716f2372ee9dad6bc77990d69|6cd09785fa1d30c5df1666f493b7675c9d054a997627f4053cdbfba1d6adab29
 
 1. #|# 17|modules/jac313.jtext.v002.core.cppm|modules/jText.v002.core.cppm|47c836b45fc03588f153d0628dbe165c01f870588567b2bcba8af6dccfcb1150|37f5acbfddb6d4f3a019fbd57ad4576c477fe0ca6c05a41cca132ddef14dec90
 
@@ -130,7 +130,7 @@
 
 1. #|# 36|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|680b60cd42ee565ed2c6a653b273d48eaaf5d1d52d83311e6a7ffee097dd2069|06ed5e1421b57997e6466de868c31f862a75c78e0fdf8e91c5e7f0f0134a064f
 
-1. #|# 37|tests/v002_test.cpp|tests/v002_test.cpp|57b436bd6250163942b4ebdef475ab4fcd7369dde16c20230488748fe43354d3|58b1331f2676071101814b152e384e9703040c1062212c064c05f93ed74091f6
+1. #|# 37|tests/v002_test.cpp|tests/v002_test.cpp|9015cbfdb2f35b65f1f4dd92685c1b7ebfe2f85e968c3569f32cb1c50597f86c|c5b1259b931b05ef10e70c121a0e1145141177e54c003356a272afe80381d4fc
 
 1. #|# 38|tools/common/record_lines.hpp|tools/common/record_lines.hpp|28b77d7aeacf51d8ba3150a4a1f92bb2540250d1ba3441828905dac82e108dc6|97289be2126eda4303b20de6bca338743afd1181d2b950568d166e188fbafdc5
 

@@ -156,7 +156,8 @@ std::string quote_sql_ident(std::string_view name, SessionKind kind) {
     const char q = kind == SessionKind::MariaDB ? '`' : '"';
     std::string out;
     out.push_back(q);
-    for (unsigned char c : name) {
+    for (const char ch : name) {
+        const auto c = static_cast<unsigned char>(ch);
         if (c == static_cast<unsigned char>(q)) out.push_back(q);
         out.push_back(static_cast<char>(c));
     }
@@ -583,7 +584,8 @@ namespace {
 std::string lower_type(std::string_view in) {
     std::string out;
     bool space = false;
-    for (unsigned char c : in) {
+    for (const char ch : in) {
+        const auto c = static_cast<unsigned char>(ch);
         if (std::isspace(c)) {
             if (!out.empty()) space = true;
             continue;
@@ -607,7 +609,8 @@ bool strip_tail(std::string& text, std::string_view tail) {
 int first_int(std::string_view args) {
     long n = 0;
     bool any = false;
-    for (unsigned char c : args) {
+    for (const char ch : args) {
+        const auto c = static_cast<unsigned char>(ch);
         if (std::isdigit(c)) {
             any = true;
             n = n * 10 + (c - '0');
@@ -765,7 +768,7 @@ ColumnDef column_from_declared(std::string name, std::string_view declared_type,
 
     std::string sql;
     sql.reserve(head.size());
-    for (unsigned char c : head) sql.push_back(static_cast<char>(std::toupper(c)));
+    for (const char c : head) sql.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
     sql += args;
     if (sql.empty()) sql = "TEXT";
     col.sql_type = std::move(sql);

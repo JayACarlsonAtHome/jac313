@@ -102,7 +102,7 @@ bool load_connections(const std::string& path, std::vector<SavedConnection>& row
 
         for (const auto& r : recs) {
             auto get = [&](int c) -> std::string {
-                return (c < 0 || static_cast<std::size_t>(c) >= r.size() || is_null(r[c])) ? std::string{} : r[c];
+                return (c < 0 || static_cast<std::size_t>(c) >= r.size() || is_null(r[static_cast<std::size_t>(c)])) ? std::string{} : r[static_cast<std::size_t>(c)];
             };
             SavedConnection c{get(cb), get(ch), get(cp), get(cd), get(cu), get(ct), get(cn), {}};
             if (!c.backend.empty() && !c.host.empty()) rows.push_back(std::move(c));

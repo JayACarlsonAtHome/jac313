@@ -40,7 +40,8 @@ std::string quote_ident(std::string_view name, SessionKind kind) {
     const char q = kind == SessionKind::MariaDB ? '`' : '"';
     std::string out;
     out.push_back(q);
-    for (unsigned char c : name) {
+    for (const char ch : name) {
+        const auto c = static_cast<unsigned char>(ch);
         if (c == static_cast<unsigned char>(q)) out.push_back(q);
         out.push_back(static_cast<char>(c));
     }
@@ -74,8 +75,8 @@ std::expected<std::string, std::string> one_name(std::string_view part, SessionK
         return ident_from_brackets(part.substr(1, part.size() - 2), kind);
     }
     if (is_safe_identifier(part)) return std::string(part);
-    for (unsigned char c : part)
-        if (control_char(c)) return std::unexpected("name contains a control character");
+    for (const char c : part)
+        if (control_char(static_cast<unsigned char>(c))) return std::unexpected("name contains a control character");
     return quote_ident(part, kind);
 }
 

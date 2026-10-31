@@ -266,7 +266,7 @@ std::expected<std::map<std::string, std::string>, std::string> unzip(std::string
         const std::uint32_t local = get32(z, p + 42);
         if (csize == 0xFFFFFFFF || usize == 0xFFFFFFFF) return std::unexpected("zip64 files are not supported");
         const std::string name(z.substr(p + 46, nlen));
-        p += 46 + nlen + xlen + clen;
+        p += 46 + std::size_t{nlen} + std::size_t{xlen} + std::size_t{clen};
         if (local + 30 > z.size() || get32(z, local) != 0x04034b50) return std::unexpected("damaged zip entry " + name);
         const std::size_t data = local + 30 + get16(z, local + 26) + get16(z, local + 28);
         if (data + csize > z.size()) return std::unexpected("damaged zip entry " + name);
@@ -333,7 +333,7 @@ long days_from_civil(int y, unsigned m, unsigned d) {
     y -= m <= 2;
     const int era = (y >= 0 ? y : y - 399) / 400;
     const unsigned yoe = static_cast<unsigned>(y - era * 400);
-    const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+    const unsigned doy = (153 * (m > 2 ? m - 3 : m + 9) + 2) / 5 + d - 1;
     const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     return era * 146097L + static_cast<long>(doe) - 719468L;
 }
@@ -347,7 +347,7 @@ void civil_from_days(long z, int& y, unsigned& m, unsigned& d) {
     const unsigned doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
     const unsigned mp = (5 * doy + 2) / 153;
     d = doy - (153 * mp + 2) / 5 + 1;
-    m = mp + (mp < 10 ? 3 : -9);
+    m = mp < 10 ? mp + 3 : mp - 9;
     y += m <= 2;
 }
 
