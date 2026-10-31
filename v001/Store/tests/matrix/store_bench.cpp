@@ -1354,7 +1354,7 @@ struct SuiteAxes { bool threads = false, events = false, runs = false, batch = f
 
 int run_suite(Params base, bool dry, bool smoke, SuiteAxes given) {
     if (!given.threads) base.threads = 50;             // the suite's default thread count
-    struct Cfg { std::string persist; int flags; std::string label; std::size_t evt, runs; };
+    struct Cfg { std::string persist; std::size_t flags; std::string label; std::size_t evt, runs; };
     std::vector<Cfg> cfgs;
     // The production run first: the user's keeper + database sinks and the replay log, flags routed.
     bool production = true;
@@ -1402,7 +1402,7 @@ int run_suite(Params base, bool dry, bool smoke, SuiteAxes given) {
                 cfgs.push_back({pn, 0, "durable " + pn, 20000, 3});           // 1M × 3
                 cfgs.push_back({pn, 0, "durable " + pn + " @10M", 200000, 3}); // 10M × 3 (scaling)
             }
-    for (int n : {0, 2, 4, 6})
+    for (const std::size_t n : {0uz, 2uz, 4uz, 6uz})
         cfgs.push_back({"none", n, std::to_string(n) + " flags, non-durable", 200000, 10});
 
     // --threads / --events-per-thread / --runs given: every config uses them (its label says so).

@@ -56,7 +56,7 @@ std::string sha256_hex(const std::string& data) {
             w[i] = w[i - 16] + s0 + w[i - 7] + s1;
         }
         std::uint32_t a = h[0], b = h[1], c = h[2], d = h[3], e = h[4], f = h[5], g = h[6], k = h[7];
-        for (int i = 0; i < 64; ++i) {
+        for (std::size_t i = 0; i < 64; ++i) {
             const std::uint32_t t1 = k + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + ((e & f) ^ (~e & g)) + kK[i] + w[i];
             const std::uint32_t t2 = (rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c));
             k = g; g = f; f = e; e = d + t1; d = c; c = b; b = a; a = t1 + t2;

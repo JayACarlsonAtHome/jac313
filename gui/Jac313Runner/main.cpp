@@ -510,7 +510,7 @@ struct Runner : TopWindow {
 	Button    connBrowse, connLoad, connView, connSave;
 	Vector<ConnRow> connRows;   // the file's rows as loaded (other backends are kept on Save)
 	Label     lRoot, lVersion, lComp, lType, lFront, lSize, lDb, lFiles, lMaxRuns, lMaxRec, lMax, lDefRuns, lDefRec, lDefRows, lRb, lPg, lCmd, lInfo;
-	Label     lFormat;   // the format checks every build has (not an option)
+	Label     lFormat;   // the format and conversion checks every build has (not an option)
 	Label     lCompVer;  // "gcc 16.2.1, clang 22.1.8": what gcc / clang mean on this machine
 	Label     lContracts;
 	Switch    contracts;    // enforce | observe | quick_enforce | ignore (only the compiler's are enabled)
@@ -784,10 +784,12 @@ Runner::Runner()
 	Place(s1p.body, lContracts, 420, y + 18 + 52, 80, 22);
 	Place(s1p.body, contracts, 500, y + 18 + 52, 380, 22);
 	comp.WhenAction << THISBACK(EnableContracts);
-	lFormat.SetText("Always on: -Wformat=2 -Werror=format");
+	lFormat.SetText("Always on: -Wformat=2 -Werror=format -Wconversion -Wsign-conversion");
 	lFormat.Tip("Every build (any compiler, type or option) treats a printf-style call whose "
-	            "arguments do not match its format, such as a 64-bit value given to %d, as an error.");
-	Place(s1p.body, lFormat, 420, y + 18 + 78, 360, 22);
+	            "arguments do not match its format, such as a 64-bit value given to %d, as an error, "
+	            "and warns when a value is silently narrowed or changes sign (size_t into int, "
+	            "int into unsigned, 64-bit into float).");
+	Place(s1p.body, lFormat, 420, y + 18 + 78, 480, 22);
 	y += 130;
 
 	boxPersist.SetLabel("Persist to");

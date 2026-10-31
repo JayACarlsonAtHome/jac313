@@ -37,7 +37,10 @@ option(JAC313_BUILD_TEST_CLI "Build jac313_test_cli local test runner" ON)
 # see docs/Cpp26_Adoption.md for the warnings that remain.
 # Format checks, always on: a printf-style call whose arguments do not match its format
 # (e.g. a 64-bit value given to %d) is an error, not undefined behaviour at run time.
-add_compile_options(-Wformat=2 -Werror=format)
+# Conversion warnings, always on: a value silently narrowed or changing sign (size_t into int,
+# int into unsigned, 64-bit into float). Warnings, not errors; -Wsign-conversion makes gcc
+# report the signed/unsigned mixes clang's -Wconversion already does.
+add_compile_options(-Wformat=2 -Werror=format -Wconversion -Wsign-conversion)
 
 option(JAC313_STRICT "Extra warnings: -Wall -Wextra -Wpedantic and friends" OFF)
 option(JAC313_STRICT_WERROR "With JAC313_STRICT: treat those warnings as errors" OFF)

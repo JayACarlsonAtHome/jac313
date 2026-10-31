@@ -189,7 +189,7 @@ ProcessResult run_process(const std::vector<std::string>& args, const int failsa
         // in ctest/smoke/verify etc. 0 = no limit. Uses RLIMIT_AS (virtual address space).
         if (memory_mb > 0) {
             struct rlimit rl;
-            rlim_t bytes = static_cast<rlim_t>(memory_mb) * 1024ULL * 1024ULL;
+            rlim_t bytes = static_cast<rlim_t>(memory_mb) * rlim_t{1024} * rlim_t{1024};
             rl.rlim_cur = bytes;
             rl.rlim_max = bytes;
             setrlimit(RLIMIT_AS, &rl);

@@ -79,7 +79,7 @@ namespace readback_detail {
 // FNV-1a 64 over a canonical row text; rows are summed (order-independent).
 inline uint64_t fnv1a(std::string_view s) {
     uint64_t h = 1469598103934665603ULL;
-    for (unsigned char c : s) { h ^= c; h *= 1099511628211ULL; }
+    for (const char c : s) { h ^= static_cast<unsigned char>(c); h *= 1099511628211ULL; }
     return h;
 }
 

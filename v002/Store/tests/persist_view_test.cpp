@@ -172,8 +172,8 @@ void three_sinks() {
     constexpr size_t N = 8, M = 6'000;
     size_t keeper_per_thread = 0, database_per_thread = 0;
     for (size_t i = 0; i < M; ++i) {
-        keeper_per_thread   += (routing_flags(i) & kKeeper)   ? 1 : 0;
-        database_per_thread += (routing_flags(i) & kDatabase) ? 1 : 0;
+        keeper_per_thread   += (routing_flags(i) & kKeeper)   ? 1u : 0u;
+        database_per_thread += (routing_flags(i) & kDatabase) ? 1u : 0u;
     }
     std::array<Seen, 3> seen;
     {

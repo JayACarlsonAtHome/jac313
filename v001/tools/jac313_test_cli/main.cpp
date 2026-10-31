@@ -764,9 +764,9 @@ std::string human_ops(std::int64_t n) {
     if (n <= 0) return "0";
     double v = static_cast<double>(n);
     const char* suf = "";
-    if (n >= 1000000000)   { v = n / 1e9; suf = "G"; }
-    else if (n >= 1000000) { v = n / 1e6; suf = "M"; }
-    else if (n >= 1000)    { v = n / 1e3; suf = "K"; }
+    if (n >= 1000000000)   { v /= 1e9; suf = "G"; }
+    else if (n >= 1000000) { v /= 1e6; suf = "M"; }
+    else if (n >= 1000)    { v /= 1e3; suf = "K"; }
     else return std::to_string(n);
     char b[32]; std::snprintf(b, sizeof b, "%.2f%s", v, suf);
     return b;
@@ -2447,10 +2447,10 @@ int run_matrix_run_command(const GlobalOptions& global,
                   << "  runs=" << format_count(r.scenario.runs) << '\n';
         break;
     }
-    std::cout << "Passed:  " << format_count_padded(tally.passed) << '\n';
-    std::cout << "Failed:  " << format_count_padded(tally.failed) << '\n';
-    std::cout << "Skipped: " << format_count_padded(tally.skipped) << '\n';
-    std::cout << "Errors:  " << format_count_padded(tally.errors) << '\n';
+    std::cout << "Passed:  " << format_count_padded(static_cast<std::int64_t>(tally.passed)) << '\n';
+    std::cout << "Failed:  " << format_count_padded(static_cast<std::int64_t>(tally.failed)) << '\n';
+    std::cout << "Skipped: " << format_count_padded(static_cast<std::int64_t>(tally.skipped)) << '\n';
+    std::cout << "Errors:  " << format_count_padded(static_cast<std::int64_t>(tally.errors)) << '\n';
     std::cout << "\n\n";   // two blank lines after the smoke summary
 
     // Capture this smoke run into results.db (one testRun row per scenario).

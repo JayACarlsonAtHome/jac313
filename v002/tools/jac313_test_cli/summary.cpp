@@ -40,7 +40,8 @@ std::vector<std::string> split_list(std::string_view s) {
 std::string json_escape(std::string_view s) {
     std::string out;
     out.reserve(s.size() + 8);
-    for (unsigned char c : s) {
+    for (const char ch : s) {
+        const auto c = static_cast<unsigned char>(ch);
         switch (c) {
             case '"':  out += "\\\""; break;
             case '\\': out += "\\\\"; break;

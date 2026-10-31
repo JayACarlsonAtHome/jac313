@@ -93,7 +93,7 @@ std::string pg_table_base(std::string_view persist_base) {
     if (ec) full = std::string(persist_base);
     while (full.size() > 1 && full.back() == '/') full.pop_back();
     std::uint32_t hash = 2166136261u;
-    for (unsigned char c : full) { hash ^= c; hash *= 16777619u; }
+    for (const char c : full) { hash ^= static_cast<unsigned char>(c); hash *= 16777619u; }
 
     std::string name = sanitize_identifier(std::format("{}_{}_{}", h, parent, file));
     constexpr std::size_t kMax = 63 - 7 - 9;   // room for "_<8 hex>" and "_floats"

@@ -91,7 +91,7 @@ bool load_connections(const fs::path& file, std::vector<PgConnection>& out, std:
         for (const auto& rec : sec.records) {
             auto get = [&](int c) -> std::string {
                 if (c < 0 || c >= static_cast<int>(rec.values.size())) return {};
-                const std::string& v = rec.values[c];
+                const std::string& v = rec.values[static_cast<std::size_t>(c)];
                 return v == jtext::kNullValue ? std::string{} : v;   // {NULL}: no value (SPEC 2.6.1)
             };
             PgConnection pc{get(cb), get(ch), get(cp), get(cd), get(cu), get(ct), get(cn), get(ci), get(cm)};
