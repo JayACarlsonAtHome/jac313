@@ -216,18 +216,19 @@ wrote `"jac313-%03lld"` into a 24-byte buffer, which a large or negative id coul
 (GCC's `-Wformat-truncation`); the buffer is 32 bytes now. The U++ packages (Jac313Runner,
 JTextGui) have the same flags as package `options` in their `.upp` files.
 
-### Strict and conversion warnings (always on, 2026-10-30)
+### Strict and conversion warnings, and -Werror (always on, 2026-10-30)
 
 Every build also has `-Wall -Wextra -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast
 -Wcast-align -Woverloaded-virtual -Wimplicit-fallthrough` (once the `JAC313_STRICT` option) and
-`-Wconversion -Wsign-conversion`. They are warnings only and change no code, so they cost no
-speed; jac313 and its vendored jText, Qlite and jText_GUI build with none.
+`-Wconversion -Wsign-conversion`, and `-Werror` makes every warning a build error (it was the
+opt-in `JAC313_STRICT_WERROR`). These change no code, so they cost no speed; jac313 and its
+vendored jText, Qlite and jText_GUI build with none. A new compiler that adds a warning stops
+the build until the code is fixed.
 
 ### Optional (CMake options, OFF by default)
 
 | Option | Adds |
 |---|---|
-| `JAC313_WERROR` | `-Werror`: every warning fails the build |
 | `JAC313_HARDENED` | `-D_GLIBCXX_ASSERTIONS -ftrivial-auto-var-init=zero -fstack-protector-strong -fstack-clash-protection -fcf-protection=full`, plus `-D_FORTIFY_SOURCE=3` outside Debug (gcc's `-fhardened`, spelled so clang takes it) |
 
 ```bash

@@ -6,6 +6,7 @@
 
 #include <format>
 #include <optional>
+#include <utility>
 
 namespace jtext_gui {
 namespace {
@@ -25,7 +26,10 @@ public:
             return false;
         }
         try {
-            db_.emplace(info.file_path);
+            // Opened into a local, then moved in: emplacing straight into the optional makes gcc's
+            // optimizer (-O2) report the map member as maybe-uninitialized on the throw path.
+            Sqlite db(info.file_path);
+            db_.emplace(std::move(db));
         } catch (const Qlite::v001::Error& e) {
             last_error_ = e.what();
             return false;

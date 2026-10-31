@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/src/core
 
-1. #|# 3|canonical_commit|713b8f0987ff
+1. #|# 3|canonical_commit|6700f40eecc2
 
 1. #|# 4|canonical_dirty|No
 
@@ -82,7 +82,7 @@
 
 1. #|# 12|spreadsheet.cpp|spreadsheet.cpp|df701d63b3fa09fddf5ecb68e6b79a71294c942060bf49f49b3cdc0625dd9a7d|df701d63b3fa09fddf5ecb68e6b79a71294c942060bf49f49b3cdc0625dd9a7d
 
-1. #|# 13|sqlite_store.cpp|sqlite_store.cpp|e0f1f8dedebe4cd4507f6def3cb5e03bf8c03122b71540006bb53b3a48bbe8d4|e0f1f8dedebe4cd4507f6def3cb5e03bf8c03122b71540006bb53b3a48bbe8d4
+1. #|# 13|sqlite_store.cpp|sqlite_store.cpp|f0e53202e46d9ff3bb78912047d364b0e6a8682c3b170fc87da5e8569c7c18a1|f0e53202e46d9ff3bb78912047d364b0e6a8682c3b170fc87da5e8569c7c18a1
 
 === End Data ===
 === End Section ===

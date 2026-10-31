@@ -38,23 +38,19 @@ option(JAC313_BUILD_TEST_CLI "Build jac313_test_cli local test runner" ON)
 # Format checks, always on: a printf-style call whose arguments do not match its format
 # (e.g. a 64-bit value given to %d) is an error, not undefined behaviour at run time.
 # Conversion warnings, always on: a value silently narrowed or changing sign (size_t into int,
-# int into unsigned, 64-bit into float). Warnings, not errors; -Wsign-conversion makes gcc
+# int into unsigned, 64-bit into float). -Wsign-conversion makes gcc
 # report the signed/unsigned mixes clang's -Wconversion already does.
-# Strict warnings, always on (they were the JAC313_STRICT option): warnings only, no runtime
+# Strict warnings, always on (they were the JAC313_STRICT option): no runtime
 # effect. -Wnull-dereference is left out: on gcc 15 it fires only inside libstdc++ <streambuf>.
-add_compile_options(-Wformat=2 -Werror=format -Wconversion -Wsign-conversion
+# -Werror, always on: every warning is a build error, so none can pile up unseen.
+add_compile_options(-Werror -Wformat=2 -Wconversion -Wsign-conversion
     -Wall -Wextra -Wpedantic
     -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Woverloaded-virtual
     -Wimplicit-fallthrough)
 
-option(JAC313_WERROR "Treat every warning as an error (-Werror)" OFF)
 # Runtime hardening. Changes behaviour, so keep it out of bench and valgrind builds:
 # -ftrivial-auto-var-init=zero hides the uninitialized reads memcheck exists to find.
 option(JAC313_HARDENED "Runtime hardening: libstdc++ assertions, zero-init locals, stack/CF protection" OFF)
-
-if(JAC313_WERROR)
-    add_compile_options(-Werror)
-endif()
 
 if(JAC313_HARDENED)
     # The explicit equivalent of gcc's -fhardened, spelled so clang takes it too.

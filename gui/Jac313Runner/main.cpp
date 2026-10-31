@@ -781,13 +781,14 @@ Runner::Runner()
 	Place(s1p.body, lContracts, 420, y + 18 + 52, 80, 22);
 	Place(s1p.body, contracts, 500, y + 18 + 52, 380, 22);
 	comp.WhenAction << THISBACK(EnableContracts);
-	lFormat.SetText("Always on: strict warnings, -Wformat=2 -Werror=format, -Wconversion -Wsign-conversion");
-	lFormat.Tip("Every build (any compiler, type or option) has the strict warnings (-Wall -Wextra "
-	            "-Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align "
-	            "-Woverloaded-virtual -Wimplicit-fallthrough), treats a printf-style call whose "
-	            "arguments do not match its format, such as a 64-bit value given to %d, as an error, "
-	            "and warns when a value is silently narrowed or changes sign (size_t into int, "
-	            "int into unsigned, 64-bit into float). Warnings change no code: no speed cost.");
+	lFormat.SetText("Always on: -Werror, strict warnings, -Wformat=2, -Wconversion -Wsign-conversion");
+	lFormat.Tip("Every build (any compiler, type or option) treats every warning as an error "
+	            "(-Werror), with the strict warnings (-Wall -Wextra -Wpedantic -Wshadow "
+	            "-Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Woverloaded-virtual "
+	            "-Wimplicit-fallthrough), the format checks (a printf-style call whose arguments do "
+	            "not match its format, such as a 64-bit value given to %d) and the conversion "
+	            "checks (a value silently narrowed or changing sign: size_t into int, int into "
+	            "unsigned, 64-bit into float). They change no code: no speed cost.");
 	Place(s1p.body, lFormat, 420, y + 18 + 78, 600, 22);
 	y += 130;
 
