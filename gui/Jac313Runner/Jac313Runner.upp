@@ -14,9 +14,6 @@ file
 	../JTextGui/jText/src/parser/line.cpp,
 	../JTextGui/jText/src/parser/section.cpp;
 
-link(GCC)
-	-fcontracts;
-
 mainconfig
 	"" = "GUI WAYLAND";
 
