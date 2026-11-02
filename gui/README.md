@@ -18,14 +18,15 @@ when it needs it). `<root>` is the folder that holds `v001/`, `v002/` and `gui/`
    `bootstrap.sh` until 2026-10-23). After its one "Install everything?" and one sudo password
    it builds `jac313_test_cli`, installs the GUI's build libraries (GTK3, libnotify, FreeType,
    Fontconfig, X11), installs U++ from
-   [upp_basefix](https://github.com/JayACarlsonAtHome/upp_basefix) into `$HOME/upp_basefix`
+   [upp_basefix](https://github.com/JayACarlsonAtHome/upp_basefix) into `upp_basefix_install`
+   beside this repository
    (U++ pinned to a GitHub commit plus patches: 0 warnings, sanitizer and valgrind clean),
    builds `gui/out/Jac313Runner` and opens it:
    ```
    cd <root>/v002 && ./bsir.sh
    ```
-   An upp_basefix install in `$UPP_DIR` (default `$HOME/upp_basefix`) is updated when its clone
-   has moved on, and the build after an update rebuilds everything. Any other `umk` + `uppsrc`
+   An upp_basefix install in `$UPP_DIR` (default `upp_basefix_install` beside this repository) is updated when its clone
+   has moved on; the clone follows the branch this checkout is on, when upp_basefix has it, and the build after an update rebuilds everything. Any other `umk` + `uppsrc`
    there is used as it is. `./bsir.sh --no-gui` leaves out U++, the Runner and DBeaver.
 2. **Rebuild later:**
    ```
@@ -72,14 +73,42 @@ cd v002 && ./jac313_test_cli gui-build JTextGui   # the editor -> <root>/gui/out
 ```
 
 umk and its uppsrc come as a pair from one U++ install (the jac314 `gui_build` rule):
-`$UPP_DIR`, else `$HOME/upp_basefix`, else `$HOME/u++`.
+`$UPP_DIR`, else `upp_basefix_install` beside this repository. The clone is `upp_basefix` and
+its work area `upp_basefix_work`, both beside it too.
 By hand, with the upp_basefix install:
 
 ```
-U=$HOME/upp_basefix
-$U/umk <root>/gui,$U/uppsrc Jac313Runner GCC -brsH <root>/gui/out/Jac313Runner
-$U/umk <root>/gui,$U/uppsrc JTextGui GCC -brsH <root>/gui/out/JTextGui
+U=<root>/../upp_basefix_install
+$U/umk <root>/gui,$U/uppsrc Jac313Runner $U/GCC.bm -brsH <root>/gui/out/Jac313Runner
+$U/umk <root>/gui,$U/uppsrc JTextGui $U/GCC.bm -brsH <root>/gui/out/JTextGui
 ```
+
+Name the method by path. By name, umk looks in its config folders first and writes a default of
+its own when it finds none.
+
+The folders, all side by side (`<root>` is `~/git/jac313` here):
+
+```
+~/git/jac313                the project
+~/git/upp_basefix           the upp_basefix clone: follows the branch the project is on
+~/git/upp_basefix_install   umk, uppsrc, GCC.bm, CLANG.bm, VERSION
+~/git/upp_basefix_work      the download, the trees, the build of umk
+```
+
+C++23 is the minimum: `gui-build` refuses a method that asks for less. `-fcontracts` on the link
+is not in the `.upp` files: `upp_basefix install` writes it into `GCC.bm` only for a GCC with
+native contracts (GCC 16). An older GCC's driver would turn it into `-lstdc++exp`, which
+gcc-toolset-15 on RHEL does not ship.
+
+### COMPILED-IN-DIR: a program runs only where it was compiled
+
+`jac313_test_cli`, the `jac313_wipe_*` tools, `Jac313Runner` and `JTextGui` hold the folder they
+were compiled in. Moved, copied or on a different mount path, they stop with exit code 3 and ask
+for a rebuild; the two windows also say so in a dialog when there is a display. `./bsir.sh` is
+the rebuild: it removes build folders made for another path and builds again. `gui-build` keeps
+`gui/out/<package>.compiled_in` and rebuilds everything when that path changes, because umk's
+cache can outlive a move. The test, bench and example programs do not check: the gates build them
+right before running them.
 
 Both packages have `options "-Wformat=2 -Werror=format"` in their `.upp`: a printf-style call
 whose arguments do not match its format (such as a 64-bit value given to `%d`) fails the

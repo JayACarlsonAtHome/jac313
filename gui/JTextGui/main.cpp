@@ -9,6 +9,7 @@
 #include "jtext_gui/core/spreadsheet.hpp"
 #include "parser/section.hpp"
 
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <memory>
@@ -2746,8 +2747,44 @@ struct JTextGui : TopWindow {
 	}
 };
 
+// COMPILED-IN-DIR: this program works only where it was compiled, <gui>/out beside the source
+// (__FILE__ is absolute under umk). Moved or copied, it asks for a rebuild.
+static String CompiledInDirMismatch()
+{
+	namespace fs = std::filesystem;
+	std::error_code ec;
+	const fs::path exe = fs::canonical("/proc/self/exe", ec);
+	if(ec)
+		return String();
+	const fs::path compiled = fs::weakly_canonical(fs::path(__FILE__), ec).parent_path().parent_path();
+	if(ec || exe.parent_path().parent_path() == compiled)
+		return String();
+	return String() << exe.filename().string().c_str() << ": compiled in " << compiled.string().c_str()
+	                << " but running from " << exe.parent_path().string().c_str() << ". Rebuild it: run ./bsir.sh.";
+}
+
+static bool RefuseWithoutDisplay()
+{
+	const String why = CompiledInDirMismatch();
+	if(why.IsEmpty() || GetEnv("WAYLAND_DISPLAY").GetCount() || GetEnv("DISPLAY").GetCount())
+		return false;
+	Cerr() << why << "\n";
+	SetExitCode(3);
+	return true;
+}
+
+#undef GUI_APP_MAIN_HOOK
+#define GUI_APP_MAIN_HOOK if(RefuseWithoutDisplay()) { UPP::AppExit__(); return UPP::GetExitCode(); }
+
 GUI_APP_MAIN
 {
+	const String mismatch = CompiledInDirMismatch();
+	if(mismatch.GetCount()) {
+		Cerr() << mismatch << "\n";
+		Exclamation(DeQtf(mismatch));
+		SetExitCode(3);
+		return;
+	}
 	JTextGui w;
 	w.Run();
 	if (w.selfTestRc >= 0)

@@ -168,3 +168,9 @@ target_include_directories(jac313_wipe_jac PRIVATE ${CMAKE_SOURCE_DIR}/shared)  
 if(TARGET jac313::Qlite)
     target_link_libraries(jac313_wipe_jac PRIVATE jac313::Qlite)
 endif()
+
+# COMPILED-IN-DIR: where these programs were compiled; each refuses to run anywhere else.
+foreach(tool jac313_test_cli jac313_wipe_all jac313_wipe_one jac313_wipe_jac)
+    target_compile_definitions(${tool} PRIVATE JAC313_COMPILED_IN_DIR="${CMAKE_SOURCE_DIR}")
+    target_include_directories(${tool} PRIVATE ${CMAKE_SOURCE_DIR}/shared)
+endforeach()

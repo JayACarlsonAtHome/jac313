@@ -5,6 +5,7 @@
 // from what's left. A dedicated tool so the machine-scoped delete is
 // reliable without re-deriving the SQL. The machine is named as --<G>: the machine_id, i.e. the ### in
 // jac313-### (e.g. --1 = jac313-001, --8 = jac313-008). --dry-run / --yes are mutually exclusive.
+#include "jac313_compiled_in_dir.hpp"
 #include "jac313_results_db.hpp"   // jac313::results — shared schema + helpers (pulls in Qlite + Sqlite)
 
 #include <cstdint>
@@ -15,6 +16,7 @@
 namespace fs = std::filesystem;
 
 int main(int argc, char** argv) {
+    jac313::require_compiled_in_dir();
     fs::path src = ".";
     bool dry = false, yes = false;
     std::int64_t gid = -1;

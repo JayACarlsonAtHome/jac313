@@ -2,6 +2,7 @@
 // Discovers CTest entries from a build tree, runs them with captured output,
 // and prints a summary. No shell scripts required.
 
+#include "jac313_compiled_in_dir.hpp"
 #include "contract_modes.hpp"
 #include "build_pipeline.hpp"
 #include "compiler.hpp"
@@ -3643,8 +3644,8 @@ static int run_main(int argc, char** argv) {
     }
     if (command == "gui-build") {   // build a U++ GUI package under <root>/gui with umk (no shell script)
         // umk and its uppsrc come as a pair from one U++ install (jac314 gui_build rule):
-        // $UPP_DIR, else $HOME/upp_basefix (upp_basefix.sh install: the pinned, patched U++),
-        // else $HOME/u++/{umk,uppsrc}. No fixed drive paths: the repository can be anywhere.
+        // $UPP_DIR, else upp_basefix_install beside this repository (upp_basefix.sh install: the
+        // pinned, patched U++). No fixed drive paths: the repository can be anywhere.
         fs::path src = fs::current_path();
         std::vector<std::string> packages;
         std::string method = "GCC";   // a U++ build method (GCC uses the g++ on PATH; CLANG uses clang++)
@@ -3660,7 +3661,7 @@ static int run_main(int argc, char** argv) {
                              "  The GUI is version-independent: it sits beside the vNNN folders, not inside one.\n"
                              "  --method picks the U++ build method (default GCC). An upp_basefix install has\n"
                              "  GCC.bm and CLANG.bm next to its umk. U++ is taken from $UPP_DIR, else\n"
-                             "  $HOME/upp_basefix, else $HOME/u++.\n"
+                             "  upp_basefix_install beside this repository.\n"
                              "  The build method must ask for C++23 or later; gui-build refuses any other.\n"
                              "  --clean rebuilds everything (umk -a). Use it when the link fails with undefined\n"
                              "  references: U++ shares one object cache per method, and stale objects break links.\n";
@@ -3675,15 +3676,15 @@ static int run_main(int argc, char** argv) {
         const char* home = std::getenv("HOME");
         std::vector<std::pair<fs::path, fs::path>> pairs;   // (umk, uppsrc) in preference order
         if (const char* d = std::getenv("UPP_DIR"); d && *d) pairs.emplace_back(fs::path(d) / "umk", fs::path(d) / "uppsrc");
-        if (home) pairs.emplace_back(fs::path(home) / "upp_basefix/umk", fs::path(home) / "upp_basefix/uppsrc");
-        if (home) pairs.emplace_back(fs::path(home) / "u++/umk", fs::path(home) / "u++/uppsrc");
+        const fs::path install = vdir.parent_path().parent_path() / "upp_basefix_install";
+        pairs.emplace_back(install / "umk", install / "uppsrc");
         fs::path umk, uppsrc;
         for (const auto& [u, s] : pairs) {
             std::error_code ec;
             if (fs::is_regular_file(u, ec) && fs::is_directory(s, ec)) { umk = u; uppsrc = s; break; }
         }
         if (umk.empty()) {
-            std::cerr << "gui-build: no umk + uppsrc pair found (looked in $UPP_DIR, $HOME/upp_basefix and $HOME/u++);\n"
+            std::cerr << "gui-build: no umk + uppsrc pair found (looked in $UPP_DIR and " << vdir.parent_path().parent_path().string() << "/upp_basefix_install);\n"
                          "  ./bsir.sh installs U++ (upp_basefix)\n";
             return 1;
         }
@@ -3729,12 +3730,19 @@ static int run_main(int argc, char** argv) {
             const fs::path out = gui / "out" / pkg;
             std::error_code ec;
             fs::create_directories(out.parent_path(), ec);
+            // Each window holds the folder it was compiled in, and umk's cache can outlive a move
+            // (a moved file keeps its time): a build in a new place compiles everything.
+            const fs::path stamp = out.parent_path() / (pkg + ".compiled_in");
+            std::string built_in;
+            { std::ifstream in(stamp); std::getline(in, built_in); }
+            const bool rebuild_all = clean || built_in != fs::weakly_canonical(gui, ec).string();
             std::cout << "gui-build: " << pkg << "  (umk " << umk.string() << ", " << method << ")\n";
-            const auto r = run_process({umk.string(), gui.string() + "," + uppsrc.string(), pkg, method, clean ? "-abrsH" : "-brsH",
+            const auto r = run_process({umk.string(), gui.string() + "," + uppsrc.string(), pkg, method, rebuild_all ? "-abrsH" : "-brsH",
                                         out.string()}, 1800);
             std::cout << r.stdout_text;
             std::cerr << r.stderr_text;
             const bool ok = r.exit_code == 0 && fs::exists(out, ec);
+            if (ok) { std::ofstream(stamp) << fs::weakly_canonical(gui, ec).string() << "\n"; }
             std::cout << (ok ? "gui-build: OK  -> " : "gui-build: FAILED  ") << out.string() << "\n";
             if (!ok) rc = 1;
         }
@@ -4281,6 +4289,7 @@ static int run_main(int argc, char** argv) {
 // A settings table that does not read (Setup/*.jtext, tests/*.jtext) ends the command with its
 // reason, not with an uncaught exception.
 int main(int argc, char** argv) {
+    jac313::require_compiled_in_dir();
     int rc = 1;
     try {
         rc = run_main(argc, argv);

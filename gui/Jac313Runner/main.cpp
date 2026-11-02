@@ -22,6 +22,7 @@
 //   Layout check (needs a display; writes PNGs of the three screens, then exits):
 //     Jac313Runner --snap DIR --summary FILE [--jtext FILE]
 #include <CtrlLib/CtrlLib.h>
+#include <filesystem>
 #include <plugin/png/png.h>
 #include <signal.h>
 #include <unistd.h>
@@ -167,6 +168,32 @@ static int DumpAi(const String& file, const String& jtext)
 }
 
 // Returns true when a headless mode ran (the process then exits without a window).
+// COMPILED-IN-DIR: this program works only where it was compiled, <gui>/out beside the source
+// (__FILE__ is absolute under umk). Moved or copied, it asks for a rebuild.
+static String CompiledInDirMismatch()
+{
+	namespace fs = std::filesystem;
+	std::error_code ec;
+	const fs::path exe = fs::canonical("/proc/self/exe", ec);
+	if(ec)
+		return String();
+	const fs::path compiled = fs::weakly_canonical(fs::path(__FILE__), ec).parent_path().parent_path();
+	if(ec || exe.parent_path().parent_path() == compiled)
+		return String();
+	return String() << exe.filename().string().c_str() << ": compiled in " << compiled.string().c_str()
+	                << " but running from " << exe.parent_path().string().c_str() << ". Rebuild it: run ./bsir.sh.";
+}
+
+static bool RefuseWithoutDisplay()
+{
+	const String why = CompiledInDirMismatch();
+	if(why.IsEmpty() || GetEnv("WAYLAND_DISPLAY").GetCount() || GetEnv("DISPLAY").GetCount())
+		return false;
+	Cerr() << why << "\n";
+	SetExitCode(3);
+	return true;
+}
+
 static bool HeadlessMain()
 {
 	const Vector<String>& a = CommandLine();
@@ -198,6 +225,11 @@ static bool HeadlessMain()
 	}
 	if(!mode)
 		return false;
+	if(const String why = CompiledInDirMismatch(); why.GetCount()) {
+		Cerr() << why << "\n";
+		SetExitCode(3);
+		return true;
+	}
 	int rc = mode == 1 ? DumpCommand() : mode == 2 ? DumpJText(file) : mode == 3 ? DumpSummary(file)
 	       : mode == 4 ? DumpAi(file, aiJText) : DumpConnections(file);
 	SetExitCode(rc);
@@ -205,7 +237,7 @@ static bool HeadlessMain()
 }
 
 #undef GUI_APP_MAIN_HOOK
-#define GUI_APP_MAIN_HOOK if(HeadlessMain()) { UPP::AppExit__(); return UPP::GetExitCode(); }
+#define GUI_APP_MAIN_HOOK if(RefuseWithoutDisplay() || HeadlessMain()) { UPP::AppExit__(); return UPP::GetExitCode(); }
 
 // ======================================================================= helpers
 
@@ -2681,6 +2713,13 @@ static void Snap(Runner& w, const String& file)
 
 GUI_APP_MAIN
 {
+	const String mismatch = CompiledInDirMismatch();
+	if(mismatch.GetCount()) {
+		Cerr() << mismatch << "\n";
+		Exclamation(DeQtf(mismatch));
+		SetExitCode(3);
+		return;
+	}
 	String summary, jtext, snap;
 	bool autostart = false, copyAiStep = false, reportsStep = false, testRemote = false, testLocal = false, allowRoot = false, setupPg = false;
 	String connSaveHost;

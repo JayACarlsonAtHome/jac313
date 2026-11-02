@@ -3,6 +3,7 @@
 // package_version, io_best_fit) are cleared; testControl (test timeouts) is configuration and
 // stays. A dedicated tool so the reset is reliable and repeatable without re-deriving the SQL.
 // --dry-run and --yes are mutually exclusive.
+#include "jac313_compiled_in_dir.hpp"
 #include "jac313_results_db.hpp"   // jac313::results — shared schema + helpers (pulls in Qlite + Sqlite)
 
 #include <cstdint>
@@ -13,6 +14,7 @@
 namespace fs = std::filesystem;
 
 int main(int argc, char** argv) {
+    jac313::require_compiled_in_dir();
     fs::path src = ".";
     bool dry = false, yes = false;
     for (int i = 1; i < argc; ++i) {

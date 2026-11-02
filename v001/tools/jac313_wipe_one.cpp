@@ -8,6 +8,7 @@
 // Why the host cleanup is conditional: one jac313-### (machine_id) owns MANY runs (one machine row
 // per machine). Deleting that row while other runs of the same machine remain
 // would orphan them — so the machine entry is removed only when its last run goes.
+#include "jac313_compiled_in_dir.hpp"
 #include "jac313_results_db.hpp"   // jac313::results — shared schema + helpers (pulls in Qlite + Sqlite)
 
 #include <cstdint>
@@ -18,6 +19,7 @@
 namespace fs = std::filesystem;
 
 int main(int argc, char** argv) {
+    jac313::require_compiled_in_dir();
     fs::path src = ".";
     bool dry = false, yes = false;
     std::int64_t run_id = -1;

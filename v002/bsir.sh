@@ -23,11 +23,12 @@
 #
 #   6. A PostgreSQL 18 server for the PG local gate (role + database jac313).
 #   7. The GUI (skipped with --no-gui): the U++ GUI build libraries (recipe upp_gui), U++ from
-#      upp_basefix into $HOME/upp_basefix, Jac313Runner via `jac313_test_cli gui-build`, and
+#      upp_basefix into <base>/upp_basefix_install, Jac313Runner via `jac313_test_cli gui-build`, and
 #      DBeaver and Google Chrome (Open Reports in Chrome); then the Runner opens.
 #
 # Idempotent: re-run it any time; what is already there is left alone, except that an
-# upp_basefix install of U++ is updated when its clone has moved on.
+# upp_basefix install of U++ is updated when its clone has moved on. That clone follows the
+# branch this checkout is on.
 set -eu
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -50,7 +51,7 @@ for arg in "$@"; do
     -h|--help)
       echo "usage: ./bsir.sh [--yes] [--no-gui]"
       echo "Installs what is missing, builds the tests and the Jac313Runner window (U++ into"
-      echo "\$HOME/upp_basefix), adds DBeaver (a database browser) and Google Chrome (the reports),"
+      echo "upp_basefix_install beside this repository), adds DBeaver (a database browser) and Google Chrome (the reports),"
       echo "then opens the Runner."
       echo "  --yes      install everything that is missing without asking"
       echo "  --no-gui   no window: skip U++, the Runner, DBeaver and Chrome (e.g. a server without a screen)"
@@ -205,9 +206,10 @@ try_cxx() {  # $1 = activation prefix (may be empty), $2 = compiler name, $3 = v
 # commit, plus patches that make it build with 0 warnings and run clean under the sanitizers
 # and valgrind. Its patch 0001 also fixes the GCC 15 start-up crash of plain U++ 2026.1, so the
 # GUI is built with GCC again. An install is $UPP_DIR/{umk,uppsrc,GCC.bm,CLANG.bm}.
-UPP_DIR="${UPP_DIR:-$HOME/upp_basefix}"
+UPP_BASE="$(dirname "$(dirname "$ROOT")")"   # the folder this repository was cloned into
+UPP_DIR="${UPP_DIR:-$UPP_BASE/upp_basefix_install}"
 UPP_BASEFIX_REPO="${UPP_BASEFIX_REPO:-https://github.com/JayACarlsonAtHome/upp_basefix.git}"
-UPP_BASEFIX_SRC="${UPP_BASEFIX_SRC:-$HOME/upp_basefix_src}"   # its clone (the script, the patches)
+UPP_BASEFIX_SRC="${UPP_BASEFIX_SRC:-$UPP_BASE/upp_basefix}"   # its clone (the script, the patches)
 UPP_METHOD="GCC"
 
 upp_gui_libs_ok() {  # what U++ CtrlCore links for a GTK (Wayland-first) build, plus zlib (JTextGui .xlsx),
@@ -215,6 +217,21 @@ upp_gui_libs_ok() {  # what U++ CtrlCore links for a GTK (Wayland-first) build, 
   command -v patch >/dev/null 2>&1 && command -v rsync >/dev/null 2>&1 \
     && command -v pkg-config >/dev/null 2>&1 \
     && pkg-config --exists gtk+-3.0 libnotify freetype2 fontconfig x11 xinerama xrender xft xcb xext zlib
+}
+
+upp_follow_branch() {  # the clone goes to the branch this checkout is on, when upp_basefix has one by that name
+  upp_branch=$(git -C "$ROOT" symbolic-ref --short -q HEAD || true)
+  echo "Updating upp_basefix in $UPP_BASEFIX_SRC…"
+  if ! git -C "$UPP_BASEFIX_SRC" fetch -q origin; then
+    echo "(git fetch failed — offline? going on with the clone as it is)"; return 0
+  fi
+  if [ -n "$upp_branch" ] && git -C "$UPP_BASEFIX_SRC" show-ref --verify -q "refs/remotes/origin/$upp_branch"; then
+    git -C "$UPP_BASEFIX_SRC" checkout -q "$upp_branch" \
+      || echo "(cannot switch upp_basefix to $upp_branch — local changes there? staying where it is)"
+  else
+    echo "(upp_basefix has no branch ${upp_branch:-for a detached checkout}; staying on $(git -C "$UPP_BASEFIX_SRC" symbolic-ref --short -q HEAD || echo 'its commit'))"
+  fi
+  git -C "$UPP_BASEFIX_SRC" pull -q --ff-only || echo "(git pull failed — local changes? going on with the clone as it is)"
 }
 
 upp_install_commit() {  # the upp_basefix commit a $UPP_DIR install came from: first line of its VERSION
@@ -242,11 +259,9 @@ install_upp() {  # U++ into $UPP_DIR via upp_basefix; an upp_basefix install fol
       [ -n "$upp_have" ] && { echo "git clone failed (network?) — keeping U++ at $UPP_DIR (upp_basefix $upp_have) unchecked."; return 0; }
       echo "git clone failed (network?)."; return 1
     fi
-  elif [ -d "$UPP_BASEFIX_SRC/.git" ]; then
-    # an older clone may lack a fix (e.g. EPEL for xxhash-devel on RHEL): bring it up to date first
-    echo "Updating upp_basefix in $UPP_BASEFIX_SRC…"
-    git -C "$UPP_BASEFIX_SRC" pull -q --ff-only || echo "(git pull failed — offline or local changes; going on with the clone as it is)"
   fi
+  # an older clone may lack a fix (e.g. EPEL for xxhash-devel on RHEL): bring it up to date first
+  if [ -d "$UPP_BASEFIX_SRC/.git" ]; then upp_follow_branch; fi
   # An install from an older upp_basefix can lack patches or have its build methods where umk
   # does not read them; gui-build refuses a method below C++23.
   if [ -n "$upp_have" ]; then

@@ -44,7 +44,7 @@
 //   for: only the bootstrap's GUI step uses it (skipped with --no-gui), after its own
 //   pkg-config check. It installs GTK3 (U++'s Wayland-first GUI goes through GTK),
 //   libnotify, FreeType, Fontconfig and the X11 libs that U++ CtrlCore links. U++ itself
-//   comes from upp_basefix into $HOME/upp_basefix (pinned GitHub commit + SHA-256-checked
+//   comes from upp_basefix into upp_basefix_install beside the repository (pinned GitHub commit + SHA-256-checked
 //   tree, no sudo).
 // dbeaver: the GUI step (skipped with --no-gui): DBeaver Community, a database browser for
 //   results.db (SQLite) and the PostgreSQL / MariaDB tables. DBeaver's own package from its
