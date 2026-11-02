@@ -26,7 +26,8 @@
 #      upp_basefix into $HOME/upp_basefix, Jac313Runner via `jac313_test_cli gui-build`, and
 #      DBeaver and Google Chrome (Open Reports in Chrome); then the Runner opens.
 #
-# Idempotent: re-run it any time; what is already there is left alone.
+# Idempotent: re-run it any time; what is already there is left alone, except that an
+# upp_basefix install of U++ is updated when its clone has moved on.
 set -eu
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -216,22 +217,44 @@ upp_gui_libs_ok() {  # what U++ CtrlCore links for a GTK (Wayland-first) build, 
     && pkg-config --exists gtk+-3.0 libnotify freetype2 fontconfig x11 xinerama xrender xft xcb xext zlib
 }
 
-install_upp() {  # U++ into $UPP_DIR via upp_basefix; keeps an existing install with umk + uppsrc
+upp_install_commit() {  # the upp_basefix commit a $UPP_DIR install came from: first line of its VERSION
+  sed -n '1s/.*+ upp_basefix //p' "$UPP_DIR/VERSION" 2>/dev/null
+}
+
+install_upp() {  # U++ into $UPP_DIR via upp_basefix; an upp_basefix install follows its clone
+  upp_have=""   # the commit of an upp_basefix install already there; empty = nothing to fall back on
   if [ -x "$UPP_DIR/umk" ] && [ -d "$UPP_DIR/uppsrc" ]; then
-    echo "U++ found at $UPP_DIR ($(head -1 "$UPP_DIR/VERSION" 2>/dev/null || echo 'umk + uppsrc')) — using it."; return 0
-  fi
-  if [ -e "$UPP_DIR" ] && [ -n "$(ls -A "$UPP_DIR" 2>/dev/null)" ]; then
+    upp_have=$(upp_install_commit)
+    if [ -z "$upp_have" ]; then   # some other U++: upp_basefix install refuses to touch it, and so do we
+      echo "U++ found at $UPP_DIR (umk + uppsrc, not an upp_basefix install) — using it."; return 0
+    fi
+  elif [ -e "$UPP_DIR" ] && [ -n "$(ls -A "$UPP_DIR" 2>/dev/null)" ]; then
     echo "$UPP_DIR exists but has no umk + uppsrc. Not touching it: move it aside and re-run."
     return 1
   fi
   if [ ! -x "$UPP_BASEFIX_SRC/upp_basefix.sh" ]; then
-    command -v git >/dev/null 2>&1 || { echo "git missing — cannot fetch upp_basefix."; return 1; }
+    if ! command -v git >/dev/null 2>&1; then
+      [ -n "$upp_have" ] && { echo "git missing — keeping U++ at $UPP_DIR (upp_basefix $upp_have) unchecked."; return 0; }
+      echo "git missing — cannot fetch upp_basefix."; return 1
+    fi
     echo "Fetching upp_basefix -> $UPP_BASEFIX_SRC…"
-    git clone -q "$UPP_BASEFIX_REPO" "$UPP_BASEFIX_SRC" || { echo "git clone failed (network?)."; return 1; }
+    if ! git clone -q "$UPP_BASEFIX_REPO" "$UPP_BASEFIX_SRC"; then
+      [ -n "$upp_have" ] && { echo "git clone failed (network?) — keeping U++ at $UPP_DIR (upp_basefix $upp_have) unchecked."; return 0; }
+      echo "git clone failed (network?)."; return 1
+    fi
   elif [ -d "$UPP_BASEFIX_SRC/.git" ]; then
     # an older clone may lack a fix (e.g. EPEL for xxhash-devel on RHEL): bring it up to date first
     echo "Updating upp_basefix in $UPP_BASEFIX_SRC…"
     git -C "$UPP_BASEFIX_SRC" pull -q --ff-only || echo "(git pull failed — offline or local changes; going on with the clone as it is)"
+  fi
+  # An install from an older upp_basefix can lack patches or have its build methods where umk
+  # does not read them; gui-build refuses a method below C++23.
+  if [ -n "$upp_have" ]; then
+    upp_want=$(git -C "$UPP_BASEFIX_SRC" describe --always --dirty 2>/dev/null || true)
+    if [ -z "$upp_want" ] || [ "$upp_want" = "$upp_have" ]; then
+      echo "U++ found at $UPP_DIR ($(head -1 "$UPP_DIR/VERSION")) — using it."; return 0
+    fi
+    echo "U++ at $UPP_DIR is upp_basefix $upp_have; updating it to $upp_want…"
   fi
   export UPP_BASEFIX_FROM=jac313   # upp_basefix then skips its "Next: ..." hint for a person
   # upp_basefix's gcc is the RHEL toolset path in its bm/GCC15.bm, else plain g++ — on Ubuntu/Mint
@@ -254,6 +277,7 @@ install_upp() {  # U++ into $UPP_DIR via upp_basefix; keeps an existing install 
   fi
   "$UPP_BASEFIX_SRC/upp_basefix.sh" install "$UPP_DIR" || { echo "upp_basefix install failed."; return 1; }
   echo "Installed $(head -1 "$UPP_DIR/VERSION") -> $UPP_DIR"
+  UPP_UPDATED=1   # objects from the U++ before this one must not be linked in: the next build is --clean
 }
 
 bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner
@@ -285,7 +309,9 @@ bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner
   install_upp || return 1
   # U++ keeps one object cache per build method; stale objects from an older U++ break the link,
   # so a failed build is retried once with --clean (rebuild everything).
-  ( cd "$ROOT" && UPP_DIR="$UPP_DIR" $ACT "$CLI" gui-build --method "$UPP_METHOD" ) \
+  gui_clean=""
+  if [ "${UPP_UPDATED:-0}" = 1 ]; then gui_clean="--clean"; fi
+  ( cd "$ROOT" && UPP_DIR="$UPP_DIR" $ACT "$CLI" gui-build --method "$UPP_METHOD" $gui_clean ) \
     || { echo "Retrying with a clean rebuild (stale U++ cache)…"; ( cd "$ROOT" && UPP_DIR="$UPP_DIR" $ACT "$CLI" gui-build --method "$UPP_METHOD" --clean ); } \
     || { echo "gui-build failed."; return 1; }
   install_dbeaver || true   # optional; the GUI is ready either way

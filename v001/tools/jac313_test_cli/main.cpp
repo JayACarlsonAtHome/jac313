@@ -3661,6 +3661,7 @@ static int run_main(int argc, char** argv) {
                              "  --method picks the U++ build method (default GCC). An upp_basefix install has\n"
                              "  GCC.bm and CLANG.bm next to its umk. U++ is taken from $UPP_DIR, else\n"
                              "  $HOME/upp_basefix, else $HOME/u++.\n"
+                             "  The build method must ask for C++23 or later; gui-build refuses any other.\n"
                              "  --clean rebuilds everything (umk -a). Use it when the link fails with undefined\n"
                              "  references: U++ shares one object cache per method, and stale objects break links.\n";
                 return 0;
@@ -3685,6 +3686,43 @@ static int run_main(int argc, char** argv) {
             std::cerr << "gui-build: no umk + uppsrc pair found (looked in $UPP_DIR, $HOME/upp_basefix and $HOME/u++);\n"
                          "  ./bsir.sh installs U++ (upp_basefix)\n";
             return 1;
+        }
+        // umk looks a method name up in its config dirs before the folder it sits in, and writes a
+        // default theide/GCC.bm there on its first run, which would shadow the install's GCC.bm.
+        // So the .bm is found here and passed by path, and C++23 is the least it may ask for.
+        {
+            std::error_code ec;
+            fs::path bm = method;
+            if (method.find('/') == std::string::npos) {
+                const std::string file = method + ".bm";
+                std::vector<fs::path> places = {umk.parent_path() / file, umk.parent_path() / ".config/u++/theide" / file};
+                if (home) places.push_back(fs::path(home) / ".config/u++/theide" / file);
+                bm.clear();
+                for (const auto& p : places) {
+                    if (fs::is_regular_file(p, ec)) { bm = p; break; }
+                }
+            }
+            if (bm.empty() || !fs::is_regular_file(bm, ec)) {
+                std::cerr << "gui-build: no build method " << method << " for " << umk.string()
+                          << ": umk would write its own default. ./bsir.sh installs U++ with its methods\n";
+                return 1;
+            }
+            std::string standard;
+            std::ifstream bm_in(bm);
+            for (std::string line; std::getline(bm_in, line);) {
+                std::smatch m;
+                static const std::regex std_flag(R"(COMMON_CPP_OPTIONS.*-std=(?:c|gnu)\+\+(\w+))");
+                if (std::regex_search(line, m, std_flag)) standard = m[1].str();
+            }
+            // 23, 26, ... and the working names 2b, 2c, ...; not 98, 17, 20 or 2a (C++20)
+            const bool enough = standard.size() == 2 && standard[0] == '2' && standard[1] >= '3' && standard[1] != 'a';
+            if (!enough) {
+                std::cerr << "gui-build: " << bm.string() << " asks for "
+                          << (standard.empty() ? std::string("no C++ standard") : "C++" + standard)
+                          << "; the GUI needs C++23 or later. Update U++: ./bsir.sh\n";
+                return 1;
+            }
+            method = bm.string();
         }
         int rc = 0;
         for (const auto& pkg : packages) {

@@ -24,14 +24,16 @@ when it needs it). `<root>` is the folder that holds `v001/`, `v002/` and `gui/`
    ```
    cd <root>/v002 && ./bsir.sh
    ```
-   An existing install with `umk` and `uppsrc` in `$UPP_DIR` (default `$HOME/upp_basefix`) is
-   used as it is. `./bsir.sh --no-gui` leaves out U++, the Runner and DBeaver.
+   An upp_basefix install in `$UPP_DIR` (default `$HOME/upp_basefix`) is updated when its clone
+   has moved on, and the build after an update rebuilds everything. Any other `umk` + `uppsrc`
+   there is used as it is. `./bsir.sh --no-gui` leaves out U++, the Runner and DBeaver.
 2. **Rebuild later:**
    ```
    cd <root>/v002 && ./jac313_test_cli gui-build              # GCC; --method CLANG for clang
    ```
    An upp_basefix install has `GCC.bm` and `CLANG.bm` next to its `umk`, naming the compilers
-   by path (gcc-toolset-15 on RHEL), so no toolset shell is needed. Its patch 0001 fixes the
+   by path (gcc-toolset-15 on RHEL), so no toolset shell is needed. C++23 is the minimum:
+   `gui-build` passes the method by path and refuses one that asks for less. Its patch 0001 fixes the
    GCC 15 start-up crash plain U++ 2026.1 had. If a link fails with undefined references, the
    U++ cache holds stale objects: add `--clean` (rebuild everything). Bootstrap retries once
    with `--clean` by itself.
