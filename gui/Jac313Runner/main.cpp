@@ -263,11 +263,14 @@ static String StripAnsi(const String& s)
 }
 
 // "  [116/172] 006_TS | sqlite | off ... PASS (812 ms)" -> i=116 n=172, true
+// The index is padded to the total's width: "[  7/172]".
 static bool ParseProgress(const String& line, int& i, int& n)
 {
 	int p = 0;
 	while((p = line.Find('[', p)) >= 0) {
 		const char *s = ~line + p + 1;
+		while(*s == ' ')
+			s++;
 		if(IsDigit(*s)) {
 			int a = 0, b = 0;
 			while(IsDigit(*s)) a = a * 10 + (*s++ - '0');
@@ -1511,9 +1514,11 @@ void Runner::Feed(const String& chunk)
 		int i, n;
 		if(ParseProgress(line, i, n)) {
 			prog.Set(min(i, n), n);
-			if(HasWord(line, "FAIL") || HasWord(line, "FAILED"))
+			// valgrind tasks say "clean", "VALGRIND ERRORS (n)", "TEST FAIL", "LAUNCH-FAIL" or "MISSING BINARY"
+			if(HasWord(line, "FAIL") || HasWord(line, "FAILED") || HasWord(line, "ERROR") || HasWord(line, "ERRORS")
+			   || HasWord(line, "MISSING"))
 				nFail++;
-			else if(HasWord(line, "PASS") || HasWord(line, "PASSED"))
+			else if(HasWord(line, "PASS") || HasWord(line, "PASSED") || HasWord(line, "clean"))
 				nPass++;
 			counts.SetText(Format("pass %d fail %d", nPass, nFail));
 		}

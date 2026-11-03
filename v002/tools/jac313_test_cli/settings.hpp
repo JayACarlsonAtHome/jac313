@@ -76,6 +76,9 @@ std::vector<jac313::Setup::v002::Toolchain> load_toolchains(const std::filesyste
 // The recipes of <source_dir>/Setup/recipes.jtext, in table order, each with its install command
 // per OS family (recipe_os rows).
 std::vector<jac313::Setup::v002::ProvisionRecipe> load_recipes(const std::filesystem::path& source_dir);
+// The version of `tool` this OS family must use (pinned_tools in Setup/recipes.jtext); '' = no pin.
+std::string pinned_tool_version(const std::filesystem::path& source_dir, const std::string& os_family,
+                                const std::string& tool);
 
 // ---- compiler pin (Setup/compilers.pin.jtext): committed, per-machine {gcc, clang} labels ----
 // A row is keyed on the machine (cpu, cores, ram_gb, disk); os is information only. A row written

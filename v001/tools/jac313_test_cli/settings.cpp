@@ -106,6 +106,12 @@ SettingsTable read_with_local(const fs::path& path, std::string_view section) {
 fs::path compilers_table_path(const fs::path& source_dir) { return source_dir / "Setup" / "compilers.jtext"; }
 fs::path recipes_table_path(const fs::path& source_dir) { return source_dir / "Setup" / "recipes.jtext"; }
 
+std::string pinned_tool_version(const fs::path& source_dir, const std::string& os_family, const std::string& tool) {
+    for (const auto& row : read_jtext_table(recipes_table_path(source_dir), "pinned_tools").rows)
+        if (row.at("os") == os_family && row.at("tool") == tool) return row.at("version");
+    return {};
+}
+
 fs::path local_override_path(const fs::path& tracked) {
     fs::path local = tracked;
     local.replace_extension(".local.jtext");

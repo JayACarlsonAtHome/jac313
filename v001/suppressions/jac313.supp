@@ -36,3 +36,23 @@
    fun:store
    ...
 }
+
+# libp11-kit's library destructor (Ubuntu/Mint 0.25; loaded through libpq -> libldap -> libgnutls)
+# calls pthread_mutex_destroy at process exit on mutexes helgrind and DRD say are not valid. Proven
+# outside jac313: an empty main() linked only to libp11-kit gets these two errors under valgrind
+# 3.22 and 3.27.1, and without that library it gets none. Scoped to libp11-kit called directly
+# from the exit-time destructor runner.
+{
+   jac313-helgrind-libp11-kit-exit-mutex-destroy
+   Helgrind:Misc
+   ...
+   obj:*/libp11-kit.so*
+   fun:_dl_call_fini
+}
+{
+   jac313-drd-libp11-kit-exit-mutex-destroy
+   drd:MutexErr
+   ...
+   obj:*/libp11-kit.so*
+   fun:_dl_call_fini
+}

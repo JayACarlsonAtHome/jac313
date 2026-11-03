@@ -54,6 +54,11 @@
 //   "Open Reports in Chrome". Google's own repository, so dnf / apt check Google's
 //   signature and keep Chrome updated. Google ships Chrome for Linux on x86_64 only.
 //
+// pinned_tools: a tool version an OS family must use. bsir.sh builds it from source into
+//   <tool>_install beside the repository (no sudo), and the gate refuses any other version. Mint's
+//   valgrind 3.22 reports false errors inside glibc's condition wait; 3.27.1 does not. The system
+//   valgrind package stays installed for its headers and libc6-dbg. No row = the system's version.
+//
 // Formatter ^~ on the data rows (splice ^, comment ~): the commands hold |, ', &&, $(...),
 // ; and {}, and bsir.sh reads this file with POSIX awk before anything is built. Keep one
 // row per line and no comments on data rows.
@@ -123,7 +128,7 @@
  1. ^~ 24^linuxmint^vim^sudo apt-get install -y vim
  1. ^~ 25^rhel^valgrind^sudo dnf install -y valgrind valgrind-devel
  1. ^~ 26^fedora^valgrind^sudo dnf install -y valgrind valgrind-devel
- 1. ^~ 27^linuxmint^valgrind^sudo apt-get install -y valgrind
+ 1. ^~ 27^linuxmint^valgrind^sudo apt-get install -y valgrind libc6-dbg make bzip2 curl
  1. ^~ 28^rhel^upp_gui^sudo dnf install -y 'pkgconfig(gtk+-3.0)' 'pkgconfig(libnotify)' 'pkgconfig(freetype2)' 'pkgconfig(fontconfig)' 'pkgconfig(x11)' 'pkgconfig(xinerama)' 'pkgconfig(xrender)' 'pkgconfig(xft)' 'pkgconfig(xcb)' 'pkgconfig(xext)' 'pkgconfig(expat)' bzip2-devel zlib-devel openssl-devel make patch rsync
  1. ^~ 29^fedora^upp_gui^sudo dnf install -y 'pkgconfig(gtk+-3.0)' 'pkgconfig(libnotify)' 'pkgconfig(freetype2)' 'pkgconfig(fontconfig)' 'pkgconfig(x11)' 'pkgconfig(xinerama)' 'pkgconfig(xrender)' 'pkgconfig(xft)' 'pkgconfig(xcb)' 'pkgconfig(xext)' 'pkgconfig(expat)' bzip2-devel zlib-devel openssl-devel make patch rsync
  1. ^~ 30^linuxmint^upp_gui^sudo apt-get install -y libgtk-3-dev libnotify-dev libfreetype-dev libfontconfig-dev libx11-dev libxinerama-dev libxrender-dev libxft-dev libxcb1-dev libxext-dev libexpat1-dev libbz2-dev zlib1g-dev libssl-dev make pkg-config patch rsync
@@ -133,6 +138,20 @@
  1. ^~ 34^rhel^chrome^[ "$(uname -m)" = x86_64 ] || { echo "Google Chrome: no Linux package for $(uname -m)"; exit 1; }; printf '[google-chrome]\nname=google-chrome\nbaseurl=https://dl.google.com/linux/chrome/rpm/stable/x86_64\nenabled=1\ngpgcheck=1\ngpgkey=https://dl.google.com/linux/linux_signing_key.pub\n' | sudo tee /etc/yum.repos.d/google-chrome.repo >/dev/null && sudo dnf install -y google-chrome-stable
  1. ^~ 35^fedora^chrome^[ "$(uname -m)" = x86_64 ] || { echo "Google Chrome: no Linux package for $(uname -m)"; exit 1; }; printf '[google-chrome]\nname=google-chrome\nbaseurl=https://dl.google.com/linux/chrome/rpm/stable/x86_64\nenabled=1\ngpgcheck=1\ngpgkey=https://dl.google.com/linux/linux_signing_key.pub\n' | sudo tee /etc/yum.repos.d/google-chrome.repo >/dev/null && sudo dnf install -y google-chrome-stable
  1. ^~ 36^linuxmint^chrome^[ "$(dpkg --print-architecture)" = amd64 ] || { echo "Google Chrome: no Linux package for $(dpkg --print-architecture)"; exit 1; }; curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor --yes -o /usr/share/keyrings/google-chrome.gpg && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list >/dev/null && sudo apt-get update && sudo apt-get install -y google-chrome-stable
+=== End Data ===
+=== End Section ===
+
+=== Section: pinned_tools ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# os/String/Not Null/Not Empty              # rhel | fedora | linuxmint
+ 3. /# tool/String/Not Null/Not Empty
+ 4. /# version/String/Not Null/Not Empty         # as the tool reports it, without its name
+ 5. /# url/String/Not Null/Not Empty             # source archive
+ 6. /# sha256/String/Not Null/Not Empty          # of that archive
+=== End Fields ===
+=== Data ===
+ 1. ^~ 1^linuxmint^valgrind^3.27.1^https://sourceware.org/pub/valgrind/valgrind-3.27.1.tar.bz2^5d589152eb8071c02feab8ce6ab719e431a1fbc3e2b1700f5432632a8b9264dc
 === End Data ===
 === End Section ===
 === End File ===

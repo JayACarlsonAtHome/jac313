@@ -589,6 +589,44 @@ if [ -n "$missing" ]; then
   echo
 fi
 
+# --- 3a. a valgrind version this OS must use (pinned_tools in Setup/recipes.jtext) ---
+# Built from source beside this repository, no sudo. A failure here is loud but does not stop the
+# other steps: the valgrind gates refuse to run until the right version is there.
+install_pinned_valgrind() {
+  local want url sha dir tmp
+  want=$(jtext_select "$RECIPES" pinned_tools version tool valgrind os "$family" | head -n1)
+  [ -n "$want" ] || return 0
+  url=$(jtext_select "$RECIPES" pinned_tools url tool valgrind os "$family" | head -n1)
+  sha=$(jtext_select "$RECIPES" pinned_tools sha256 tool valgrind os "$family" | head -n1)
+  dir="$UPP_BASE/valgrind_install"
+  if [ "$("$dir/bin/valgrind" --version 2>/dev/null)" = "valgrind-$want" ]; then
+    echo "Valgrind: $want at $dir"
+    return 0
+  fi
+  echo
+  echo "=== valgrind $want into $dir (this OS must use it; built from source, no sudo) ==="
+  tmp=$(mktemp -d) || return 1
+  (
+    cd "$tmp" &&
+    curl -fsSL -o valgrind.tar.bz2 "$url" &&
+    echo "$sha  valgrind.tar.bz2" | sha256sum -c --quiet - &&
+    tar xjf valgrind.tar.bz2 &&
+    cd "valgrind-$want" &&
+    ./configure --prefix="$dir" > configure.log 2>&1 &&
+    make -j"$(nproc)" > make.log 2>&1 &&
+    rm -rf "$dir" &&
+    make install > install.log 2>&1
+  )
+  local rc=$?
+  rm -rf "$tmp"
+  if [ $rc -ne 0 ] || [ "$("$dir/bin/valgrind" --version 2>/dev/null)" != "valgrind-$want" ]; then
+    echo "  [FAIL] valgrind $want was not built (see above): the verify gates will refuse to run."
+    return 1
+  fi
+  echo "  [ok] $("$dir/bin/valgrind" --version)"
+}
+install_pinned_valgrind || true
+
 echo "Bootstrap compiler: ${ACT:+[$ACT] }$CXX"
 echo "Ninja: $(ninja --version)   CMake: $(cmake --version | head -n1)"
 

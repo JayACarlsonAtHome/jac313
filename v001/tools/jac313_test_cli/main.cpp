@@ -2528,7 +2528,23 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
               << " ===\n\n";
 
     // 1. valgrind must be present (it's the whole point of the gate).
-    const auto vg_probe = run_process({"valgrind", "--version"});
+    // An OS with a pinned version (Setup/recipes.jtext) uses the one bsir.sh built beside the repository.
+    std::string valgrind_exe = "valgrind", vg_pinned;
+    try {
+        vg_pinned = pinned_tool_version(global.source_dir, jac313::Setup::v001::sense_host().os_family, "valgrind");
+    } catch (const std::exception& e) {
+        std::cerr << name << ": " << e.what() << '\n';
+        return 1;
+    }
+    if (!vg_pinned.empty())
+        valgrind_exe = (fs::weakly_canonical(fs::absolute(global.source_dir)).parent_path().parent_path()
+                        / "valgrind_install" / "bin" / "valgrind").string();
+    const auto vg_probe = run_process({valgrind_exe, "--version"});
+    if (!vg_pinned.empty() && (!vg_probe.started || vg_probe.exit_code != 0)) {
+        std::cerr << name << ": this OS must use valgrind-" << vg_pinned << " at " << valgrind_exe
+                  << ", which is not there. Run ./bsir.sh to build it.\n";
+        return 1;
+    }
     if (!vg_probe.started || vg_probe.exit_code != 0) {
         std::cerr << "valgrind not found on PATH — " << name << " requires it.\n"
                      "  Debian/Mint:  sudo apt-get install -y valgrind\n"
@@ -2539,7 +2555,12 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
     while (!vg_version.empty() && (vg_version.back() == '\n' || vg_version.back() == '\r')) {
         vg_version.pop_back();
     }
-    std::cout << "valgrind: " << vg_version << "\n\n";
+    if (!vg_pinned.empty() && vg_version != "valgrind-" + vg_pinned) {
+        std::cerr << name << ": this OS must use valgrind-" << vg_pinned << " at " << valgrind_exe << ", found "
+                  << vg_version << ". Run ./bsir.sh to build it.\n";
+        return 1;
+    }
+    std::cout << "valgrind: " << vg_version << " (" << valgrind_exe << ")\n\n";
 
     // 2. Configure + build a dedicated annotated Debug tree (so helgrind/DRD see the
     //    lock-free handoff and the annotation flag never pollutes the normal build dir).
@@ -2691,7 +2712,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
             }
             return;
         }
-        std::vector<std::string> cmd = {"valgrind", "--tool=" + tool, "--error-exitcode=99"};
+        std::vector<std::string> cmd = {valgrind_exe, "--tool=" + tool, "--error-exitcode=99"};
         // Scrub known false positives (std::atomic load/store — helgrind/DRD can't model C++11
         // atomics) BEFORE counting/recording, so results.db only ever holds real errors.
         { const fs::path supp = global.source_dir / "suppressions" / "jac313.supp";
