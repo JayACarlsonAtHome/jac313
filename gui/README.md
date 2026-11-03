@@ -93,7 +93,7 @@ The folders, all side by side (`<root>` is `~/git/jac313` here):
 ~/git/upp_basefix           the upp_basefix clone: follows the branch the project is on
 ~/git/upp_basefix_install   umk, uppsrc, GCC.bm, CLANG.bm, VERSION
 ~/git/valgrind_install      Linux Mint only: the valgrind version it must use
-~/git/cmake_install         Linux Mint only: the CMake version it must use
+~/git/cmake_install         the CMake version every system uses
 ~/git/upp_basefix_work      the download, the trees, the build of umk
 ```
 
