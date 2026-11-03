@@ -31,7 +31,7 @@
 //   or PGDG libpq dev package, version 18+.
 // ninja: Ninja >= 1.11, required for C++23 module builds.
 // cmake: the baseline is CMake >= 3.26 and module builds want >= 3.28: the distro packages
-//   are enough.
+//   are enough, except where pinned_tools says otherwise.
 // vim: not needed by the build: an editor so a fresh machine has more than vi to fix files with.
 // valgrind: REQUIRED prerequisite. memcheck + helgrind + DRD all ship INSIDE the one valgrind
 //   package, so this single install covers the whole `matrix verify` / `verify-lite` gate.
@@ -54,10 +54,13 @@
 //   "Open Reports in Chrome". Google's own repository, so dnf / apt check Google's
 //   signature and keep Chrome updated. Google ships Chrome for Linux on x86_64 only.
 //
-// pinned_tools: a tool version an OS family must use. bsir.sh builds it from source into
-//   <tool>_install beside the repository (no sudo), and the gate refuses any other version. Mint's
-//   valgrind 3.22 reports false errors inside glibc's condition wait; 3.27.1 does not. The system
-//   valgrind package stays installed for its headers and libc6-dbg. No row = the system's version.
+// pinned_tools: a tool version an OS family must use. bsir.sh installs it into <tool>_install beside
+//   the repository (no sudo), and the tool that runs it refuses any other version. No row = the
+//   system's version.
+//   valgrind: Mint's 3.22 reports false errors inside glibc's condition wait; 3.27.1 does not. Built
+//   from source. The system valgrind package stays installed for its headers and libc6-dbg.
+//   cmake: Mint's 3.28 does not know cxx_std_26 for gcc, which v002 asks for. Kitware's x86_64
+//   build, with the sha256 Kitware publishes. The system cmake package stays installed.
 //
 // Formatter ^~ on the data rows (splice ^, comment ~): the commands hold |, ', &&, $(...),
 // ; and {}, and bsir.sh reads this file with POSIX awk before anything is built. Keep one
@@ -152,6 +155,7 @@
 === End Fields ===
 === Data ===
  1. ^~ 1^linuxmint^valgrind^3.27.1^https://sourceware.org/pub/valgrind/valgrind-3.27.1.tar.bz2^5d589152eb8071c02feab8ce6ab719e431a1fbc3e2b1700f5432632a8b9264dc
+ 1. ^~ 2^linuxmint^cmake^4.3.0^https://github.com/Kitware/CMake/releases/download/v4.3.0/cmake-4.3.0-linux-x86_64.tar.gz^201bdabe17a54e017f119cffa247648e9c44327e52473c2cc60a88fded94652a
 === End Data ===
 === End Section ===
 === End File ===

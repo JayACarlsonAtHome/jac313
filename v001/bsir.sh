@@ -594,9 +594,38 @@ if [ -n "$missing" ]; then
   echo
 fi
 
-# --- 3a. a valgrind version this OS must use (pinned_tools in Setup/recipes.jtext) ---
-# Built from source beside this repository, no sudo. A failure here is loud but does not stop the
-# other steps: the valgrind gates refuse to run until the right version is there.
+# --- 3a. the tool versions this OS must use (pinned_tools in Setup/recipes.jtext) ---
+# Installed beside this repository, no sudo. A failure here is loud but does not stop the other
+# steps: the gates that need the tool refuse to run until the right version is there.
+install_pinned_cmake() {
+  local want url sha dir tmp rc
+  want=$(jtext_select "$RECIPES" pinned_tools version tool cmake os "$family" | head -n1)
+  [ -n "$want" ] || return 0
+  url=$(jtext_select "$RECIPES" pinned_tools url tool cmake os "$family" | head -n1)
+  sha=$(jtext_select "$RECIPES" pinned_tools sha256 tool cmake os "$family" | head -n1)
+  dir="$UPP_BASE/cmake_install"
+  if [ "$("$dir/bin/cmake" --version 2>/dev/null | head -n1)" != "cmake version $want" ]; then
+    echo
+    echo "=== CMake $want into $dir (this OS must use it; no sudo) ==="
+    tmp=$(mktemp -d) || return 1
+    (
+      cd "$tmp" &&
+      curl -fsSL -o cmake.tar.gz "$url" &&
+      echo "$sha  cmake.tar.gz" | sha256sum -c --quiet - &&
+      rm -rf "$dir" && mkdir -p "$dir" &&
+      tar xzf cmake.tar.gz -C "$dir" --strip-components=1
+    )
+    rc=$?
+    rm -rf "$tmp"
+    if [ $rc -ne 0 ] || [ "$("$dir/bin/cmake" --version 2>/dev/null | head -n1)" != "cmake version $want" ]; then
+      echo "  [FAIL] CMake $want was not installed (see above): the builds will refuse to configure."
+      return 1
+    fi
+    echo "  [ok] CMake $want"
+  fi
+  export PATH="$dir/bin:$PATH"
+}
+install_pinned_cmake || true
 install_pinned_valgrind() {
   local want url sha dir tmp
   want=$(jtext_select "$RECIPES" pinned_tools version tool valgrind os "$family" | head -n1)

@@ -47,6 +47,12 @@ struct CompilerResolveRequest {
 
 constexpr int kMinClangMajorVersion = 20;
 
+// The CMake version this OS must use (pinned_tools in Setup/recipes.jtext); '' = the system's.
+std::string pinned_cmake_version(const std::filesystem::path& source_dir);
+// Puts a pinned CMake first on PATH, so this program and everything it starts use it; returns its
+// bin folder, cmake_install beside the repository that <version_dir> is in ('' = no pin).
+std::filesystem::path use_pinned_cmake(const std::filesystem::path& version_dir);
+
 // The registry for this host's OS family: the toolchains of <source_dir>/Setup/compilers.jtext.
 std::vector<Toolchain> load_registry(const std::filesystem::path& source_dir);
 

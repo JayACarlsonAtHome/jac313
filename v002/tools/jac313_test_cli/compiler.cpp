@@ -216,4 +216,19 @@ CompilerSelection resolve_compiler(const CompilerResolveRequest& request) {
     throw std::runtime_error("no supported compiler found on this host (see Setup/compilers.jtext)");
 }
 
+std::string pinned_cmake_version(const std::filesystem::path& source_dir) {
+    return pinned_tool_version(source_dir, jac313::Setup::v002::sense_host().os_family, "cmake");
+}
+
+std::filesystem::path use_pinned_cmake(const std::filesystem::path& version_dir) {
+    if (pinned_cmake_version(version_dir).empty()) return {};
+    const auto bin = std::filesystem::weakly_canonical(std::filesystem::absolute(version_dir)).parent_path().parent_path()
+                     / "cmake_install" / "bin";
+    const char* path = std::getenv("PATH");
+    const std::string current = path ? path : "";
+    if (current != bin.string() && current.rfind(bin.string() + ":", 0) != 0)
+        ::setenv("PATH", (bin.string() + ":" + current).c_str(), 1);
+    return bin;
+}
+
 } // namespace jac313::test_cli

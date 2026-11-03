@@ -3266,6 +3266,9 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
     for (const char* var : {"JAC313_PG_REMOTE", "JAC313_PG_LOCAL", "JAC313_PG_REMOTE_NAME", "JAC313_PG_LOCAL_NAME"})
         if (const char* val = std::getenv(var); val && *val) emit(std::string("export ") + var + "=" + shell_quote(val));
     emit("CLI=\"" + self.string() + "\"");
+    // This run's direct cmake steps, also when this script is run again by hand.
+    if (const fs::path cmake_bin = use_pinned_cmake(root); !cmake_bin.empty())
+        emit("export PATH=" + shell_quote(cmake_bin.string()) + ":\"$PATH\"");
     // Every gate records into results.db; render the report pages ONCE at the end, keeping the run's
     // exit status. A failed gate does not cost the others their results: every selected gate runs,
     // and the run still exits with the first failure. --fail-fast stops at the first failure instead.
@@ -4473,6 +4476,8 @@ int main(int argc, char** argv) {
     jac313::require_compiled_in_dir();
     int rc = 1;
     try {
+        // <version>/build-bootstrap/tools/jac313_test_cli
+        use_pinned_cmake(fs::read_symlink("/proc/self/exe").parent_path().parent_path().parent_path());
         rc = run_main(argc, argv);
     } catch (const std::exception& e) {
         std::cerr << "jac313_test_cli: " << e.what() << '\n';

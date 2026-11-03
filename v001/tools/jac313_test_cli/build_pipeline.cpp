@@ -41,6 +41,15 @@ int run_configure_command(const GlobalOptions& global, const ConfigureOptions& o
         return 1;
     }
 
+    if (const std::string want = pinned_cmake_version(global.source_dir); !want.empty()) {
+        const auto found = run_process({"cmake", "--version"});
+        if (found.stdout_text.rfind("cmake version " + want + "\n", 0) != 0) {
+            std::cerr << "configure: this OS must use CMake " << want << " from cmake_install beside the repository. "
+                         "Run ./bsir.sh to install it.\n";
+            return 1;
+        }
+    }
+
     fs::create_directories(global.build_dir);
 
     std::vector<std::string> args = {
