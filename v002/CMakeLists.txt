@@ -20,6 +20,12 @@ if(JAC313_BUILD_MODULES)
         message(FATAL_ERROR "JAC313_BUILD_MODULES requires the Ninja generator (-G Ninja)")
     endif()
     set(CMAKE_CXX_SCAN_FOR_MODULES ON)
+    # CMake 4 builds a separate BMI for each use of a module with its own rule: "--precompile ... -c",
+    # and clang reports that -c as unused, which -Werror stops. The -c is CMake's, not ours, so this
+    # turns off only that warning and only on that one kind of step.
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        set(CMAKE_CXX_MODULE_BMI_ONLY_FLAG "--precompile;-Wno-unused-command-line-argument")
+    endif()
     set(JAC313_SETUP_BUILD_MODULES ON CACHE BOOL "" FORCE)
     set(JAC313_JTEXT_BUILD_MODULES ON CACHE BOOL "" FORCE)
     set(JAC313_STORE_BUILD_MODULES ON CACHE BOOL "" FORCE)
