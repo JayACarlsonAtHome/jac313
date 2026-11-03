@@ -72,6 +72,11 @@ fi
 
 lc() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
 
+echo "This is going to take a while, especially if this machine needs a lot of updates: it updates"
+echo "the system, then installs and builds everything the first time. It asks its questions first,"
+echo "so answer those, then it's a good time for a coffee."
+echo
+
 # --- 1. detect OS family (tokens match the os column of Setup/recipes.jtext + compilers.jtext) ---
 family="unknown"
 if [ -r /etc/os-release ]; then

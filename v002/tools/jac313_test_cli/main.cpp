@@ -1001,6 +1001,47 @@ ConfigColumns config_columns(const std::vector<std::pair<std::int64_t, RunConfig
     return cc;
 }
 
+// Short column headers: what every column has in common goes in one line above the table, and each
+// header keeps its first part (the compiler) and whatever sets it apart from the others.
+struct ColumnLabels {
+    std::string shared;                 // "Release · mod · strict"; '' = nothing shared
+    std::vector<std::string> columns;   // "gcc15", "gcc15 · hardened"
+};
+ColumnLabels column_labels(const std::vector<std::string>& labels) {
+    static const std::string sep = " · ";
+    std::vector<std::vector<std::string>> parts;
+    for (const auto& label : labels) {
+        auto& p = parts.emplace_back();
+        std::size_t at = 0;
+        for (std::size_t next; (next = label.find(sep, at)) != std::string::npos; at = next + sep.size())
+            p.push_back(label.substr(at, next - at));
+        p.push_back(label.substr(at));
+    }
+    const auto in_all = [&](const std::string& part) {
+        return std::all_of(parts.begin(), parts.end(), [&](const auto& p) {
+            return std::find(p.begin() + 1, p.end(), part) != p.end(); });
+    };
+    ColumnLabels out;
+    if (parts.empty()) return out;
+    for (std::size_t i = 1; i < parts.front().size(); ++i)
+        if (in_all(parts.front()[i])) out.shared += (out.shared.empty() ? "" : sep) + parts.front()[i];
+    for (const auto& p : parts) {
+        std::string column = p.front();
+        for (std::size_t i = 1; i < p.size(); ++i)
+            if (!in_all(p[i])) column += sep + p[i];
+        out.columns.push_back(std::move(column));
+    }
+    return out;
+}
+void write_shared_settings(std::ostream& md, const ColumnLabels& labels) {
+    if (!labels.shared.empty()) md << "**All columns:** " << labels.shared << "\n\n";
+}
+ColumnLabels column_labels(const std::vector<std::pair<std::string, std::int64_t>>& cols) {
+    std::vector<std::string> labels;
+    for (const auto& col : cols) labels.push_back(col.first);
+    return column_labels(labels);
+}
+
 // "sql, pg-remote (r430), jtext": what run `run_id` wrote to (run_target, the registry excepted); ""
 // when it wrote nothing.
 std::string written_to(jac313::Qlite::v002::Sqlite& db, std::int64_t run_id) {
@@ -1189,11 +1230,9 @@ void write_type_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out, cons
     std::ofstream md(out / type / "README.md");
     nav_top(md, "../README.md");
     md << "# " << type << " — by machine\n\n_Generated from `results.db`. Each machine (`jac313-###`) is its "
-          "own section. A column is one configuration (compiler · build type · hdr/mod · contracts · size, then "
-          "tools, strict, hardened, the caps, a read-back mode, filter, -j, fail fast, keep logs and no store "
-          "tests when set, and a params file, selection, failsafe, pg cleanup, keep-logs dir or per-test "
-          "limits where two runs differ only in that) and shows its latest run; older runs are in the run "
-          "list. Cell = ms (pass) or status; \"read ok\" / \"read FAIL\" = the test read its "
+          "own section. A column is one configuration and shows its latest run: its header names the compiler "
+          "and what sets it apart, and **All columns** above the table lists the settings they share. Older "
+          "runs are in the run list. Cell = ms (pass) or status; \"read ok\" / \"read FAIL\" = the test read its "
           "data back. Each run's page lists every setting it recorded._\n";
 
     const bool is_verify = (type == "verify" || type == "verify-lite");
@@ -1235,8 +1274,11 @@ void write_type_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out, cons
               if (!rb.empty()) cell += rb == "PASS" ? " · read ok" : " · read " + rb;
               r->cells[static_cast<std::size_t>(it->second)] = cell; } }
 
+        const ColumnLabels heads = column_labels(comps);
+        write_shared_settings(md, heads);
         md << "| scenario";
-        for (const auto& c : comps) md << " | [" << c.first << "](" << run_label_md(c.second) << ".md)";
+        for (std::size_t i = 0; i < comps.size(); ++i)
+            md << " | [" << heads.columns[i] << "](" << run_label_md(comps[i].second) << ".md)";
         md << " |\n|---";
         for (std::size_t i = 0; i < comps.size(); ++i) md << "|--:";
         md << "|\n";
@@ -1354,10 +1396,9 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     std::ofstream md(out / "bench" / "README.md");
     nav_top(md, "../README.md");
     md << "# bench — throughput by machine\n\n_Generated from `results.db`. Throughput is hardware-specific, "
-          "so each machine (`jac313-###`) is its own section. A column is one build configuration (compiler · "
-          "build type · hdr/mod · contracts, then strict / hardened, the caps and the run settings when set, as "
-          "on the smoke page); a cell is the latest result of "
-          "that row in it. A row name carries its caps: `[capped N]` = the run kept N events, `[N events]` = a "
+          "so each machine (`jac313-###`) is its own section. A column is one build configuration: its header "
+          "names the compiler and what sets it apart, and **All columns** above the tables lists the settings "
+          "they share. A cell is the latest result of that row in it. A row name carries its caps: `[capped N]` = the run kept N events, `[N events]` = a "
           "size the name does not say, `[max N rows]` = at most N rows persisted; rows that would still look "
           "alike add their threads × events, runs and batch. Groups: **Production** "
           "(the keeper file + the database + the binary replay log at once, events routed by their "
@@ -1379,6 +1420,8 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
         const auto& comps = cc.cols;
 
         md << "\n## " << machine_heading(db, g) << "\n\n";
+        const ColumnLabels heads = column_labels(comps);
+        write_shared_settings(md, heads);
 
         // Every bench row of this machine, newest run first: the first row seen for a (row, column)
         // fills that cell.
@@ -1441,8 +1484,8 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
                 md << "\n### " << kBenchGroupTitle[grp]
                    << (scale == 1 ? " @ 1M events" : scale == 2 ? " @ 10M events" : "")
                    << "  _(median ops/sec, descending)_\n\n| config";
-                for (const auto& c : comps) {
-                    md << " | [" << c.first << "](" << run_label_md(c.second) << ".md)<br>";
+                for (std::size_t i = 0; i < comps.size(); ++i) {
+                    md << " | [" << heads.columns[i] << "](" << run_label_md(comps[i].second) << ".md)<br>";
                     if (grp == 0) md << "hot ops/sec | drain ms<br>bin / keep / db | durable median ops/sec | band | size";
                     else          md << "median ops/sec | band | size";
                 }
@@ -1483,7 +1526,8 @@ void write_build_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
     nav_top(md, "../README.md");
     md << "# Compiler build times\n\n_Generated from `results.db`. Compile time is hardware-specific, so "
           "each machine (`jac313-###`) is its own section.\n\n"
-          "Column headers are `compiler·fe` and the build:\n"
+          "A column header names the compiler and what sets that build apart; **All columns** above the table "
+          "lists what they share:\n"
           "- `hdr` — code uses headers only\n"
           "- `mod` — code uses modules\n"
           "- the build type (Debug / Release), then `strict` / `hardened` when those options were on\n"
@@ -1507,7 +1551,7 @@ void write_build_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
           while (st.step()) { std::string cn, bt, mod, imp, ct, strict, hardened; std::int64_t cm = 0, jobs = 0, stt = 0;
               st.get(cn, cm, bt, mod, imp, ct, strict, hardened, jobs, stt);
               const std::string fe = (mod != "on") ? "hdr" : "mod";
-              configs.push_back({comp_label(cn, cm) + "·" + fe + "<br>" + build_label(bt, strict, hardened)
+              configs.push_back({comp_label(cn, cm) + " · " + fe + " · " + build_label(bt, strict, hardened)
                                  + contracts_tag(ct) + (jobs > 0 ? " · -j " + fmt_num(jobs) : std::string())
                                  + (stt ? std::string() : " · no store tests"),
                                  cn, bt, mod, imp, ct, strict, hardened, cm, jobs, stt}); } }
@@ -1519,8 +1563,12 @@ void write_build_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
             "WHERE tt.name='build' AND r.machine_id=? ORDER BY tl.name");
           st.bind(g); while (st.step()) { std::string n; st.get(n); tests.push_back(n); } }
 
+        std::vector<std::string> config_names;
+        for (const auto& cf : configs) config_names.push_back(cf.label);
+        const ColumnLabels heads = column_labels(config_names);
+        write_shared_settings(md, heads);
         md << "| test";
-        for (const auto& cf : configs) md << " | " << cf.label;
+        for (const auto& head : heads.columns) md << " | " << head;
         md << " |\n|---";
         for (std::size_t i = 0; i < configs.size(); ++i) md << "|:--:";
         md << "|\n";
