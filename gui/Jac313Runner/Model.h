@@ -42,7 +42,7 @@ struct RunOptions {
 	bool   bench      = false;
 	bool   verifyLite = false;
 	bool   verify     = false;
-	String compiler   = "gcc";      // gcc | clang | both (each: the newest on this machine)
+	String compiler   = "both";     // gcc | clang | both (each: the newest on this machine)
 	String buildType  = "Debug";    // Debug | Release
 	bool   hardened   = false;      // --hardened (runtime hardening; ctest/smoke builds only)
 	// --contracts: how contract checks run (ctest/smoke builds only): enforce | observe |

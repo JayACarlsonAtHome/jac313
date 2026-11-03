@@ -1648,14 +1648,44 @@ void write_servers_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
     nav_bottom(md, "../README.md");
 }
 
-// Why a machine is NOT SAFE, in words the reader can act on. Each gate gives its name, whether it
-// has any recorded result, and its fail count. Empty when every gate ran clean (PRESUMED SAFE).
-struct GateState { const char* name; bool ran; std::int64_t fail; };
+// One gate's results on one machine and OS, for the latest version recorded there. `ran` = any compiler
+// has results; `missing` = the compiler that has none while the other does.
+struct GateTotals { std::int64_t pass = 0, fail = 0, ran = 0; std::string missing; };
+GateTotals gate_totals(jac313::Qlite::v001::Sqlite& db, std::int64_t machine, std::int64_t os, const char* gate) {
+    GateTotals x;
+    // Prefer data for the latest recorded JAC313_VERSION on this machine (v001 vs v002 isolation)
+    std::string ver;
+    { auto vst = db.prepare("SELECT version FROM run WHERE machine_id=? AND version <> '' ORDER BY run_id DESC LIMIT 1");
+      vst.bind(machine); if (vst.step()) vst.get(ver); }
+    // COALESCE kept: SUM over no matching rows is NULL.
+    std::string sql = "SELECT COALESCE(SUM(pass),0), COALESCE(SUM(fail),0), COUNT(*), "
+                      "COALESCE(SUM(compiler LIKE 'gcc%'),0), COALESCE(SUM(compiler LIKE 'clang%'),0) FROM safeness "
+                      "WHERE machine_id=? AND os_id=? AND gate=?";
+    if (!ver.empty()) sql += " AND (version=? OR version='')";
+    auto st = db.prepare(sql);
+    // Bind ALL params in ONE call: Sqlite::bind() does sqlite3_clear_bindings() first, so a second
+    // bind() would wipe the earlier values and rebind ver into param 1.
+    if (ver.empty()) st.bind(machine, os, std::string(gate));
+    else             st.bind(machine, os, std::string(gate), ver);
+    std::int64_t gcc = 0, clang = 0;
+    if (st.step()) st.get(x.pass, x.fail, x.ran, gcc, clang);
+    if (x.ran && !gcc) x.missing = "gcc";
+    if (x.ran && !clang) x.missing = "clang";
+    return x;
+}
+// PRESUMED SAFE needs results on both compilers: one compiler's results do not speak for the other.
+bool gate_complete(const GateTotals& g) { return g.ran != 0 && g.missing.empty(); }
+
+// Why a machine is NOT SAFE, in words the reader can act on. Each gate gives its name and totals.
+// Empty when every gate ran clean on both compilers (PRESUMED SAFE).
+struct GateState { const char* name; const GateTotals& totals; };
 std::string not_safe_reason(std::initializer_list<GateState> gates) {
     std::string missing, failed;
     for (const GateState& g : gates) {
-        if (!g.ran)      missing += (missing.empty() ? "" : ", ") + std::string(g.name);
-        else if (g.fail) failed += (failed.empty() ? "" : ", ") + std::string(g.name) + " " + std::to_string(g.fail);
+        if (!gate_complete(g.totals))
+            missing += (missing.empty() ? "" : ", ") + std::string(g.name)
+                     + (g.totals.missing.empty() ? std::string() : " " + g.totals.missing);
+        if (g.totals.fail) failed += (failed.empty() ? "" : ", ") + std::string(g.name) + " " + std::to_string(g.totals.fail);
     }
     std::string why;
     if (!missing.empty())
@@ -1768,26 +1798,9 @@ void write_index_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
     // Safeness — summary-of-summary verdict per machine and OS (the same machine under two OSes is two
     // results), read from the `safeness` table (never recounts).
     {
-        struct GatePF { std::int64_t pass = 0, fail = 0, ran = 0; };
+        using GatePF = GateTotals;
         struct MachineOs { std::int64_t machine = 0, os = 0; };
-        auto gate_pf = [&](const MachineOs& g, const char* gate) {
-            GatePF x;
-            // Prefer data for the latest recorded JAC313_VERSION on this machine (v001 vs v002 isolation)
-            std::string ver;
-            { auto vst = db.prepare("SELECT version FROM run WHERE machine_id=? AND version <> '' ORDER BY run_id DESC LIMIT 1");
-              vst.bind(g.machine); if (vst.step()) vst.get(ver); }
-            // COALESCE kept: SUM over no matching rows is NULL.
-            std::string sql = "SELECT COALESCE(SUM(pass),0), COALESCE(SUM(fail),0), COUNT(*) FROM safeness "
-                              "WHERE machine_id=? AND os_id=? AND gate=?";
-            if (!ver.empty()) sql += " AND (version=? OR version='')";
-            auto st = db.prepare(sql);
-            // Bind ALL params in ONE call: Sqlite::bind() does sqlite3_clear_bindings() first, so a
-            // second bind() would wipe the earlier values and rebind ver into param 1 — the
-            // version-scoping regression that zeroed the verdict. Branch on ver instead of re-binding.
-            if (ver.empty()) st.bind(g.machine, g.os, std::string(gate));
-            else             st.bind(g.machine, g.os, std::string(gate), ver);
-            if (st.step()) st.get(x.pass, x.fail, x.ran);
-            return x; };
+        auto gate_pf = [&](const MachineOs& g, const char* gate) { return gate_totals(db, g.machine, g.os, gate); };
         // "jac313-002 · Fedora Linux 44 (Workstation Edition) · 7.2.13-200.fc44.x86_64"
         auto label = [&](const MachineOs& g) {
             std::string name, version, kernel;
@@ -1807,7 +1820,8 @@ void write_index_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
             for (const MachineOs& g : groups) {
                 const GatePF ct = gate_pf(g, "ctest"), sm = gate_pf(g, "smoke"), bn = gate_pf(g, "bench");
                 const GatePF me = gate_pf(g, "memcheck"), he = gate_pf(g, "helgrind"), dr = gate_pf(g, "drd");
-                const bool ran  = ct.ran && sm.ran && bn.ran && me.ran && he.ran && dr.ran;
+                const bool ran  = gate_complete(ct) && gate_complete(sm) && gate_complete(bn)
+                                  && gate_complete(me) && gate_complete(he) && gate_complete(dr);
                 const bool clean = (ct.fail + sm.fail + bn.fail + me.fail + he.fail + dr.fail) == 0;
                 md << "| " << label(g) << " | "
                    << ((ran && clean) ? "✅ PRESUMED SAFE" : !ran ? "❌ NOT SAFE: tests missing" : "❌ NOT SAFE: failures")
@@ -1819,9 +1833,8 @@ void write_index_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
             for (const MachineOs& g : groups) {
                 const GatePF ct = gate_pf(g, "ctest"), sm = gate_pf(g, "smoke"), bn = gate_pf(g, "bench");
                 const GatePF me = gate_pf(g, "memcheck"), he = gate_pf(g, "helgrind"), dr = gate_pf(g, "drd");
-                const std::string why = not_safe_reason({ {"ctest", ct.ran != 0, ct.fail}, {"smoke", sm.ran != 0, sm.fail},
-                    {"bench", bn.ran != 0, bn.fail}, {"memcheck", me.ran != 0, me.fail},
-                    {"helgrind", he.ran != 0, he.fail}, {"drd", dr.ran != 0, dr.fail} });
+                const std::string why = not_safe_reason({ {"ctest", ct}, {"smoke", sm}, {"bench", bn},
+                    {"memcheck", me}, {"helgrind", he}, {"drd", dr} });
                 if (!why.empty()) md << "❌ **" << label(g) << "** is NOT SAFE: " << why << ".\n\n";
             }
             for (const MachineOs& g : groups) {
@@ -3671,34 +3684,18 @@ int run_everything_command(const GlobalOptions& global_in, const ConfigureOption
             { auto st = db.prepare("SELECT disk FROM machine WHERE id=?");
               st.bind(g); if (st.step()) st.get(disk); }
             const std::string os = jac313::results::os_display(os_now.name, os_now.version);
-            struct PF { std::int64_t pass = 0, fail = 0, ran = 0; };
-            auto pf = [&](const char* gate) { PF x;
-                std::string ver;
-                { auto vst = db.prepare("SELECT version FROM run WHERE machine_id=? AND version <> '' ORDER BY run_id DESC LIMIT 1");
-                  vst.bind(g); if (vst.step()) vst.get(ver); }
-                // COALESCE kept: SUM over no matching rows is NULL.
-                std::string sql = "SELECT COALESCE(SUM(pass),0), COALESCE(SUM(fail),0), COUNT(*) FROM safeness "
-                                  "WHERE machine_id=? AND os_id=? AND gate=?";
-                if (!ver.empty()) sql += " AND (version=? OR version='')";
-                auto st = db.prepare(sql);
-                // Bind ALL params in ONE call: Sqlite::bind() does sqlite3_clear_bindings() first, so
-                // a second bind() would wipe the earlier values and rebind ver into param 1 —
-                // the version-scoping regression that zeroed this verdict. Branch instead of re-binding.
-                if (ver.empty()) st.bind(g, os_id, std::string(gate));
-                else             st.bind(g, os_id, std::string(gate), ver);
-                if (st.step()) st.get(x.pass, x.fail, x.ran);
-                return x; };
-            const PF ct = pf("ctest"), sm = pf("smoke"), bn = pf("bench"),
+            auto pf = [&](const char* gate) { return gate_totals(db, g, os_id, gate); };
+            const GateTotals ct = pf("ctest"), sm = pf("smoke"), bn = pf("bench"),
                      me = pf("memcheck"), he = pf("helgrind"), dr = pf("drd");
             const std::int64_t vgfail = me.fail + he.fail + dr.fail;
-            const bool ran   = ct.ran && sm.ran && bn.ran && me.ran && he.ran && dr.ran;
+            const bool ran   = gate_complete(ct) && gate_complete(sm) && gate_complete(bn)
+                               && gate_complete(me) && gate_complete(he) && gate_complete(dr);
             const bool clean = (ct.fail + sm.fail + bn.fail + vgfail) == 0;
             std::cout << "\n══════════ " << jac313::results::host_label(g) << " · " << gcc_label << "+" << clang_label
                       << (os.empty() ? "" : " · " + os) << (disk.empty() ? "" : " · " + disk) << " ══════════\n"
                       << ((ran && clean) ? "  ✅ PRESUMED SAFE\n" : "  ❌ NOT SAFE\n")
-                      << ((ran && clean) ? std::string() : "    why: " + not_safe_reason({ {"ctest", ct.ran != 0, ct.fail},
-                             {"smoke", sm.ran != 0, sm.fail}, {"bench", bn.ran != 0, bn.fail}, {"memcheck", me.ran != 0, me.fail},
-                             {"helgrind", he.ran != 0, he.fail}, {"drd", dr.ran != 0, dr.fail} }) + ".\n")
+                      << ((ran && clean) ? std::string() : "    why: " + not_safe_reason({ {"ctest", ct}, {"smoke", sm}, {"bench", bn},
+                             {"memcheck", me}, {"helgrind", he}, {"drd", dr} }) + ".\n")
                       << "    ctest " << ct.pass << "/" << ct.fail << " · smoke " << sm.pass << "/" << sm.fail
                       << " · bench " << bn.pass << "/" << bn.fail << " · valgrind " << vgfail << " errors\n"
                       << "════════════════════════════════════════════════════════\n";
