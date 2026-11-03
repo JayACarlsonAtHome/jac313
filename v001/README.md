@@ -80,6 +80,10 @@ Run from inside the `v001/` directory.
 
 The window part installs U++ from [upp_basefix](https://github.com/JayACarlsonAtHome/upp_basefix) into `upp_basefix_install` beside this repository (U++ pinned to a GitHub commit plus patches; an upp_basefix install is updated when its clone, which follows the branch you are on, has moved on; any other U++ there is kept) and builds `../gui/out/Jac313Runner` with GCC. Run bootstrap, the tests and the GUI as your own user, from inside this directory.
 
+If you have an older U++ in your home folder or `UPP_DIR` set in your shell, see "Removing an old U++ from your home folder" in `../gui/README.md`.
+
+`run-log.txt` in this directory is the running log, kept on this machine and never committed. Each run adds what was selected, the start, end and exit code of every step, the last lines of a failed step, and one `RESULT` line per selected gate: `ok`, `FAILED at` a step, `NOT REACHED` with the step that stopped the run, or `NOT FINISHED`. A failed gate does not stop the others: every selected gate still runs and the run exits with the first failure (`--fail-fast` stops at the first failure instead). The Runner's results list every gate, including failed tests, failed builds and gates that did not run.
+
 `./jac313_test_cli` is the one main command:
 
 - `--ctest` — smallest check

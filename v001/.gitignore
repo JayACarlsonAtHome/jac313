@@ -59,6 +59,7 @@ kept-logs/**
 
 # Generated, re-runnable preset script (overwritten each preset invocation)
 /run_latest_config.sh
+/run-log.txt
 
 # store_bench durable output at the v001 root (cwd-relative: bench.bin / .jtext / .sql / .db)
 /bench*

@@ -499,8 +499,8 @@ struct ScrollPane : ParentCtrl {
 	int        needW = 0;   // and width (the options sit at fixed x positions)
 
 	ScrollPane() {
-		AddFrame(sb.Vert().AutoHide());
-		AddFrame(hsb.Horz().AutoHide());
+		AddFrame(sb.Vert());
+		AddFrame(hsb.Horz());
 		Add(body);
 		sb.WhenScroll = hsb.WhenScroll = [this] { Place(); };
 	}
@@ -509,6 +509,16 @@ struct ScrollPane : ParentCtrl {
 		body.SetRect(-hsb.Get(), -sb.Get(), max(sz.cx, needW), max(sz.cy, need));
 	}
 	virtual void Layout() override {
+		// Both bars are decided here, from the pane's full size, which they do not change. With
+		// AutoHide, setting a bar could show or hide it and run Layout again inside this one, and
+		// the outer call's old size then flipped it back, without end, at some window sizes.
+		const Size full = GetRect().GetSize();
+		const int  bar = ScrollBarSize();
+		bool v = need > full.cy, h = needW > full.cx;
+		if(v && !h) h = needW > full.cx - bar;
+		if(h && !v) v = need > full.cy - bar;
+		sb.Show(v);
+		hsb.Show(h);
 		Size sz = GetSize();
 		sb.SetPage(sz.cy);
 		sb.SetTotal(max(sz.cy, need));
@@ -600,6 +610,7 @@ struct Runner : TopWindow {
 
 	// ---- results state
 	Array<Summary> sums;
+	String     failNote;    // which compiler's run failed, for the title
 	Vector<const ResultRow*> all;
 	JDoc       doc;
 	String     docText;
@@ -1455,6 +1466,7 @@ void Runner::Start()
 	plans = BuildPlans(opt, r);
 	sums.Clear();
 	out.Clear();
+	failNote.Clear();
 	planIx = 0;
 	running = true;
 	stopping = false;
@@ -1552,6 +1564,9 @@ void Runner::PlanFinished()
 	// LocalProcess reports a child ended by signal N as 1000 + N
 	out.Append(code >= 1000 ? Format("[%s ended by signal %d]\n", p.compiler, code - 1000)
 	                        : Format("[%s finished, exit code %d]\n", p.compiler, code));
+	if(code != 0 && !stopping)
+		failNote << (failNote.GetCount() ? ", " : "") << p.compiler
+		         << (code >= 1000 ? Format(" ended by signal %d", code - 1000) : Format(" exit code %d", code));
 	Summary& s = sums.Add();
 	String err;
 	if(!s.Load(p.summary, err)) {
@@ -1577,7 +1592,8 @@ void Runner::AllFinished()
 	runResults.Enable(sums.GetCount());
 	runReport.Enable(FileExists(AppendFileName(ReportDir(), "README.md")));
 	runChrome.Enable(runReport.IsEnabled());
-	runTitle.SetText(stopping ? "Stopped" : "Finished");
+	runTitle.SetText(stopping ? String("Stopped")
+	                 : failNote.GetCount() ? "FAILED: " + failNote + " (run-log.txt has every step)" : String("Finished"));
 	elapsed.SetText(Format("elapsed %s", Elapsed(msecs() - t0)));
 	if(!stopping && sums.GetCount())
 		ShowResults();
@@ -1646,6 +1662,11 @@ void Runner::ShowResults()
 		for(const ResultRow& r : s.rows)
 			all.Add(&r);
 	}
+	int failed = 0;
+	for(const Summary& s : sums)
+		failed += s.fail;
+	header.SetInk(failed ? Color(190, 0, 0) : SColorText());
+	failOnly = failed > 0;   // among hundreds of rows, the failures come first
 	header.SetText(h);
 	String tip;   // every setting each run was given, on hover
 	for(const Summary& s : sums)

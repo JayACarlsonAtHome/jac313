@@ -2671,7 +2671,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
 
     int clean = 0, vgfail = 0, testfail = 0;
     std::vector<std::string> failures;
-    struct VerifyRec { std::string tool, test, persist, status; std::int64_t dur_ms; };
+    struct VerifyRec { std::string tool, label, test, persist, status, verdict; std::int64_t dur_ms; };
     std::vector<VerifyRec> recs;   // one per (tool x task) — captured into results.db below
     std::vector<jac313::results::RunTarget> targets;   // what the tasks wrote where (their TARGET lines)
 
@@ -2715,7 +2715,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
                       << " ... MISSING BINARY\n";
             ++testfail;
             failures.push_back(tool + " " + t.label + " [missing]");
-            recs.push_back({tool, test, persist, "error", 0});
+            recs.push_back({tool, t.label, test, persist, "error", "MISSING BINARY", 0});
             if (run_id > 0) {
                 try {
                     jac313::Qlite::v002::Sqlite db(db_path.string());
@@ -2769,7 +2769,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
             verdict = "clean"; status = "pass";
             ++clean;
         }
-        recs.push_back({tool, test, persist, status, static_cast<std::int64_t>(dur_ms)});
+        recs.push_back({tool, t.label, test, persist, status, verdict, static_cast<std::int64_t>(dur_ms)});
 
         if (run_id > 0) {
             try {
@@ -2855,6 +2855,17 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
             } catch (const std::exception& e) {
                 not_recorded(name, e.what());
             }
+        }
+    }
+    // The Runner's results show this gate like any other, one row per (tool x task).
+    if (!global.summary_json.empty()) {
+        const RunWhere where = run_where(run_id);
+        for (const auto& v : recs) {
+            append_summary_part(global, std::format(
+                R"({{"gate":"{}","test":"{}","backend":"{}","status":"{}","ms":{},"compiler":"{}","run_id":{},"host":"{}","os":"{}","error":"{}"}})",
+                json_escape(name), json_escape(name + " " + v.tool + " " + v.label), json_escape(v.persist.empty() ? "-" : v.persist),
+                v.status == "pass" ? "PASS" : "FAIL", v.dur_ms, json_escape(matrix_opts.compiler_label), run_id,
+                json_escape(where.host), json_escape(where.os), json_escape(v.status == "pass" ? "" : v.verdict)));
         }
     }
     return ok ? 0 : 1;
@@ -3016,7 +3027,8 @@ StepFlags step_flags(const GlobalOptions& g, const ConfigureOptions& c, const Bu
     const bool params_given = m.params_file != MatrixOptions{}.params_file;
     f.smoke = (params_given ? " --params " + shell_quote(m.params_file.string()) : std::string())
             + run_sel + pg + keep_logs_cli_suffix(g) + psfx;
-    f.verify = flavor_flags + f.build;
+    f.verify = flavor_flags + f.build
+             + (g.summary_json.empty() ? std::string() : " --summary-json \"" + g.summary_json.string() + "\"");
     f.bench_configure = flavor_flags;
     f.bench = bench_persist_args(g);
     if (g.bench_threads) f.bench += " --threads " + std::to_string(g.bench_threads);
@@ -3135,6 +3147,14 @@ SettingList preset_settings(const GlobalOptions& g, const ConfigureOptions& c, c
     };
 }
 
+// The running log, <version>/run-log.txt: what each run was asked to do and what actually happened,
+// appended run after run on this machine so a gate that was selected and never ran is plain to see.
+static void append_run_log(const fs::path& root, const std::vector<std::string>& lines) {
+    std::ofstream out(root / "run-log.txt", std::ios::app);
+    const std::string now = jac313::results::utc_now_iso();
+    for (const auto& l : lines) out << now << ' ' << l << '\n';
+}
+
 int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& configure_opts,
                        const BuildOptions& build_opts, const RunOptions& run_opts,
                        const MatrixOptions& matrix_opts, const PresetOptions& preset)
@@ -3210,15 +3230,96 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
     for (const char* var : {"JAC313_PG_REMOTE", "JAC313_PG_LOCAL", "JAC313_PG_REMOTE_NAME", "JAC313_PG_LOCAL_NAME"})
         if (const char* val = std::getenv(var); val && *val) emit(std::string("export ") + var + "=" + shell_quote(val));
     emit("CLI=\"" + self.string() + "\"");
-    // Every gate records into results.db; render the report pages ONCE at the end, also when a
-    // gate failed (set -e), keeping the run's exit status.
+    // Every gate records into results.db; render the report pages ONCE at the end, keeping the run's
+    // exit status. A failed gate does not cost the others their results: every selected gate runs,
+    // and the run still exits with the first failure. --fail-fast stops at the first failure instead.
     emit("# report pages — rendered from results.db when the run ends (pass or fail)");
-    emit("trap 'rc=$?; \"$CLI\" --report || echo \"report pages: not rendered\"; exit $rc' EXIT");
+    emit("FAIL_FAST=" + std::string(run_opts.fail_fast ? "1" : "0"));
+    emit("SUMMARY_PARTS=" + shell_quote(summary_parts_path(global).string()));
+    emit(R"sh(RUN_LOG="$PWD/run-log.txt"
+STEP_OUT="$(mktemp)"
+CURRENT=""
+STOPPED_BY=""
+RUN_RC=0
+declare -A GATE_RESULT=()
+run_log() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >> "$RUN_LOG"; }
+parts_count() { if [ -f "$SUMMARY_PARTS" ]; then wc -l < "$SUMMARY_PARTS"; else echo 0; fi; }
+# gate_row "GATE LABEL" STATUS TEXT: a row in the Runner's results for what no test reported.
+gate_row() {
+  [ -n "$SUMMARY_PARTS" ] || return 0
+  printf '{"gate":"%s","test":"%s","backend":"-","status":"%s","compiler":"%s","error":"%s"}\n' \
+    "${1%% *}" "$1" "$2" "${1##* }" "$3" >> "$SUMMARY_PARTS"
+}
+# step GATE WHAT COMMAND...: runs one step and logs its start, its end and, on failure, its last lines.
+# A failure ends this gate only: the next gates still run. ctest and smoke need their compiler's build.
+step() {
+  local gate="$1" what="$2" rc=0 before name="${1%% *}" label="${1##* }"
+  shift 2
+  if [ "${GATE_RESULT[$gate]:-}" != "" ]; then return 0; fi
+  if { [ "$name" = ctest ] || [ "$name" = smoke ]; } && [ "${GATE_RESULT[build $label]:-}" != "" ]; then
+    GATE_RESULT["$gate"]="NOT RUN (build $label failed)"
+    gate_row "$gate" "NOT RUN" "build $label failed"
+    return 0
+  fi
+  before="$(parts_count)"
+  CURRENT="$gate: $what"
+  run_log "START $CURRENT"
+  "$@" 2>&1 | tee "$STEP_OUT" || rc=$?
+  run_log "END   $CURRENT rc=$rc"
+  CURRENT=""
+  if [ "$rc" -eq 0 ]; then
+    if [ "$what" = run ]; then GATE_RESULT["$gate"]="ok"; fi
+    return 0
+  fi
+  GATE_RESULT["$gate"]="FAILED at $what (rc=$rc)"
+  if [ "$RUN_RC" -eq 0 ]; then RUN_RC="$rc"; fi
+  tail -n 40 "$STEP_OUT" | sed 's/^/    | /' >> "$RUN_LOG"
+  # A gate that already reported its failed tests needs no row of its own.
+  if [ -z "$SUMMARY_PARTS" ] || ! tail -n +"$((before + 1))" "$SUMMARY_PARTS" 2>/dev/null | grep -vE '"status":"(PASS|SKIP)"' > /dev/null; then
+    gate_row "$gate" FAIL "$what failed (rc=$rc)"
+  fi
+  # Nothing is recorded properly without the machine pin; --fail-fast asked to stop here.
+  if [ "$gate" = "setup host" ] || [ "$FAIL_FAST" = 1 ]; then
+    STOPPED_BY="$gate: $what (rc=$rc)"
+    exit "$rc"
+  fi
+}
+# Every selected gate gets one RESULT line, whether or not the run got to it.
+run_log_finish() {
+  local entry result
+  for entry in "${SELECTED[@]}"; do
+    result="${GATE_RESULT[$entry]:-}"
+    if [ -z "$result" ]; then
+      if [ -n "$CURRENT" ]; then result="NOT FINISHED (stopped during $CURRENT)"
+      elif [ -n "$STOPPED_BY" ]; then result="NOT REACHED (stopped by $STOPPED_BY)"
+      else result="NOT REACHED"; fi
+      gate_row "$entry" "NOT RUN" "$result"
+    fi
+    run_log "RESULT $entry: $result"
+  done
+  run_log "=== END rc=$1"
+}
+)sh");
+    {
+        std::string selected = "SELECTED=(";
+        std::vector<std::string> head = {"=== RUN " + harness_version(global)};
+        for (const auto& [name, value] : preset_settings(global, configure_opts, build_opts, run_opts, matrix_opts, preset, preset_labels))
+            head.push_back("SELECTED " + name + ": " + value);
+        for (const std::string& label : preset_labels)
+            for (const auto& [on, gate] : {std::pair{preset.ctest, "ctest"}, {preset.smoke, "smoke"}, {preset.verify_lite, "verify-lite"},
+                                           {preset.verify, "verify"}, {preset.bench, "bench"}})
+                if (on) selected += " " + shell_quote(std::string(gate) + " " + label);
+        emit(selected + " )");
+        append_run_log(root, head);
+    }
+    emit("trap 'rc=$?; run_log_finish \"$rc\"; rm -f \"$STEP_OUT\"; \"$CLI\" --report || echo \"report pages: not rendered\"; exit $rc' EXIT");
+    emit("trap 'exit 143' TERM");   // Stop: bash skips the EXIT trap on a signal it does not handle
+    emit("trap 'exit 130' INT");
     for (const auto& n : sf.notes) emit(n);
     emit("");
     if (!sf.host.empty()) {
         emit("# pin this machine as asked (every gate below records under it)");
-        emit("\"$CLI\" host" + sf.host);
+        emit("step setup host \"$CLI\" host" + sf.host);
         emit("");
     }
 
@@ -3226,10 +3327,10 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
         for (const std::string& label : preset_labels) {
             const std::string dir = "build-" + label + flavor;
             emit("# functional gate — " + dir + " (" + configure_opts.build_type + ", built once then run)");
-            emit("\"$CLI\" configure --build-dir " + dir + " --compiler " + label + sf.configure);
-            emit("\"$CLI\" build --build-dir " + dir + sf.build);
-            if (preset.ctest) emit("\"$CLI\" run --build-dir " + dir + sf.ctest);         // ctest unit suite
-            if (preset.smoke) emit("\"$CLI\" matrix run --build-dir " + dir + " --compiler " + label + sf.smoke);
+            emit("step \"build " + label + "\" configure \"$CLI\" configure --build-dir " + dir + " --compiler " + label + sf.configure);
+            emit("step \"build " + label + "\" compile \"$CLI\" build --build-dir " + dir + sf.build);
+            if (preset.ctest) emit("step \"ctest " + label + "\" run \"$CLI\" run --build-dir " + dir + sf.ctest);         // ctest unit suite
+            if (preset.smoke) emit("step \"smoke " + label + "\" run \"$CLI\" matrix run --build-dir " + dir + " --compiler " + label + sf.smoke);
         }
         emit("");
     }
@@ -3237,13 +3338,13 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
     if (preset.verify_lite) {
         emit("# memory/thread gate — valgrind memcheck (ctest + smoke surface)");
         for (const std::string& label : preset_labels)
-            emit("\"$CLI\" matrix verify-lite --compiler " + label + sf.verify);
+            emit("step \"verify-lite " + label + "\" run \"$CLI\" matrix verify-lite --compiler " + label + sf.verify);
         emit("");
     }
     if (preset.verify) {
         emit("# memory/thread gate — valgrind memcheck + helgrind + DRD");
         for (const std::string& label : preset_labels)
-            emit("\"$CLI\" matrix verify --compiler " + label + sf.verify);
+            emit("step \"verify " + label + "\" run \"$CLI\" matrix verify --compiler " + label + sf.verify);
         emit("");
     }
 
@@ -3251,14 +3352,16 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
         emit("# throughput benchmark — Release, store_bench target");
         for (const std::string& label : preset_labels) {
             const std::string dir = "build-bench-" + label + flavor;
-            emit("\"$CLI\" configure --release --build-dir " + dir + " --compiler " + label + sf.bench_configure);
-            emit("cmake --build " + dir + " --target jac313_store_bench" + sf.build);
+            emit("step \"bench " + label + "\" configure \"$CLI\" configure --release --build-dir " + dir + " --compiler " + label + sf.bench_configure);
+            emit("step \"bench " + label + "\" compile cmake --build " + dir + " --target jac313_store_bench" + sf.build);
             emit("BENCH=\"" + dir + "/Store/tests/matrix/jac313_store_bench\"");
             // bench auto-records like every other gate (no --report needed); --report only renders.
-            emit("\"$BENCH\" --suite --db \"" + JAC313_RESULTS_DB + "\"" + bench_keep_logs_args(global, label) + sf.bench);
+            emit("step \"bench " + label + "\" run \"$BENCH\" --suite --db \"" + JAC313_RESULTS_DB + "\"" + bench_keep_logs_args(global, label) + sf.bench);
         }
         emit("");
     }
+
+    emit("exit \"$RUN_RC\"");
 
     const fs::path script = root / "run_latest_config.sh";
     {
@@ -3470,10 +3573,16 @@ int run_everything_command(const GlobalOptions& global_in, const ConfigureOption
     }
 
     std::vector<std::string> failures;
+    const fs::path log_root = fs::absolute(global.source_dir);
+    append_run_log(log_root, {"=== RUN " + harness_version(global),
+                              "SELECTED command line: " + jac313::results::JAC313_RUN_SETTINGS.command_line,
+                              "SELECTED gates: every gate"});
     auto step = [&](const std::string& label, const std::string& cmd) {
         std::cout << "\n===== " << label << " =====\n" << std::flush;
+        append_run_log(log_root, {"START " + label});
         const int raw = std::system(cmd.c_str());
         const int rc = WIFEXITED(raw) ? WEXITSTATUS(raw) : 1;
+        append_run_log(log_root, {"END   " + label + " rc=" + std::to_string(rc)});
         std::cout << "[exit " << rc << "] " << label << "\n";
         if (rc != 0) failures.push_back(label + " (exit " + std::to_string(rc) + ")");
     };
@@ -4189,6 +4298,8 @@ static int run_main(int argc, char** argv) {
                     build_opts.jobs = std::stoi(argv[++i]);
                 } else if (a == "--source-dir" && i + 1 < argc) {
                     global.source_dir = argv[++i];
+                } else if (a == "--summary-json" && i + 1 < argc) {
+                    global.summary_json = fs::absolute(argv[++i]);
                 } else if (a == "-v" || a == "--verbose") {
                     global.verbose = true;
                 } else if (a == "--help" || a == "-h") {
@@ -4199,7 +4310,8 @@ static int run_main(int argc, char** argv) {
                                  "  --gcc | --clang | --compiler <cxx>   (default: auto-detect)\n"
                                  "  --hardened | --contracts M          (a tree of its own: build-<label>[-flavor]-" << sub << ")\n"
                                  "  -j N                                 parallel build jobs\n"
-                                 "  --source-dir <path>\n";
+                                 "  --source-dir <path>\n"
+                                 "  --summary-json <file>                add this gate's rows to the Runner's summary\n";
                     return 0;
                 } else {
                     std::cerr << "Unknown matrix " << sub << " option: " << a << '\n';

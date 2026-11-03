@@ -69,3 +69,4 @@ bench-json-output/*.json
 
 # Generated, re-runnable preset script (overwritten each preset invocation)
 /run_latest_config.sh
+/run-log.txt

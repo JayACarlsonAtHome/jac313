@@ -100,6 +100,21 @@ is not in the `.upp` files: `upp_basefix install` writes it into `GCC.bm` only f
 native contracts (GCC 16). An older GCC's driver would turn it into `-lstdc++exp`, which
 gcc-toolset-15 on RHEL does not ship.
 
+### Removing an old U++ from your home folder
+
+U++ used to live in `~/upp_basefix`, with `~/upp_basefix_src` and `~/upp_basefix_work`. This project
+no longer reads them, but a `UPP_DIR` left set in your shell still takes priority over the install
+beside the repository. Clear it and remove the old folders:
+
+```bash
+grep -n UPP_DIR ~/.bashrc ~/.bash_profile ~/.profile   # delete any line this finds
+unset UPP_DIR
+rm -rf ~/upp_basefix ~/upp_basefix_src ~/upp_basefix_work
+```
+
+Projects not moved yet (jac315, jac317, Date_001) still use `~/upp_basefix`, so keep it if you build
+them. Then run `./bsir.sh`, which installs U++ beside the repository if it is not there.
+
 ### COMPILED-IN-DIR: a program runs only where it was compiled
 
 `jac313_test_cli`, the `jac313_wipe_*` tools, `Jac313Runner` and `JTextGui` hold the folder they
@@ -153,7 +168,7 @@ Needs a desktop session: Wayland (`WAYLAND_DISPLAY`) first, else X11 (`DISPLAY`)
    with ANSI colour codes removed). **Stop** sends SIGTERM to the child's process group and
    then SIGKILL after 3 s. The child is started through `/usr/bin/setsid`, so its pid is
    the process group id.
-3. **Results.** A header line, filters (test, backend, failures only) and the result rows:
+3. **Results.** A header line, filters (test, backend, failures only) and the result rows, one for every selected gate's tests. A failed build or a gate that did not run has a row too. When anything failed the header is red and the list opens on the failures, and the run screen's title says FAILED instead of Finished:
    Test | Backend | Rows | Count | Checksum | Sample | ms | Ping ms | Write ms | Status. A Compiler column appears
    when two summaries are loaded. On the right is the jText viewer with **Table | Raw**,
    a section picker when the document has more than one section, and a validation line.
