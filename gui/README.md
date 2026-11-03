@@ -1,13 +1,14 @@
-# jac313 GUI packages (version-independent)
+# jac313 GUI packages
 
 Presenter packages, the jac314 way: the engine tools do the work; a GUI builds
 a command line, runs it as a child process, shows the output, and reads the
 results file. No shell scripts.
 
-The GUI lives at the project root, outside the version folders, because it serves every
-version: it finds the `vNNN/` folders under the root, labels each with the C++ standard
-its CMake asks for (`cxx_std_NN`), and runs that version's own `jac313_test_cli`. A new
-`v003/` shows up without changing the GUI.
+The GUI's source lives at the project root, outside the version folders, and each version
+builds its own program from it, into `gui/out/<version>/`. That program shows only the version
+that built it, labelled with the C++ standard its CMake asks for (`cxx_std_NN`), and runs that
+version's own `jac313_test_cli`. `bsir.sh` is per version too: run it in each version you use. While another version is not built,
+the Version box says `For v002 runs, run this command:` beside `cd <root>/v002 && ./bsir.sh`, ready to copy.
 
 ## Quick start: Jac313Runner
 
@@ -21,7 +22,7 @@ when it needs it). `<root>` is the folder that holds `v001/`, `v002/` and `gui/`
    [upp_basefix](https://github.com/JayACarlsonAtHome/upp_basefix) into `upp_basefix_install`
    beside this repository
    (U++ pinned to a GitHub commit plus patches: 0 warnings, sanitizer and valgrind clean),
-   builds `gui/out/Jac313Runner` and opens it:
+   builds `gui/out/<version>/Jac313Runner` and opens it:
    ```
    cd <root>/v002 && ./bsir.sh
    ```
@@ -40,9 +41,9 @@ when it needs it). `<root>` is the folder that holds `v001/`, `v002/` and `gui/`
    with `--clean` by itself.
 3. **Start it** from a desktop session (Wayland or X11):
    ```
-   <root>/gui/out/Jac313Runner
+   <root>/gui/out/v002/Jac313Runner
    ```
-   Pick the version and gates, then press **Start**. Begin small: ctest + smoke, with
+   Pick the gates, then press **Start**. Begin small: ctest + smoke, with
    Max runs 2, Max records 5000 and Max persisted 1000.
 
 **Not as root.** Jac313Runner and `jac313_test_cli` refuse to run as root in a tree a
@@ -54,7 +55,7 @@ execute bit when it runs as root. A tree root owns (a container, CI) runs as usu
 | Path | Role |
 |------|------|
 | `gui/<Package>/` | U++ package source |
-| `gui/out/` | Built binaries, plus `Jac313Runner.json` (saved options); not in git |
+| `gui/out/<version>/` | That version's built programs, plus `Jac313Runner.json` (its saved options); not in git |
 
 ## Packages
 
@@ -68,8 +69,8 @@ execute bit when it runs as root. A tree root owns (a container, CI) runs as usu
 From either version, with no shell script:
 
 ```
-cd v002 && ./jac313_test_cli gui-build      # builds <root>/gui/Jac313Runner -> <root>/gui/out/Jac313Runner
-cd v002 && ./jac313_test_cli gui-build JTextGui   # the editor -> <root>/gui/out/JTextGui
+cd v002 && ./jac313_test_cli gui-build      # builds <root>/gui/Jac313Runner -> <root>/gui/out/v002/Jac313Runner
+cd v002 && ./jac313_test_cli gui-build JTextGui   # the editor -> <root>/gui/out/v002/JTextGui
 ```
 
 umk and its uppsrc come as a pair from one U++ install (the jac314 `gui_build` rule):
@@ -79,8 +80,8 @@ By hand, with the upp_basefix install:
 
 ```
 U=<root>/../upp_basefix_install
-$U/umk <root>/gui,$U/uppsrc Jac313Runner $U/GCC.bm -brsH <root>/gui/out/Jac313Runner
-$U/umk <root>/gui,$U/uppsrc JTextGui $U/GCC.bm -brsH <root>/gui/out/JTextGui
+$U/umk <root>/gui,$U/uppsrc Jac313Runner $U/GCC.bm -brsH <root>/gui/out/v002/Jac313Runner
+$U/umk <root>/gui,$U/uppsrc JTextGui $U/GCC.bm -brsH <root>/gui/out/v002/JTextGui
 ```
 
 Name the method by path. By name, umk looks in its config folders first and writes a default of
@@ -123,7 +124,7 @@ them. Then run `./bsir.sh`, which installs U++ beside the repository if it is no
 were compiled in. Moved, copied or on a different mount path, they stop with exit code 3 and ask
 for a rebuild; the two windows also say so in a dialog when there is a display. `./bsir.sh` is
 the rebuild: it removes build folders made for another path and builds again. `gui-build` keeps
-`gui/out/<package>.compiled_in` and rebuilds everything when that path changes, because umk's
+`gui/out/<version>/<package>.compiled_in` and rebuilds everything when that path changes, because umk's
 cache can outlive a move. The test, bench and example programs do not check: the gates build them
 right before running them.
 
@@ -147,21 +148,20 @@ first). Keep the flag in any new main package. A build with it lands in U++'s
 ## Run
 
 ```
-gui/out/Jac313Runner [--root R] [--summary FILE [--jtext FILE]] [--allow-root]
+gui/out/<version>/Jac313Runner [--root R] [--summary FILE [--jtext FILE]] [--allow-root]
 ```
 
 * `--root R`: the project root (the dir that holds `v001/`, `v002/`, ...). The default is
   the saved root, or else the first dir above the executable that holds a `vNNN/CMakeLists.txt`.
 * `--summary FILE`: open straight on the Results screen with this summary JSON.
 * `--jtext FILE`: used with `--summary`, shows this file in the viewer.
-* The saved version is used when it still exists; otherwise the newest version is selected.
 * `--allow-root`: run as root in a tree a regular user owns (refused by default; see Quick start).
 
 Needs a desktop session: Wayland (`WAYLAND_DISPLAY`) first, else X11 (`DISPLAY`).
 
 ### Screens
 
-1. **Options + Start.** Choose the version, gates, build, persist targets, max runs / max records in a run / max persisted in a run (0 = not passed),
+1. **Options + Start.** Choose the gates, build, persist targets, max runs / max records in a run / max persisted in a run (0 = not passed),
    read-back and PG clean-up. A read-only box shows the exact command, and it updates as the
    options change. **Save as default** writes `Jac313Runner.json` beside the program.
    **Last results** opens `<root>/<version>/test-summary/runner_last*.json`.
@@ -207,17 +207,17 @@ written the file for the results on screen, and greys out again when new results
 If the AI report is open in the viewer when Copy for AI is pressed, the viewer closes it,
 the report is rebuilt (never containing the old one) and the new one is reopened in its place.
 
-Headless: `out/Jac313Runner --dump-ai SUMMARY [--jtext FILE]` prints the same Markdown.
+Headless: `out/v002/Jac313Runner --dump-ai SUMMARY [--jtext FILE]` prints the same Markdown.
 `--snap DIR --summary FILE --copy-ai` also presses both buttons and pictures the result.
 
 ## Headless checks (no window, no display)
 
 ```
-out/Jac313Runner --dump-command [--root R]      # the command(s) Screen 1 would run (saved/default options)
-out/Jac313Runner --dump-jtext FILE              # columns=N rows=M, column names, first 3 rows (tab-separated)
-out/Jac313Runner --dump-summary FILE [--root R] # row count, totals, first 3 rows + their dataset command
-out/Jac313Runner --dump-ai FILE [--jtext FILE]  # the "Copy for AI" Markdown
-out/Jac313Runner --dump-connections FILE        # what Save would write for FILE's connections (writes nothing)
+out/v002/Jac313Runner --dump-command [--root R]      # the command(s) Screen 1 would run (saved/default options)
+out/v002/Jac313Runner --dump-jtext FILE              # columns=N rows=M, column names, first 3 rows (tab-separated)
+out/v002/Jac313Runner --dump-summary FILE [--root R] # row count, totals, first 3 rows + their dataset command
+out/v002/Jac313Runner --dump-ai FILE [--jtext FILE]  # the "Copy for AI" Markdown
+out/v002/Jac313Runner --dump-connections FILE        # what Save would write for FILE's connections (writes nothing)
 ```
 
 Samples to check against are in `Jac313Runner/samples/`:
@@ -231,8 +231,8 @@ Samples to check against are in `Jac313Runner/samples/`:
 To check the layout with a display, the GUI can write PNGs of the screens and then exit:
 
 ```
-out/Jac313Runner --snap DIR --summary samples/runner_last.json --jtext samples/standard_dropdown.jtext
-out/Jac313Runner --root R --snap DIR --autostart [--autostop-after MS] [--select ROW]
+out/v002/Jac313Runner --snap DIR --summary samples/runner_last.json --jtext samples/standard_dropdown.jtext
+out/v002/Jac313Runner --root R --snap DIR --autostart [--autostop-after MS] [--select ROW]
 ```
 
 The second form presses Start with the saved or default options and waits for the run to

@@ -166,8 +166,22 @@ Vector<VersionInfo> FindVersions(const String& root)
 	return out;
 }
 
+String BuiltVersion()
+{
+	String name = GetFileName(GetExeFolder());
+	if(name.GetCount() < 2 || name[0] != 'v')
+		return Null;
+	for(int i = 1; i < name.GetCount(); i++)
+		if(!IsDigit(name[i]))
+			return Null;
+	return name;
+}
+
 String ResolveVersion(const String& wanted, const String& root)
 {
+	String built = BuiltVersion();
+	if(built.GetCount())
+		return built;
 	Vector<VersionInfo> vs = FindVersions(root);
 	for(const VersionInfo& v : vs)
 		if(v.name == wanted)

@@ -783,16 +783,16 @@ echo
 echo "Bootstrap complete."
 
 # --- the Jac313Runner window: opened at once when there is a screen ---
-RUNNER="$(dirname "$ROOT")/gui/out/Jac313Runner"
+RUNNER="$(dirname "$ROOT")/gui/out/$(basename "$ROOT")/Jac313Runner"
 if [ -x "$RUNNER" ] && [ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]; then
   # Terminals like Ptyxis stop every process of a tab when it closes (systemd scope), so
   # setsid alone is not enough: systemd-run --user makes the window its own user service
   if command -v systemd-run > /dev/null 2>&1 &&
      systemd-run --user --collect --quiet --unit "jac313-runner-$$" \
-       --working-directory "$ROOT" "$RUNNER" --version "$(basename "$ROOT")" 2> /dev/null; then
+       --working-directory "$ROOT" "$RUNNER" 2> /dev/null; then
     :
   else
-    ( cd "$ROOT" && setsid "$RUNNER" --version "$(basename "$ROOT")" > /dev/null 2>&1 < /dev/null & )
+    ( cd "$ROOT" && setsid "$RUNNER" > /dev/null 2>&1 < /dev/null & )
   fi
   echo "Opened Jac313Runner: choose the gates (start with ctest + smoke) and press Start."
   echo "It keeps running when this terminal is closed."

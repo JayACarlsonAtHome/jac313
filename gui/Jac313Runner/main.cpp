@@ -38,7 +38,6 @@
 using namespace Upp;
 
 static String gCmdRoot;   // --root
-static String gCmdVersion;   // --version vNNN: the version to show first (bootstrap passes its own)
 
 // ======================================================================= headless
 
@@ -673,6 +672,8 @@ struct Runner : TopWindow {
 	void   BrowseConn();
 	void   ConnStatus(const String& line, bool bad, const String& details = Null, bool pop = false);
 	String CheckConnFile(const String& path);   // the CLI's jText check line for the file
+	Label      otherVersionsLabel;   // "For v002 runs, run this command:"
+	EditString otherVersions;        // that command, to copy
 	void   FillVersions();
 	void   ShowCompilerVersions();
 	String versionKey;     // the version set FillVersions last built
@@ -773,7 +774,11 @@ Runner::Runner()
 	boxVersion.SetLabel("Version");
 	s1p.body.Add(boxVersion.HSizePosZ(8, 8).TopPosZ(y, 46));
 	// cases come from the vNNN folders under the project root (FillVersions)
-	Place(s1p.body, version, 20, y + 18, 600, 22);
+	Place(s1p.body, version, 20, y + 18, 130, 22);
+	Place(s1p.body, otherVersionsLabel, 160, y + 18, 240, 22);
+	Place(s1p.body, otherVersions, 400, y + 18, 540, 22);
+	otherVersions.SetReadOnly();
+	otherVersions.Tip("Each version builds its own Jac313Runner. Run this in a terminal to build the other one.");
 	y += 52;
 
 	boxGates.SetLabel("Gates");
@@ -1151,8 +1156,6 @@ Runner::Runner()
 	quit << [this] { Close(); };
 
 	LoadSettings(opt);
-	if(gCmdVersion.GetCount())
-		opt.version = gCmdVersion;
 	root <<= EffectiveRoot(opt, gCmdRoot);
 	FillVersions();
 	FromOptions();
@@ -1181,23 +1184,43 @@ void Runner::Show(int screen)
 	s3.Show(screen == 3);
 }
 
-// One Version choice per vNNN folder under the root, labelled with its C++ standard.
+// The Version box: only the version that built this program, labelled with its C++ standard. (A hand
+// build outside gui/out/<version>/ has no version of its own, and lists every vNNN folder under the root.)
 // Keeps the current choice when it still exists, else selects the newest.
 void Runner::FillVersions()
 {
 	String keep = IsNull(~version) ? opt.version : AsString(~version);
 	String r = Root();
-	String key;
+	const String built = BuiltVersion();
+	Vector<VersionInfo> shown;
 	for(const VersionInfo& v : FindVersions(r))
+		if(built.IsEmpty() || v.name == built)
+			shown.Add(v);
+	String key;
+	for(const VersionInfo& v : shown)
 		key << v.name << v.standard << ";";
 	if(key != versionKey) {   // rebuild only when the set changed (root.WhenAction fires per key)
 		versionKey = key;
 		version.Reset();
-		for(const VersionInfo& v : FindVersions(r))
+		for(const VersionInfo& v : shown)
 			version.Add(v.name, v.standard.GetCount() ? v.name + " (" + v.standard + ")" : v.name);
 		version.Refresh();
 	}
 	version <<= ResolveVersion(keep, r);
+	// The versions this program does not show: the command that builds the one not built yet.
+	String names, others;
+	int count = 0;
+	if(built.GetCount())
+		for(const VersionInfo& v : FindVersions(r))
+			if(v.name != built && !FileExists(AppendFileName(AppendFileName(AppendFileName(r, "gui/out"), v.name), "Jac313Runner"))) {
+				names << (count ? ", " : "") << v.name;
+				others << (count ? "   ;   " : "") << "cd " << QuoteArg(AppendFileName(r, v.name)) << " && ./bsir.sh";
+				count++;
+			}
+	otherVersionsLabel.SetText("For " + names + " runs, run " + (count > 1 ? "these commands:" : "this command:"));
+	otherVersionsLabel.Show(count);
+	otherVersions <<= others;
+	otherVersions.Show(count);
 }
 
 void Runner::FromOptions()
@@ -2754,8 +2777,6 @@ GUI_APP_MAIN
 	for(int i = 0; i < a.GetCount(); i++) {
 		if(a[i] == "--root" && i + 1 < a.GetCount())
 			gCmdRoot = a[++i];
-		else if(a[i] == "--version" && i + 1 < a.GetCount())
-			gCmdVersion = a[++i];
 		else if(a[i] == "--summary" && i + 1 < a.GetCount())
 			summary = a[++i];
 		else if(a[i] == "--jtext" && i + 1 < a.GetCount())
@@ -2785,7 +2806,7 @@ GUI_APP_MAIN
 	}
 	// Root in a tree a regular user owns leaves root-owned trees and logs, and valgrind will not
 	// start binaries root has no "other" execute bit on. A root-owned tree (container, CI) is fine.
-	// The tree owner is the owner of this program's folder (<root>/gui/out). JAC313_ALLOW_ROOT
+	// The tree owner is the owner of this program's folder (<root>/gui/out/<version>). JAC313_ALLOW_ROOT
 	// passes the override on to every jac313_test_cli this window starts.
 	struct stat st;
 	if(geteuid() == 0 && stat(GetFileFolder(GetExeFilePath()), &st) == 0 && st.st_uid != 0) {

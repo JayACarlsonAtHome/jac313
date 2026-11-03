@@ -77,7 +77,7 @@ void print_usage() {
         "  vendor-baseline  a starting-line VENDORED.jtext for an existing copy\n"
         "  note        note RUN_ID [\"TEXT\"]: add a note to a run in results.db, or list its notes\n"
         "  connections show / --init the PostgreSQL connections file (jText, outside git)\n"
-        "  gui-build   build the U++ GUI (<root>/gui/Jac313Runner) with umk -> <root>/gui/out/\n"
+        "  gui-build   build the U++ GUI (<root>/gui/Jac313Runner) with umk -> <root>/gui/out/<version>/\n"
         "  matrix      run | runner | verify | verify-lite\n\n"
         "Common options:\n"
         "  --build-dir <path>   Build directory (default: build)\n"
@@ -1354,7 +1354,7 @@ void write_bench_detail(jac313::Qlite::v002::Sqlite& db, const fs::path& dir, st
         lines.push_back({g, l.str()});
     }
     std::stable_sort(lines.begin(), lines.end(), [](const Line& a, const Line& b) { return a.group < b.group; });
-    det << "| group | config | persist | threads × events | runs | hot ops/sec | drain ms<br>binary / keeper / database | "
+    det << "| group | config | persist | threads × events | runs | hot ops/sec | drain ms (binary / keeper / database) | "
            "durable median ops/sec | band (low–high) | bytes |\n"
            "|---|---|---|--:|--:|--:|--:|--:|---|--:|\n";
     for (const auto& l : lines) det << l.text;
@@ -1485,8 +1485,8 @@ void write_bench_pages(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
                    << (scale == 1 ? " @ 1M events" : scale == 2 ? " @ 10M events" : "")
                    << "  _(median ops/sec, descending)_\n\n| config";
                 for (std::size_t i = 0; i < comps.size(); ++i) {
-                    md << " | [" << heads.columns[i] << "](" << run_label_md(comps[i].second) << ".md)<br>";
-                    if (grp == 0) md << "hot ops/sec | drain ms<br>bin / keep / db | durable median ops/sec | band | size";
+                    md << " | [" << heads.columns[i] << "](" << run_label_md(comps[i].second) << ".md) ";
+                    if (grp == 0) md << "hot ops/sec | drain ms (bin / keep / db) | durable median ops/sec | band | size";
                     else          md << "median ops/sec | band | size";
                 }
                 md << " |\n|---";
@@ -1759,7 +1759,7 @@ void write_machines_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
             std::int64_t run = 0; std::string ts, cmd, event, test, msg;
             ex.get(run, ts, cmd, event, test, msg);
             if (exs.empty() || exs.back().run != run) exs.push_back({run, ts, cmd, event, ""});
-            exs.back().result += (exs.back().result.empty() ? "" : "<br>") + (test.empty() ? std::string() : test + ": ")
+            exs.back().result += (exs.back().result.empty() ? "" : " · ") + (test.empty() ? std::string() : test + ": ")
                                + md_cell(msg);
         }
         if (!exs.empty())
@@ -3871,8 +3871,8 @@ static int run_main(int argc, char** argv) {
             else if (a == "--clean") clean = true;
             else if (a == "--help" || a == "-h") {
                 std::cout << "gui-build [PACKAGE...] [--source-dir DIR] [--method GCC|CLANG] [--clean]\n"
-                             "  Builds U++ packages in <root>/gui (default: Jac313Runner) into <root>/gui/out/<PACKAGE>.\n"
-                             "  The GUI is version-independent: it sits beside the vNNN folders, not inside one.\n"
+                             "  Builds U++ packages in <root>/gui (default: Jac313Runner) into <root>/gui/out/<version>/<PACKAGE>.\n"
+                             "  The source sits beside the vNNN folders; each version builds its own program, which shows only that version.\n"
                              "  --method picks the U++ build method (default GCC). An upp_basefix install has\n"
                              "  GCC.bm and CLANG.bm next to its umk. U++ is taken from $UPP_DIR, else\n"
                              "  upp_basefix_install beside this repository.\n"
@@ -3941,7 +3941,7 @@ static int run_main(int argc, char** argv) {
         }
         int rc = 0;
         for (const auto& pkg : packages) {
-            const fs::path out = gui / "out" / pkg;
+            const fs::path out = gui / "out" / vdir.filename() / pkg;   // each version has its own program
             std::error_code ec;
             fs::create_directories(out.parent_path(), ec);
             // Each window holds the folder it was compiled in, and umk's cache can outlive a move

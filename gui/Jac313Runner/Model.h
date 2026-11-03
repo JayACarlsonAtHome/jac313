@@ -125,7 +125,9 @@ struct VersionInfo : Moveable<VersionInfo> {
 	String standard;   // "C++26" (from cxx_std_NN in its CMake files; "" if not found)
 };
 Vector<VersionInfo> FindVersions(const String& root);   // sorted oldest -> newest
-String          ResolveVersion(const String& wanted, const String& root);   // wanted if present, else newest
+// The version that built this program: gui-build puts it in gui/out/<version>/. '' for a hand build elsewhere.
+String          BuiltVersion();
+String          ResolveVersion(const String& wanted, const String& root);   // BuiltVersion, else wanted if present, else newest
 String          EffectiveRoot(const RunOptions& o, const String& cmdRoot);
 
 // One child run (the "both" compiler choice makes two).
