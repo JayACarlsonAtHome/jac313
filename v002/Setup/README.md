@@ -20,6 +20,7 @@ The settings are jText tables (full profile, an OS column where they depend on t
 | [`recipes.jtext`](recipes.jtext) | `components` (component, desc, for, required, check); `recipe_os` (os, component, command) | `jac313_test_cli`, `bsir.sh` |
 | `compilers.pin.jtext` | `pins` (label, cpu_model, cores, ram_gb, os_pretty, gcc_label, clang_label) | `jac313_test_cli pin` (reads and writes it) |
 | [`contracts.jtext`](contracts.jtext) | `contract_modes` (os, toolchain, enforce, observe, quick_enforce, ignore) | `jac313_test_cli`, Jac313Runner |
+| [`setup_pg_server.sh`](setup_pg_server.sh), [`find_pg_password.sh`](find_pg_password.sh) | scripts, not tables | Jac313Runner's **Setup Remote PG Server...**; by hand on the server |
 
 `Setup` itself reads none of them: it links nothing but the standard library. `jac313_test_cli`
 reads them with jText's parser and validator (`tools/jac313_test_cli/settings.cpp`) and hands the

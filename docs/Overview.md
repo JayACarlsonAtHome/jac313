@@ -206,11 +206,11 @@ Always run from **inside** the version directory.
 
 See that version's README for more (or the docs/ inside it).
 
-**Prefer a window?** Jac313Runner is a GUI that drives `jac313_test_cli` for any
-version: choose the gates, press Start, and browse the results with a jText viewer.
+**Prefer a window?** Each version has its own Jac313Runner, a GUI that drives that version's
+`jac313_test_cli`: choose the gates, press Start, and browse the results with a jText viewer.
 Every run ends by writing report pages from the results database; **Reports** shows them in the
 window and **Open Reports in Chrome** opens them as linked web pages.
-`./bsir.sh` builds it and opens it at the end; see [gui/README.md](../gui/README.md#quick-start-jac313runner).
+`./bsir.sh` builds it and opens it at the end; see [v001/gui/README.md](../v001/gui/README.md#quick-start-jac313runner).
 Run the tests and the GUI as your own user, not with sudo.
 
 ---
@@ -223,8 +223,7 @@ jac313/
 ├── docs/Overview.md  # this file (the longer introduction)
 ├── LICENSE           # governs all versions
 ├── AI_files/         # cross-version coordination notes (handoffs between collaborators)
-├── gui/              # Jac313Runner (test runner GUI) and JTextGui (jText editor), U++
-├── v001/             # complete C++23 world  (libraries, Setup, tools, tests, docs, results)
+├── v001/             # complete C++23 world  (libraries, Setup, tools, GUI, tests, docs, results)
 └── v002/             # complete C++26 world  (currently compiled as C++26 with limited new feature adoption)
 ```
 

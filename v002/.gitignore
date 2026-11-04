@@ -70,3 +70,6 @@ bench-json-output/*.json
 # Generated, re-runnable preset script (overwritten each preset invocation)
 /run_latest_config.sh
 /run-log.txt
+
+# Jac313Runner / JTextGui build output (jac313_test_cli gui-build -> gui/out/)
+gui/out/

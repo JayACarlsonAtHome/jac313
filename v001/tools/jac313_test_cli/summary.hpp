@@ -22,7 +22,7 @@ namespace jac313::test_cli {
 /// " --persist ... --max-persist-rows N --readback M --pg-cleanup C --summary-json P --size S"
 /// (only the options that were given), for commands generated into run_latest_config.sh.
 // Version of the CLI <-> Jac313Runner interface (flags + summary JSON fields), written as
-// "contract" in every summary. Must match kRunnerContract in <root>/gui/Jac313Runner/Model.h.
+// "contract" in every summary. Must match kRunnerContract in gui/Jac313Runner/Model.h.
 inline constexpr int kRunnerContract = 5;   // 2: --pg-remote / --pg-local, summary "pg_remote"; 3: --connections;
                                             // 4: --contracts, compiler-versions lists the contract modes;
                                             // 5: summary "settings" (every setting the run was given)

@@ -66,3 +66,6 @@ kept-logs/**
 
 # build-times gate's transient per-config trees (safe_rmdir'd after each, but ignore if interrupted)
 /tmp_build/
+
+# Jac313Runner / JTextGui build output (jac313_test_cli gui-build -> gui/out/)
+gui/out/

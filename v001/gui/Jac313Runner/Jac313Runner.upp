@@ -1,0 +1,21 @@
+description "Jac313Runner — run the jac313 test gates (jac313_test_cli), watch them, and view the persisted datasets as jText\n";
+
+noblitz;
+
+uses
+	CtrlLib,
+	plugin/png;
+
+file
+	Model.h,
+	Model.cpp,
+	main.cpp,
+	../../jText/jText.cpp,
+	../../jText/src/parser/line.cpp,
+	../../jText/src/parser/section.cpp;
+
+mainconfig
+	"" = "GUI WAYLAND";
+
+options
+	"-I../../jText -I../../jText/src -Wformat=2 -Werror=format";

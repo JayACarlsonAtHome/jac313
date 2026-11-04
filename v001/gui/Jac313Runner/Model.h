@@ -1,0 +1,213 @@
+// Model.h — everything Jac313Runner knows without a window: the run options and
+// the command line they make, the summary JSON the engine writes, the dataset
+// command for a result row, and the viewer's jText model (parsed by the jText library).
+// The headless modes (--dump-command, --dump-jtext, --dump-summary) use only this.
+#pragma once
+#include <Core/Core.h>
+
+namespace Upp {
+
+// ---- Options (Screen 1), saved to Jac313Runner.json beside the program ----
+// The Max fields' defaults (shown beside each field on screen 1)
+const int       kDefMaxRuns    = 20;
+const int       kDefMaxRecords = 10000;
+const int       kDefMaxRows    = 10000;
+// Max records is 0 (each test's default) or at least this, as jac313_test_cli --max-records checks:
+// test 008 needs one keeper, one database and one unflagged event.
+const int       kMinMaxRecords = 3;
+
+// ---- The bench's production run: the one row of the version's tests/production.jtext (it serves
+// the smoke, full and bench profiles). Shown in the Persist to box, saved back to that file (not
+// to Jac313Runner.json) and passed to the bench as --production.
+struct ProductionOptions {
+	String keeper      = "jtext";   // jtext | html | json         (the keeper file, KeeperOnly)
+	String database    = "sql";     // sql | pg-local | pg-remote  (the database, DatabaseOnly)
+	int    keeperPct   = 10;        // % of events flagged KeeperRecord
+	int    databasePct = 10;        // % of events flagged DatabaseEntry
+	bool   binary      = true;      // the binary replay log (every event)
+	String Spec() const;            // "keeper=jtext,database=sql,keeper_pct=10,database_pct=10,binary=on"
+};
+String          ProductionParamsFile(const String& vdir);
+// Read the production row; false (err set, p unchanged) when the file or a valid row is missing.
+bool            LoadProduction(const String& file, ProductionOptions& p, String& err);
+// The file with its production row replaced (the row written by jText's writer; every other line
+// kept as it is). false (err set) when the file has no production section.
+bool            SaveProduction(const String& file, const ProductionOptions& p, String& err);
+
+struct RunOptions {
+	bool   ctest      = true;
+	bool   smoke      = true;
+	bool   bench      = false;
+	bool   verifyLite = false;
+	bool   verify     = false;
+	String compiler   = "both";     // gcc | clang | both (each: the newest on this machine)
+	String buildType  = "Debug";    // Debug | Release
+	bool   hardened   = false;      // --hardened (runtime hardening; ctest/smoke builds only)
+	// --contracts: how contract checks run (ctest/smoke builds only): enforce | observe |
+	// quick_enforce | ignore. The screen enables only the modes the chosen compiler has on this
+	// OS (the version's Setup/contracts.jtext, via jac313_test_cli compiler-versions).
+	String contracts  = "enforce";
+	// The modes gcc / clang have here, e.g. "enforce,observe,quick_enforce,ignore" (filled from
+	// compiler-versions by the window, not saved; "" = not known, the choice goes through as it
+	// is). With "both" a mode one compiler lacks runs that compiler with enforce instead.
+	String gccContracts, clangContracts;
+	String frontEnd   = "textual";  // textual | modules
+	String size       = "smoke";    // smoke | full
+	bool   sqlite     = true;
+	bool   pgLocal    = false;
+	bool   pgRemote   = false;
+	bool   jtext      = true;
+	bool   binary     = true;
+	bool   json       = true;
+	bool   html       = true;
+	int    maxRuns    = kDefMaxRuns;      // --max-runs (0 = test default, not emitted)
+	int    maxRecords = kDefMaxRecords;   // --max-records (0 = test default, not emitted)
+	int    maxRows    = kDefMaxRows;      // --max-persist-rows (0 = no limit, not emitted)
+	String readback   = "sample";   // sample | all
+	String pgCleanup  = "keep-last";// keep-last | delete
+	// The PostgreSQL connections file (jText, kept OUTSIDE git; "" = the default beside the
+	// project: <projects>/SQL_Secrets/jac313_connections.jtext). Only its path is saved here.
+	String connFile;
+	// The user's own remote PostgreSQL server for "PG remote" (there is no built-in default),
+	// loaded from / saved to the connections file. Never a password: libpq reads it from
+	// ~/.pgpass or $PGPASSFILE.
+	String pgName;                  // the server's name on every report ("" = its host)
+	String pgHost;                  // e.g. 10.0.0.5 or db.example.org ("" = not set)
+	String pgPort;                  // "" = 5432
+	String pgDb       = "jac313";
+	String pgUser     = "jac313";
+	ProductionOptions prod;         // from / to tests/production.jtext (not saved in the JSON)
+
+	void Jsonize(JsonIO& io);
+};
+
+String          SettingsPath();                 // <exe dir>/Jac313Runner.json
+bool            LoadSettings(RunOptions& o);
+bool            SaveSettings(const RunOptions& o);
+
+// The summary JSON / CLI flags this GUI understands. The CLI writes "contract": N in every
+// summary; a summary with a newer contract is refused (rebuild the GUI). Bump both together.
+const int       kRunnerContract = 5;   // 2: --pg-remote / --pg-local, summary "pg_remote"; 3: --connections;
+                                       // 4: --contracts, compiler-versions lists the contract modes;
+                                       // 5: summary "settings" (every setting the run was given)
+
+// ---- PostgreSQL connections file (jText; see the CLI's connections.hpp for the layout)
+struct ConnRow : Moveable<ConnRow> {
+	String backend, host, port, dbname, user, timeout, notes;
+	String name;   // the last field: the server's name on every report ("" = its host; absent in older files)
+};
+String          DefaultConnectionsPath(const String& vdir);   // $JAC313_CONNECTIONS, else SQL_Secrets beside the repository
+String          EffectiveConnFile(const RunOptions& o, const String& vdir);
+bool            LoadConnections(const String& path, Vector<ConnRow>& rows, String& err);
+String          ConnectionsText(const Vector<ConnRow>& rows);   // the jText the GUI writes
+bool            SaveConnections(const String& path, const Vector<ConnRow>& rows, String& err);
+String          EnclosingGitProject(const String& path);        // "" when not inside a git work tree
+
+// libpq conninfo for the Remote PG fields ("" when no host is set).
+String          RemoteConninfo(const RunOptions& o);
+// libpq conninfo for pg-local: the file's pg-local row, else localhost / jac313 / jac313
+// (what jac313_test_cli uses when nothing else names the local server).
+String          LocalConninfo(const Vector<ConnRow>& rows);
+// The password file for pg-remote / pg-local beside the connections file
+// (<dir>/jac313_pg_remote.pgpass / jac313_pg_local.pgpass; "" when it does not exist), and a
+// conninfo with passfile=<it> added (unchanged when the file is "" or passfile= is already set).
+String          PassFileFor(const RunOptions& o, const String& vdir, bool remote);
+String          WithPassFile(const String& conninfo, const String& passfile);
+// jac313_store_dataset under the version folder: the newest of its build dirs that has it.
+String          FindDatasetTool(const String& vdir);
+
+// This program belongs to one version: its source and its build live inside that version's folder.
+const char *const kVersion = "v001";
+String          VersionDir();                            // this version's folder, found from the executable; "" if outside it
+String          VersionStandard(const String& vdir);     // "C++26", from cxx_std_NN in its CMake files; "" if not found
+
+// One child run (the "both" compiler choice makes two).
+struct RunPlan {
+	String         exe;        // <vdir>/jac313_test_cli
+	String         cwd;        // <vdir>
+	String         compiler;   // gcc | clang
+	String         summary;    // --summary-json path
+	Vector<String> args;       // without exe
+	String         Display() const;   // exe + args, quoted where needed
+};
+
+String          PersistList(const RunOptions& o);   // "sql,jtext,..." ("" = none chosen)
+Array<RunPlan>  BuildPlans(const RunOptions& o, const String& vdir);
+int             LimitMaxRecords(int n);   // 0 stays 0 (test default); 1..2 become kMinMaxRecords
+// Max persisted in a run can never exceed Max records in a run: with a records limit set,
+// a persisted limit of 0 (none) or above it becomes the records limit.
+void            LimitPersistToRecords(RunOptions& o);
+String          QuoteArg(const String& a);
+
+// ---- Summary JSON ----
+struct ResultRow {
+	String gate, test, backend, outputMode, status, log;
+	String ms, rows;                      // "" when missing
+	String rbMode, rbCount, rbChecksum, rbSample, rbChecked;
+	String pingMs, writeMs, error;        // readback.ping_ms / write_ms (PostgreSQL), "error"
+	String dsBackend, dsBase;
+	Vector<String> datasetCmd;            // explicit "dataset_cmd" (preferred when present)
+	String compiler, buildType, version;  // copied from the summary that holds the row
+	String pgRemote;                      // the summary's remote server (conninfo, no password)
+	bool   Failed() const;
+};
+
+struct Summary {
+	String path, runId, host, version, compiler, buildType, started, finished, command;
+	String os;                // "os": the OS the run ran under, "<name> · <kernel>" ("" in older summaries)
+	String contracts;         // "contracts": the ctest/smoke builds' contract mode ("" in older summaries)
+	String pgRemote;          // "pg_remote": the remote PostgreSQL server the run used ("" = none)
+	// "settings": every setting the run was given, in order ("-" = not given; empty in older summaries)
+	Vector<String> settingName, settingValue;
+	String SettingsText() const;   // "name: value" lines
+	int    pass = 0, fail = 0;
+	int    contract = 1;      // "contract" (summaries written before it existed are 1)
+	Array<ResultRow> rows;
+	bool   Load(const String& file, String& err);
+	bool   Parse(const String& text, String& err);
+};
+
+String          BuildDirFor(const String& compiler, const String& buildType);
+
+// ---- "Copy for AI": one Markdown document someone can paste into any AI and ask
+// "what am I looking at?" or "why did this fail?".
+struct AiExtra {
+	String title;         // the viewer's title for the selected row ("" = nothing selected)
+	String datasetText;   // the jText (or log) shown in the viewer
+	String validation;    // the viewer's validation line
+};
+String          AiContextPath(const String& vdir);   // <vdir>/gui/ai_context.md (editable project context)
+String          BuildAiReport(const Array<Summary>& sums, const String& vdir, const AiExtra& x);
+String          AiReportPath(const Summary& s);      // beside the summary: runner_last*_ai.md
+// The dataset command for a row: exe + args ("" exe = no dataset for this row).
+bool            DatasetCommand(const ResultRow& r, const String& vdir, String& exe, Vector<String>& args);
+
+// ---- jText ----
+struct JSection {
+	String name;
+	Vector<String> cols;
+	Vector<Vector<String>> rows;   // NULL is stored as JNull()
+	int    Width() const;          // max(cols, widest row)
+	String ColName(int i) const;   // declared name or "1".."N"
+};
+
+struct JDoc {
+	Array<JSection> sections;
+	Vector<String>  notes;         // problems: a parse error (no sections then), an unresolved
+	                               // include, a missing, older or newer jText version
+	void Parse(const String& text, const String& baseDir);
+	int  MainSection() const;      // first section with rows, else first, else -1
+};
+
+const String&   JNull();          // the NULL marker: "\xE2\x88\x85" (empty set sign)
+
+// ---- Reports in a browser: the report pages are Markdown (headings, pipe tables, links,
+// **bold**, _italic_, `code`, ---, "- " lists and raw <a id> anchors). MarkdownToHtml makes one
+// HTML page of that subset; link() rewrites each link target (e.g. x.md -> x.html).
+String          MarkdownToHtml(const String& md, Function<String (const String&)> link);
+// Convert every *.md under srcDir into dstDir (same layout, .html; dstDir is emptied first).
+// Links to converted pages point at their .html; others at the original file. Returns the
+// number of pages (0 = none, err set on failure).
+int             ExportReportHtml(const String& srcDir, const String& dstDir, String& err);
+
+}

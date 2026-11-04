@@ -1,0 +1,81 @@
+//File:    VENDORED.jtext
+//Purpose: Vendored copy of jText_GUI/v001/include (do not edit the copied files here;
+//         change the canonical repo, then sync). Drift is reported as warnings, never as failures.
+//         Written by `jac313_test_cli vendor-sync` / `vendor-baseline` (format: VENDORED_FORMAT.md).
+//
+=== jText File ===
+ 1. #?# VENDORED
+ 3. #?# Vendored copy of jText_GUI/v001/include
+
+
+=== Section: source ===
+
+
+=== Fields ===
+ 1. #/# id/Identity(1,1)/Not Null
+ 2. #/# key/String/Not Null
+ 3. #/# value/String
+=== End Fields ===
+
+
+=== Data ===
+1. #|# 1|canonical_repo|jText_GUI
+
+1. #|# 2|canonical_dir|jText_GUI/v001/include
+
+1. #|# 3|canonical_commit|713b8f0987ff
+
+1. #|# 4|canonical_dirty|No
+
+1. #|# 5|canonical_version|
+
+1. #|# 6|transform|none
+
+1. #|# 7|ported|2026-10-30
+
+1. #|# 8|baseline|No
+
+1. #|# 9|local|VENDORED.jtext
+
+1. #|# 10|exclude|
+
+1. #|# 11|notes|
+
+=== End Data ===
+=== End Section ===
+
+
+=== Section: files ===
+
+
+=== Fields ===
+ 1. #/# id/Identity(1,1)/Not Null
+ 2. #/# path/String/Not Null             # vendored file, relative to the manifest dir
+ 3. #/# canonical_path/String/Not Null   # canonical file, relative to canonical_dir
+ 4. #/# canonical_sha256/String/Not Null # canonical file content when copied
+ 5. #/# vendored_sha256/String/Not Null  # vendored file content as written
+=== End Fields ===
+
+
+=== Data ===
+1. #|# 1|README.md|README.md|734fa4ea286f5b9c5dc0a23440ee8352aff920f253f5cfd45ccc851d2f75cdd8|734fa4ea286f5b9c5dc0a23440ee8352aff920f253f5cfd45ccc851d2f75cdd8
+
+1. #|# 2|jtext_gui/core/comments_table.hpp|jtext_gui/core/comments_table.hpp|f97af87f6fc3f5fe2b99e5b7912b6bcd6095db8e4976b98c80c8de4853019931|f97af87f6fc3f5fe2b99e5b7912b6bcd6095db8e4976b98c80c8de4853019931
+
+1. #|# 3|jtext_gui/core/connection_info.hpp|jtext_gui/core/connection_info.hpp|a9f591d52a15e11fafe53d94689e5544bc71a8c17b4dbef9027bce92a50e9e7b|a9f591d52a15e11fafe53d94689e5544bc71a8c17b4dbef9027bce92a50e9e7b
+
+1. #|# 4|jtext_gui/core/connections_file.hpp|jtext_gui/core/connections_file.hpp|4e01386957a56aa446cbcf683257060317c074badd4ab5b0fec76c17bce43f8d|4e01386957a56aa446cbcf683257060317c074badd4ab5b0fec76c17bce43f8d
+
+1. #|# 5|jtext_gui/core/record.hpp|jtext_gui/core/record.hpp|821fb24b0aff1f9216a6b17e95775fef2e7aa6f755c097a03841d0ade4729da8|821fb24b0aff1f9216a6b17e95775fef2e7aa6f755c097a03841d0ade4729da8
+
+1. #|# 6|jtext_gui/core/session.hpp|jtext_gui/core/session.hpp|b487a6387663c9e16735ef84ab16985135c089aafaaf89a2912d4beb16b87856|b487a6387663c9e16735ef84ab16985135c089aafaaf89a2912d4beb16b87856
+
+1. #|# 7|jtext_gui/core/spreadsheet.hpp|jtext_gui/core/spreadsheet.hpp|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87|f72280eda28d1a3f249c2c51aa5ed26a6d27c0313676f7d416806939a5b54d87
+
+1. #|# 8|jtext_gui/core/table_store.hpp|jtext_gui/core/table_store.hpp|f76b107dd8ef89ad083e7f258ea47d5ae94479d83013e1644b4050c9c88378c5|f76b107dd8ef89ad083e7f258ea47d5ae94479d83013e1644b4050c9c88378c5
+
+1. #|# 9|jtext_gui/record.hpp|jtext_gui/record.hpp|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5|f7a105da8b35d2a158f7f93b802f433d77741c3b2daff969fe6bcdcaa6ed34c5
+
+=== End Data ===
+=== End Section ===
+=== End File ===

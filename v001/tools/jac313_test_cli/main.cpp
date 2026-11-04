@@ -77,7 +77,7 @@ void print_usage() {
         "  vendor-baseline  a starting-line VENDORED.jtext for an existing copy\n"
         "  note        note RUN_ID [\"TEXT\"]: add a note to a run in results.db, or list its notes\n"
         "  connections show / --init the PostgreSQL connections file (jText, outside git)\n"
-        "  gui-build   build the U++ GUI (<root>/gui/Jac313Runner) with umk -> <root>/gui/out/<version>/\n"
+        "  gui-build   build the U++ GUI (gui/Jac313Runner) with umk -> gui/out/\n"
         "  matrix      run | runner | verify | verify-lite\n\n"
         "Common options:\n"
         "  --build-dir <path>   Build directory (default: build)\n"
@@ -3820,7 +3820,7 @@ static int run_main(int argc, char** argv) {
     if (command == "connections") {   // show or create the PostgreSQL connections file
         return run_connections_command(argc, argv, 2);
     }
-    if (command == "gui-build") {   // build a U++ GUI package under <root>/gui with umk (no shell script)
+    if (command == "gui-build") {   // build a U++ GUI package under gui/ with umk (no shell script)
         // umk and its uppsrc come as a pair from one U++ install (jac314 gui_build rule):
         // $UPP_DIR, else upp_basefix_install beside this repository (upp_basefix.sh install: the
         // pinned, patched U++). No fixed drive paths: the repository can be anywhere.
@@ -3835,8 +3835,7 @@ static int run_main(int argc, char** argv) {
             else if (a == "--clean") clean = true;
             else if (a == "--help" || a == "-h") {
                 std::cout << "gui-build [PACKAGE...] [--source-dir DIR] [--method GCC|CLANG] [--clean]\n"
-                             "  Builds U++ packages in <root>/gui (default: Jac313Runner) into <root>/gui/out/<version>/<PACKAGE>.\n"
-                             "  The source sits beside the vNNN folders; each version builds its own program, which shows only that version.\n"
+                             "  Builds U++ packages in gui/ (default: Jac313Runner) into gui/out/<PACKAGE>.\n"
                              "  --method picks the U++ build method (default GCC). An upp_basefix install has\n"
                              "  GCC.bm and CLANG.bm next to its umk. U++ is taken from $UPP_DIR, else\n"
                              "  upp_basefix_install beside this repository.\n"
@@ -3847,10 +3846,9 @@ static int run_main(int argc, char** argv) {
             } else packages.push_back(a);
         }
         if (packages.empty()) packages.push_back("Jac313Runner");
-        // <root>/gui, one level above the version dir (<root>/vNNN)
         fs::path vdir = fs::absolute(src).lexically_normal();
         if (vdir.filename().empty()) vdir = vdir.parent_path();   // "…/v002/" -> "…/v002"
-        const fs::path gui = vdir.parent_path() / "gui";
+        const fs::path gui = vdir / "gui";
         const char* home = std::getenv("HOME");
         std::vector<std::pair<fs::path, fs::path>> pairs;   // (umk, uppsrc) in preference order
         if (const char* d = std::getenv("UPP_DIR"); d && *d) pairs.emplace_back(fs::path(d) / "umk", fs::path(d) / "uppsrc");
@@ -3905,7 +3903,7 @@ static int run_main(int argc, char** argv) {
         }
         int rc = 0;
         for (const auto& pkg : packages) {
-            const fs::path out = gui / "out" / vdir.filename() / pkg;   // each version has its own program
+            const fs::path out = gui / "out" / pkg;
             std::error_code ec;
             fs::create_directories(out.parent_path(), ec);
             // Each window holds the folder it was compiled in, and umk's cache can outlive a move

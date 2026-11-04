@@ -43,8 +43,8 @@ Thumbs.db
 # Setup/*.local.jtext.example files): this machine's alone, never committed
 /v*/Setup/*.local.jtext
 
-# Jac313Runner GUI build output (jac313_test_cli gui-build -> <root>/gui/out/)
-gui/out/
+# Jac313Runner GUI build output (jac313_test_cli gui-build -> vNNN/gui/out/)
+/v*/gui/out/
 
 # Results are this machine's alone and mean nothing to anyone else: the shared results DB
 # (the CLI creates it when missing) and every rendered report page under a version's

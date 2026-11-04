@@ -1,0 +1,327 @@
+# jac313 GUI packages
+
+Presenter packages, the jac314 way: the engine tools do the work; a GUI builds
+a command line, runs it as a child process, shows the output, and reads the
+results file. No shell scripts.
+
+This folder belongs to one version. Its source and its build stay inside the version's folder,
+and the program runs that version's own `jac313_test_cli`. `bsir.sh` is per version too: run it in
+each version you use. Each version has its own copy of this folder, and neither knows about the other.
+
+## Quick start: Jac313Runner
+
+Run every step as **your own user**, not with sudo (`bsir.sh` asks for sudo itself
+when it needs it). `<vdir>` is this version's folder, for example `~/git/jac313/v002`.
+
+1. **Run BSIR in a version** (`bsir.sh`: Bootstrap, Setup, Install & Run; it was
+   `bootstrap.sh` until 2026-10-23). After its one "Install everything?" and one sudo password
+   it builds `jac313_test_cli`, installs the GUI's build libraries (GTK3, libnotify, FreeType,
+   Fontconfig, X11), installs U++ from
+   [upp_basefix](https://github.com/JayACarlsonAtHome/upp_basefix) into `upp_basefix_install`
+   beside this repository
+   (U++ pinned to a GitHub commit plus patches: 0 warnings, sanitizer and valgrind clean),
+   builds `gui/out/Jac313Runner` and opens it:
+   ```
+   cd <vdir> && ./bsir.sh
+   ```
+   An upp_basefix install in `$UPP_DIR` (default `upp_basefix_install` beside this repository) is updated when its clone
+   has moved on; the clone follows the branch this checkout is on, when upp_basefix has it, and the build after an update rebuilds everything. Any other `umk` + `uppsrc`
+   there is used as it is. `./bsir.sh --no-gui` leaves out U++, the Runner and DBeaver.
+2. **Rebuild later:**
+   ```
+   cd <vdir> && ./jac313_test_cli gui-build              # GCC; --method CLANG for clang
+   ```
+   An upp_basefix install has `GCC.bm` and `CLANG.bm` next to its `umk`, naming the compilers
+   by path (gcc-toolset-15 on RHEL), so no toolset shell is needed. C++23 is the minimum:
+   `gui-build` passes the method by path and refuses one that asks for less. Its patch 0001 fixes the
+   GCC 15 start-up crash plain U++ 2026.1 had. If a link fails with undefined references, the
+   U++ cache holds stale objects: add `--clean` (rebuild everything). Bootstrap retries once
+   with `--clean` by itself.
+3. **Start it** from a desktop session (Wayland or X11):
+   ```
+   <vdir>/gui/out/Jac313Runner
+   ```
+   Pick the gates, then press **Start**. Begin small: ctest + smoke, with
+   Max runs 2, Max records 5000 and Max persisted 1000.
+
+**Not as root.** Jac313Runner and `jac313_test_cli` refuse to run as root in a tree a
+regular user owns. A root run there leaves root-owned build trees, logs and `/tmp` files
+that your later runs cannot overwrite. Valgrind also refuses binaries that have no "other"
+execute bit when it runs as root. A tree root owns (a container, CI) runs as usual.
+`--allow-root` overrides, and the runner passes it on to every run it starts.
+
+| Path | Role |
+|------|------|
+| `gui/<Package>/` | U++ package source |
+| `gui/out/` | This version's built programs, plus `Jac313Runner.json` (its saved options); not in git |
+
+## Packages
+
+| Package | What it does |
+|---------|--------------|
+| **Jac313Runner** | Runs the jac313 test gates through `jac313_test_cli`, streams the run, and shows the results with a jText viewer for each result row's dataset |
+| **JTextGui** | The jText table editor, vendored from jText_GUI. Open and save jText, pull PostgreSQL or SQLite and Mergesert, records of up to 99 lines, a Lines box and field box, an Excel-style Records grid (detachable to a second monitor), and Excel (.xlsx) export and import. A blank marker starts as `|#`. Guide: the jText Editor Manual in jText_GUI (`Manual/pdf/jText-Editor-Manual.pdf`). The package carries its own `jText/` library snapshot and does not compile the sibling jText checkout or `vNNN/jText`; it links SQLite, libpq and zlib. |
+
+## Build
+
+With no shell script:
+
+```
+cd <vdir> && ./jac313_test_cli gui-build      # builds gui/Jac313Runner -> gui/out/Jac313Runner
+cd <vdir> && ./jac313_test_cli gui-build JTextGui   # the editor -> gui/out/JTextGui
+```
+
+umk and its uppsrc come as a pair from one U++ install (the jac314 `gui_build` rule):
+`$UPP_DIR`, else `upp_basefix_install` beside this repository. The clone is `upp_basefix` and
+its work area `upp_basefix_work`, both beside it too.
+By hand, with the upp_basefix install:
+
+```
+U=<vdir>/../../upp_basefix_install
+$U/umk <vdir>/gui,$U/uppsrc Jac313Runner $U/GCC.bm -brsH <vdir>/gui/out/Jac313Runner
+$U/umk <vdir>/gui,$U/uppsrc JTextGui $U/GCC.bm -brsH <vdir>/gui/out/JTextGui
+```
+
+Name the method by path. By name, umk looks in its config folders first and writes a default of
+its own when it finds none.
+
+The folders, all side by side (`<root>` is `~/git/jac313` here):
+
+```
+~/git/jac313                the project
+~/git/upp_basefix           the upp_basefix clone: follows the branch the project is on
+~/git/upp_basefix_install   umk, uppsrc, GCC.bm, CLANG.bm, VERSION
+~/git/valgrind_install      Linux Mint only: the valgrind version it must use
+~/git/cmake_install         the CMake version every system uses
+~/git/upp_basefix_work      the download, the trees, the build of umk
+```
+
+C++23 is the minimum: `gui-build` refuses a method that asks for less. `-fcontracts` on the link
+is not in the `.upp` files: `upp_basefix install` writes it into `GCC.bm` only for a GCC with
+native contracts (GCC 16). An older GCC's driver would turn it into `-lstdc++exp`, which
+gcc-toolset-15 on RHEL does not ship.
+
+### Removing an old U++ from your home folder
+
+U++ used to live in `~/upp_basefix`, with `~/upp_basefix_src` and `~/upp_basefix_work`. This project
+no longer reads them, but a `UPP_DIR` left set in your shell still takes priority over the install
+beside the repository. Clear it and remove the old folders:
+
+```bash
+grep -n UPP_DIR ~/.bashrc ~/.bash_profile ~/.profile   # delete any line this finds
+unset UPP_DIR
+rm -rf ~/upp_basefix ~/upp_basefix_src ~/upp_basefix_work
+```
+
+Projects not moved yet (jac315, jac317, Date_001) still use `~/upp_basefix`, so keep it if you build
+them. Then run `./bsir.sh`, which installs U++ beside the repository if it is not there.
+
+### COMPILED-IN-DIR: a program runs only where it was compiled
+
+`jac313_test_cli`, the `jac313_wipe_*` tools, `Jac313Runner` and `JTextGui` hold the folder they
+were compiled in. Moved, copied or on a different mount path, they stop with exit code 3 and ask
+for a rebuild; the two windows also say so in a dialog when there is a display. `./bsir.sh` is
+the rebuild: it removes build folders made for another path and builds again. `gui-build` keeps
+`gui/out/<package>.compiled_in` and rebuilds everything when that path changes, because umk's
+cache can outlive a move. The test, bench and example programs do not check: the gates build them
+right before running them.
+
+Both packages have `options "-Wformat=2 -Werror=format"` in their `.upp`: a printf-style call
+whose arguments do not match its format (such as a 64-bit value given to `%d`) fails the
+build. Package options apply to our code, not to uppsrc. The jac313 CMake builds go further:
+every warning is an error there (-Werror, with the strict and conversion warnings), in every
+build; Jac313Runner's Build box says so ("Always on").
+
+U++ keeps one object cache per build method (an upp_basefix install keeps it in its own
+`.config`, apart from any other U++). Build with the same compiler each time. If the compiler changes, rebuild everything
+once with `-a`.
+
+### Wayland first (2026-10-16)
+
+Every package's `mainconfig` is `"GUI WAYLAND"`: U++'s GTK backend then tries **Wayland first**
+and falls back to X11 only when there is no Wayland session (U++'s default order is X11
+first). Keep the flag in any new main package. A build with it lands in U++'s
+`GCC.Blitz.Gui.Main.Shared.Wayland` output folder.
+
+## Run
+
+```
+gui/out/Jac313Runner [--summary FILE [--jtext FILE]] [--allow-root]
+```
+
+* `--summary FILE`: open straight on the Results screen with this summary JSON.
+* `--jtext FILE`: used with `--summary`, shows this file in the viewer.
+* `--allow-root`: run as root in a tree a regular user owns (refused by default; see Quick start).
+
+Needs a desktop session: Wayland (`WAYLAND_DISPLAY`) first, else X11 (`DISPLAY`).
+
+### Screens
+
+1. **Options + Start.** Choose the gates, build, persist targets, max runs / max records in a run / max persisted in a run (0 = not passed),
+   read-back and PG clean-up. A read-only box shows the exact command, and it updates as the
+   options change. **Save as default** writes `Jac313Runner.json` beside the program.
+   **Last results** opens `<vdir>/test-summary/runner_last*.json`.
+2. **Running.** Shows a progress bar (from `[i/n]`), `pass N fail M` (from PASS / FAIL on
+   progress lines), the elapsed time and a live output pane (stdout and stderr together,
+   with ANSI colour codes removed). **Stop** sends SIGTERM to the child's process group and
+   then SIGKILL after 3 s. The child is started through `/usr/bin/setsid`, so its pid is
+   the process group id.
+3. **Results.** A header line, filters (test, backend, failures only) and the result rows, one for every selected gate's tests. A failed build or a gate that did not run has a row too. When anything failed the header is red and the list opens on the failures, and the run screen's title says FAILED instead of Finished:
+   Test | Backend | Rows | Count | Checksum | Sample | ms | Ping ms | Write ms | Status. A Compiler column appears
+   when two summaries are loaded. On the right is the jText viewer with **Table | Raw**,
+   a section picker when the document has more than one section, and a validation line.
+   The other buttons are **Open file...** (any `.jtext`), **Show log** (the row's `log`),
+   **Copy for AI**, **Show AI md**, **Reports**, **Open Reports in Chrome**, **Back** and **Quit**.
+
+### Reports
+Every run ends by rendering the report pages from `results.db` (`jac313_test_cli --report`).
+**Reports** (on the Running screen once the run ends, and on the Results screen) shows them
+in the viewer as Raw text; the list above the viewer picks the page: **Group Summary**
+(`<vdir>/test-summary/README.md`: machines, safeness, latest runs), then for each
+gate (bench, ctest, smoke, verify, verify-lite, ...) its summary and its runs, newest first.
+`--snap DIR --summary FILE --reports` presses it and pictures pages 1 and 2.
+
+**Open Reports in Chrome** (beside Reports) turns the pages into web pages in
+`~/.cache/jac313/reports/<version folder>/` (rebuilt on every press; links to `.md` pages become
+`.html`) and opens the Group Summary (`README.html`) in Chrome; from there every link leads to the
+other pages. Without Chrome it tries Chromium, then the desktop's default browser (`xdg-open`).
+
+### Copy for AI
+One Markdown document for pasting into any AI ("what am I looking at?", "why did this
+fail?"). It goes to the clipboard and is saved beside the summary as `runner_last*_ai.md`.
+In order:
+- **Project context**, read fresh from `gui/ai_context.md`. Edit that file to change what an AI
+  is told about the project; the `<!-- -->` note at its top is left out.
+- **What was run**: version, compiler, build type, machine, run id, times, totals, command.
+- **Results**: every row, with read-back and PostgreSQL latency.
+- **Failures**: status, error and the last 40 lines of each failed row's log (first 10 failures).
+- **What the user had open**: the viewer's title, check line and first 80 lines.
+- A few questions worth asking.
+
+**Show AI md** shows that saved file in the viewer. It is greyed out until Copy for AI has
+written the file for the results on screen, and greys out again when new results load.
+If the AI report is open in the viewer when Copy for AI is pressed, the viewer closes it,
+the report is rebuilt (never containing the old one) and the new one is reopened in its place.
+
+Headless: `out/Jac313Runner --dump-ai SUMMARY [--jtext FILE]` prints the same Markdown.
+`--snap DIR --summary FILE --copy-ai` also presses both buttons and pictures the result.
+
+## Headless checks (no window, no display)
+
+```
+out/Jac313Runner --dump-command      # the command(s) Screen 1 would run (saved/default options)
+out/Jac313Runner --dump-jtext FILE              # columns=N rows=M, column names, first 3 rows (tab-separated)
+out/Jac313Runner --dump-summary FILE # row count, totals, first 3 rows + their dataset command
+out/Jac313Runner --dump-ai FILE [--jtext FILE]  # the "Copy for AI" Markdown
+out/Jac313Runner --dump-connections FILE        # what Save would write for FILE's connections (writes nothing)
+```
+
+Samples to check against are in `Jac313Runner/samples/`:
+
+* `standard_dropdown.jtext`: a compact sentinel row, then per-field rows.
+* `compact_rows.jtext`: compact rows, a multiline template, and both forms of "no value" (`{NULL}`, and the v0.7 0x1F byte, read as `{NULL}`).
+* `per_field.jtext`: per-field rows only.
+* `unresolved_include.jtext`: Fields come from an include that does not resolve, so the columns are named 1..N.
+* `runner_last.json`: a sample summary for testing Screen 3.
+
+To check the layout with a display, the GUI can write PNGs of the screens and then exit:
+
+```
+out/Jac313Runner --snap DIR --summary samples/runner_last.json --jtext samples/standard_dropdown.jtext
+out/Jac313Runner --snap DIR --autostart [--autostop-after MS] [--select ROW]
+```
+
+The second form presses Start with the saved or default options and waits for the run to
+finish, or presses Stop after MS milliseconds. It then takes the pictures and exits. Use it
+only in a tree whose engine is safe to run.
+
+## Engine contract (what Jac313Runner codes against)
+
+Working dir `<vdir>`, executable `<vdir>/jac313_test_cli`:
+
+```
+jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc|--clang] [--release] [--hardened] [--contracts MODE] [--modules]
+                [--size full] --persist <list> [--max-runs N] [--max-records N] [--max-persist-rows N]
+                --readback <sample|all>
+                --pg-cleanup <keep-last|delete> --summary-json <path>
+```
+
+* **Connections** (Screen 1): the PostgreSQL connections file, a jText file kept OUTSIDE every
+  git project. The path is editable (and `...` browses); the default is
+  `<projects>/SQL_Secrets/jac313_connections.jtext`, i.e. a `SQL_Secrets` folder beside the
+  project (`$JAC313_CONNECTIONS` overrides). Only that path is saved in `Jac313Runner.json`.
+  **Load** fills the Remote PG fields from the file (also done at start-up); **Save** writes them
+  back, keeping the file's other rows (pg-local), creating the folder (0700) and file (0600).
+  The status line shows jText's own check (`jac313_test_cli connections --file P`) and turns red
+  when the file is inside a git work tree. Runs pass `--connections <file>` when it exists.
+* **Command that will run** (Screen 1): the exact `jac313_test_cli` command line(s) the options make.
+  **Copy** puts them on the clipboard, each as `cd <version dir> && ...`, to run by hand in a terminal.
+* **Remote PG** (Screen 1): Host / Port / Database / User of the user's own server (no password
+  field: the password is one line `host:5432:dbname:user:password` in `jac313_pg_remote.pgpass`
+  beside the connections file, mode 600; see docs/SQL_Secrets_example). PG local needs nothing here:
+  bootstrap sets up its server and `jac313_pg_local.pgpass`. With PG remote
+  ticked they become `--pg-remote "host=... dbname=... user=... connect_timeout=10"`; Start refuses
+  PG remote without a Host. **Test Remote** (and **Test Local** for this machine's server) runs
+  `jac313_store_dataset --ping pg-remote --conninfo ...` from the version's build.
+* **Status line** (Screen 1, under Host): one short line, never wider than the page. An OK shows in
+  full (`PG remote OK: connect 19.3 ms, ping 2.2 ms, PostgreSQL 18.6`, `Loaded 2 row(s) · jText ...`);
+  a failure shows as a short red line (`PG remote: test failed (point here for details)`) with the
+  whole text as its tooltip. A failure from a button (Test Remote / Test Local, Load, View, Save) also
+  pops up with the whole message; Test Remote's adds what is likely wrong and points at Setup.
+  Nothing pops up at start-up, from the Setup dialog or with `--snap`.
+* **Setup Remote PG Server...** (Screen 1, under Test Remote): makes a machine the shared PG remote
+  server with `Setup/setup_pg_server.sh` (PostgreSQL 18, role + database jac313, pg_hba line,
+  `listen_addresses`, firewall), either **Do it for me (ssh)** in a terminal or **Show me the steps**
+  to run by hand; then **Test & Finish**. **TEST MACHINES ONLY, not a production setup**: it opens
+  PostgreSQL to a whole network with one shared role and password and copies that password between
+  machines (the dialog, the script and docs/SQL_Secrets_example all say so).
+  **Allow network** is the one network that may log in. Its suggestion is the /24 of this
+  machine's address on the server's network; with none, the server's own /24. That covers a VM
+  behind its host's NAT, which the server sees at the HOST's address (a libvirt VM on
+  192.168.122.x reaching a server on 192.168.1.x arrives as its host, so it needs 192.168.1.0/24). The
+  script checks the address the server sees over ssh and stops, before changing anything, when
+  `--allow` does not cover it.
+* **Contracts** (Screen 1, Build): `enforce` (the default, not passed), `observe`, `quick_enforce`
+  or `ignore`, passed as `--contracts MODE` (ctest/smoke builds; a non-default mode builds in
+  `build-<cc>-contracts-MODE` and is recorded as build type `Debug-contracts-MODE`). Only the modes
+  the chosen compiler has on this OS can be picked: `jac313_test_cli compiler-versions` lists them
+  (`gcc gcc16 16.2.1 enforce,observe,quick_enforce,ignore`) from the version's
+  `Setup/contracts.jtext`, a table of OS × toolchain × mode. With **both**, the modes either compiler
+  has; each run passes the pick only when its compiler has it and otherwise runs with `enforce`
+  (both + observe: the gcc16 run gets `--contracts observe`, the clang run none). `ignore` and
+  `enforce` can always be picked; a pick the compiler does not have falls back to `enforce`.
+* The `--persist` names are `sql` (SQLite), `pg-local`, `pg-remote`, `jtext`, `binary`, `json` and `html`.
+* With Compiler **both**, the command runs twice, gcc15 first and then clang. The summaries go to `runner_last_gcc15.json` and `runner_last_clang.json`.
+* With one compiler the summary goes to `<vdir>/test-summary/runner_last.json`.
+* The GUI deletes the summary file before each run, so a stale file cannot pass for a new run.
+* Progress lines look like `  [116/172] 006_TS | sqlite | off ... PASS (812 ms)`. Any other line just goes to the output pane.
+* Summary JSON: `contract, run_id, host, version, compiler, build_type, started_utc, finished_utc, command,
+  totals{pass,fail}, results[]`. Each result has `{gate, test, backend, output_mode, status, ms, rows_written,
+  readback{mode,count,checksum,sample,rows_checked}, dataset{backend,base}, log, dataset_cmd[]?}`.
+  A missing field shows as `-`.
+* **Contract:** every summary carries `"contract": N` (written by the CLI; a summary without
+  it counts as 1). This GUI understands contracts 1 to 4 (`kRunnerContract` = 4 in `Model.h`; 2 added
+  `--pg-remote` / `--pg-local` and the summary's `pg_remote`, 3 added `--connections`, 4 added
+  `--contracts` and the modes in `compiler-versions`) and refuses
+  a newer one with "rebuild the GUI". Any change to the flags above or the summary fields
+  bumps the contract in the CLI's `summary.cpp` and in `Model.h` together.
+* Viewer data comes from `dataset_cmd` when the row has one. Otherwise it comes from
+  `<vdir>/<build_dir>/Store/tests/matrix/jac313_store_dataset --backend B --base P --limit 1000`.
+  The build dir is `build-gcc15` or `build-clang` for Debug (plus `-strict` / `-hardened` /
+  `-contracts-MODE` when the build type says so), and `build-bench-gcc15` or `build-bench-clang` for Release. The tool prints jText on stdout. Its last stderr line
+  `VALIDATION errors=E warnings=W` becomes the validation line.
+
+## jText reader (viewer only)
+
+The viewer reads files with the jText library's parser (`parse_file_structure`), compiled from
+the editor's snapshot in `JTextGui/jText/src/parser`. A file that does not parse shows no
+table, and the parser's error (line and reason) is the note; `jtext_close` adds the closers an
+older file is missing. A file that declares an older, newer or no jText version (header line 4)
+still shows, with the library's version warning as a note. On top of the parser, the viewer:
+
+* names column N from Fields line `N. #/# name/Type/...`. A `Fields` include is resolved
+  relative to the file's folder, and when it cannot be found the columns are named 1..N.
+* builds records from the Data block: a blank line ends a record, a line for field 1 starts
+  one (rows that each hold a record follow one another), and a line's number is the
+  field position (`1. #|# a|b|c` fills columns 1-3, `N. #?# value` fills column N).
+* `{NULL}` (or the v0.7 0x1F byte, read as `{NULL}`) is the author's "no value" and shows as `∅`. A field with no line is empty; `NULL` and `\x1F` typed as text are text (SPEC 2.6.1).
