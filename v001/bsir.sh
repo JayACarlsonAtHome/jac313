@@ -539,7 +539,8 @@ fi
 # build comes from current packages. The sudo password once, now; then keep it fresh (sudo
 # forgets after ~5 minutes, and the downloads and builds take longer), until this script ends.
 if sudo -v; then
-  ( while kill -0 $$ 2>/dev/null; do sudo -n true 2>/dev/null; sleep 50; done ) &
+  # its stderr is dropped: the EXIT trap kills its sleep, and bash would print "Terminated"
+  ( while kill -0 $$ 2>/dev/null; do sudo -n true 2>/dev/null; sleep 50; done ) 2>/dev/null &
   SUDO_KEEPALIVE=$!
   trap 'pkill -P "$SUDO_KEEPALIVE" 2>/dev/null; kill "$SUDO_KEEPALIVE" 2>/dev/null' EXIT
   # It can move gcc / clang, so look for them again after.
