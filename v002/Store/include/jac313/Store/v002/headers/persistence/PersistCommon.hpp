@@ -13,6 +13,8 @@
 #include <string_view>
 
 #include <fcntl.h>
+#include <locale.h>   // newlocale (parse_double_text)
+#include <stdlib.h>   // strtod_l (parse_double_text)
 #include <unistd.h>
 
 namespace jac313::Store::v002 {
@@ -76,6 +78,20 @@ inline bool parse_double_text(std::string_view s, double& out) {
     if (s == "-Infinity") { out = -std::numeric_limits<double>::infinity(); return true; }
     if (s.empty()) return false;
     auto [p, ec] = std::from_chars(s.data(), s.data() + s.size(), out);
+    if (ec == std::errc::result_out_of_range && p == s.data() + s.size()) {
+        // libstdc++ before GCC 12 (RHEL 9's system libstdc++ 11, which gcc-toolset and clang
+        // link against there) calls a subnormal such as 5e-324 out of range and returns 0.
+        // from_chars took the whole text as a number, so read it again with strtod in the C
+        // locale: glibc rounds it exactly. Overflow and underflow to zero stay refused.
+        static const locale_t c_locale = ::newlocale(LC_ALL_MASK, "C", locale_t{});
+        if (c_locale == locale_t{}) return false;
+        const std::string z(s);
+        char* end = nullptr;
+        const double d = ::strtod_l(z.c_str(), &end, c_locale);
+        if (end != z.c_str() + z.size() || !std::isfinite(d) || d == 0.0) return false;
+        out = d;
+        return true;
+    }
     // from_chars also takes "nan" / "inf": only the three spellings above are ours.
     return ec == std::errc{} && p == s.data() + s.size() && std::isfinite(out);
 }

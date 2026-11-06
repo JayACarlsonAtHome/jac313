@@ -61,6 +61,7 @@
 
 #include "test_common.hpp"
 #include "bench_stats.hpp"
+#include "jac313_summary_part.hpp"   // the summary parts line (--summary-parts)
 
 #ifdef JAC313_STORE_HAS_SQL_PERSIST
 #include <unistd.h>     // gethostname
@@ -125,7 +126,7 @@ struct Params {
     std::string persist_list;            // --persist-list a,b: durable backends (empty = the default five)
     std::size_t max_runs = 0;            // --max-runs: cap each config's runs
     std::size_t max_records = 0;         // --max-records: cap events per run (threads x events/thread)
-    std::string summary_parts;           // --summary-parts PATH: append one JSON object per config
+    std::string summary_parts;           // --summary-parts PATH: append one key=value line per config
     std::string last_readback;           // filled by the read-back worker run (its last READBACK line)
     std::vector<std::string> readbacks;  // every READBACK line of that run (three for production)
     std::string target_lines;            // the TARGET lines of the last timed run: what the sinks wrote where
@@ -1261,43 +1262,44 @@ void apply_production_batches(Params& p, std::size_t override_batch) {
 //   smoke (--suite --smoke) — the same 10 capped to <=10k events, run as a CORRECTNESS GATE:
 //                             pass iff ALL configs run clean (incl. structural verify); the
 //                             numbers are meaningless at this scale, so nothing is recorded.
-// One JSON object per suite config for Jac313Runner's summary (--summary-parts).
+// One line per suite config for Jac313Runner's summary (--summary-parts): key=value pairs
+// (shared/jac313_summary_part.hpp), assembled into the summary jText by jac313_test_cli.
 void append_bench_part(const Params& p, const char* status, const BenchSummary* sum, std::uint64_t total,
                        const ProdSummary* prod = nullptr) {
     if (p.summary_parts.empty()) return;
-    auto esc = [](const std::string& v) {
-        std::string o;
-        for (char c : v) { if (c == '"' || c == '\\') o += '\\'; o += c; }
-        return o;
-    };
-    std::string obj = std::format(R"({{"gate":"bench","test":"{}","backend":"{}","status":"{}","threads":{},"events_per_thread":{},"runs":{})",
-                                  esc(p.label), esc(p.persist), status, p.threads, p.events_per_thread, p.runs);
-    // the recorded run and its machine (the summary header shows them; "" / 0 when not recorded)
-    if (p.run_id != 0) obj += std::format(R"(,"run_id":{})", p.run_id);
+    namespace SP = jac313::summary_part;
+    SP::Part part{{"gate", "bench"}, {"test", p.label}, {"backend", p.persist}, {"status", status},
+                  {"threads", std::to_string(p.threads)}, {"events_per_thread", std::to_string(p.events_per_thread)},
+                  {"runs", std::to_string(p.runs)}};
+    // the recorded run and its machine (the summary's run row shows them; absent when not recorded)
+    if (p.run_id != 0) part.emplace_back("run_id", std::to_string(p.run_id));
 #ifdef JAC313_STORE_HAS_SQL_PERSIST
     if (!p.db_path.empty()) {
         try {
             jac313::Qlite::v002::Sqlite db(results_db_path(p.db_path).string());
             if (const auto mid = jac313::results::current_host(db, bench_harness_version()); mid != 0)
-                obj += std::format(R"(,"host":"{}")", jac313::results::host_label(mid));
+                part.emplace_back("host", jac313::results::host_label(mid));
         } catch (...) {}
     }
 #endif
     if (sum) {
-        obj += std::format(R"(,"median_ops":{},"low_ops":{},"high_ops":{},"events":{})",
-                           sum->median, sum->low, sum->high, total);
-        if (sum->median > 0) obj += std::format(R"(,"ms":{})", total * 1000 / sum->median);
+        part.emplace_back("median_ops", std::to_string(sum->median));
+        part.emplace_back("low_ops", std::to_string(sum->low));
+        part.emplace_back("high_ops", std::to_string(sum->high));
+        part.emplace_back("events", std::to_string(total));
+        if (sum->median > 0) part.emplace_back("ms", std::to_string(total * 1000 / sum->median));
     }
-    if (prod)
-        obj += std::format(R"(,"hot_ops":{},"drain_binary_ms":{},"drain_keeper_ms":{},"drain_database_ms":{})",
-                           prod->hot_ops, prod->drain_binary_ms, prod->drain_keeper_ms, prod->drain_database_ms);
+    if (prod) {
+        part.emplace_back("hot_ops", std::to_string(prod->hot_ops));
+        part.emplace_back("drain_binary_ms", std::to_string(prod->drain_binary_ms));
+        part.emplace_back("drain_keeper_ms", std::to_string(prod->drain_keeper_ms));
+        part.emplace_back("drain_database_ms", std::to_string(prod->drain_database_ms));
+    }
     if (p.persist != "none") {
-        obj += std::format(R"(,"max_persist_rows":{})", p.max_persist_rows);
-        // "k=v k=v ... error=\"x\"" -> {"k":v,...}; `expected` also goes to rows_written when asked.
-        auto readback_object = [&](const std::string& l, bool rows_written) {
-            std::string rb = "{";
+        part.emplace_back("max_persist_rows", std::to_string(p.max_persist_rows));
+        // "k=v k=v ... error=\"x\"" -> fields "<prefix>k"; `expected` also goes to rows_written when asked.
+        auto readback_fields = [&](const std::string& l, const std::string& prefix, bool rows_written) {
             std::size_t i = 0;
-            bool first = true;
             while (i < l.size()) {
                 while (i < l.size() && l[i] == ' ') ++i;
                 const auto eq = l.find('=', i);
@@ -1316,28 +1318,22 @@ void append_bench_part(const Params& p, const char* status, const BenchSummary* 
                 }
                 i = j;
                 if (k == "backend") continue;
-                const bool num = !v.empty() && v.find_first_not_of("0123456789.-") == std::string::npos;
-                rb += (first ? "" : ",") + std::string("\"") + k + "\":" + (num ? v : "\"" + esc(v) + "\"");
-                first = false;
-                if (k == "expected" && rows_written) obj += ",\"rows_written\":" + v;
+                part.emplace_back(prefix + k, v);
+                if (k == "expected" && rows_written) part.emplace_back("rows_written", v);
             }
-            return rb + "}";
         };
-        if (!p.last_readback.empty()) obj += ",\"readback\":" + readback_object(p.last_readback, true);
-        if (p.readbacks.size() > 1) {   // the production run: one object per sink
-            obj += ",\"readbacks\":[";
+        if (!p.last_readback.empty()) readback_fields(p.last_readback, "readback.", true);
+        if (p.readbacks.size() > 1)   // the production run: one set per sink
             for (std::size_t k = 0; k < p.readbacks.size(); ++k)
-                obj += (k ? "," : "") + readback_object(p.readbacks[k], false);
-            obj += "]";
-        }
+                readback_fields(p.readbacks[k], "readbacks." + std::to_string(k + 1) + ".", false);
         // The production run's dataset is the database sink's (the replay log and keeper file sit beside it).
         const auto plan = sink_plan(p);
         const SinkPlan& ds = plan.back();
-        obj += std::format(R"(,"dataset":{{"backend":"{}","base":"{}"}})", esc(ds.backend), esc(ds.base));
+        part.emplace_back("dataset.backend", ds.backend);
+        part.emplace_back("dataset.base", ds.base);
     }
-    obj += "}";
     std::ofstream out(p.summary_parts, std::ios::app);
-    if (out) out << obj << "\n";
+    if (out) out << SP::format(part) << "\n";
 }
 
 // The suite table supplies threads (50), events per thread and runs per config; --threads,

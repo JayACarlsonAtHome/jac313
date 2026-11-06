@@ -1,5 +1,5 @@
 // Model.h — everything Jac313Runner knows without a window: the run options and
-// the command line they make, the summary JSON the engine writes, the dataset
+// the command line they make, the summary jText the engine writes, the dataset
 // command for a result row, and the viewer's jText model (parsed by the jText library).
 // The headless modes (--dump-command, --dump-jtext, --dump-summary) use only this.
 #pragma once
@@ -85,11 +85,12 @@ String          SettingsPath();                 // <exe dir>/Jac313Runner.json
 bool            LoadSettings(RunOptions& o);
 bool            SaveSettings(const RunOptions& o);
 
-// The summary JSON / CLI flags this GUI understands. The CLI writes "contract": N in every
-// summary; a summary with a newer contract is refused (rebuild the GUI). Bump both together.
-const int       kRunnerContract = 5;   // 2: --pg-remote / --pg-local, summary "pg_remote"; 3: --connections;
+// The summary / CLI flags this GUI understands. The CLI writes the contract N in the summary's
+// run row; a summary with a newer contract is refused (rebuild the GUI). Bump both together.
+const int       kRunnerContract = 6;   // 2: --pg-remote / --pg-local, summary "pg_remote"; 3: --connections;
                                        // 4: --contracts, compiler-versions lists the contract modes;
-                                       // 5: summary "settings" (every setting the run was given)
+                                       // 5: summary "settings" (every setting the run was given);
+                                       // 6: the summary is jText (--summary, was --summary-json)
 
 // ---- PostgreSQL connections file (jText; see the CLI's connections.hpp for the layout)
 struct ConnRow : Moveable<ConnRow> {
@@ -126,7 +127,7 @@ struct RunPlan {
 	String         exe;        // <vdir>/jac313_test_cli
 	String         cwd;        // <vdir>
 	String         compiler;   // gcc | clang
-	String         summary;    // --summary-json path
+	String         summary;    // --summary path (test-summary/runner_last*.jtext)
 	Vector<String> args;       // without exe
 	String         Display() const;   // exe + args, quoted where needed
 };
@@ -139,14 +140,13 @@ int             LimitMaxRecords(int n);   // 0 stays 0 (test default); 1..2 beco
 void            LimitPersistToRecords(RunOptions& o);
 String          QuoteArg(const String& a);
 
-// ---- Summary JSON ----
+// ---- Summary (jText: sections run, settings, results, failures; tools/jac313_test_cli/summary.hpp) ----
 struct ResultRow {
 	String gate, test, backend, outputMode, status, log;
 	String ms, rows;                      // "" when missing
 	String rbMode, rbCount, rbChecksum, rbSample, rbChecked;
 	String pingMs, writeMs, error;        // readback.ping_ms / write_ms (PostgreSQL), "error"
 	String dsBackend, dsBase;
-	Vector<String> datasetCmd;            // explicit "dataset_cmd" (preferred when present)
 	String compiler, buildType, version;  // copied from the summary that holds the row
 	String pgRemote;                      // the summary's remote server (conninfo, no password)
 	bool   Failed() const;

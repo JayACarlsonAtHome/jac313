@@ -31,7 +31,7 @@ struct GlobalOptions {
     std::size_t max_records{0};          // --max-records N: cap events per run (threads x events/thread)
     std::string readback;                // --readback off|count|sample|all (empty = test default)
     std::string pg_cleanup;              // --pg-cleanup keep-last|delete (empty = keep-last)
-    std::filesystem::path summary_json;  // --summary-json PATH: JSON summary for Jac313Runner
+    std::filesystem::path summary_path;  // --summary PATH: the run summary jText for Jac313Runner
     std::string size_override;           // --size smoke|full (overrides tests/test_params.jtext)
     std::string production;              // --production SPEC: the bench's production run (overrides the
                                          // row of tests/production.jtext)

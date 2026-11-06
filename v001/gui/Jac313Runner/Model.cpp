@@ -507,8 +507,8 @@ Array<RunPlan> BuildPlans(const RunOptions& opts, const String& vdir)
 		p.exe = AppendFileName(cwd, "jac313_test_cli");
 		p.compiler = c;
 		// "both": one summary per compiler so the second run does not overwrite the first
-		p.summary = AppendFileName(cwd, compilers.GetCount() > 1 ? "test-summary/runner_last_" + c + ".json"
-		                                                         : String("test-summary/runner_last.json"));
+		p.summary = AppendFileName(cwd, compilers.GetCount() > 1 ? "test-summary/runner_last_" + c + ".jtext"
+		                                                         : String("test-summary/runner_last.jtext"));
 		Vector<String>& a = p.args;
 		if(o.ctest)      a << "--ctest";
 		if(o.smoke)      a << "--smoke";
@@ -537,7 +537,7 @@ Array<RunPlan> BuildPlans(const RunOptions& opts, const String& vdir)
 		if(o.bench)          a << "--production" << o.prod.Spec();
 		a << "--readback" << (o.readback == "all" ? "all" : "sample");
 		a << "--pg-cleanup" << (o.pgCleanup == "delete" ? "delete" : "keep-last");
-		a << "--summary-json" << p.summary;
+		a << "--summary" << p.summary;
 	}
 	return plans;
 }
@@ -586,76 +586,82 @@ bool Summary::Load(const String& file, String& err)
 
 bool Summary::Parse(const String& text, String& err)
 {
-	Value v = ParseJSON(text);
-	if(IsError(v) || !v.Is<ValueMap>()) {
-		err = "not a JSON object" + (path.GetCount() ? ": " + path : String());
+	JDoc d;
+	d.Parse(text, path.GetCount() ? GetFileFolder(path) : String());
+	auto Section = [&](const char *name) -> const JSection * {
+		for(const JSection& s : d.sections)
+			if(s.name == name)
+				return &s;
+		return nullptr;
+	};
+	// a cell by column name: "" when the column or the value is missing, or NULL
+	auto Get = [](const JSection& s, int row, const char *col) -> String {
+		int c = FindIndex(s.cols, String(col));
+		if(c < 0 || c >= s.rows[row].GetCount())
+			return String();
+		const String& v = s.rows[row][c];
+		return v == JNull() ? String() : v;
+	};
+	const JSection *run = Section("run");
+	if(!run || run->rows.IsEmpty()) {
+		err = "not a run summary (no run section)" + (path.GetCount() ? ": " + path : String());
+		if(d.notes.GetCount())
+			err << " - " << d.notes[0];
 		return false;
 	}
-	contract  = IsNull(v["contract"]) ? 1 : Int(v["contract"]);
+	contract  = Nvl(StrInt(Get(*run, 0, "contract")), 1);
 	if(contract > kRunnerContract) {
 		err = Format("summary contract %d is newer than this GUI understands (%d): rebuild the GUI "
 		             "(jac313_test_cli gui-build)", contract, kRunnerContract);
 		return false;
 	}
-	runId     = Str(v["run_id"]);
-	host      = Str(v["host"]);
-	os        = Str(v["os"]);
-	version   = Str(v["version"]);
-	compiler  = Str(v["compiler"]);
-	buildType = Str(v["build_type"]);
-	contracts = Str(v["contracts"]);
-	started   = Str(v["started_utc"]);
-	finished  = Str(v["finished_utc"]);
-	command   = Str(v["command"]);
-	pgRemote  = Str(v["pg_remote"]);
+	runId     = Get(*run, 0, "run_id");
+	host      = Get(*run, 0, "host");
+	os        = Get(*run, 0, "os");
+	version   = Get(*run, 0, "version");
+	compiler  = Get(*run, 0, "compiler");
+	buildType = Get(*run, 0, "build_type");
+	contracts = Get(*run, 0, "contracts");
+	started   = Get(*run, 0, "started_utc");
+	finished  = Get(*run, 0, "finished_utc");
+	command   = Get(*run, 0, "command");
+	pgRemote  = Get(*run, 0, "pg_remote");
+	pass      = Nvl(StrInt(Get(*run, 0, "pass")), 0);
+	fail      = Nvl(StrInt(Get(*run, 0, "fail")), 0);
 	settingName.Clear();
 	settingValue.Clear();
-	Value set = v["settings"];
-	for(int i = 0; !Missing(set) && i < set.GetCount(); i++) {
-		settingName.Add(Str(set[i][0]));
-		settingValue.Add(Str(set[i][1]));
-	}
-	pass = Int(v["totals"]["pass"]);
-	fail = Int(v["totals"]["fail"]);
+	if(const JSection *set = Section("settings"))
+		for(int i = 0; i < set->rows.GetCount(); i++) {
+			settingName.Add(Get(*set, i, "name"));
+			settingValue.Add(Get(*set, i, "value"));
+		}
 	rows.Clear();
-	Value rs = v["results"];
-	for(int i = 0; !Missing(rs) && i < rs.GetCount(); i++) {
-		const Value& r = rs[i];
-		ResultRow& o = rows.Add();
-		o.gate       = Str(r["gate"]);
-		o.test       = Str(r["test"]);
-		o.backend    = Str(r["backend"]);
-		o.outputMode = Str(r["output_mode"]);
-		o.status     = Str(r["status"]);
-		o.ms         = Str(r["ms"]);
-		o.rows       = Str(r["rows_written"]);
-		o.log        = Str(r["log"]);
-		o.error      = Str(r["error"]);
-		const Value& rb = r["readback"];
-		if(!Missing(rb)) {
-			o.rbMode     = Str(rb["mode"]);
-			o.rbCount    = Str(rb["count"]);
-			o.rbChecksum = Str(rb["checksum"]);
-			o.rbSample   = Str(rb["sample"]);
-			o.rbChecked  = Str(rb["checked"]);
-			if(o.rbChecked.IsEmpty())
-				o.rbChecked = Str(rb["rows_checked"]);
-			o.pingMs     = Str(rb["ping_ms"]);
-			o.writeMs    = Str(rb["write_ms"]);
+	if(const JSection *rs = Section("results"))
+		for(int i = 0; i < rs->rows.GetCount(); i++) {
+			ResultRow& o = rows.Add();
+			o.gate       = Get(*rs, i, "gate");
+			o.test       = Get(*rs, i, "test");
+			o.backend    = Get(*rs, i, "backend");
+			o.outputMode = Get(*rs, i, "output_mode");
+			o.status     = Get(*rs, i, "status");
+			o.ms         = Get(*rs, i, "ms");
+			o.rows       = Get(*rs, i, "rows_written");
+			o.log        = Get(*rs, i, "log");
+			o.error      = Get(*rs, i, "error");
+			o.rbMode     = Get(*rs, i, "rb_mode");
+			o.rbCount    = Get(*rs, i, "rb_count");
+			o.rbChecksum = Get(*rs, i, "rb_checksum");
+			o.rbSample   = Get(*rs, i, "rb_sample");
+			o.rbChecked  = Get(*rs, i, "rb_checked");
+			o.pingMs     = Get(*rs, i, "rb_ping_ms");
+			o.writeMs    = Get(*rs, i, "rb_write_ms");
+			o.dsBackend  = Get(*rs, i, "dataset_backend");
+			o.dsBase     = Get(*rs, i, "dataset_base");
+			o.compiler   = compiler;
+			o.buildType  = buildType;
+			o.version    = version;
+			o.pgRemote   = pgRemote;
 		}
-		const Value& ds = r["dataset"];
-		if(!Missing(ds)) {
-			o.dsBackend = Str(ds["backend"]);
-			o.dsBase    = Str(ds["base"]);
-		}
-		const Value& dc = r["dataset_cmd"];
-		for(int k = 0; !Missing(dc) && k < dc.GetCount(); k++)
-			o.datasetCmd.Add(Str(dc[k]));
-		o.compiler  = compiler;
-		o.buildType = buildType;
-		o.version   = version;
-		o.pgRemote  = pgRemote;
-	}
 	return true;
 }
 
@@ -676,7 +682,7 @@ String AiContextPath(const String& vdir)
 
 String AiReportPath(const Summary& s)
 {
-	String p = s.path.GetCount() ? s.path : String("runner_last.json");
+	String p = s.path.GetCount() ? s.path : String("runner_last.jtext");
 	return GetFileFolder(p).GetCount() ? AppendFileName(GetFileFolder(p), GetFileTitle(p) + "_ai.md")
 	                                   : GetFileTitle(p) + "_ai.md";
 }
@@ -849,12 +855,6 @@ bool DatasetCommand(const ResultRow& r, const String& vdir, String& exe, Vector<
 {
 	args.Clear();
 	exe.Clear();
-	if(r.datasetCmd.GetCount()) {
-		exe = r.datasetCmd[0];
-		for(int i = 1; i < r.datasetCmd.GetCount(); i++)
-			args.Add(r.datasetCmd[i]);
-		return true;
-	}
 	if(r.dsBase.IsEmpty())
 		return false;
 	exe = AppendFileName(vdir,

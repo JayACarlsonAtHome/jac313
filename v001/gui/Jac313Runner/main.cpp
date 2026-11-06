@@ -3,7 +3,7 @@
 // A presenter, like the jac314 GUIs: all real work happens in the engine tool
 // jac313_test_cli (and jac313_store_dataset for the viewer). This window builds
 // the command line, runs it as a child process, streams its output, then reads
-// the summary JSON it wrote.
+// the summary jText it wrote.
 //
 //   Screen 1  Options + Start      (settings saved to Jac313Runner.json beside the program)
 //   Screen 2  Running              (progress, pass/fail, elapsed, live output, Stop)
@@ -11,7 +11,7 @@
 //
 // Command line:
 //   Jac313Runner [--summary FILE] [--jtext FILE]
-//     --summary FILE  open straight on Screen 3 with this summary JSON
+//     --summary FILE  open straight on Screen 3 with this summary (runner_last*.jtext)
 //     --jtext FILE    (with --summary) show this jText file in the viewer
 //   Headless (no window, no display needed):
 //     Jac313Runner --dump-command
@@ -1569,14 +1569,14 @@ void Runner::LastResults()
 	ToOptions();
 	String dir = AppendFileName(Root(), "test-summary");
 	Vector<String> files;
-	for(const char *f : { "runner_last.json", "runner_last_gcc.json", "runner_last_clang.json" })
+	for(const char *f : { "runner_last.jtext", "runner_last_gcc.jtext", "runner_last_clang.jtext" })
 		if(FileExists(AppendFileName(dir, f)))
 			files.Add(AppendFileName(dir, f));
 	if(files.IsEmpty()) {
 		FileSel fs;
-		fs.Type("Summary JSON", "*.json").AllFilesType();
+		fs.Type("Run summary", "*.jtext").AllFilesType();
 		fs.ActiveDir(dir);
-		if(!fs.ExecuteOpen("Open a summary JSON"))
+		if(!fs.ExecuteOpen("Open a run summary"))
 			return;
 		files.Add(~fs);
 	}

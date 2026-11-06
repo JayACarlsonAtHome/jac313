@@ -246,7 +246,7 @@ struct RunWhere { std::string host, os; };
 RunWhere run_where(std::int64_t run_id);
 std::string short_test_name(const std::string& n);
 const char* matrix_status_str(TestStatus s);
-// Status as the summary JSON spells it (PASS / FAIL / SKIP / ERROR).
+// Status as the summary spells it (PASS / FAIL / SKIP / ERROR).
 inline const char* summary_status(TestStatus s) {
     switch (s) {
         case TestStatus::Passed:  return "PASS";
@@ -254,6 +254,32 @@ inline const char* summary_status(TestStatus s) {
         case TestStatus::Skipped: return "SKIP";
         default:                  return "ERROR";
     }
+}
+
+// Why a ctest test failed, for the summary's "error" (Jac313Runner shows it; the failures jText
+// lists it): its lines that say FAIL, else the runner's message, else its last line of output,
+// else its exit code. "" for a test that passed or was skipped.
+std::string ctest_failure_reason(const TestResult& r) {
+    if (r.status == TestStatus::Passed || r.status == TestStatus::Skipped) return {};
+    std::string out, last;
+    int lines = 0;
+    for (const std::string* text : {&r.stdout_tail, &r.stderr_tail}) {
+        std::istringstream in(*text);
+        for (std::string l; std::getline(in, l);) {
+            const auto b = l.find_first_not_of(" \t|");
+            if (b == std::string::npos) continue;
+            l = l.substr(b);
+            while (!l.empty() && (l.back() == ' ' || l.back() == '\r')) l.pop_back();
+            last = l;
+            if (l.find("FAIL") == std::string::npos || lines >= 10) continue;
+            out += (out.empty() ? "" : "; ") + l;
+            ++lines;
+        }
+    }
+    if (out.empty()) out = r.message;
+    if (out.empty()) out = last;
+    if (out.empty()) out = "exit code " + std::to_string(r.exit_code);
+    return out;
 }
 
 HostPinFlags host_pin_flags_from(const GlobalOptions& global) {
@@ -367,14 +393,15 @@ int run_tests_command(const GlobalOptions& global, const RunOptions& opts,
     print_summary(summary, results, summary_context_line(global));
 
     const std::int64_t ctest_run = record_ctest_results(global, global.build_dir, results);   // capture into results.db
-    if (!global.summary_json.empty()) {
+    if (!global.summary_path.empty()) {
         const RunWhere where = run_where(ctest_run);
         const std::string cc = compiler_label_from_build(global.build_dir);
         for (const auto& r : results) {
-            append_summary_part(global, std::format(
-                R"({{"gate":"ctest","test":"{}","backend":"-","status":"{}","ms":{},"compiler":"{}","run_id":{},"host":"{}","os":"{}"}})",
-                json_escape(short_test_name(r.entry.name)), summary_status(r.status),
-                r.duration.count(), json_escape(cc), ctest_run, json_escape(where.host), json_escape(where.os)));
+            append_summary_part(global, {
+                {"gate", "ctest"}, {"test", short_test_name(r.entry.name)}, {"backend", "-"},
+                {"status", summary_status(r.status)}, {"ms", std::to_string(r.duration.count())},
+                {"compiler", cc}, {"run_id", std::to_string(ctest_run)}, {"host", where.host},
+                {"os", where.os}, {"error", ctest_failure_reason(r)}});
         }
     }
     write_ctest_logs(global, compiler_label_from_build(global.build_dir), results);
@@ -2518,26 +2545,26 @@ int run_matrix_run_command(const GlobalOptions& global,
     // Capture this smoke run into results.db (one testRun row per scenario).
     const std::int64_t smoke_run = record_matrix_results(global, global.build_dir, results, params.size,
                           static_cast<std::int64_t>(global.max_persist_rows.value_or(0)));
-    if (!global.summary_json.empty()) {
+    if (!global.summary_path.empty()) {
         const RunWhere where = run_where(smoke_run);
         for (const auto& r : results) {
             const bool persisting = r.scenario.category == "matrix" && r.scenario.persist != "none"
                                     && r.scenario.persist != "flags" && r.scenario.persist != "unit";
-            std::string obj = std::format(
-                R"({{"gate":"smoke","test":"{}","backend":"{}","output_mode":"{}","status":"{}","ms":{},"compiler":"{}","run_id":{},"host":"{}","os":"{}","log":"{}")",
-                json_escape(short_test_name(r.scenario.entry.name)), json_escape(r.scenario.persist),
-                r.scenario.output_mode, summary_status(r.result.status), r.result.duration.count(),
-                json_escape(matrix_opts.compiler_label), smoke_run, json_escape(where.host), json_escape(where.os),
-                json_escape(r.log_path.string()));
+            jac313::summary_part::Part part{
+                {"gate", "smoke"}, {"test", short_test_name(r.scenario.entry.name)},
+                {"backend", r.scenario.persist}, {"output_mode", r.scenario.output_mode},
+                {"status", summary_status(r.result.status)}, {"ms", std::to_string(r.result.duration.count())},
+                {"compiler", matrix_opts.compiler_label}, {"run_id", std::to_string(smoke_run)},
+                {"host", where.host}, {"os", where.os}, {"log", r.log_path.string()}};
             if (!r.readback.empty()) {
-                obj += ",\"rows_written\":" + (r.readback.count("expected") ? r.readback.at("expected") : "0");
-                obj += ",\"readback\":" + readback_json(r.readback);
+                part.emplace_back("rows_written", r.readback.count("expected") ? r.readback.at("expected") : "0");
+                add_readback_fields(part, r.readback);
             }
             if (persisting && !r.persist_base.empty()) {
-                obj += std::format(R"(,"dataset":{{"backend":"{}","base":"{}"}})",
-                                   json_escape(r.scenario.persist), json_escape(r.persist_base.string()));
+                part.emplace_back("dataset.backend", r.scenario.persist);
+                part.emplace_back("dataset.base", r.persist_base.string());
             }
-            append_summary_part(global, obj + "}");
+            append_summary_part(global, part);
         }
     }
 
@@ -2907,14 +2934,15 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
         }
     }
     // The Runner's results show this gate like any other, one row per (tool x task).
-    if (!global.summary_json.empty()) {
+    if (!global.summary_path.empty()) {
         const RunWhere where = run_where(run_id);
         for (const auto& v : recs) {
-            append_summary_part(global, std::format(
-                R"({{"gate":"{}","test":"{}","backend":"{}","status":"{}","ms":{},"compiler":"{}","run_id":{},"host":"{}","os":"{}","error":"{}"}})",
-                json_escape(name), json_escape(name + " " + v.tool + " " + v.label), json_escape(v.persist.empty() ? "-" : v.persist),
-                v.status == "pass" ? "PASS" : "FAIL", v.dur_ms, json_escape(matrix_opts.compiler_label), run_id,
-                json_escape(where.host), json_escape(where.os), json_escape(v.status == "pass" ? "" : v.verdict)));
+            append_summary_part(global, {
+                {"gate", name}, {"test", name + " " + v.tool + " " + v.label},
+                {"backend", v.persist.empty() ? "-" : v.persist}, {"status", v.status == "pass" ? "PASS" : "FAIL"},
+                {"ms", std::to_string(v.dur_ms)}, {"compiler", matrix_opts.compiler_label},
+                {"run_id", std::to_string(run_id)}, {"host", where.host}, {"os", where.os},
+                {"error", v.status == "pass" ? "" : v.verdict}});
         }
     }
     return ok ? 0 : 1;
@@ -3071,13 +3099,13 @@ StepFlags step_flags(const GlobalOptions& g, const ConfigureOptions& c, const Bu
 
     const std::string psfx = persist_cli_suffix(g);
     // ctest takes the selection, the servers and the summary; its tests run their own fixed workloads
-    f.ctest = run_sel + pg + (g.summary_json.empty() ? std::string()
-                                                     : " --summary-json \"" + g.summary_json.string() + "\"");
+    f.ctest = run_sel + pg + (g.summary_path.empty() ? std::string()
+                                                     : " --summary \"" + g.summary_path.string() + "\"");
     const bool params_given = m.params_file != MatrixOptions{}.params_file;
     f.smoke = (params_given ? " --params " + shell_quote(m.params_file.string()) : std::string())
             + run_sel + pg + keep_logs_cli_suffix(g) + psfx;
     f.verify = flavor_flags + f.build
-             + (g.summary_json.empty() ? std::string() : " --summary-json \"" + g.summary_json.string() + "\"");
+             + (g.summary_path.empty() ? std::string() : " --summary \"" + g.summary_path.string() + "\"");
     f.bench_configure = flavor_flags;
     f.bench = bench_persist_args(g);
     if (g.bench_threads) f.bench += " --threads " + std::to_string(g.bench_threads);
@@ -3135,7 +3163,7 @@ std::string resolve_production_spec(const GlobalOptions& global, const fs::path&
     }
 }
 
-// Every setting a preset run was given, for the summary JSON (Jac313Runner screen 3 and Copy for
+// Every setting a preset run was given, for the summary (Jac313Runner screen 3 and Copy for
 // AI): "-" = not given (the gate's default applies). PostgreSQL conninfo never carries a password.
 SettingList preset_settings(const GlobalOptions& g, const ConfigureOptions& c, const BuildOptions& b,
                             const RunOptions& r, const MatrixOptions& m, const PresetOptions& p,
@@ -3257,9 +3285,9 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
     for (const auto& l : preset_labels) std::cout << ' ' << l;
     std::cout << "\n";
     const std::string started_utc = jac313::results::utc_now_iso();
-    if (!global.summary_json.empty()) {   // a stale summary must never pass for this run
+    if (!global.summary_path.empty()) {   // a stale summary must never pass for this run
         std::error_code rm_ec;
-        fs::remove(global.summary_json, rm_ec);
+        fs::remove(global.summary_path, rm_ec);
         fs::remove(summary_parts_path(global), rm_ec);
     }
     // A hardened / contracts tree is its own build dir, so the everyday trees never
@@ -3299,7 +3327,8 @@ parts_count() { if [ -f "$SUMMARY_PARTS" ]; then wc -l < "$SUMMARY_PARTS"; else 
 # gate_row "GATE LABEL" STATUS TEXT: a row in the Runner's results for what no test reported.
 gate_row() {
   [ -n "$SUMMARY_PARTS" ] || return 0
-  printf '{"gate":"%s","test":"%s","backend":"-","status":"%s","compiler":"%s","error":"%s"}\n' \
+  # one key=value line (shared/jac313_summary_part.hpp); the labels and texts here hold no tab
+  printf 'gate=%s\ttest=%s\tbackend=-\tstatus=%s\tcompiler=%s\terror=%s\n' \
     "${1%% *}" "$1" "$2" "${1##* }" "$3" >> "$SUMMARY_PARTS"
 }
 # step GATE WHAT COMMAND...: runs one step and logs its start, its end and, on failure, its last lines.
@@ -3327,7 +3356,7 @@ step() {
   if [ "$RUN_RC" -eq 0 ]; then RUN_RC="$rc"; fi
   tail -n 40 "$STEP_OUT" | sed 's/^/    | /' >> "$RUN_LOG"
   # A gate that already reported its failed tests needs no row of its own.
-  if [ -z "$SUMMARY_PARTS" ] || ! tail -n +"$((before + 1))" "$SUMMARY_PARTS" 2>/dev/null | grep -vE '"status":"(PASS|SKIP)"' > /dev/null; then
+  if [ -z "$SUMMARY_PARTS" ] || ! tail -n +"$((before + 1))" "$SUMMARY_PARTS" 2>/dev/null | grep -vE '(^|'$'\t'')status=(PASS|SKIP)('$'\t''|$)' > /dev/null; then
     gate_row "$gate" FAIL "$what failed (rc=$rc)"
   fi
   # Nothing is recorded properly without the machine pin; --fail-fast asked to stop here.
@@ -3443,10 +3472,21 @@ run_log_finish() {
         std::cerr << "Failed to launch bash for " << script.string() << '\n';
         return 1;
     }
-    if (!global.summary_json.empty()) {
+    if (!global.summary_path.empty()) {
         std::string compilers;
         for (const auto& l : preset_labels) compilers += (compilers.empty() ? "" : ",") + l;
+        // the machine's specs go on the run row and every failure row (a collector reads them per row)
+        const HostHardwareRecord hw = collect_host_hardware_record(machine_disk_tier("."));
         assemble_summary(global, std::map<std::string, std::string>{
+            {"os", hw.os_pretty + (hw.kernel_release.empty() ? "" : " · " + hw.kernel_release)},
+            {"hostname", hw.hostname},   // host_label.local / $JAC313_HOST_LABEL win over the real name
+            {"kernel", hw.kernel_release},
+            {"cpu_model", hw.cpu_model},
+            {"cores", std::to_string(hw.cpu_cores)},
+            {"physical_cores", std::to_string(hw.p_cores)},
+            {"ram_gb", std::to_string(hw.ram_gb)},
+            {"cpu_mhz_max", std::to_string(hw.cpu_mhz_max)},
+            {"disk", hw.disk_type_label + (hw.storage_model.empty() ? "" : " " + hw.storage_model)},
             {"version", harness_version(global)},
             {"compiler", compilers},
             {"pg_remote", [] {   // which remote server this run used (never a password)
@@ -3564,7 +3604,7 @@ int run_everything_command(const GlobalOptions& global_in, const ConfigureOption
                            const MatrixOptions& matrix_opts) {
     // the steps record and print their own results; no Runner summary is assembled here
     GlobalOptions global = global_in;
-    global.summary_json.clear();
+    global.summary_path.clear();
     namespace fs = std::filesystem;
     std::error_code ec;
     if (!global.source_dir.empty()) {
@@ -4117,8 +4157,8 @@ static int run_main(int argc, char** argv) {
                 global.readback = argv[++i];
             } else if (arg == "--pg-cleanup" && i + 1 < argc) {
                 global.pg_cleanup = argv[++i];
-            } else if (arg == "--summary-json" && i + 1 < argc) {
-                global.summary_json = fs::absolute(argv[++i]);
+            } else if (arg == "--summary" && i + 1 < argc) {
+                global.summary_path = fs::absolute(argv[++i]);
             } else if (arg == "--size" && i + 1 < argc) {
                 global.size_override = argv[++i];
             } else if (arg == "--production" && i + 1 < argc) {
@@ -4338,8 +4378,8 @@ static int run_main(int argc, char** argv) {
                     build_opts.jobs = std::stoi(argv[++i]);
                 } else if (a == "--source-dir" && i + 1 < argc) {
                     global.source_dir = argv[++i];
-                } else if (a == "--summary-json" && i + 1 < argc) {
-                    global.summary_json = fs::absolute(argv[++i]);
+                } else if (a == "--summary" && i + 1 < argc) {
+                    global.summary_path = fs::absolute(argv[++i]);
                 } else if (a == "-v" || a == "--verbose") {
                     global.verbose = true;
                 } else if (a == "--help" || a == "-h") {
@@ -4351,7 +4391,7 @@ static int run_main(int argc, char** argv) {
                                  "  --hardened | --contracts M          (a tree of its own: build-<label>[-flavor]-" << sub << ")\n"
                                  "  -j N                                 parallel build jobs\n"
                                  "  --source-dir <path>\n"
-                                 "  --summary-json <file>                add this gate's rows to the Runner's summary\n";
+                                 "  --summary <file>                     add this gate's rows to the Runner's summary (jText)\n";
                     return 0;
                 } else {
                     std::cerr << "Unknown matrix " << sub << " option: " << a << '\n';

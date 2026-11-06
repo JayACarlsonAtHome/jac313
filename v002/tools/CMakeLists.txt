@@ -109,6 +109,7 @@ add_executable(jac313_summary_settings_test
 )
 target_include_directories(jac313_summary_settings_test PRIVATE jac313_test_cli ${CMAKE_SOURCE_DIR}/shared)
 target_compile_features(jac313_summary_settings_test PRIVATE cxx_std_26)
+target_link_libraries(jac313_summary_settings_test PRIVATE jac313::jText)   # the failures jText (summary.cpp)
 add_test(NAME jac313_summary_settings_test COMMAND jac313_summary_settings_test)
 
 # Setup/jtext_table.sh: the sh + awk reader bsir.sh uses on compilers.jtext and recipes.jtext.

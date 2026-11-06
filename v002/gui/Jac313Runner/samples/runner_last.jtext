@@ -1,0 +1,125 @@
+//File:    runner_last.jtext
+//Purpose: The last Jac313Runner / preset run on this machine, written by jac313_test_cli
+//         when the run ends (Jac313Runner reads it; so can a tool that collects results).
+//         run: one row (contract 6). settings: what the run was given.
+//         results: one row per result. failures: the results whose status is not PASS or
+//         SKIP, with why (no rows when nothing failed).
+//         extra: the result's other values, "key=value; key=value".
+//
+=== jText File ===
+ 1. ▮▌ runner_last.jtext
+ 2. ▮▌ 2026-11-06
+ 3. ▮▌ Run summary (jac313_test_cli, read by Jac313Runner)
+ 4. ▮▌ 0.8
+ 5. ▮▌ Insensitive
+ 8. ▮▌ true
+// Host:     jac313-004  (hostname rhel9-vm-01)
+// Run id:   304
+// OS:       Red Hat Enterprise Linux 9.8 (Plow) · 5.14.0-687.el9_8.x86_64
+// CPU:      Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz, 8 threads, 4 cores, max 3300 MHz
+// Memory:   16 GB
+// Disk:     xssd
+// Compiler: gcc  (Debug, v001)
+// Result:   7 pass, 1 fail
+
+=== Section: run ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# contract/Integer/Not Null
+ 3. /# run_id/String/Not Null
+ 4. /# host/String/Not Null
+ 5. /# hostname/String/Not Null
+ 6. /# os/String/Not Null
+ 7. /# kernel/String/Not Null
+ 8. /# cpu_model/String/Not Null
+ 9. /# cores/String/Not Null
+10. /# physical_cores/String/Not Null
+11. /# ram_gb/String/Not Null
+12. /# cpu_mhz_max/String/Not Null
+13. /# disk/String/Not Null
+14. /# version/String/Not Null
+15. /# compiler/String/Not Null
+16. /# build_type/String/Not Null
+17. /# contracts/String/Not Null
+18. /# pg_remote/String/Not Null
+19. /# started_utc/String/Not Null
+20. /# finished_utc/String/Not Null
+21. /# command/String/Not Null
+22. /# pass/Integer/Not Null
+23. /# fail/Integer/Not Null
+=== End Fields ===
+=== Data ===
+ 1. ▮▌ 1▮6▮304▮jac313-004▮rhel9-vm-01▮Red Hat Enterprise Linux 9.8 (Plow) · 5.14.0-687.el9_8.x86_64▮5.14.0-687.el9_8.x86_64▮Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz▮8▮4▮16▮3300▮xssd▮v001▮gcc▮Debug▮▮▮2026-10-17T07:00:00Z▮2026-10-17T07:21:40Z▮jac313_test_cli --ctest --smoke --gcc --persist sql,jtext,binary,json,html --max-persist-rows 100000 --readback sample --pg-cleanup keep-last --summary test-summary/runner_last.jtext▮7▮1
+=== End Data ===
+=== End Section ===
+
+=== Section: settings ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# name/String/Not Null
+ 3. /# value/String/Not Null
+=== End Fields ===
+=== Data ===
+=== End Data ===
+=== End Section ===
+
+=== Section: results ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# gate/String/Not Null
+ 3. /# test/String/Not Null
+ 4. /# backend/String/Not Null
+ 5. /# output_mode/String/Not Null
+ 6. /# status/String/Not Null
+ 7. /# ms/String/Not Null
+ 8. /# rows_written/String/Not Null
+ 9. /# compiler/String/Not Null
+10. /# run_id/String/Not Null
+11. /# host/String/Not Null
+12. /# os/String/Not Null
+13. /# error/String/Not Null
+14. /# log/String/Not Null
+15. /# rb_mode/String/Not Null
+16. /# rb_status/String/Not Null
+17. /# rb_count/String/Not Null
+18. /# rb_checksum/String/Not Null
+19. /# rb_sample/String/Not Null
+20. /# rb_checked/String/Not Null
+21. /# rb_ping_ms/String/Not Null
+22. /# rb_write_ms/String/Not Null
+23. /# dataset_backend/String/Not Null
+24. /# dataset_base/String/Not Null
+25. /# extra/String/Not Null
+=== End Fields ===
+=== Data ===
+ 1. ▮▌ 1▮ctest▮jtext_parser_validator▮-▮▮PASS▮41▮▮▮▮▮▮▮/run/media/jay/GFS/git/jac315/v001/kept-logs/ctest_jtext_parser_validator.log▮▮▮▮▮▮▮▮▮▮▮
+ 1. ▮▌ 2▮smoke▮006_TS▮sql▮off▮PASS▮812▮100▮▮▮▮▮▮/run/media/jay/GFS/git/jac315/v001/kept-logs/006_TS_sql_off.log▮sample▮▮PASS▮PASS▮PASS▮100▮▮▮sql▮/run/media/jay/GFS/git/jac315/v001/build-gcc15/Store/tests/matrix/persist_off▮
+ 1. ▮▌ 3▮smoke▮006_TS▮jtext▮off▮FAIL▮90▮100▮▮▮▮▮▮/run/media/jay/GFS/git/jac315/v001/kept-logs/006_TS_jtext_off.log▮sample▮▮PASS▮FAIL▮PASS▮100▮▮▮jtext▮/run/media/jay/GFS/git/jac315/v001/build-gcc15/Store/tests/matrix/persist_off▮
+ 1. ▮▌ 4▮smoke▮007_TS▮pg-local▮off▮PASS▮1240▮100▮gcc▮304▮jac313-004▮▮▮/run/media/jay/GFS/git/jac315/v001/kept-logs/007_TS_pg-local_off.log▮sample▮PASS▮PASS▮PASS▮PASS▮100▮0.061▮6.8▮pg-local▮/run/media/jay/GFS/git/jac315/v001/build-gcc15/Store/tests/matrix/persist_off▮readback.expected=100; readback.found=100; readback.read_ms=3.2; readback.connect_ms=2.4; readback.batches=1; readback.batch_med_ms=6.8
+ 1. ▮▌ 5▮smoke▮007_TS▮pg-remote▮off▮PASS▮4875▮100▮gcc▮304▮jac313-004▮▮▮/run/media/jay/GFS/git/jac315/v001/kept-logs/007_TS_pg-remote_off.log▮sample▮PASS▮PASS▮PASS▮PASS▮100▮1.305▮212.5▮pg-remote▮/run/media/jay/GFS/git/jac315/v001/build-gcc15/Store/tests/matrix/persist_off▮readback.expected=100; readback.found=100; readback.read_ms=41.7; readback.connect_ms=38.9; readback.batches=1; readback.batch_med_ms=212.5
+ 1. ▮▌ 6▮smoke▮005_XS▮binary▮off▮PASS▮402▮1000▮▮▮▮▮▮▮all▮▮PASS▮PASS▮PASS▮1000▮▮▮binary▮/run/media/jay/GFS/git/jac315/v001/build-gcc15/Store/tests/matrix/persist_off▮
+ 1. ▮▌ 7▮smoke▮005_XS▮json▮on▮PASS▮377▮1000▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮
+ 1. ▮▌ 8▮bench▮bench_ints▮-▮▮PASS▮15020▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮
+=== End Data ===
+=== End Section ===
+
+=== Section: failures ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# host/String/Not Null
+ 3. /# hostname/String/Not Null
+ 4. /# gate/String/Not Null
+ 5. /# test/String/Not Null
+ 6. /# backend/String/Not Null
+ 7. /# compiler/String/Not Null
+ 8. /# status/String/Not Null
+ 9. /# run_id/String/Not Null
+10. /# error/String/Not Null
+11. /# log/String/Not Null
+=== End Fields ===
+=== Data ===
+ 1. ▮▌ 1▮jac313-004▮rhel9-vm-01▮smoke▮006_TS▮jtext▮gcc▮FAIL▮304▮▮/run/media/jay/GFS/git/jac315/v001/kept-logs/006_TS_jtext_off.log
+=== End Data ===
+=== End Section ===
+
+=== End File ===

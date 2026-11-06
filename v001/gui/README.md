@@ -149,7 +149,7 @@ first). Keep the flag in any new main package. A build with it lands in U++'s
 gui/out/Jac313Runner [--summary FILE [--jtext FILE]] [--allow-root]
 ```
 
-* `--summary FILE`: open straight on the Results screen with this summary JSON.
+* `--summary FILE`: open straight on the Results screen with this run summary (`runner_last*.jtext`).
 * `--jtext FILE`: used with `--summary`, shows this file in the viewer.
 * `--allow-root`: run as root in a tree a regular user owns (refused by default; see Quick start).
 
@@ -160,7 +160,7 @@ Needs a desktop session: Wayland (`WAYLAND_DISPLAY`) first, else X11 (`DISPLAY`)
 1. **Options + Start.** Choose the gates, build, persist targets, max runs / max records in a run / max persisted in a run (0 = not passed),
    read-back and PG clean-up. A read-only box shows the exact command, and it updates as the
    options change. **Save as default** writes `Jac313Runner.json` beside the program.
-   **Last results** opens `<vdir>/test-summary/runner_last*.json`.
+   **Last results** opens `<vdir>/test-summary/runner_last*.jtext`.
 2. **Running.** Shows a progress bar (from `[i/n]`), `pass N fail M` (from PASS / FAIL on
    progress lines), the elapsed time and a live output pane (stdout and stderr together,
    with ANSI colour codes removed). **Stop** sends SIGTERM to the child's process group and
@@ -222,12 +222,12 @@ Samples to check against are in `Jac313Runner/samples/`:
 * `compact_rows.jtext`: compact rows, a multiline template, and both forms of "no value" (`{NULL}`, and the v0.7 0x1F byte, read as `{NULL}`).
 * `per_field.jtext`: per-field rows only.
 * `unresolved_include.jtext`: Fields come from an include that does not resolve, so the columns are named 1..N.
-* `runner_last.json`: a sample summary for testing Screen 3.
+* `runner_last.jtext`: a sample run summary for testing Screen 3.
 
 To check the layout with a display, the GUI can write PNGs of the screens and then exit:
 
 ```
-out/Jac313Runner --snap DIR --summary samples/runner_last.json --jtext samples/standard_dropdown.jtext
+out/Jac313Runner --snap DIR --summary samples/runner_last.jtext --jtext samples/standard_dropdown.jtext
 out/Jac313Runner --snap DIR --autostart [--autostop-after MS] [--select ROW]
 ```
 
@@ -243,7 +243,7 @@ Working dir `<vdir>`, executable `<vdir>/jac313_test_cli`:
 jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc|--clang] [--release] [--hardened] [--contracts MODE] [--modules]
                 [--size full] --persist <list> [--max-runs N] [--max-records N] [--max-persist-rows N]
                 --readback <sample|all>
-                --pg-cleanup <keep-last|delete> --summary-json <path>
+                --pg-cleanup <keep-last|delete> --summary <path>
 ```
 
 * **Connections** (Screen 1): the PostgreSQL connections file, a jText file kept OUTSIDE every
@@ -291,21 +291,35 @@ jac313_test_cli [--ctest] [--smoke] [--bench] [--verify-lite] [--verify] [--gcc|
   (both + observe: the gcc16 run gets `--contracts observe`, the clang run none). `ignore` and
   `enforce` can always be picked; a pick the compiler does not have falls back to `enforce`.
 * The `--persist` names are `sql` (SQLite), `pg-local`, `pg-remote`, `jtext`, `binary`, `json` and `html`.
-* With Compiler **both**, the command runs twice, gcc15 first and then clang. The summaries go to `runner_last_gcc15.json` and `runner_last_clang.json`.
-* With one compiler the summary goes to `<vdir>/test-summary/runner_last.json`.
+* With Compiler **both**, the command runs twice, gcc15 first and then clang. The summaries go to `runner_last_gcc.jtext` and `runner_last_clang.jtext`.
+* With one compiler the summary goes to `<vdir>/test-summary/runner_last.jtext`.
 * The GUI deletes the summary file before each run, so a stale file cannot pass for a new run.
 * Progress lines look like `  [116/172] 006_TS | sqlite | off ... PASS (812 ms)`. Any other line just goes to the output pane.
-* Summary JSON: `contract, run_id, host, version, compiler, build_type, started_utc, finished_utc, command,
-  totals{pass,fail}, results[]`. Each result has `{gate, test, backend, output_mode, status, ms, rows_written,
-  readback{mode,count,checksum,sample,rows_checked}, dataset{backend,base}, log, dataset_cmd[]?}`.
-  A missing field shows as `-`.
-* **Contract:** every summary carries `"contract": N` (written by the CLI; a summary without
-  it counts as 1). This GUI understands contracts 1 to 4 (`kRunnerContract` = 4 in `Model.h`; 2 added
-  `--pg-remote` / `--pg-local` and the summary's `pg_remote`, 3 added `--connections`, 4 added
-  `--contracts` and the modes in `compiler-versions`) and refuses
+* The summary is a jText file (written by the CLI's `summary.cpp` through jText's writer). Its header has comment
+  lines for people and collectors: `Host` (label and hostname), `Run id`, `OS`, `CPU`, `Memory`, `Disk`, `Compiler`
+  and `Result`. Then four sections:
+  * `run`, one row: `contract, run_id, host, hostname, os, kernel, cpu_model, cores, physical_cores, ram_gb,
+    cpu_mhz_max, disk, version, compiler, build_type, contracts, pg_remote,
+    started_utc, finished_utc, command, pass, fail`.
+  * `settings`: `id, name, value`, every setting the run was given, in order.
+  * `results`, one row per result: `id, gate, test, backend, output_mode, status, ms, rows_written, compiler,
+    run_id, host, os, error, log, rb_mode, rb_status, rb_count, rb_checksum, rb_sample, rb_checked, rb_ping_ms,
+    rb_write_ms, dataset_backend, dataset_base, extra` (`extra`: the result's other values, `key=value; ...`).
+  * `failures`: `id, host, hostname, gate, test, backend, compiler, status, run_id, error, log` for every result
+    that is not PASS or SKIP (no rows when nothing failed). `host` is the `jac313-###` label, `hostname` the
+    machine's own name. Tools that collect results from many machines read this.
+
+  An empty cell shows as `-`. While a run is going, each gate adds its results to `<summary>.parts`,
+  one `key=value` line per result (`shared/jac313_summary_part.hpp`); the CLI turns that into the summary
+  when the run ends.
+* **Contract:** the summary's run row carries `contract` (written by the CLI). This GUI understands
+  contracts up to 6 (`kRunnerContract` = 6 in `Model.h`; 2 added `--pg-remote` / `--pg-local` and the
+  summary's `pg_remote`, 3 added `--connections`, 4 added `--contracts` and the modes in
+  `compiler-versions`, 5 added the summary's settings, 6 made the summary jText, with `--summary`
+  in place of `--summary-json`) and refuses
   a newer one with "rebuild the GUI". Any change to the flags above or the summary fields
   bumps the contract in the CLI's `summary.cpp` and in `Model.h` together.
-* Viewer data comes from `dataset_cmd` when the row has one. Otherwise it comes from
+* Viewer data comes from
   `<vdir>/<build_dir>/Store/tests/matrix/jac313_store_dataset --backend B --base P --limit 1000`.
   The build dir is `build-gcc15` or `build-clang` for Debug (plus `-strict` / `-hardened` /
   `-contracts-MODE` when the build type says so), and `build-bench-gcc15` or `build-bench-clang` for Release. The tool prints jText on stdout. Its last stderr line
