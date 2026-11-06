@@ -208,7 +208,12 @@ public:
 
     // Rows the last INSERT, UPDATE or DELETE on this connection changed; a SELECT,
     // BEGIN/COMMIT/ROLLBACK or prepare leaves it as it was (the same on every backend).
+    // sqlite3_changes64 arrived in SQLite 3.37.0; RHEL 9 ships 3.34.1.
+#if SQLITE_VERSION_NUMBER >= 3037000
     std::int64_t changes() const { return sqlite3_changes64(db_); }
+#else
+    std::int64_t changes() const { return sqlite3_changes(db_); }
+#endif
 
     // -----------------------------------------------------------------------
     // Prepared statement (RAII)
