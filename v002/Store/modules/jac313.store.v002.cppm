@@ -33,6 +33,8 @@ export namespace jac313::Store::v002 {
     using jac313::Store::v002::JsonEventLogReader;
     using jac313::Store::v002::JsonEventSink;
     using jac313::Store::v002::JTextEventSink;
+    using jac313::Store::v002::JTextRowLimits;
+    using jac313::Store::v002::jtext_row_limits_for;
     using jac313::Store::v002::SqlEventSink;
     using jac313::Store::v002::Sqlite;
     using jac313::Store::v002::SqliteError;

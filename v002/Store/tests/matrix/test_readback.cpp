@@ -248,9 +248,11 @@ void run_subset(const std::string& backend, const fs::path& dir) {
     const PersistMode mode = (backend == "sql") ? PersistMode::DatabaseOnly : PersistMode::KeeperOnly;
     RbStore store(2, 30);
     store.attach_persistence(make_persistence_sink(backend, keeper, RbConfig::the_IntMetrics,
-                                                   RbConfig::the_DblMetrics, mode), 7);
+                                                   RbConfig::the_DblMetrics, mode,
+                                                   jtext_row_limits_for<RbConfig>()), 7);
     store.attach_persistence(make_persistence_sink(backend, every, RbConfig::the_IntMetrics,
-                                                   RbConfig::the_DblMetrics, PersistMode::All), 7);
+                                                   RbConfig::the_DblMetrics, PersistMode::All,
+                                                   jtext_row_limits_for<RbConfig>()), 7);
     for (size_t t = 0; t < 2; ++t)
         for (size_t i = 0; i < 30; ++i) {
             std::uint64_t f = 0;

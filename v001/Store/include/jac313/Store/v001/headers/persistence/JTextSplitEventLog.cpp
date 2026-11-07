@@ -1,10 +1,13 @@
 #include "JTextSplitEventLog.hpp"
 
+#include <array>
+#include <charconv>
+#include <concepts>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <stdexcept>
-#include <chrono>
+#include <vector>
 
 #include "jText.h"
 
@@ -19,6 +22,52 @@ namespace jac313::Store::v001 {
 using namespace jac313::jText::v001;
 
 namespace fs = std::filesystem;
+
+namespace {
+
+// A number's text, in a buffer the log owns: no string per field.
+using IntegerText = std::array<char, jtext_row_bytes::kInteger>;
+using FlagsText   = std::array<char, jtext_row_bytes::kFlags>;
+using DoubleText  = std::array<char, jtext_row_bytes::kDouble>;
+
+std::string_view text_between(const char* first, const char* last) {
+    return {first, static_cast<size_t>(last - first)};
+}
+
+// An integer in decimal (the text std::to_string gives).
+template<std::integral T>
+std::string_view integer_text(IntegerText& out, T v) {
+    return text_between(out.data(), std::to_chars(out.data(), out.data() + out.size(), v).ptr);
+}
+
+// The flags as "0x" and 16 lower-case hex digits, zero-padded.
+std::string_view flags_text(FlagsText& out, uint64_t flags) {
+    constexpr std::string_view digits = "0123456789abcdef";
+    out[0] = '0';
+    out[1] = 'x';
+    for (size_t k = 0; k < 16; ++k) out[2 + k] = digits[(flags >> (60 - 4 * k)) & 0xFu];
+    return {out.data(), out.size()};
+}
+
+// A double as append_double writes it (NaN, Infinity, -Infinity included).
+std::string_view double_text(DoubleText& out, double v) {
+    return text_between(out.data(), double_to_chars(out.data(), out.data() + out.size(), v));
+}
+
+// The text buffers and field views of a metric row (_Ints or _Floats): field 1 is the event id,
+// then one per metric. Sized in the constructor; a row with more metrics than that grows them.
+template<typename Text>
+struct MetricRow {
+    std::vector<Text> texts;
+    std::vector<std::string_view> fields;
+
+    void size_for(size_t metric_count) {
+        if (texts.size() < metric_count) texts.resize(metric_count);
+        if (fields.size() < 1 + metric_count) fields.resize(1 + metric_count);
+    }
+};
+
+} // namespace
 
 struct JTextSplitEventLog::Impl {
     std::ofstream main_ofs;
@@ -37,6 +86,14 @@ struct JTextSplitEventLog::Impl {
     size_t int_count = 0;
     size_t dbl_count = 0;
 
+    // The main row's number texts (event id, thread id, per-thread id, timestamp; the flags)
+    // and its seven field views. The event id's text is field 1 of the metric rows too.
+    std::array<IntegerText, 4> main_numbers{};
+    FlagsText flags{};
+    std::array<std::string_view, 7> main_fields{};
+    MetricRow<IntegerText> ints;
+    MetricRow<DoubleText> floats;
+
     JTextSplitEventLogStats stats;
     bool finalized = false;
 };
@@ -45,7 +102,8 @@ JTextSplitEventLog::JTextSplitEventLog(
     std::string_view base_name,
     size_t int_count,
     size_t dbl_count,
-    PersistMode mode
+    PersistMode mode,
+    JTextRowLimits limits
 )
     : impl_(std::make_unique<Impl>())
 {
@@ -95,7 +153,15 @@ JTextSplitEventLog::JTextSplitEventLog(
 
     // Rows are written with the writer's default formatter, U+25AE / U+258C (SPEC v0.8),
     // which it changes only for a row whose data holds one of them. No JTextWriter
-    // auto-batching: the ofstream buffer does the batching.
+    // auto-batching: the ofstream buffer does the batching. Each writer formats a row into its
+    // one-row buffer, reserved here for the longest one-line row (jtext_row_bytes), so it does
+    // not grow while rows are written: the main one when the row limits are known, the metric
+    // ones always (their rows hold numbers only). A multiline row may be longer and grows it.
+    i.main_writer->reserve_batch_bytes(jtext_row_bytes::main_row(limits));
+    if (int_count > 0) i.ints_writer->reserve_batch_bytes(jtext_row_bytes::ints_row(int_count));
+    if (dbl_count > 0) i.floats_writer->reserve_batch_bytes(jtext_row_bytes::floats_row(dbl_count));
+    i.ints.size_for(int_count);
+    i.floats.size_for(dbl_count);
 
     // Write SQL companions and headers immediately (early open requirement)
     write_sql_companions(base_name, int_count, dbl_count);
@@ -119,8 +185,8 @@ void JTextSplitEventLog::append_event(
     std::string_view category,
     std::string_view payload,
     uint64_t timestamp_us,
-    const std::vector<int64_t>& int_metrics,
-    const std::vector<double>& dbl_metrics
+    std::span<const int64_t> int_metrics,
+    std::span<const double> dbl_metrics
 ) {
     auto& i = *impl_;
     if (!i.main_writer) return;
@@ -132,47 +198,38 @@ void JTextSplitEventLog::append_event(
         return;
     }
 
-    // Main record
-    {
-        JTextEntry e;
-        e.number = 1;  // jText line number = field position: a compact row starts at field 1
-        e.fields.reserve(7);
-        e.fields.emplace_back(std::to_string(event_id));
-        e.fields.emplace_back(std::to_string(thread_id));
-        e.fields.emplace_back(std::to_string(per_thread_event_id));
-        e.fields.emplace_back(std::format("0x{:016x}", raw_flags));
-        e.fields.emplace_back(std::string(category));
-        e.fields.emplace_back(std::string(payload));
-        e.fields.emplace_back(std::to_string(timestamp_us));
-        i.main_writer->append_entry(e);
-        i.main_writer->end_record();
-        i.stats.main_rows++;
-    }
+    const std::string_view id = integer_text(i.main_numbers[0], event_id);
 
-    // Ints
+    // Main record (jText line number = field position: a compact row starts at field 1)
+    i.main_fields = {id,
+                     integer_text(i.main_numbers[1], thread_id),
+                     integer_text(i.main_numbers[2], per_thread_event_id),
+                     flags_text(i.flags, raw_flags),
+                     category,
+                     payload,
+                     integer_text(i.main_numbers[3], timestamp_us)};
+    i.main_writer->append_row_views(1, i.main_fields);
+    i.main_writer->end_record();
+    i.stats.main_rows++;
+
+    // Ints: field 1 = event_id (links to main record)
     if (i.int_count > 0) {
-        JTextEntry e;
-        e.number = 1;  // field 1 = event_id (links to main record)
-        e.fields.reserve(1 + int_metrics.size());
-        e.fields.emplace_back(std::to_string(event_id));
-        for (auto v : int_metrics) e.fields.emplace_back(std::to_string(v));
-        i.ints_writer->append_entry(e);
+        i.ints.size_for(int_metrics.size());
+        i.ints.fields[0] = id;
+        for (size_t k = 0; k < int_metrics.size(); ++k)
+            i.ints.fields[1 + k] = integer_text(i.ints.texts[k], int_metrics[k]);
+        i.ints_writer->append_row_views(1, std::span(i.ints.fields).first(1 + int_metrics.size()));
         i.ints_writer->end_record();
         i.stats.ints_rows++;
     }
 
-    // Floats
+    // Floats: field 1 = event_id (links to main record); exact, NaN, Infinity, -Infinity
     if (i.dbl_count > 0) {
-        JTextEntry e;
-        e.number = 1;  // field 1 = event_id (links to main record)
-        e.fields.reserve(1 + dbl_metrics.size());
-        e.fields.emplace_back(std::to_string(event_id));
-        for (auto v : dbl_metrics) {
-            std::string t;
-            append_double(t, v);   // exact; NaN, Infinity, -Infinity
-            e.fields.push_back(std::move(t));
-        }
-        i.floats_writer->append_entry(e);
+        i.floats.size_for(dbl_metrics.size());
+        i.floats.fields[0] = id;
+        for (size_t k = 0; k < dbl_metrics.size(); ++k)
+            i.floats.fields[1 + k] = double_text(i.floats.texts[k], dbl_metrics[k]);
+        i.floats_writer->append_row_views(1, std::span(i.floats.fields).first(1 + dbl_metrics.size()));
         i.floats_writer->end_record();
         i.stats.floats_rows++;
     }
@@ -210,6 +267,10 @@ const JTextSplitEventLogStats& JTextSplitEventLog::stats() const {
 const std::string& JTextSplitEventLog::main_file() const { return impl_->main_path; }
 const std::string& JTextSplitEventLog::ints_file() const { return impl_->ints_path; }
 const std::string& JTextSplitEventLog::floats_file() const { return impl_->floats_path; }
+
+size_t JTextSplitEventLog::main_batch_capacity() const {
+    return impl_->main_writer ? impl_->main_writer->batch_capacity() : 0;
+}
 
 void JTextSplitEventLog::write_sql_companions(
     std::string_view base_name,

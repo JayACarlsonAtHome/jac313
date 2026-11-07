@@ -79,6 +79,13 @@ repeat in that sink's output).
 payload, int array, double array. A `uint32_t` length prefix on each record lets the reader find
 boundaries.
 
+**jText rows without strings:** `JTextSplitEventLog` formats each number with `std::to_chars` into
+buffers it owns and hands every field (category and payload too) to `JTextWriter::append_row_views`
+as a view, so a row makes no string. Given `JTextRowLimits` (`jtext_row_limits_for<Config>()`: the
+Config's bounded category and payload sizes), it reserves the main writer's row buffer once for the
+longest one-line row (`jtext_row_bytes`); the `_Ints` / `_Floats` buffers are always reserved, as
+their rows hold numbers only. A multiline payload makes a longer row, which simply grows the buffer.
+
 **How the sibling packages plug in:** Store calls jText (`JTextWriter`) **only** from the jText
 sink and Qlite (`Sqlite`) **only** from the SQL sink — both are pay-for-what-you-use. Use just
 the binary sink and neither sibling is invoked.

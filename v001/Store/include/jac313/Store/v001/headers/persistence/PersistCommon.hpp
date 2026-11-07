@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <charconv>
 #include <cmath>
 #include <filesystem>
@@ -61,13 +62,25 @@ inline std::string sanitize_identifier(std::string_view s) {
 // bits (std::to_chars), the non-finite ones spelled NaN, Infinity and -Infinity. Every text
 // writer (jText, HTML, JSON, the PostgreSQL COPY stream) and read-back's row hash use this, so
 // a double written by any backend reads back as the double that was stored. NaN and the
-// infinities are data, not errors.
+// infinities are data, not errors. double_to_chars is the one source of that text; append_double
+// appends it to a string.
+//
+// kDoubleTextChars is the longest such text: a sign, 17 significant digits, the point and
+// "e-308" (e.g. -2.2250738585072014e-308), longer than "-Infinity".
+inline constexpr size_t kDoubleTextChars = 24;
+
+// Writes v's text at `first` like std::to_chars and returns the end of it. [first, last) must
+// hold kDoubleTextChars bytes, which every double's text fits.
+inline char* double_to_chars(char* first, char* last, double v) {
+    const auto copy = [first](std::string_view text) { return std::copy(text.begin(), text.end(), first); };
+    if (std::isnan(v)) return copy("NaN");
+    if (std::isinf(v)) return copy(v > 0 ? "Infinity" : "-Infinity");
+    return std::to_chars(first, last, v).ptr;
+}
+
 inline void append_double(std::string& out, double v) {
-    if (std::isnan(v)) { out += "NaN"; return; }
-    if (std::isinf(v)) { out += (v > 0 ? "Infinity" : "-Infinity"); return; }
-    char buf[32];
-    auto [p, ec] = std::to_chars(buf, buf + sizeof(buf), v);
-    out.append(buf, p);
+    char buf[kDoubleTextChars];
+    out.append(buf, double_to_chars(buf, buf + sizeof(buf), v));
 }
 
 // The reverse of append_double: the whole of `s` must be one double (to_chars' form, any

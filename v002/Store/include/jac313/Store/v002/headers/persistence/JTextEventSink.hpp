@@ -2,6 +2,8 @@
 
 // JTextEventSink.hpp
 // Adapter that turns JTextSplitEventLog into an IEventSink for ts_store::attach_persistence.
+// `limits` (jtext_row_limits_for<Config>() where the store's Config is known) lets the log
+// reserve its main row buffer once; each event's fields reach the writers as views.
 
 #include "EventSink.hpp"
 #include "JTextSplitEventLog.hpp"
@@ -15,8 +17,9 @@ public:
     JTextEventSink(std::string_view base_name,
                    size_t int_count,
                    size_t dbl_count,
-                   PersistMode mode = PersistMode::All)
-        : impl_(std::make_unique<JTextSplitEventLog>(base_name, int_count, dbl_count, mode))
+                   PersistMode mode = PersistMode::All,
+                   JTextRowLimits limits = {})
+        : impl_(std::make_unique<JTextSplitEventLog>(base_name, int_count, dbl_count, mode, limits))
     {
         targets_ = file_targets(*impl_, 1, 1);   // a jText log always writes all three files
     }

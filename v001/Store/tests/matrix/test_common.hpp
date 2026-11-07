@@ -75,7 +75,8 @@ inline std::unique_ptr<IEventSink> make_persistence_sink(const std::string& ptyp
                                                          const std::string& bname,
                                                          const size_t im,
                                                          const size_t dm,
-                                                         const PersistMode mode = PersistMode::All)
+                                                         const PersistMode mode = PersistMode::All,
+                                                         const JTextRowLimits jtext_limits = {})
 {
     if (ptype == "binary") {
         return std::make_unique<BinaryEventSink>(bname, im, dm, mode);
@@ -95,7 +96,7 @@ inline std::unique_ptr<IEventSink> make_persistence_sink(const std::string& ptyp
 #endif
     }
     if (ptype == "jtext") {
-        return std::make_unique<JTextEventSink>(bname, im, dm, mode);
+        return std::make_unique<JTextEventSink>(bname, im, dm, mode, jtext_limits);
     }
     if (ptype == "pg-local" || ptype == "pg-remote") {
 #ifdef JAC313_STORE_HAS_PG_PERSIST
@@ -158,7 +159,7 @@ bool attach_persistence_from_opts(Store& prod, const TestOptions& opts) {
 
     const size_t im = Config::the_IntMetrics;
     const size_t dm = Config::the_DblMetrics;
-    auto sink = make_persistence_sink(ptype, bname, im, dm, PersistMode::All);
+    auto sink = make_persistence_sink(ptype, bname, im, dm, PersistMode::All, jtext_row_limits_for<Config>());
     if (!sink) return false;
 
     prod.attach_persistence(std::move(sink), kPersistBatch);

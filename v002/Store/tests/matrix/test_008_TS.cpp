@@ -210,7 +210,8 @@ int main(int argc, char** argv) {
             std::cout << "Run " << format_locale_int(static_cast<int>(run + 1))
                       << " / " << format_locale_int(static_cast<int>(RUNS)) << "\n";
 
-            auto jtext_sink = std::make_unique<JTextEventSink>(file_base, im, dm, PersistMode::KeeperOnly);
+            auto jtext_sink = std::make_unique<JTextEventSink>(file_base, im, dm, PersistMode::KeeperOnly,
+                                                               jtext_row_limits_for<LogConfig>());
             auto sql_sink   = std::make_unique<SqlEventSink>(sql_base, im, dm, PersistMode::DatabaseOnly, false);
             jtext_raw = jtext_sink.get();
             sql_raw   = sql_sink.get();

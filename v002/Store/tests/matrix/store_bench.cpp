@@ -396,7 +396,8 @@ bool do_workload(const Params& p, bool verify, bool readback = false) {
     for (const auto& sp : plan) {
         ensure_capture_parent_dir(sp.base);
         if (auto sink = make_persistence_sink(sp.backend, sp.base, LogConfig::the_IntMetrics,
-                                              LogConfig::the_DblMetrics, sp.mode)) {
+                                              LogConfig::the_DblMetrics, sp.mode,
+                                              jtext_row_limits_for<LogConfig>())) {
             store.attach_persistence(std::move(sink), sp.batch);
         } else {
             std::cerr << "ERROR: persist='" << sp.backend << "' unavailable (SQL needs JAC313_STORE_HAS_SQL_PERSIST)\n";
