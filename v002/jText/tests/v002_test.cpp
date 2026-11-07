@@ -1,6 +1,6 @@
 #include <jac313/jText/v002.hpp>
 
-static_assert(jac313::jText::v002::version() == "v002.034", "v002 version");
+static_assert(jac313::jText::v002::version() == "v002.036", "v002 version");
 
 #include "parser/close.hpp"
 #include "parser/line.hpp"
@@ -14,6 +14,8 @@ static_assert(jac313::jText::v002::version() == "v002.034", "v002 version");
 #include <fstream>
 #include <filesystem>
 #include <iostream>
+#include <array>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -1194,6 +1196,350 @@ int main() {
             check(text.find("a|b") == std::string::npos, "text.find(\"a|b\") == std::string::npos");
             check(text.find("after") == std::string::npos, "text.find(\"after\") == std::string::npos");
             std::filesystem::remove(path);
+        }
+    }
+
+    // ─── writer output, pinned to the text v002.034 wrote: the formatter fallback choices,
+    // batched and unbatched writes, every writer path, generated record ids, line numbers ───
+    {
+        const std::string choices = "#^%~!@$&*+=:;?\"'(),./<>\\_`{}|-";   // the writer's choice order
+        const auto without = [](std::string s, char c) { std::erase(s, c); return s; };
+        struct TestRow {
+            std::vector<std::string> fields;
+            std::string comment;
+            char32_t level_sep = 0;
+        };
+        enum class Path { row, views, entry, entries };
+        // Writes `rows` in section `name` through one writer path; batch 0 = auto-batching off,
+        // kDefaultHighThroughputBatchSize = enable_high_throughput_batching.
+        const auto write = [](const std::vector<TestRow>& rows, Path path, std::size_t batch, std::string_view name,
+                              std::size_t* skipped = nullptr) {
+            std::ostringstream o;
+            JTextWriter w(o);
+            w.set_bad_row_policy(jac313::jText::v002::BadRowPolicy::Skip);
+            w.set_date("2026-11-07");
+            if (batch == JTextWriter::kDefaultHighThroughputBatchSize) w.enable_high_throughput_batching();
+            else w.set_auto_batch_size(batch);
+            w.write_header();
+            w.begin_section(name);
+            std::vector<JTextEntry> entries;
+            for (const auto& r : rows) {
+                if (path == Path::row) {
+                    w.append_row(1, r.fields, r.comment, r.level_sep);
+                    continue;
+                }
+                if (path == Path::views) {
+                    const std::vector<std::string_view> views(r.fields.begin(), r.fields.end());
+                    w.append_row_views(1, views, r.comment, r.level_sep);
+                    continue;
+                }
+                JTextEntry e;
+                e.number = 1;
+                e.level_sep = r.level_sep;
+                e.comment = r.comment;
+                for (const auto& f : r.fields) e.fields.emplace_back(f);
+                if (path == Path::entry) w.append_entry(e);
+                else entries.push_back(std::move(e));
+            }
+            if (path == Path::entries) w.append_entries(entries);
+            w.finalize();
+            if (skipped) *skipped = w.skipped_rows();
+            return o.str();
+        };
+        constexpr std::size_t kBatches[] = {0, 3, JTextWriter::kDefaultHighThroughputBatchSize};
+        constexpr Path kPaths[] = {Path::row, Path::views, Path::entry, Path::entries};
+
+        // A row whose data holds U+25AE takes the first ASCII splice not in its data ('#' is
+        // never a splice); one holding U+258C the first bookend not in its data, and when every
+        // choice is in it, the first the parser cannot read as a comment marker. A multiline
+        // field's characters count too. A row with every splice choice in its data is left out.
+        const std::vector<TestRow> fallback_rows = {
+            {{"5", "▮#^%"}, ""},
+            {{"6", "▮#^%~!@$&*+=:;?"}, "six"},
+            {{"7", "▮▌#^%~!@$&*+=:;?\"'()"}, "seven"},
+            {{"9", "▮" + without(choices, '#')}, "nine"},
+            {{"10", "▌" + choices}, ""},
+            {{"11", "▌" + choices + " # x"}, "eleven"},
+            {{"^ 12", "▌" + choices + " # x ^ y"}, "twelve"},
+            {{"13", "▌" + choices + " #"}, "thirteen"},
+            {{"16", "a#^"}, "c", U'▌'},
+            {{"21", "a^\nb", "▮"}, ""},
+        };
+        const std::string fallback =
+            "# JText File - created 2026-11-07\n"
+            "# Purpose - \n"
+            "# jText Version: 0.8\n"
+            "# Case: INSENSITIVE\n"
+            "\n"
+            "-- F --\n"
+            "\n"
+            " 1. ~▌ 5~▮#^%\n"
+            " 1. \"▌ 6\"▮#^%~!@$&*+=:;? ▌ six\n"
+            " 1. ,. 7,▮▌#^%~!@$&*+=:;?\"'() . seven\n"
+            " 1. ▮# 10▮▌#^%~!@$&*+=:;?\"'(),./<>\\_`{}|-\n"
+            " 1. ▮^ 11▮▌#^%~!@$&*+=:;?\"'(),./<>\\_`{}|- # x ^ eleven\n"
+            " 1. ▮% ^ 12▮▌#^%~!@$&*+=:;?\"'(),./<>\\_`{}|- # x ^ y % twelve\n"
+            " 1. ▮^ 13▮▌#^%~!@$&*+=:;?\"'(),./<>\\_`{}|- # ^ thirteen\n"
+            " 1. ▌% 16▌a#^ % c\n"
+            " 1. %▌ 21\n"
+            " 2. [*\n"
+            "    ** a^\n"
+            "    ** b\n"
+            "    *]\n"
+            " 3. %▌ ▮\n"
+            "-- End F --\n"
+            "-- EOF --\n";
+        for (const Path path : kPaths)
+            for (const std::size_t batch : kBatches) {
+                std::size_t skipped = 0;
+                check(write(fallback_rows, path, batch, "F", &skipped) == fallback,
+                      "the fallback formatter choices, on every writer path, batched or not");
+                check(skipped == 1, "the row with every splice choice in its data is left out");
+            }
+
+        // Field 1 left empty: the writer generates the record id, the same on every path,
+        // batched or not, and a multiline record gets it too.
+        const std::vector<TestRow> id_rows = {
+            {{"", "gen"}, "generated"},
+            {{}, ""},
+            {{"", "▮x^"}, "gen splice"},
+            {{"", "l1\nl2", "▮^"}, ""},
+        };
+        const std::string ids =
+            "# JText File - created 2026-11-07\n"
+            "# Purpose - \n"
+            "# jText Version: 0.8\n"
+            "# Case: INSENSITIVE\n"
+            "\n"
+            "-- G --\n"
+            "\n"
+            " 1. ▮▌ 1▮gen ▌ generated\n"
+            " 1. ▮▌ 2\n"
+            " 1. %▌ 3%▮x^ ▌ gen splice\n"
+            " 1. %▌ 4\n"
+            " 2. [*\n"
+            "    ** l1\n"
+            "    ** l2\n"
+            "    *]\n"
+            " 3. %▌ ▮^\n"
+            "-- End G --\n"
+            "-- EOF --\n";
+        for (const Path path : kPaths)
+            for (const std::size_t batch : kBatches)
+                check(write(id_rows, path, batch, "G", nullptr) == ids, "generated record ids, on every writer path");
+
+        // append_row formats a row with its generated id: a negative id holds '-', a choice,
+        // and a digit separator may be in the id. Such a row is left out when its id takes the
+        // last free choice or holds its separator (the id is used up all the same).
+        // append_row_views takes the same rows as views and must agree byte for byte.
+        for (const bool views : {false, true})
+        for (const std::size_t batch : kBatches) {
+            std::ostringstream o;
+            JTextWriter w(o);
+            w.set_bad_row_policy(jac313::jText::v002::BadRowPolicy::Skip);
+            w.set_date("2026-11-07");
+            if (batch == JTextWriter::kDefaultHighThroughputBatchSize) w.enable_high_throughput_batching();
+            else w.set_auto_batch_size(batch);
+            w.write_header();
+            w.begin_section("N");
+            w.write_comment_line("ids count down");
+            w.set_record_id_start(-5, -1);
+            const auto row = [&](std::vector<std::string> fields, std::string_view comment = "",
+                                 char32_t level_sep = 0) {
+                if (!views) {
+                    w.append_row(1, fields, comment, level_sep);
+                    return;
+                }
+                const std::vector<std::string_view> v(fields.begin(), fields.end());
+                w.append_row_views(1, v, comment, level_sep);
+            };
+            row({std::string{}, std::string("a")});
+            row({std::string{}, "▮" + without(without(choices, '#'), '-')}, "only - left");
+            row({std::string{}, std::string("b")}, "", '-');
+            row({std::string{}, "▌" + without(choices, '-')}, "negc");
+            row({std::string{}, std::string("e")}, "", '1');
+            row({std::string{}, std::string("f")});
+            w.finalize();
+            check(w.skipped_rows() == 2, "two negative-id rows are left out");
+            check(o.str() ==
+                      "# JText File - created 2026-11-07\n"
+                      "# Purpose - \n"
+                      "# jText Version: 0.8\n"
+                      "# Case: INSENSITIVE\n"
+                      "\n"
+                      "-- N --\n"
+                      "\n"
+                      "// ids count down\n"
+                      " 1. ▮▌ -5▮a\n"
+                      " 1. ▮# -8▮▌#^%~!@$&*+=:;?\"'(),./<>\\_`{}| # negc\n"
+                      " 1. 1▌ -91e\n"
+                      " 1. ▮▌ -10▮f\n"
+                      "-- End N --\n"
+                      "-- EOF --\n",
+                  "append_row and append_row_views with negative generated ids, batched or not");
+        }
+
+        // append_row_views against append_row: every row kind, both id seeds, batched or not.
+        // Each pair of outputs must be identical, and seed 1 unbatched is pinned below.
+        {
+            struct ViewRow {
+                std::size_t number = 1;
+                std::vector<std::string> fields;
+                std::string comment;
+                char32_t level_sep = 0;
+            };
+            const std::vector<ViewRow> rows = {
+                {1, {"1", "plain"}, ""},
+                {1, {"2", "a▮b"}, ""},                         // U+25AE in the data
+                {1, {"3", "a▌b"}, "c"},                        // U+258C in the data
+                {1, {"4", "▮▌ both"}, "both"},                 // both
+                {1, {"5", "!@$&*+=:;?\\\"'(),./<>_`{}|-~%^"}, "punct"},   // ASCII punctuation
+                {1, {"6", "x~y"}, "", U'~'},                   // the caller's separator in the data: left out
+                {1, {"7", "x", "y"}, "", U'~'},                // the caller's separator
+                {1, {"8", "", "", ""}, ""},                    // empty fields
+                {1, {"9", "l1\nl2"}, "ml"},                    // a multiline field
+                {2, {""}, ""},                                 // an empty value off field 1
+                {1, {"", "gen"}, "generated"},                 // field 1 empty: a generated id
+                {1, {}, ""},                                   // no fields: a generated id
+                {1, {"", "e"}, "", U'1'},                      // a generated id with a digit separator
+            };
+            const auto write_rows = [&rows](bool views, std::size_t batch, std::int64_t seed,
+                                            std::size_t& skipped) {
+                std::ostringstream o;
+                JTextWriter w(o);
+                w.set_bad_row_policy(jac313::jText::v002::BadRowPolicy::Skip);
+                w.set_date("2026-11-07");
+                w.set_auto_batch_size(batch);
+                w.write_header();
+                w.begin_section("V");
+                w.set_record_id_start(seed, seed < 0 ? -1 : 1);
+                for (const auto& r : rows) {
+                    if (!views) {
+                        w.append_row(r.number, r.fields, r.comment, r.level_sep);
+                        continue;
+                    }
+                    const std::vector<std::string_view> v(r.fields.begin(), r.fields.end());
+                    w.append_row_views(r.number, v, r.comment, r.level_sep);
+                }
+                w.finalize();
+                skipped = w.skipped_rows();
+                return o.str();
+            };
+            for (const std::int64_t seed : {std::int64_t{1}, std::int64_t{-5}})
+                for (const std::size_t batch : {std::size_t{0}, std::size_t{3}}) {
+                    std::size_t skipped_row = 0;
+                    std::size_t skipped_views = 0;
+                    const std::string by_row = write_rows(false, batch, seed, skipped_row);
+                    check(write_rows(true, batch, seed, skipped_views) == by_row,
+                          "append_row_views writes what append_row writes");
+                    // Row 6 always; with seed 1 also the digit-separator row, whose id 12 holds '1'.
+                    const std::size_t left_out = seed > 0 ? 2 : 1;
+                    check(skipped_row == left_out && skipped_views == left_out, "the same rows are left out on both");
+                }
+            std::size_t skipped = 0;
+            check(write_rows(true, 0, 1, skipped) ==
+                      "# JText File - created 2026-11-07\n"
+                      "# Purpose - \n"
+                      "# jText Version: 0.8\n"
+                      "# Case: INSENSITIVE\n"
+                      "\n"
+                      "-- V --\n"
+                      "\n"
+                      " 1. ▮▌ 1▮plain\n"
+                      " 1. ^▌ 2^a▮b\n"
+                      " 1. ▮# 3▮a▌b # c\n"
+                      " 1. ^# 4^▮▌ both # both\n"
+                      " 1. ▮▌ 5▮!@$&*+=:;?\\\"'(),./<>_`{}|-~%^ ▌ punct\n"
+                      " 1. ~▌ 7~x~y\n"
+                      " 1. ▮▌ 8▮▮▮\n"
+                      " 1. ▮▌ 9 ▌ ml\n"
+                      " 2. [*\n"
+                      "    ** l1\n"
+                      "    ** l2\n"
+                      "    *]\n"
+                      " 2. ▮▌ \n"
+                      " 1. ▮▌ 10▮gen ▌ generated\n"
+                      " 1. ▮▌ 11\n"
+                      "-- End V --\n"
+                      "-- EOF --\n",
+                  "append_row_views output, pinned");
+        }
+
+        // The views are only read during the call: the caller's memory may change at once after.
+        {
+            std::ostringstream o;
+            JTextWriter w(o);
+            w.set_auto_batch_size(10);
+            w.write_header();
+            w.begin_section("R");
+            std::string memory = "1abc";
+            std::array<std::string_view, 2> views{std::string_view(memory).substr(0, 1),
+                                                  std::string_view(memory).substr(1)};
+            w.append_row_views(1, views);
+            memory = "2xyz";
+            views = {std::string_view(memory).substr(0, 1), std::string_view(memory).substr(1)};
+            w.append_row_views(1, views);
+            w.finalize();
+            check(o.str().find(" 1. ▮▌ 1▮abc\n 1. ▮▌ 2▮xyz\n") != std::string::npos,
+                  "append_row_views keeps no view after the call");
+        }
+
+        // reserve_batch_bytes: rows that fit never grow the buffer, the reservation survives
+        // set_auto_batch_size and a move, and the output is the unreserved writer's.
+        for (const std::size_t batch : {std::size_t{0}, std::size_t{4}}) {
+            const auto write_reserved = [batch](std::size_t reserve, bool& grew) {
+                std::ostringstream o;
+                JTextWriter first(o);
+                first.reserve_batch_bytes(reserve);
+                first.set_auto_batch_size(batch);
+                JTextWriter w(std::move(first));
+                const std::size_t capacity = w.batch_capacity();
+                if (reserve > 0) check(capacity >= reserve, "reserve_batch_bytes reserves, through a move");
+                w.write_header();
+                w.begin_section("B");
+                grew = false;
+                for (int i = 0; i < 10; ++i) {
+                    const std::string id = std::to_string(i + 1);
+                    const std::array<std::string_view, 3> v{id, "some value", "▮ data"};
+                    w.append_row_views(1, v, "a comment");
+                    grew |= w.batch_capacity() != capacity;
+                }
+                w.finalize();
+                return o.str();
+            };
+            bool grew = true;
+            bool unreserved_grew = false;
+            const std::string reserved = write_reserved(4096, grew);
+            check(!grew, "rows that fit the reservation never grow the buffer");
+            check(reserved == write_reserved(0, unreserved_grew), "reserving changes no output byte");
+        }
+
+        // "<padded>N. ": right-aligned in pad_width columns, never cut.
+        std::ostringstream ln;
+        for (const std::size_t pad : {0u, 1u, 2u, 3u})
+            for (const std::size_t n : {std::size_t{0}, std::size_t{7}, std::size_t{10}, std::size_t{123},
+                                        std::numeric_limits<std::size_t>::max()})
+                jac313::jText::v002::write_jtext_line_number(ln, n, pad);
+        check(ln.str() ==
+                  "0. 7. 10. 123. 18446744073709551615. "
+                  "0. 7. 10. 123. 18446744073709551615. "
+                  " 0.  7. 10. 123. 18446744073709551615. "
+                  "  0.   7.  10. 123. 18446744073709551615. ",
+              "write_jtext_line_number pads to pad_width");
+        // A row's line number pads the same way (pad width 1, 2 and 3).
+        for (const std::size_t pad : {1u, 2u, 3u}) {
+            std::ostringstream o;
+            JTextWriter w(o);
+            w.write_header();
+            w.begin_section("P");
+            w.set_line_number_pad_width(pad);
+            w.append_row(5, {std::string("five")});
+            w.append_row(12, {std::string("twelve")});
+            const std::string text = o.str();
+            const std::string want = pad == 1 ? "5. ▮▌ five\n12. ▮▌ twelve\n"
+                                   : pad == 2 ? " 5. ▮▌ five\n12. ▮▌ twelve\n"
+                                              : "  5. ▮▌ five\n 12. ▮▌ twelve\n";
+            check(text.ends_with(want), "a row's line number pads to the writer's pad width");
         }
     }
 

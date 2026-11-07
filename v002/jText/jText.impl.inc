@@ -422,12 +422,21 @@ std::size_t jtext_line_pad_width_for_count(std::size_t item_count) {
     return std::max<std::size_t>(2, std::to_string(item_count).size());
 }
 
+// Appends "<padded>N. " to `out`: the number right-aligned in pad_width columns.
+static void append_jtext_line_number(std::string& out, std::size_t number, std::size_t pad_width)
+{
+    char digits[std::numeric_limits<std::size_t>::digits10 + 1];
+    const auto written = std::to_chars(std::begin(digits), std::end(digits), number);
+    const auto size = static_cast<std::size_t>(written.ptr - std::begin(digits));
+    if (pad_width > size) out.append(pad_width - size, ' ');
+    out.append(digits, size);
+    out += ". ";
+}
+
 void write_jtext_line_number(std::ostream& out, std::size_t number, std::size_t pad_width) {
-    std::string s = std::to_string(number);
-    if (pad_width > s.size()) {
-        out << std::string(pad_width - s.size(), ' ');
-    }
-    out << s << ". ";
+    std::string s;
+    append_jtext_line_number(s, number, pad_width);
+    out << s;
 }
 
 void write_jtext_hash_header(std::ostream& out,
@@ -509,35 +518,143 @@ static std::string_view field_text(const std::optional<std::string>& f)
 
 static std::string_view field_text(const std::string& f) { return f; }
 
+static std::string_view field_text(std::string_view f) { return f; }
+
+// A field as written: its text, or {NULL} for a field given no value (SPEC 2.6.1).
+static std::string_view field_or_null(const std::optional<std::string>& f)
+{
+    return f ? std::string_view(*f) : jtext::kNullValue;
+}
+
+// A std::string, or a caller's view (append_row_views), is a value as given: "" is an
+// empty value, written as nothing, never NULL.
+static std::string_view field_or_null(const std::string& f) { return f; }
+
+static std::string_view field_or_null(std::string_view f) { return f; }
+
+// A field-1 row written with a record id the writer generated: the caller's fields with
+// the id as field 1 (a row given no fields gets that one field). The row is scanned and
+// written through this view, so it is never copied.
+template <class Fields>
+struct WithRecordId {
+    const Fields& fields;
+    std::string_view id;
+    [[nodiscard]] std::size_t size() const { return std::max<std::size_t>(fields.size(), 1); }
+};
+
+template <class Fields>
+static WithRecordId<Fields> with_record_id(const Fields& fields, std::string_view id)
+{
+    return WithRecordId<Fields>{fields, id};
+}
+
+// Field i of a row (a fields vector, a span of views, or a WithRecordId) as text for the scans, and as written.
+template <class Fields>
+static std::string_view text_at(const Fields& row, std::size_t i) { return field_text(row[i]); }
+
+template <class Fields>
+static std::string_view text_at(const WithRecordId<Fields>& row, std::size_t i)
+{
+    return i == 0 ? row.id : field_text(row.fields[i]);
+}
+
+template <class Fields>
+static std::string_view written_at(const Fields& row, std::size_t i) { return field_or_null(row[i]); }
+
+template <class Fields>
+static std::string_view written_at(const WithRecordId<Fields>& row, std::size_t i)
+{
+    return i == 0 ? row.id : field_or_null(row.fields[i]);
+}
+
+// A generated record id as text, in a fixed buffer (20 bytes hold any int64, sign included).
+struct RecordIdText {
+    char bytes[20] = {};
+    std::size_t size = 0;
+    [[nodiscard]] std::string_view view() const { return {bytes, size}; }
+};
+
+static RecordIdText record_id_text(std::int64_t id)
+{
+    RecordIdText text;
+    const auto written = std::to_chars(std::begin(text.bytes), std::end(text.bytes), id);
+    text.size = static_cast<std::size_t>(written.ptr - std::begin(text.bytes));
+    return text;
+}
+
+// Which ASCII bytes a row's data holds. The fallback formatter choices are tested against
+// it, instead of searching every field once per choice.
+struct AsciiSet {
+    std::uint64_t low = 0;    // bytes 0-63
+    std::uint64_t high = 0;   // bytes 64-127
+
+    constexpr void add(char c)
+    {
+        const auto u = static_cast<unsigned char>(c);
+        const std::uint64_t bit = std::uint64_t{1} << (u & 63u);
+        if (u < 64) low |= bit;
+        else if (u < 128) high |= bit;
+    }
+
+    [[nodiscard]] constexpr bool has(char c) const
+    {
+        const auto u = static_cast<unsigned char>(c);
+        if (u >= 128) return false;
+        return (((u < 64 ? low : high) >> (u & 63u)) & 1u) != 0;
+    }
+};
+
+// One pass over every field of a row (multiline fields too): the ASCII bytes it holds.
+template <class Row>
+static AsciiSet ascii_in_row(const Row& row)
+{
+    AsciiSet set;
+    for (std::size_t i = 0; i < row.size(); ++i)
+        for (const char c : text_at(row, i)) set.add(c);
+    return set;
+}
+
+// A row's AsciiSet, made on first use and then kept: most rows need no fallback choice
+// and never pay for the pass, and a row that needs both choices makes it once.
+template <class Row>
+class LazyAsciiSet {
+public:
+    explicit LazyAsciiSet(const Row& row) : row_(row) {}
+    const AsciiSet& get()
+    {
+        if (!set_) set_ = ascii_in_row(row_);
+        return *set_;
+    }
+
+private:
+    const Row& row_;
+    std::optional<AsciiSet> set_;
+};
+
 // The default formatter: U+25AE splits fields, U+258C starts the comment (SPEC 3.1).
-static constexpr char32_t kDefaultSplice  = U'\u25AE';
-static constexpr char32_t kDefaultComment = U'\u258C';
+static constexpr char32_t kDefaultSplice  = U'▮';
+static constexpr char32_t kDefaultComment = U'▌';
 
 // A row the caller gave no comment character (0) is written with U+258C, or, when its
 // data holds U+258C, with an ASCII choice that is not in its data, so the row reads
 // back as written (SPEC 3.2). A comment character the caller set is kept as given.
 // `has_default_comment` comes from scan_row, so a row without U+258C costs nothing more.
-template <class Fields>
-static char32_t choose_bookend(char32_t requested, char32_t sep, const Fields& fields, bool has_comment,
-                               bool has_default_comment)
+template <class Row>
+static char32_t choose_bookend(char32_t requested, char32_t sep, const Row& row, bool has_comment,
+                               bool has_default_comment, LazyAsciiSet<Row>& in_data)
 {
     if (requested != 0) return requested;
     if (!has_default_comment && sep != kDefaultComment) return kDefaultComment;
-    const auto appears = [&](char b) {
-        for (const auto& f : fields)
-            if (field_text(f).find(b) != std::string_view::npos) return true;
-        return false;
-    };
     for (const char b : kBookendChoices)
-        if (ascii32(b) != sep && !appears(b)) return ascii32(b);
+        if (ascii32(b) != sep && !in_data.get().has(b)) return ascii32(b);
     // Every choice is somewhere in the data: take the first the parser cannot
     // mistake for a comment marker.
     for (const char b : kBookendChoices) {
         if (ascii32(b) == sep) continue;
         bool clash = false;
-        for (std::size_t i = 0; i < fields.size() && !clash; ++i)
-            clash = field_has_comment_marker(field_text(fields[i]), b, i == 0, fields.size() == 1,
-                                             has_comment && i + 1 == fields.size());
+        for (std::size_t i = 0; i < row.size() && !clash; ++i)
+            clash = field_has_comment_marker(text_at(row, i), b, i == 0, row.size() == 1,
+                                             has_comment && i + 1 == row.size());
         if (!clash) return ascii32(b);
     }
     return '#';
@@ -558,18 +675,18 @@ struct RowScan {
 // eight-byte (SWAR) scan here, and the compiler vectorizes it for long fields. This runs
 // for every row written; a field whose first-byte test hits is then searched for the
 // whole character.
-template <class Fields>
-static RowScan scan_row(const Fields& fields, char32_t sep)
+template <class Row>
+static RowScan scan_row(const Row& row, char32_t sep)
 {
     // A field holding a newline is written as a multiline value, whose lines are
     // verbatim: its comment character and separator do not matter.
-    static const std::string comment = jtext::encode_utf8(kDefaultComment);
+    static constexpr jtext::utf8_char comment = jtext::utf8_char_of(kDefaultComment);
     RowScan scan;
-    const std::string needle = jtext::encode_utf8(sep);
-    const char sep_lead = needle.empty() ? '\0' : needle[0];
-    const char comment_lead = comment[0];
-    for (std::size_t i = 0; i < fields.size(); ++i) {
-        const std::string_view text = field_text(fields[i]);
+    const jtext::utf8_char needle = jtext::utf8_char_of(sep);
+    const char sep_lead = needle.bytes[0];
+    const char comment_lead = comment.bytes[0];
+    for (std::size_t i = 0; i < row.size(); ++i) {
+        const std::string_view text = text_at(row, i);
         unsigned char lead = 0, found = 0, newline = 0;
         for (const char c : text) {
             lead |= static_cast<unsigned char>(c == comment_lead);
@@ -580,24 +697,21 @@ static RowScan scan_row(const Fields& fields, char32_t sep)
             scan.has_newline = true;
             continue;
         }
-        if (found && needle.size() > 1) found = text.find(needle) != std::string_view::npos;
-        if (lead) scan.has_default_comment |= text.find(comment) != std::string_view::npos;
+        if (found && needle.size > 1) found = text.find(needle.view()) != std::string_view::npos;
+        if (lead) scan.has_default_comment |= text.find(comment.view()) != std::string_view::npos;
         if (found && sep != 0 && scan.sep_field == 0) scan.sep_field = i + 1;
     }
     return scan;
 }
 
 // A row the caller gave no separator (level_sep 0) whose data holds U+25AE is written
-// with the first ASCII choice that is not in its data. 0 when every choice is.
-template <class Fields>
-static char32_t choose_splice(char32_t requested_bookend, const Fields& fields)
+// with the first ASCII choice that is not in its data (any field, multiline ones too).
+// 0 when every choice is.
+static char32_t choose_splice(char32_t requested_bookend, const AsciiSet& in_data)
 {
     for (const char b : kBookendChoices) {
         if (b == '#' || ascii32(b) == requested_bookend) continue;
-        bool in_data = false;
-        for (const auto& f : fields)
-            if (field_text(f).find(b) != std::string_view::npos) { in_data = true; break; }
-        if (!in_data) return ascii32(b);
+        if (!in_data.has(b)) return ascii32(b);
     }
     return 0;
 }
@@ -609,16 +723,17 @@ struct RowFormat {
     char32_t bookend = kDefaultComment;
     std::size_t bad_field = 0;
     bool bad_comment = false;   // the comment holds a line break: a comment is one line
-    bool multiline = false;     // a field holds a newline: format_multiline_record
+    bool multiline = false;     // a field holds a newline: append_multiline_record
 };
 
-template <class Fields>
-static RowFormat row_format(char32_t requested_bookend, char32_t level_sep, const Fields& fields,
+template <class Row>
+static RowFormat row_format(char32_t requested_bookend, char32_t level_sep, const Row& row,
                             std::string_view comment)
 {
     const bool has_comment = !comment.empty();
     const char32_t sep = level_sep != 0 ? level_sep : kDefaultSplice;
-    const RowScan scan = scan_row(fields, sep);
+    const RowScan scan = scan_row(row, sep);
+    LazyAsciiSet<Row> in_data(row);   // shared by choose_splice and choose_bookend
     RowFormat f;
     f.sep = sep;
     f.bad_comment = comment.find_first_of("\r\n") != std::string_view::npos;
@@ -627,178 +742,113 @@ static RowFormat row_format(char32_t requested_bookend, char32_t level_sep, cons
             f.bad_field = scan.sep_field;
             return f;
         }
-        f.sep = choose_splice(requested_bookend, fields);
+        f.sep = choose_splice(requested_bookend, in_data.get());
         if (f.sep == 0) {
             f.sep = kDefaultSplice;
             f.bad_field = scan.sep_field;
             return f;
         }
     }
-    f.bookend = choose_bookend(requested_bookend, f.sep, fields, has_comment, scan.has_default_comment);
+    f.bookend = choose_bookend(requested_bookend, f.sep, row, has_comment, scan.has_default_comment, in_data);
     f.multiline = scan.has_newline;
     return f;
 }
 
-// A field as written: its text, or {NULL} for a field given no value (SPEC 2.6.1).
-static std::string_view field_or_null(const std::optional<std::string>& f)
+// True when a generated record id could change how its row is formatted: a negative id
+// holds '-', which is a bookend choice, and a digit separator may be one of its digits.
+// Otherwise the id (digits only) is no different to the formatter from the empty field
+// it fills, and the row's format stands.
+static bool record_id_may_change_format(std::string_view id, char32_t level_sep)
 {
-    return f ? std::string_view(*f) : jtext::kNullValue;
+    return id.starts_with('-') || (level_sep >= U'0' && level_sep <= U'9');
 }
 
-static std::string_view field_or_null(const std::string& f) { return f; }
-
-void write_entry_to_stream(std::ostream& out, const JTextEntry& e, std::size_t pad_width,
-                           char32_t sep_cp, char32_t bookend_cp)
+// Appends one compact row: "<N>. <splice><comment> f1<splice>f2 <comment> text\n" (SPEC 3.1).
+// The two-character formatter <splice><comment>, e.g. |# or |^: the comment character
+// can differ per row so values may contain " # "; the comment marker is that character
+// with a space on each side.
+template <class Row>
+static void append_row_line(std::string& out, std::size_t number, const Row& row, std::string_view comment,
+                            std::size_t pad_width, char32_t sep_cp, char32_t bookend_cp)
 {
-    write_jtext_line_number(out, e.number, pad_width);
-
-    // The two-character formatter <splice><comment> (SPEC 3.1), e.g. |# or |^. The
-    // comment character can differ per row so values may contain " # "; the comment
-    // marker is that character with a space on each side.
-    const std::string sep = jtext::encode_utf8(sep_cp);
-    const std::string bookend = jtext::encode_utf8(bookend_cp);
-    out << sep << bookend << ' ';
-
-    for (std::size_t i = 0; i < e.fields.size(); ++i) {
-        if (i > 0) out << sep;
-        const auto& f = e.fields[i];
-        out << field_or_null(f);
+    append_jtext_line_number(out, number, pad_width);
+    const jtext::utf8_char sep = jtext::utf8_char_of(sep_cp);
+    const jtext::utf8_char bookend = jtext::utf8_char_of(bookend_cp);
+    out += sep.view();
+    out += bookend.view();
+    out += ' ';
+    for (std::size_t i = 0; i < row.size(); ++i) {
+        if (i > 0) out += sep.view();
+        out += written_at(row, i);
     }
-
-    if (!e.comment.empty()) {
-        out << ' ' << bookend << ' ' << e.comment;
-    }
-    out << '\n';
-}
-
-// Helper for auto-batching: format once into a string (cheaper to store than full JTextEntry)
-static std::string format_entry(const JTextEntry& e, std::size_t pad_width, char32_t sep_cp, char32_t bookend_cp)
-{
-    std::string s;
-    s.reserve(256);
-
-    {
-        std::ostringstream os;
-        write_jtext_line_number(os, e.number, pad_width);
-        s += os.str();
-    }
-
-    const std::string sep = jtext::encode_utf8(sep_cp);
-    const std::string bookend = jtext::encode_utf8(bookend_cp);
-    s += sep;        // <splice><comment> (SPEC 3.1)
-    s += bookend;
-    s += ' ';
-
-    for (std::size_t i = 0; i < e.fields.size(); ++i) {
-        if (i > 0) s += sep;
-        const auto& f = e.fields[i];
-        s += field_or_null(f);
-    }
-
-    if (!e.comment.empty()) {
-        s += ' ';
-        s += bookend;
-        s += ' ';
-        s += e.comment;
-    }
-    s += '\n';
-    return s;
-}
-
-// Even faster path for the common append_row case when auto-batching
-static std::string format_row(std::size_t number,
-                              const std::vector<std::string>& fields,
-                              std::string_view comment,
-                              std::size_t pad_width,
-                              char32_t sep_cp,
-                              char32_t bookend_cp)
-{
-    std::string s;
-    s.reserve(256);
-
-    {
-        std::ostringstream os;
-        write_jtext_line_number(os, number, pad_width);
-        s += os.str();
-    }
-
-    const std::string sep = jtext::encode_utf8(sep_cp);
-    const std::string bookend = jtext::encode_utf8(bookend_cp);
-    s += sep;        // <splice><comment> (SPEC 3.1)
-    s += bookend;
-    s += ' ';
-
-    for (std::size_t i = 0; i < fields.size(); ++i) {
-        if (i > 0) s += sep;
-        s += fields[i];
-    }
-
     if (!comment.empty()) {
-        s += ' ';
-        s += bookend;
-        s += ' ';
-        s += comment;
+        out += ' ';
+        out += bookend.view();
+        out += ' ';
+        out += comment;
     }
-    s += '\n';
-    return s;
+    out += '\n';
 }
-
 
 // A row with a field that holds a newline (SPEC 5): the fields before it
 // are a compact row, that field is a multiline value on its own numbered line, and
 // the fields after it continue at the next position. Value lines and the closer are
 // indented to the column of the "[*", so every marker lines up. The row's comment
-// goes on its first line.
-template <class Fields>
-static std::string format_multiline_record(std::size_t number, const Fields& fields,
-                                           std::string_view comment, char32_t sep_cp,
-                                           char32_t bookend_cp, std::size_t pad_width)
+// goes on its first line. Appended to `out`.
+template <class Row>
+static void append_multiline_record(std::string& out, std::size_t number, const Row& row,
+                                    std::string_view comment, char32_t sep_cp,
+                                    char32_t bookend_cp, std::size_t pad_width)
 {
-    const std::string sep = jtext::encode_utf8(sep_cp);
-    const std::string bookend = jtext::encode_utf8(bookend_cp);
+    const jtext::utf8_char sep = jtext::utf8_char_of(sep_cp);
+    const jtext::utf8_char bookend = jtext::utf8_char_of(bookend_cp);
     const auto multiline = [&](std::size_t i) {
-        return field_text(fields[i]).find('\n') != std::string_view::npos;
+        return text_at(row, i).find('\n') != std::string_view::npos;
     };
-    std::string out;
     bool comment_written = comment.empty();
     std::size_t i = 0;
-    while (i < fields.size()) {
-        std::ostringstream os;
-        write_jtext_line_number(os, number + i, pad_width);
-        out += os.str();
+    while (i < row.size()) {
+        const std::size_t line_start = out.size();
+        append_jtext_line_number(out, number + i, pad_width);
         if (multiline(i)) {
+            // The value lines line up under the "[*": the width of "<padded>N. ".
+            const std::size_t indent = out.size() - line_start;
             out += "[*";
             if (!comment_written) { out += " # "; out += comment; comment_written = true; }
             out += '\n';
-            const std::string indent(std::max(pad_width, std::to_string(number + i).size()) + 2, ' ');
-            std::string_view text = field_text(fields[i]);
+            std::string_view text = text_at(row, i);
             for (;;) {
                 const auto nl = text.find('\n');
                 const auto line = text.substr(0, nl);
-                out += indent;
+                out.append(indent, ' ');
                 out += "**";
                 if (!line.empty()) { out += ' '; out += line; }
                 out += '\n';
                 if (nl == std::string_view::npos) break;
                 text.remove_prefix(nl + 1);
             }
-            out += indent;
+            out.append(indent, ' ');
             out += "*]\n";
             ++i;
             continue;
         }
-        out += sep;
-        out += bookend;
+        out += sep.view();
+        out += bookend.view();
         out += ' ';
         const std::size_t first = i;
-        for (; i < fields.size() && !multiline(i); ++i) {
-            if (i > first) out += sep;
-            out += field_or_null(fields[i]);
+        for (; i < row.size() && !multiline(i); ++i) {
+            if (i > first) out += sep.view();
+            out += written_at(row, i);
         }
-        if (!comment_written) { out += ' '; out += bookend; out += ' '; out += comment; comment_written = true; }
+        if (!comment_written) {
+            out += ' ';
+            out += bookend.view();
+            out += ' ';
+            out += comment;
+            comment_written = true;
+        }
         out += '\n';
     }
-    return out;
 }
 
 // Light profile: a section opens with "-- Name --" and closes with "-- End Name --".
@@ -859,6 +909,8 @@ JTextWriter::JTextWriter(JTextWriter&& other) noexcept
       auto_id_(other.auto_id_),
       auto_batch_size_(other.auto_batch_size_),
       pending_batch_(std::move(other.pending_batch_)),
+      pending_count_(std::exchange(other.pending_count_, 0)),
+      scratch_(std::move(other.scratch_)),
       line_pad_width_(other.line_pad_width_),
       bad_row_policy_(other.bad_row_policy_),
       skipped_rows_(other.skipped_rows_),
@@ -894,6 +946,8 @@ JTextWriter& JTextWriter::operator=(JTextWriter&& other) noexcept
         auto_id_ = other.auto_id_;
         auto_batch_size_ = other.auto_batch_size_;
         pending_batch_ = std::move(other.pending_batch_);
+        pending_count_ = std::exchange(other.pending_count_, 0);
+        scratch_ = std::move(other.scratch_);
         line_pad_width_ = other.line_pad_width_;
         record_id_seed_ = other.record_id_seed_;
         record_id_step_ = other.record_id_step_;
@@ -968,19 +1022,13 @@ void JTextWriter::note_record_id(std::string_view value)
     }
 }
 
-const JTextEntry& JTextWriter::resolve_record_id(const JTextEntry& entry, JTextEntry& scratch)
+bool JTextWriter::record_id_missing(const JTextEntry& entry)
 {
     // Only a field-1 line carries the record id (the number is a field position).
-    if (entry.number != 1) return entry;
+    if (entry.number != 1) return false;
     const bool missing = entry.fields.empty() || !entry.fields[0] || entry.fields[0]->empty();
-    if (!missing) {
-        note_record_id(*entry.fields[0]);
-        return entry;
-    }
-    scratch = entry;
-    if (scratch.fields.empty()) scratch.fields.emplace_back();
-    scratch.fields[0] = std::to_string(take_record_id());
-    return scratch;
+    if (!missing) note_record_id(*entry.fields[0]);
+    return missing;
 }
 
 void JTextWriter::set_line_number_pad_width(std::size_t width) { line_pad_width_ = width; }
@@ -1036,7 +1084,9 @@ void JTextWriter::write_full_header_line(std::size_t number, std::string_view va
     const std::string comment = c == header_comments_.end() ? std::string{} : c->second;
     const std::vector<std::string> fields{std::string(value)};
     const RowFormat fmt = row_format(0, 0, fields, comment);
-    *out_ << format_row(number, fields, comment, 2, fmt.sep, fmt.bookend);
+    scratch_.clear();
+    append_row_line(scratch_, number, fields, comment, 2, fmt.sep, fmt.bookend);
+    *out_ << scratch_;
 }
 
 void JTextWriter::close_full_section()
@@ -1151,6 +1201,32 @@ void JTextWriter::begin_section(std::string_view name)
     out_->put('\n');
 }
 
+// Formats one record (a compact row, or a multiline record) straight into the line
+// buffer: the batch buffer when auto-batching, else the scratch string, then written.
+template <class Row>
+void JTextWriter::write_record(std::size_t number, const Row& row, std::string_view comment, char32_t sep,
+                               char32_t bookend, bool multiline)
+{
+    count_record_line(number, row.size(), multiline);
+    std::string& out = line_buffer();
+    if (multiline) append_multiline_record(out, number, row, comment, sep, bookend, line_pad_width_);
+    else append_row_line(out, number, row, comment, line_pad_width_, sep, bookend);
+    commit_lines();
+}
+
+// An entry that passed its checks: its record id generated when it has none (the format
+// chosen before stands, as it always has for entries), then written.
+void JTextWriter::write_entry(const JTextEntry& entry, char32_t sep, char32_t bookend, bool multiline)
+{
+    if (record_id_missing(entry)) {
+        const RecordIdText id = record_id_text(take_record_id());
+        write_record(entry.number, with_record_id(entry.fields, id.view()), entry.comment, sep, bookend,
+                     multiline);
+        return;
+    }
+    write_record(entry.number, entry.fields, entry.comment, sep, bookend, multiline);
+}
+
 void JTextWriter::append_entry(const JTextEntry& entry)
 {
     ensure_header();
@@ -1165,24 +1241,7 @@ void JTextWriter::append_entry(const JTextEntry& entry)
         reject_comment(entry.comment);
         return;
     }
-
-    JTextEntry scratch;
-    const JTextEntry& e = resolve_record_id(entry, scratch);
-    count_record_line(e.number, e.fields.size(), fmt.multiline);
-
-    if (fmt.multiline) {
-        write_lines(format_multiline_record(e.number, e.fields, e.comment, fmt.sep, fmt.bookend,
-                                            line_pad_width_));
-        return;
-    }
-    if (auto_batch_size_ > 0) {
-        pending_batch_.push_back(format_entry(e, line_pad_width_, fmt.sep, fmt.bookend));
-        if (pending_batch_.size() >= auto_batch_size_) {
-            flush_pending_batch();
-        }
-    } else {
-        write_entry_to_stream(*out_, e, line_pad_width_, fmt.sep, fmt.bookend);
-    }
+    write_entry(entry, fmt.sep, fmt.bookend, fmt.multiline);
 }
 
 void JTextWriter::append_entries(std::span<const JTextEntry> entries)
@@ -1202,47 +1261,17 @@ void JTextWriter::append_entries(std::span<const JTextEntry> entries)
             if (f.bad_comment) reject_comment(entry.comment);
         }
     }
-    const auto keep = [&](std::size_t n) {
+    for (std::size_t n = 0; n < entries.size(); ++n) {
         const auto& f = formats[n];
         if (f.bad_field) {
             reject_row(f.bad_field, f.sep, field_text(entries[n].fields[f.bad_field - 1]));
-            return false;
+            continue;
         }
         if (f.bad_comment) {
             reject_comment(entries[n].comment);
-            return false;
+            continue;
         }
-        return true;
-    };
-
-    JTextEntry scratch;
-    if (auto_batch_size_ > 0) {
-        for (std::size_t n = 0; n < entries.size(); ++n) {
-            if (!keep(n)) continue;
-            const JTextEntry& e = resolve_record_id(entries[n], scratch);
-            count_record_line(e.number, e.fields.size(), formats[n].multiline);
-            if (formats[n].multiline) {
-                write_lines(format_multiline_record(e.number, e.fields, e.comment, formats[n].sep,
-                                                    formats[n].bookend, line_pad_width_));
-                continue;
-            }
-            pending_batch_.push_back(format_entry(e, line_pad_width_, formats[n].sep, formats[n].bookend));
-            if (pending_batch_.size() >= auto_batch_size_) {
-                flush_pending_batch();
-            }
-        }
-    } else {
-        for (std::size_t n = 0; n < entries.size(); ++n) {
-            if (!keep(n)) continue;
-            const JTextEntry& e = resolve_record_id(entries[n], scratch);
-            count_record_line(e.number, e.fields.size(), formats[n].multiline);
-            if (formats[n].multiline) {
-                write_lines(format_multiline_record(e.number, e.fields, e.comment, formats[n].sep,
-                                                    formats[n].bookend, line_pad_width_));
-                continue;
-            }
-            write_entry_to_stream(*out_, e, line_pad_width_, formats[n].sep, formats[n].bookend);
-        }
+        write_entry(entries[n], f.sep, f.bookend, f.multiline);
     }
 }
 
@@ -1251,17 +1280,18 @@ void JTextWriter::append_entries(const std::vector<JTextEntry>& entries)
     append_entries(std::span<const JTextEntry>(entries));
 }
 
-void JTextWriter::append_row(std::size_t number,
-                             const std::vector<std::string>& fields,
-                             std::string_view comment,
-                             char32_t level_sep)
+// The one body of append_row and append_row_views (a vector of strings, or a span of
+// views): the fields are only read here, never copied.
+template <class Fields>
+void JTextWriter::append_fields_row(std::size_t number, const Fields& fields, std::string_view comment,
+                                    char32_t level_sep)
 {
     ensure_header();
     ensure_not_finalized();
     if (!out_) return;
     const RowFormat fmt = row_format(0, level_sep, fields, comment);
     if (fmt.bad_field) {
-        reject_row(fmt.bad_field, fmt.sep, fields[fmt.bad_field - 1]);
+        reject_row(fmt.bad_field, fmt.sep, text_at(fields, fmt.bad_field - 1));
         return;
     }
     if (fmt.bad_comment) {
@@ -1269,35 +1299,42 @@ void JTextWriter::append_row(std::size_t number,
         return;
     }
 
-    // Field-1 row: generate the record id when it is missing, else note it.
+    // Field-1 row: generate the record id when it is missing, else note it. A row is
+    // formatted with its generated id, so an id that could change the format (see
+    // record_id_may_change_format) has the row formatted again with it.
     if (number == 1 && (fields.empty() || fields[0].empty())) {
-        std::vector<std::string> with_id = fields;
-        if (with_id.empty()) with_id.emplace_back();
-        with_id[0] = std::to_string(take_record_id());
-        append_row(number, with_id, comment, level_sep);
-        return;
-    }
-    if (number == 1) note_record_id(fields[0]);
-    count_record_line(number, fields.size(), fmt.multiline);
-
-    if (fmt.multiline) {
-        write_lines(format_multiline_record(number, fields, comment, fmt.sep, fmt.bookend, line_pad_width_));
-        return;
-    }
-    if (auto_batch_size_ > 0) {
-        // Fast path: format directly into the pending batch without ever creating a JTextEntry
-        pending_batch_.push_back(format_row(number, fields, comment, line_pad_width_, fmt.sep, fmt.bookend));
-        if (pending_batch_.size() >= auto_batch_size_) {
-            flush_pending_batch();
+        const RecordIdText id = record_id_text(take_record_id());
+        const auto row = with_record_id(fields, id.view());
+        if (!record_id_may_change_format(id.view(), level_sep)) {
+            write_record(number, row, comment, fmt.sep, fmt.bookend, fmt.multiline);
+            return;
         }
-    } else {
-        JTextEntry e;
-        e.number = number;
-        for (const auto& f : fields) e.fields.emplace_back(f);
-        e.comment = std::string(comment);
-        e.level_sep = level_sep;
-        write_entry_to_stream(*out_, e, line_pad_width_, fmt.sep, fmt.bookend);
+        const RowFormat with_id = row_format(0, level_sep, row, comment);
+        if (with_id.bad_field) {
+            reject_row(with_id.bad_field, with_id.sep, text_at(row, with_id.bad_field - 1));
+            return;
+        }
+        write_record(number, row, comment, with_id.sep, with_id.bookend, with_id.multiline);
+        return;
     }
+    if (number == 1) note_record_id(text_at(fields, 0));
+    write_record(number, fields, comment, fmt.sep, fmt.bookend, fmt.multiline);
+}
+
+void JTextWriter::append_row(std::size_t number,
+                             const std::vector<std::string>& fields,
+                             std::string_view comment,
+                             char32_t level_sep)
+{
+    append_fields_row(number, fields, comment, level_sep);
+}
+
+void JTextWriter::append_row_views(std::size_t number,
+                                   std::span<const std::string_view> fields,
+                                   std::string_view comment,
+                                   char32_t level_sep)
+{
+    append_fields_row(number, fields, comment, level_sep);
 }
 
 void JTextWriter::end_record()
@@ -1323,7 +1360,7 @@ void JTextWriter::write_comment_line(std::string_view text)
         if (end == std::string_view::npos) break;
         start = end + 1;
     }
-    write_lines(std::move(lines));
+    write_lines(lines);
 }
 
 void JTextWriter::count_record_line(std::size_t number, std::size_t field_count, bool multiline)
@@ -1332,14 +1369,26 @@ void JTextWriter::count_record_line(std::size_t number, std::size_t field_count,
     record_lines_ += multiline ? 2 : 1;
 }
 
-void JTextWriter::write_lines(std::string text)
+void JTextWriter::write_lines(std::string_view text)
 {
-    if (auto_batch_size_ > 0) {
-        pending_batch_.push_back(std::move(text));
-        if (pending_batch_.size() >= auto_batch_size_) flush_pending_batch();
-    } else {
-        *out_ << text;
+    line_buffer() += text;
+    commit_lines();
+}
+
+std::string& JTextWriter::line_buffer()
+{
+    if (auto_batch_size_ > 0) return pending_batch_;
+    scratch_.clear();
+    return scratch_;
+}
+
+void JTextWriter::commit_lines()
+{
+    if (auto_batch_size_ == 0) {
+        *out_ << scratch_;
+        return;
     }
+    if (++pending_count_ >= auto_batch_size_) flush_pending_batch();
 }
 
 void JTextWriter::finalize()
@@ -1383,6 +1432,12 @@ void JTextWriter::set_auto_batch_size(std::size_t num_entries)
     auto_batch_size_ = num_entries;
 }
 
+void JTextWriter::reserve_batch_bytes(std::size_t bytes)
+{
+    pending_batch_.reserve(bytes);
+    scratch_.reserve(bytes);
+}
+
 void JTextWriter::enable_high_throughput_batching()
 {
     set_auto_batch_size(kDefaultHighThroughputBatchSize);
@@ -1390,12 +1445,10 @@ void JTextWriter::enable_high_throughput_batching()
 
 void JTextWriter::flush_pending_batch()
 {
-    if (!out_ || pending_batch_.empty()) return;
-
-    for (const auto& line : pending_batch_) {
-        *out_ << line;           // already formatted — very cheap
-    }
-    pending_batch_.clear();
+    if (!out_ || pending_count_ == 0) return;
+    *out_ << pending_batch_;   // the whole batch in one write
+    pending_batch_.clear();    // keeps its capacity for the next batch
+    pending_count_ = 0;
 }
 
 void JTextWriter::ensure_header()

@@ -23,15 +23,15 @@
 
 1. #|# 2|canonical_dir|jText/v002
 
-1. #|# 3|canonical_commit|ab5e746e7cc2
+1. #|# 3|canonical_commit|558bb63a8ea9
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v002.034
+1. #|# 5|canonical_version|v002.036
 
 1. #|# 6|transform|jac313-prefix
 
-1. #|# 7|ported|2026-11-06
+1. #|# 7|ported|2026-11-07
 
 1. #|# 8|baseline|No
 
@@ -82,13 +82,13 @@
 
 1. #|# 12|include/jac313/jText/v002.hpp|include/jText/v002.hpp|3b0b42253b9287078698f9fc97e6aea14b740b3d059a15d970dd3f68b69748a9|4d8477911f65c529a9abcef74a6cf2c8922300b4004996e8608cfcecd9c5dab5
 
-1. #|# 13|jText.api.inc|jText.api.inc|6c38b5e3884477f4be16579ae88ca98f98bada366f3cd6e75a0c8615b5d739e8|46d6ca6e1eff29080bacc54e693a3d746817cd6a1304fe1ad76df156001b2e00
+1. #|# 13|jText.api.inc|jText.api.inc|4d9224717e8c03970581d6fd401b0f672297a7a5d1c823ac0b323e22f278c316|1b123f69be32c819a88520bac83fb6d327b806892470114fde645dbaaffe1591
 
-1. #|# 14|jText.cpp|jText.cpp|4b3bed76b30fb05a30e6c68740887623e75f970de9dd63125dfdea480dfd1351|ec360a886dddeee6779672c727fc497e8c1c3b9047c1683d19cd563f9c4369fc
+1. #|# 14|jText.cpp|jText.cpp|36e49347fe03c238438ae8584ba7ff1735fec37efd00e40486c32144def01f5a|4751910cfa4ab4b047c063fb3e93b7e897bf42f91af3bd426594ae21a534ac47
 
 1. #|# 15|jText.h|jText.h|bdfc5006dcda3fc7f1cc2a8c90f1265a52679eafc4e7cd0f01636d8b5767c92b|6e26cbe641d54b3d2a1124c51937cf275b76b5449b015554ffe513605cabe749
 
-1. #|# 16|jText.impl.inc|jText.impl.inc|657a3da9c94a51a3c71a11a3fdf2fe1a17875c8e10e4481697d69c38e6c660ee|1d62935bc643b2f03ddc24e721717fa55d9c74c9a6da461107a445c58a83762f
+1. #|# 16|jText.impl.inc|jText.impl.inc|6dd33e791df80798ebeea03bbe436c7a64e4740282458cbf805cf2b62e46e5d1|629f8e325a56affb3a416597a391173b0fc81846fc57075749cc31d7b693f807
 
 1. #|# 17|modules/jac313.jtext.v002.core.cppm|modules/jText.v002.core.cppm|47c836b45fc03588f153d0628dbe165c01f870588567b2bcba8af6dccfcb1150|37f5acbfddb6d4f3a019fbd57ad4576c477fe0ca6c05a41cca132ddef14dec90
 
@@ -118,7 +118,7 @@
 
 1. #|# 30|src/parser/unicode_ps_table.hpp|src/parser/unicode_ps_table.hpp|d6f16f5a1fde668861fd3acee4d660b02e9858dccdc0a95de323070299fad4d9|d6f16f5a1fde668861fd3acee4d660b02e9858dccdc0a95de323070299fad4d9
 
-1. #|# 31|src/parser/utf8.hpp|src/parser/utf8.hpp|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea|43afe806579731e8d1ac4c1c9766b3bdb1a5653102a6db48ab87518f41f2b1ea
+1. #|# 31|src/parser/utf8.hpp|src/parser/utf8.hpp|6145c76b55380e5c4b164f3752e40094748dd49fba120f03540059da43c2f53c|6145c76b55380e5c4b164f3752e40094748dd49fba120f03540059da43c2f53c
 
 1. #|# 32|src/validator/validator.cpp|src/validator/validator.cpp|33c57057908b2aedfeb5247dc29cc9e674b1a41d081020ce63b05dd745564b4c|33c57057908b2aedfeb5247dc29cc9e674b1a41d081020ce63b05dd745564b4c
 
@@ -130,7 +130,7 @@
 
 1. #|# 36|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|680b60cd42ee565ed2c6a653b273d48eaaf5d1d52d83311e6a7ffee097dd2069|06ed5e1421b57997e6466de868c31f862a75c78e0fdf8e91c5e7f0f0134a064f
 
-1. #|# 37|tests/v002_test.cpp|tests/v002_test.cpp|a3f13e660cdd8cdeb7f8b9e487e41d644c66897d91f92b7acd3b99d114237db8|2d7f2411a70ebb8b2a80d26cd163f7420ee79ba5ea825f8fda7bc2e852812b6d
+1. #|# 37|tests/v002_test.cpp|tests/v002_test.cpp|ec644a166074336e257c2ff1f37e1c66eb758bd6945f56c30043eee4c45942b9|b4b406e190bc0d064bfec624a0227e1c9e3241a677b95961f4addbcc761d78d7
 
 1. #|# 38|tools/common/record_lines.hpp|tools/common/record_lines.hpp|28b77d7aeacf51d8ba3150a4a1f92bb2540250d1ba3441828905dac82e108dc6|97289be2126eda4303b20de6bca338743afd1181d2b950568d166e188fbafdc5
 

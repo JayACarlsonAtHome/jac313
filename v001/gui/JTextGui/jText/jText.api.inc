@@ -8,7 +8,7 @@
 // Package version, "major.minor": major = the v001 API line, minor = the revision. Bump on
 // each small code change (edit the minor); v001 stays until a real (breaking) change, then
 // this becomes "v001.001". Enforced by `jac313_test_cli version-check` (pre-push).
-[[nodiscard]] constexpr std::string_view version() noexcept { return "v001.034"; }
+[[nodiscard]] constexpr std::string_view version() noexcept { return "v001.036"; }
 
 enum class CaseMode { Insensitive, Sensitive };
 
@@ -98,7 +98,7 @@ private:
 // ===================================================================
 // JTextWriter — Incremental / streaming writer
 // Supports the "write headers + open files early, append rows later" pattern
-// (required for high-throughput buffers with future double-buffering needs).
+// (rows may be fed straight from a caller's own row memory: see append_row_views).
 // ===================================================================
 
 class JTextWriter {
@@ -194,7 +194,7 @@ public:
     // record, so rows follow one another directly (SPEC 2.6).
     void end_record();
 
-    // Batch append — recommended for high-volume use (ts_store, double-buffering, etc.)
+    // Batch append — recommended for high-volume use.
     void append_entries(std::span<const JTextEntry> entries);
 
     // Convenience overloads
@@ -204,6 +204,19 @@ public:
                     const std::vector<std::string>& fields,
                     std::string_view comment = "",
                     char32_t level_sep = 0);
+
+    // append_row for fields given as views of the caller's own memory: the same checks,
+    // rejects, record ids and output bytes as append_row with the same text, and no
+    // std::string made per field or per row. A view is a value as given (there is no
+    // NULL for a view): "" is an empty value, written as nothing, like an empty
+    // std::string in append_row. The views are only read during the call; the writer
+    // keeps none of them afterwards, so the caller may reuse that memory at once.
+    // (A distinct name, not an append_row overload: a braced list would make the call
+    // ambiguous where std::span has an initializer_list constructor, as in C++26.)
+    void append_row_views(std::size_t number,
+                          std::span<const std::string_view> fields,
+                          std::string_view comment = "",
+                          char32_t level_sep = 0);
 
     void finalize();
 
@@ -219,14 +232,30 @@ public:
 
     [[nodiscard]] std::size_t auto_batch_size() const noexcept { return auto_batch_size_; }
 
-    // Recommended batch size when maximizing throughput (used by ts_store by default).
-    // Users of ts_store can override this if they want a different balance
-    // between throughput, memory usage, and data-loss window on crash.
+    // Recommended batch size when maximizing throughput. A caller picks its own size
+    // for a different balance between throughput, memory use, and the data a crash
+    // can lose.
     static constexpr std::size_t kDefaultHighThroughputBatchSize = 10'000;
 
     // Convenience: enables auto-batching tuned for high throughput (10K lines).
-    // This is what ts_store persistence will use by default.
     void enable_high_throughput_batching();
+
+    // Reserves `bytes` of capacity up front in the buffers rows are formatted into (the
+    // batch buffer, and the one-record buffer used when not batching), so a caller that
+    // knows its largest row and its batch size can have the writer never grow them.
+    // jText computes no size: the caller passes it. It is a capacity hint only: a row or
+    // batch larger than reserved still works (the buffer grows), it never overflows.
+    // Flushing is unchanged (by row count, section change, flush(), finalize()), and the
+    // reservation survives set_auto_batch_size and a move of the writer.
+    void reserve_batch_bytes(std::size_t bytes);
+
+    // The capacity of the buffer the next row is formatted into (the batch buffer when
+    // auto-batching, else the one-record buffer). For tests and callers checking that a
+    // reserve_batch_bytes size was enough (it is unchanged when no buffer grew).
+    [[nodiscard]] std::size_t batch_capacity() const noexcept
+    {
+        return auto_batch_size_ > 0 ? pending_batch_.capacity() : scratch_.capacity();
+    }
 
     // When a numbered list has more than 9 entries, set pad width so 1–99
     // line numbers right-align and '.' shares a column (SPEC §3.7).
@@ -239,17 +268,32 @@ public:
 private:
     void ensure_header();
     void ensure_not_finalized();
-    void flush_pending_batch();   // internal helper
-    // Write already-formatted lines (a multiline record), batched like any row.
-    void write_lines(std::string text);
+    void flush_pending_batch();   // writes the batch buffer in one call and empties it
+    // Write already-formatted lines (comment lines, a record's closing blank line),
+    // batched like any row.
+    void write_lines(std::string_view text);
+    // The string the next record is formatted into: the batch buffer when auto-batching,
+    // else the emptied scratch string. commit_lines() then counts it into the batch
+    // (flushing a full one) or writes the scratch string.
+    std::string& line_buffer();
+    void commit_lines();
+    // One record that passed its checks, formatted with `sep` and `bookend` and written.
+    template <class Row>
+    void write_record(std::size_t number, const Row& row, std::string_view comment, char32_t sep,
+                      char32_t bookend, bool multiline);
+    void write_entry(const JTextEntry& entry, char32_t sep, char32_t bookend, bool multiline);
+    // The one body of append_row and append_row_views, over their fields type.
+    template <class Fields>
+    void append_fields_row(std::size_t number, const Fields& fields, std::string_view comment,
+                           char32_t level_sep);
     // Report a bad row (a field holding the separator, or a comment holding a line
     // break), then leave it out (Skip) or end the process (Terminate).
     void reject_row(std::size_t field, char32_t sep, std::string_view value);
     void reject_comment(std::string_view comment);
     void reject(std::string_view why, std::string_view value, std::string_view fix);
-    // Field-1 entry with no id: fill one in `scratch` and return it; otherwise
-    // note the id it carries and return `entry` unchanged.
-    const JTextEntry& resolve_record_id(const JTextEntry& entry, JTextEntry& scratch);
+    // True for a field-1 entry with no record id (the caller generates one); the id a
+    // field-1 entry carries is noted.
+    bool record_id_missing(const JTextEntry& entry);
     std::int64_t take_record_id();
     void note_record_id(std::string_view value);
 
@@ -273,7 +317,9 @@ private:
 
     // Auto-batching state
     std::size_t auto_batch_size_ = 0;
-    std::vector<std::string> pending_batch_;   // stores pre-formatted lines for cheaper storage & faster flush
+    std::string pending_batch_;        // the batch: rows formatted straight into one buffer
+    std::size_t pending_count_ = 0;    // rows (and line groups) in pending_batch_
+    std::string scratch_;              // unbatched: one record formatted here, then written
 
     std::size_t line_pad_width_ = 2;   // line numbers right-aligned in two columns (SPEC 3.7)
 

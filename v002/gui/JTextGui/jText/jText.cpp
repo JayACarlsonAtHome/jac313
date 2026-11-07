@@ -4,6 +4,9 @@
 #include "parser/utf8.hpp"
 #include "contracts.hpp"   // JTEXT_PRE/POST/ASSERT
 #include <charconv>
+#include <cstdint>
+#include <limits>
+#include <utility>
 #include <filesystem>
 #include <optional>
 #include <sstream>

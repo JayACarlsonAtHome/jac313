@@ -48,26 +48,40 @@ constexpr auto decode_utf8(std::string_view s) -> std::optional<decoded_code_poi
     return decoded_code_point{cp, len};
 }
 
+// One code point's UTF-8 bytes in a fixed buffer, so encoding needs no allocation (the
+// writer encodes each row's separator and comment character).
+struct utf8_char {
+    char        bytes[4] = {};
+    std::size_t size     = 0;
+    [[nodiscard]] constexpr auto view() const -> std::string_view { return {bytes, size}; }
+};
+
+constexpr auto utf8_char_of(char32_t cp) -> utf8_char
+{
+    utf8_char out;
+    const auto put = [&](char32_t b) { out.bytes[out.size++] = static_cast<char>(b); };
+    if (cp < 0x80) {
+        put(cp);
+    } else if (cp < 0x800) {
+        put(0xC0 | (cp >> 6));
+        put(0x80 | (cp & 0x3F));
+    } else if (cp < 0x10000) {
+        put(0xE0 | (cp >> 12));
+        put(0x80 | ((cp >> 6) & 0x3F));
+        put(0x80 | (cp & 0x3F));
+    } else {
+        put(0xF0 | (cp >> 18));
+        put(0x80 | ((cp >> 12) & 0x3F));
+        put(0x80 | ((cp >> 6) & 0x3F));
+        put(0x80 | (cp & 0x3F));
+    }
+    return out;
+}
+
 // The UTF-8 bytes of `cp`, which must be a valid code point.
 inline auto encode_utf8(char32_t cp) -> std::string
 {
-    std::string out;
-    if (cp < 0x80) {
-        out += static_cast<char>(cp);
-    } else if (cp < 0x800) {
-        out += static_cast<char>(0xC0 | (cp >> 6));
-        out += static_cast<char>(0x80 | (cp & 0x3F));
-    } else if (cp < 0x10000) {
-        out += static_cast<char>(0xE0 | (cp >> 12));
-        out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
-        out += static_cast<char>(0x80 | (cp & 0x3F));
-    } else {
-        out += static_cast<char>(0xF0 | (cp >> 18));
-        out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
-        out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
-        out += static_cast<char>(0x80 | (cp & 0x3F));
-    }
-    return out;
+    return std::string(utf8_char_of(cp).view());
 }
 
 // True when `cp`'s General Category is Punctuation or Symbol (SPEC 3.1). Every
