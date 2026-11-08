@@ -110,7 +110,7 @@ void print_usage() {
         "  --wipe-logs          delete test-results/ + kept-logs/ (keeps README.md); alone or before a run\n"
         "  --threads N, --events-per-thread N, --runs N, --batch N\n"
         "                       bench: replace the suite's 50 threads / per-config events and runs /\n"
-        "                       the calibrated durable batch for every config\n"
+        "                       the durable batch (calibrated or default) for every config\n"
         "  Every flag given to a preset is forwarded to each step that takes it; a step that cannot\n"
         "  take one says so in a comment line of run_latest_config.sh. A recorder that could not write\n"
         "  results.db prints \"NOT RECORDED: ...\" and the command exits non-zero.\n"
@@ -1796,7 +1796,8 @@ void write_machines_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out) {
         bool any_cal = false;
         while (cal.step()) {
             if (!any_cal) {
-                md << "\n**Persistence batch calibration** (io_best_fit: the batch the recorded bench runs at):\n\n"
+                md << "\n**Persistence batch calibration** (io_best_fit: the batch the recorded bench runs at; "
+                      "databases are not calibrated and run at the default batch):\n\n"
                       "| backend | useThis | band | peak ops/sec @ batch | calibrated by |\n|---|--:|---|---|---|\n";
                 any_cal = true;
             }
@@ -3725,7 +3726,8 @@ int run_everything_command(const GlobalOptions& global_in, const ConfigureOption
         step("configure bench " + cc, CLI + " configure --release --build-dir " + dir + " --compiler " + cc + sf.bench_configure);
         step("build bench " + cc,     "cmake --build " + dir + " --target jac313_store_bench" + sf.build);
     }
-    // Calibrate the per-machine durable persistence batch sizes (io_best_fit) AFTER the smoke gate (the host
+    // Calibrate the per-machine durable persistence batch sizes (io_best_fit: binary, jtext, html, json; the
+    // databases are never calibrated and run at the default batch) AFTER the smoke gate (the host
     // is pinned by the ctest/smoke recorders by now) and BEFORE the recorded suite, so each --suite below
     // runs at the calibrated useThis. I/O batch is hardware-bound (not compiler-bound), so calibrate ONCE
     // with the first bench binary. --calibrate ensure_schema's the io_best_fit table itself (this machine's

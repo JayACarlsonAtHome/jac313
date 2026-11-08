@@ -9,6 +9,7 @@
 #include <jac313/Qlite/v001.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
@@ -1084,6 +1085,20 @@ inline void insert_run_targets(Sqlite& db, std::int64_t run_id, const std::vecto
 }
 
 // ---- io_best_fit (per-machine durable-backend batch calibration) ----
+// The persistence types the batch calibration (store_bench --calibrate) sweeps and io_best_fit holds:
+// the file sinks. The databases (sql, pg-local, pg-remote) are never calibrated; they always run at
+// the default batch, or at --batch N when one is given.
+inline constexpr std::array<std::string_view, 4> calibrated_types{"binary", "jtext", "html", "json"};
+
+constexpr bool is_calibrated_type(std::string_view type) {
+    return std::ranges::find(calibrated_types, type) != calibrated_types.end();
+}
+static_assert(is_calibrated_type("binary") && is_calibrated_type("jtext") && is_calibrated_type("html")
+              && is_calibrated_type("json"));
+static_assert(!is_calibrated_type("sql") && !is_calibrated_type("pg-local") && !is_calibrated_type("pg-remote")
+              && !is_calibrated_type("none") && !is_calibrated_type("production") && !is_calibrated_type("")
+              && !is_calibrated_type("JSON") && !is_calibrated_type("binary "));
+
 // Record (or refresh) one backend's calibration on this machine: the plateau band [low_size,high_size],
 // the raw peak (best_size + best_ops), and useThis = the chosen mid-band operating size.
 inline void upsert_io_best_fit(Sqlite& db, std::int64_t mid, const std::string& type,
@@ -1097,9 +1112,21 @@ inline void upsert_io_best_fit(Sqlite& db, std::int64_t mid, const std::string& 
             mid, type, low_size, high_size, best_size, best_ops, use_this, run_id);
 }
 
-// Read this machine's chosen batch (useThis) for a backend; returns fallback if not yet calibrated.
+// Remove this machine's io_best_fit rows for types that are not calibrated (an older calibration's
+// sql row): the calibration calls it when it records, so the table holds calibrated types only.
+inline void delete_uncalibrated_io_best_fit(Sqlite& db, std::int64_t mid) {
+    std::vector<std::string> stale;
+    { auto st = db.prepare("SELECT type FROM io_best_fit WHERE machine_id=?");
+      st.bind(mid);
+      while (st.step()) { std::string t; st.get(t); if (!is_calibrated_type(t)) stale.push_back(t); } }
+    for (const auto& t : stale) db.exec("DELETE FROM io_best_fit WHERE machine_id=? AND type=?", mid, t);
+}
+
+// Read this machine's chosen batch (useThis) for a backend; returns fallback if the type is not
+// calibrated (a database: any row for it is ignored) or not calibrated yet on this machine.
 inline std::int64_t io_best_fit_use(Sqlite& db, std::int64_t mid, const std::string& type,
                                     std::int64_t fallback) {
+    if (!is_calibrated_type(type)) return fallback;
     std::int64_t v = 0;
     { auto st = db.prepare("SELECT useThis FROM io_best_fit WHERE machine_id=? AND type=?");
       st.bind(mid, type); if (st.step()) st.get(v); }
@@ -1107,9 +1134,10 @@ inline std::int64_t io_best_fit_use(Sqlite& db, std::int64_t mid, const std::str
 }
 
 // The batch each sink of the production run attaches with on this machine: the replay log at the
-// calibrated "binary" batch, the keeper file at its type's (jtext | html | json), the database at its
-// type's (sql | pg-local | pg-remote) — each falling back to `fallback` when that type is not
-// calibrated. A batch given on the command line (`override_batch` > 0) replaces all three.
+// calibrated "binary" batch, the keeper file at its type's (jtext | html | json) — each falling back
+// to `fallback` when that type is not calibrated yet — and the database (sql | pg-local | pg-remote,
+// never calibrated) at `fallback`. A batch given on the command line (`override_batch` > 0) replaces
+// all three.
 struct SinkBatches { std::int64_t binary = 0, keeper = 0, database = 0; };
 inline SinkBatches production_batches(Sqlite& db, std::int64_t mid, const std::string& keeper,
                                       const std::string& database, std::int64_t fallback,

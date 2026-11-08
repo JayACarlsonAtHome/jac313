@@ -37,8 +37,9 @@
 // Three numbers per run: the hot path (producers' wall time until they join, before finalize),
 // each sink's drain time (Store::drain_time_us: attach -> that sink's finalize done) and the
 // durable total (the whole process, as for every config). Each sink attaches at its own batch: this
-// machine's calibrated io_best_fit.useThis for its type (binary, the keeper's, the database's), the
-// default batch where a type is not calibrated; --batch N gives all three N.
+// machine's calibrated io_best_fit.useThis for its type (binary, the keeper's), the default batch
+// where a type is not calibrated yet; the database always at the default batch (databases are never
+// calibrated); --batch N gives all three N.
 
 #include <algorithm>
 #include <array>
@@ -1083,14 +1084,16 @@ inline std::vector<std::size_t> build_batch_schedule(std::size_t lo, std::size_t
 }
 
 #ifdef JAC313_STORE_HAS_SQL_PERSIST
-// Per-machine durable-backend calibration. For each of binary/jtext/sql/html/json, sweep the persistence batch
+// Per-machine durable-backend calibration. For each calibrated type (results::calibrated_types: binary,
+// jtext, html, json; the databases are never calibrated and run at the default batch), sweep the persistence batch
 // record size (batch) over a schedule under the same process-level timing as everything else, keeping
 // two running numbers: the best median ops/sec seen and the batch that produced it. useThis is that
 // PEAK batch — the record size at the max ops/sec — NOT an average. (The old "middle of the plateau
 // band" averaged the peak toward its slower neighbours, which measurably hurt the pick.) We still
 // report the near-peak band low_size/high_size (every batch within tol% of the peak) for reference;
 // best_size/best_ops (the raw peak) and useThis land in io_best_fit for THIS machine. The recorded
-// suite then runs each durable config at useThis.
+// suite then runs each calibrated config at useThis. Recording also removes this machine's rows for
+// types that are not calibrated (an older calibration's sql row).
 // Needs --db and a pinned current_host (./bsir.sh or a CLI gate).
 struct CalResult { std::string type; std::size_t low, high, best, use; std::uint64_t best_ops; };
 
@@ -1128,7 +1131,8 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
               << "  (plateau = within " << tol_pct << "% of peak)\n";
 
     std::vector<CalResult> results;
-    for (const char* ty : {"binary", "jtext", "sql", "html", "json"}) {
+    for (const std::string_view ty_view : jac313::results::calibrated_types) {
+        const std::string ty(ty_view);
         Params p = base;
         p.persist = ty;
         p.flags = 0;
@@ -1181,6 +1185,7 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
         try {
             jac313::Qlite::v001::Sqlite db(results_db_path(base.db_path).string());
             ensure_results_schema(db);
+            jac313::results::delete_uncalibrated_io_best_fit(db, mid);
             jac313::results::upsert_io_best_fit(db, mid, ty,
                 static_cast<std::int64_t>(low_b), static_cast<std::int64_t>(high_b),
                 static_cast<std::int64_t>(best_batch), static_cast<std::int64_t>(best_median),
@@ -1223,7 +1228,8 @@ int run_calibration(Params base, const std::vector<std::size_t>& schedule, std::
     return 0;
 }
 
-// The calibrated batch (useThis) for a durable backend on this machine, or fallback if not calibrated.
+// The calibrated batch (useThis) for a durable backend on this machine, or fallback if its type is
+// not calibrated (a database) or not calibrated yet.
 std::int64_t calibrated_use(const std::string& db_path, const std::string& type, std::int64_t fallback) {
     if (db_path.empty()) return fallback;
     try {
@@ -1346,7 +1352,8 @@ void append_bench_part(const Params& p, const char* status, const BenchSummary* 
 
 // The suite table supplies threads (50), events per thread and runs per config; --threads,
 // --events-per-thread and --runs, when given, replace those defaults for every config. --batch, when
-// given, replaces the calibrated batch (io_best_fit.useThis) of every durable config.
+// given, replaces the batch of every durable config (the calibrated io_best_fit.useThis, or the
+// default for a database).
 struct SuiteAxes { bool threads = false, events = false, runs = false, batch = false; };
 
 int run_suite(Params base, bool dry, bool smoke, SuiteAxes given) {
@@ -1484,15 +1491,16 @@ int run_suite(Params base, bool dry, bool smoke, SuiteAxes given) {
     // full: the recorded throughput benchmark. Allocate ONE results.db run_id up front so every
     // config in this suite shares it (that's what "ran together" means).
     if (!base.db_path.empty()) base.run_id = next_results_run_id(base.db_path);
-    // Announce the calibrated persistence batch sizes (io_best_fit.useThis) this run will use per durable
-    // backend — so the recorded numbers are tied to a visible batch (falls back to the default if a
-    // backend isn't calibrated yet; run --calibrate to populate io_best_fit).
+    // Announce the persistence batch sizes this run will use per durable backend — so the recorded
+    // numbers are tied to a visible batch: each calibrated type's io_best_fit.useThis (the default if
+    // it isn't calibrated yet; run --calibrate to populate io_best_fit), the databases at the default.
     if (given.batch) std::cout << "durable batch (--batch): " << bench_group_thousands(base.batch);
     else {
         std::cout << "durable batch (io_best_fit.useThis):";
-        for (const char* ty : {"sql", "binary", "jtext", "html", "json"})
-            std::cout << "  " << ty << "=" << bench_group_thousands(
-                static_cast<std::uint64_t>(calibrated_use(base.db_path, ty, static_cast<std::int64_t>(base.batch))));
+        for (const std::string_view ty : jac313::results::calibrated_types)
+            std::cout << "  " << ty << "=" << bench_group_thousands(static_cast<std::uint64_t>(
+                calibrated_use(base.db_path, std::string(ty), static_cast<std::int64_t>(base.batch))));
+        std::cout << "  sql/pg=" << bench_group_thousands(base.batch) << " (default)";
     }
     if (production) {
         // the production run's three sinks, each at its own batch
@@ -1508,7 +1516,8 @@ int run_suite(Params base, bool dry, bool smoke, SuiteAxes given) {
         p.events_per_thread = cf.evt; p.runs = cf.runs;
         if (retaining && cf.persist != "none") p.base_name = suite_persist_base(base, cf.persist, cf.label);
         // Durable configs run at this machine's calibrated persistence batch size (io_best_fit.useThis);
-        // falls back to the default batch when uncalibrated. Non-durable has no writer, so batch is moot.
+        // the default batch for a database or a type not calibrated yet. Non-durable has no writer, so
+        // batch is moot.
         // The production run's three sinks each run at their own type's batch.
         if (cf.persist == "production")
             apply_production_batches(p, given.batch ? base.batch : 0);
@@ -1674,7 +1683,8 @@ int main(int argc, char** argv) {
             capped = true;
         }
         if (capped) p.label += " [capped]";
-        // The production run: each sink at its type's calibrated batch; --batch gives all three its N.
+        // The production run: binary and the keeper at their calibrated batch, the database at the
+        // default; --batch gives all three its N.
         if (prod_run) apply_production_batches(p, batch_set ? p.batch : 0);
         std::cout << "store_bench: threads=" << p.threads << " events/thread=" << p.events_per_thread
                   << " runs=" << p.runs << " persist=" << p.persist;

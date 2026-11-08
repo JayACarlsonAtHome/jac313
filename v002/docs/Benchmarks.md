@@ -79,8 +79,10 @@ exactly the `DatabaseEntry` events. A sink that holds an event it should not hav
 
 ### Compromises (what the production run does not do yet)
 
-- **One batch size for all three sinks**: the calibrated batch of the database sink
-  (`io_best_fit`), usually the slowest. Each sink alone runs at its own calibrated batch.
+- **The database batch is not calibrated**: the replay log and the keeper run at their type's
+  calibrated batch (`io_best_fit`); the database (sql, pg-local, pg-remote) always runs at the
+  default batch (10,000). `--batch N` gives all three N. The calibration
+  (`jac313_store_bench --calibrate`) sweeps binary, jtext, html and json only.
 - **The mix is fixed by event index**, not random: the same events are flagged every run, which is
   what makes the read-back exact.
 - **The other flag bits route nothing**: only `KeeperRecord` and `DatabaseEntry` are wired (see
