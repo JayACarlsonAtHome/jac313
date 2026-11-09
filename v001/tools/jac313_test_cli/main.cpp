@@ -1410,7 +1410,8 @@ void write_bench_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
           "(the keeper file + the database + the binary replay log at once, events routed by their "
           "KeeperRecord / DatabaseEntry flags — the run that looks like a real program), then each "
           "**database** alone, each **file** alone, and the **non-durable** flag sweep; each split @1M / "
-          "@10M events and sorted by median ops/sec (descending). Production cells: hot path ops/sec "
+          "@10M events and sorted by median ops/sec (descending). Production has one line per build "
+          "configuration under each row (a `build` column), so its five values stay on screen: hot path ops/sec "
           "(producers until they join) · drain ms (binary / keeper / database: attach → that sink's "
           "finalize done) · durable total median ops/sec (the whole process) · band · size. Each run's page "
           "lists every setting it recorded. See docs/Benchmarks.md._\n";
@@ -1489,21 +1490,37 @@ void write_bench_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
                 if (!any) continue;
                 md << "\n### " << kBenchGroupTitle[grp]
                    << (scale == 1 ? " @ 1M events" : scale == 2 ? " @ 10M events" : "")
-                   << "  _(median ops/sec, descending)_\n\n| config";
+                   << "  _(median ops/sec, descending)_\n\n";
+                if (grp == 0) {
+                    // Production has five values per configuration, too wide side by side: one line per
+                    // configuration instead, under its row's name, so every compiler stays on screen.
+                    md << "| config | build | hot ops/sec | drain ms (bin / keep / db) | durable median ops/sec "
+                          "| band | size |\n|---|---|--:|--:|--:|:--:|--:|\n";
+                    for (const auto& r : rows) if (r.group == grp && r.scale == scale) {
+                        bool first = true;
+                        for (std::size_t i = 0; i < comps.size(); ++i) {
+                            const Cell& cell = r.cells[i];
+                            if (!cell.set) continue;
+                            md << "| " << (first ? r.key : std::string()) << " | [" << heads.columns[i] << "]("
+                               << run_label_md(comps[i].second) << ".md) | " << cell.hot << " | " << cell.drain
+                               << " | " << cell.median << " | " << cell.band << " | " << cell.size << " |\n";
+                            first = false;
+                        }
+                    }
+                    continue;
+                }
+                md << "| config";
                 for (std::size_t i = 0; i < comps.size(); ++i) {
-                    md << " | [" << heads.columns[i] << "](" << run_label_md(comps[i].second) << ".md) ";
-                    if (grp == 0) md << "hot ops/sec | drain ms (bin / keep / db) | durable median ops/sec | band | size";
-                    else          md << "median ops/sec | band | size";
+                    md << " | [" << heads.columns[i] << "](" << run_label_md(comps[i].second) << ".md) "
+                       << "median ops/sec | band | size";
                 }
                 md << " |\n|---";
-                for (std::size_t i = 0; i < comps.size(); ++i) md << (grp == 0 ? "|--:|--:|--:|:--:|--:" : "|--:|:--:|--:");
+                for (std::size_t i = 0; i < comps.size(); ++i) md << "|--:|:--:|--:";
                 md << "|\n";
                 for (const auto& r : rows) if (r.group == grp && r.scale == scale) {
                     md << "| " << r.key;
-                    for (const auto& cell : r.cells) {
-                        if (grp == 0) md << " | " << cell.hot << " | " << cell.drain;
+                    for (const auto& cell : r.cells)
                         md << " | " << cell.median << " | " << cell.band << " | " << cell.size;
-                    }
                     md << " |\n";
                 }
             }
