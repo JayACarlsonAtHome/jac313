@@ -1,20 +1,20 @@
 #pragma once
 
 // BinaryEventLog.hpp
-// Blazing-fast binary persistence for ts_store (non-debug path).
-// Uses length-prefixed records for maximum speed and safety.
-// This is the "production" writer. jText remains the debug/human-readable path.
+// Length-prefixed binary persistence for ts_store.
+// Records are assembled into a userspace buffer and written with write().
+// finalize() fsyncs once. The on-disk record layout is unchanged.
 
 #include <filesystem>
 #include <string>
 #include <string_view>
+#include <span>
 #include <vector>
-#include <fstream>
 #include <cstdint>
 #include <chrono>
 #include <format>
 #include <cstring>
-#include <sys/mman.h>
+#include <algorithm>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -61,11 +61,11 @@ public:
                    size_t int_count,
                    size_t dbl_count,
                    PersistMode mode = PersistMode::All,
-                   size_t internal_buffer_size = 64 * 1024 * 1024)
-        : mode_(mode),
+                   size_t internal_buffer_size = 1 << 20)
+        : buf_(internal_buffer_size == 0 ? (1 << 20) : internal_buffer_size),
+          mode_(mode),
           int_count_(int_count),
-          dbl_count_(dbl_count),
-          buffer_size_(internal_buffer_size)
+          dbl_count_(dbl_count)
     {
         file_path_ = std::string(base_name) + ".bin";
 
@@ -74,27 +74,9 @@ public:
             throw std::runtime_error("BinaryEventLog: failed to open " + file_path_);
         }
 
-        // Write standardized // header comments first (per requirement for ALL persist files)
-        size_t header_size = detail::write_binary_file_header(fd_, file_path_);
-
-        // Pre-allocate (mmap covers header prefix + data area)
-        size_t initial_map = buffer_size_ + header_size + 4096;
-        if (::posix_fallocate(fd_, 0, static_cast<off_t>(initial_map)) != 0) {
-            // e.g. ENOSPC — the file isn't actually extended; mmap'ing it anyway would SIGBUS on the
-            // first store. Fail loudly here instead of faulting later.
-            ::close(fd_);
-            throw std::runtime_error("BinaryEventLog: posix_fallocate failed (out of space?)");
-        }
-
-        mapped_ = static_cast<char*>(::mmap(nullptr, initial_map, PROT_READ | PROT_WRITE,
-                                            MAP_SHARED, fd_, 0));
-        if (mapped_ == MAP_FAILED) {
-            ::close(fd_);
-            throw std::runtime_error("BinaryEventLog: mmap failed");
-        }
-
-        write_pos_ = header_size;
-        file_size_ = initial_map;
+        // Write standardized // header comments first (per requirement for ALL persist files).
+        // The header is its own write; records then fill `buf_` and go out in full chunks.
+        detail::write_binary_file_header(fd_, file_path_);
     }
 
     ~BinaryEventLog() {
@@ -108,8 +90,8 @@ public:
                       std::string_view category,
                       std::string_view payload,
                       uint64_t timestamp_us,
-                      const std::vector<int64_t>& ints,
-                      const std::vector<double>& dbls)
+                      std::span<const int64_t> ints,
+                      std::span<const double> dbls)
     {
         if (mode_ == PersistMode::KeeperOnly) {
             constexpr uint64_t KEEPER_BIT = 1ULL << 1;
@@ -118,105 +100,123 @@ public:
             return;
         }
 
-        size_t record_size = sizeof(uint64_t) * 5
+        const size_t record_size = sizeof(uint64_t) * 5
                            + sizeof(uint16_t) + category.size()
                            + sizeof(uint16_t) + payload.size()
                            + sizeof(uint16_t) + (ints.size() * sizeof(int64_t))
                            + sizeof(uint16_t) + (dbls.size() * sizeof(double));
+        const size_t needed = sizeof(uint32_t) + record_size;
+        const uint32_t len = static_cast<uint32_t>(record_size);
+        const uint64_t id = event_id;
+        const uint64_t tid = thread_id;
+        const uint64_t peid = per_thread_event_id;
+        const uint64_t ts = timestamp_us;
+        const uint16_t cl = static_cast<uint16_t>(category.size());
+        const uint16_t pl = static_cast<uint16_t>(payload.size());
+        const uint16_t ic = static_cast<uint16_t>(ints.size());
+        const uint16_t dc = static_cast<uint16_t>(dbls.size());
 
-        size_t needed = sizeof(uint32_t) + record_size;
-
-        if (write_pos_ + needed > file_size_) {
-            size_t new_size = file_size_ * 2;
-            // Allocate the new pages now. ftruncate made a sparse file, and a full disk then
-            // showed up as SIGBUS on the first store into them (the constructor's reason too).
-            if (::posix_fallocate(fd_, static_cast<off_t>(file_size_),
-                                  static_cast<off_t>(new_size - file_size_)) != 0) {
-                throw std::runtime_error("BinaryEventLog: posix_fallocate failed growing the file (out of space?)");
-            }
-            ::munmap(mapped_, file_size_);
-            mapped_ = static_cast<char*>(::mmap(nullptr, new_size, PROT_READ | PROT_WRITE,
-                                                MAP_SHARED, fd_, 0));
-            if (mapped_ == MAP_FAILED) {
-                // Don't leave MAP_FAILED in mapped_: finalize()/dtor test `if (mapped_)` and would
-                // msync/munmap the sentinel. Null it so cleanup skips the now-dead mapping.
-                mapped_ = nullptr;
-                throw std::runtime_error("BinaryEventLog: remap failed");
-            }
-            file_size_ = new_size;
+        // One contiguous store into the buffer when the record fits in what is free.
+        if (needed <= buf_.size() - filled_) {
+            char* d = buf_.data() + filled_;
+            auto put = [&](const void* src, size_t n) {
+                std::memcpy(d, src, n);
+                d += n;
+            };
+            put(&len, sizeof(len));
+            put(&id, sizeof(id));
+            put(&tid, sizeof(tid));
+            put(&peid, sizeof(peid));
+            put(&raw_flags, sizeof(raw_flags));
+            put(&ts, sizeof(ts));
+            put(&cl, sizeof(cl));
+            if (cl) put(category.data(), cl);
+            put(&pl, sizeof(pl));
+            if (pl) put(payload.data(), pl);
+            put(&ic, sizeof(ic));
+            if (ic) put(ints.data(), ic * sizeof(int64_t));
+            put(&dc, sizeof(dc));
+            if (dc) put(dbls.data(), dc * sizeof(double));
+            filled_ += needed;
+        } else {
+            append_bytes(&len, sizeof(len));
+            append_bytes(&id, sizeof(id));
+            append_bytes(&tid, sizeof(tid));
+            append_bytes(&peid, sizeof(peid));
+            append_bytes(&raw_flags, sizeof(raw_flags));
+            append_bytes(&ts, sizeof(ts));
+            append_bytes(&cl, sizeof(cl));
+            if (cl) append_bytes(category.data(), cl);
+            append_bytes(&pl, sizeof(pl));
+            if (pl) append_bytes(payload.data(), pl);
+            append_bytes(&ic, sizeof(ic));
+            if (ic) append_bytes(ints.data(), ic * sizeof(int64_t));
+            append_bytes(&dc, sizeof(dc));
+            if (dc) append_bytes(dbls.data(), dc * sizeof(double));
         }
 
-        // Write length + data directly into mapped memory (very fast)
-        uint32_t len = static_cast<uint32_t>(record_size);
-        std::memcpy(mapped_ + write_pos_, &len, sizeof(len));
-        write_pos_ += sizeof(len);
-
-        auto w64 = [&](uint64_t v) { std::memcpy(mapped_ + write_pos_, &v, sizeof(v)); write_pos_ += sizeof(v); };
-
-        w64(event_id);
-        w64(thread_id);
-        w64(per_thread_event_id);
-        w64(raw_flags);
-        w64(timestamp_us);
-
-        uint16_t cl = static_cast<uint16_t>(category.size());
-        std::memcpy(mapped_ + write_pos_, &cl, sizeof(cl)); write_pos_ += sizeof(cl);
-        if (!category.empty()) { std::memcpy(mapped_ + write_pos_, category.data(), cl); write_pos_ += cl; }
-
-        uint16_t pl = static_cast<uint16_t>(payload.size());
-        std::memcpy(mapped_ + write_pos_, &pl, sizeof(pl)); write_pos_ += sizeof(pl);
-        if (!payload.empty()) { std::memcpy(mapped_ + write_pos_, payload.data(), pl); write_pos_ += pl; }
-
-        uint16_t ic = static_cast<uint16_t>(ints.size());
-        std::memcpy(mapped_ + write_pos_, &ic, sizeof(ic)); write_pos_ += sizeof(ic);
-        if (!ints.empty()) { std::memcpy(mapped_ + write_pos_, ints.data(), ints.size()*sizeof(int64_t)); write_pos_ += ints.size()*sizeof(int64_t); }
-
-        uint16_t dc = static_cast<uint16_t>(dbls.size());
-        std::memcpy(mapped_ + write_pos_, &dc, sizeof(dc)); write_pos_ += sizeof(dc);
-        if (!dbls.empty()) { std::memcpy(mapped_ + write_pos_, dbls.data(), dbls.size()*sizeof(double)); write_pos_ += dbls.size()*sizeof(double); }
-
         stats_.rows_written++;
-        stats_.bytes_written += sizeof(uint32_t) + record_size;
+        stats_.bytes_written += needed;
     }
 
     void flush() {
-        if (mapped_ && write_pos_ > 0) {
-            ::msync(mapped_, write_pos_, MS_ASYNC);
-            stats_.flushes++;
-        }
+        drain();
+        stats_.flushes++;
     }
 
     void finalize() {
         if (finalized_) return;
-        if (mapped_) {
-            ::msync(mapped_, write_pos_, MS_SYNC);
-            ::munmap(mapped_, file_size_);
-            mapped_ = nullptr;
-        }
+        drain();
+        bool sync_failed = false;
         if (fd_ >= 0) {
-            if (::ftruncate(fd_, static_cast<off_t>(write_pos_)) != 0) {
-                throw std::runtime_error("BinaryEventLog: finalize ftruncate failed");
-            }
+            sync_failed = (::fsync(fd_) != 0);
             ::close(fd_);
             fd_ = -1;
         }
         finalized_ = true;
+        if (sync_failed) {
+            throw std::runtime_error("BinaryEventLog: finalize fsync failed");
+        }
     }
 
     [[nodiscard]] const BinaryEventLogStats& stats() const { return stats_; }
     [[nodiscard]] const std::string& file_path() const { return file_path_; }
 
 private:
+    // Push the buffer to the kernel. Does not fsync; finalize() does that once.
+    void drain() {
+        size_t off = 0;
+        while (off < filled_) {
+            const ssize_t w = ::write(fd_, buf_.data() + off, filled_ - off);
+            if (w < 0) {
+                if (errno == EINTR) continue;
+                throw std::runtime_error("BinaryEventLog: write failed");
+            }
+            off += static_cast<size_t>(w);
+        }
+        filled_ = 0;
+    }
+
+    void append_bytes(const void* src, size_t n) {
+        const char* p = static_cast<const char*>(src);
+        while (n > 0) {
+            if (filled_ == buf_.size()) drain();
+            const size_t take = std::min(n, buf_.size() - filled_);
+            std::memcpy(buf_.data() + filled_, p, take);
+            filled_ += take;
+            p += take;
+            n -= take;
+        }
+    }
+
     int fd_ = -1;
-    char* mapped_ = nullptr;
-    size_t write_pos_ = 0;
-    size_t file_size_ = 0;
+    std::vector<char> buf_;
+    size_t filled_ = 0;
 
     std::string file_path_;
     PersistMode mode_;
     [[maybe_unused]] size_t int_count_ = 0;
     [[maybe_unused]] size_t dbl_count_ = 0;
-    size_t buffer_size_;
     bool finalized_ = false;
 
     BinaryEventLogStats stats_;

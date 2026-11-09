@@ -38,6 +38,10 @@ SqlEventSink::SqlEventSink(std::string_view base_name,
 
     try {
         db_ = std::make_unique<Sqlite>(db_path_);
+        // WAL makes each batch commit a sequential log write. synchronous stays FULL,
+        // so a commit still waits until that log is on disk.
+        db_->exec("PRAGMA journal_mode=WAL");
+        db_->exec("PRAGMA synchronous=FULL");
     } catch (const std::exception& ex) {
         throw std::runtime_error(std::string("SqlEventSink failed to open DB '") + db_path_ + "': " + ex.what());
     }
@@ -168,7 +172,7 @@ void SqlEventSink::ensure_tables_and_prepare() {
     }
 }
 
-void SqlEventSink::write_batch(std::span<const PersistedEvent> batch) {
+void SqlEventSink::write_batch(std::span<const PersistedEventView> batch) {
     if (!db_ || batch.empty()) return;
 
     // RAII transaction: BEGINs now, auto-ROLLBACKs if insert_event throws before we commit — so a
@@ -188,7 +192,7 @@ void SqlEventSink::write_batch(std::span<const PersistedEvent> batch) {
     txn.commit();
 }
 
-void SqlEventSink::insert_event(const PersistedEvent& e) {
+void SqlEventSink::insert_event(const PersistedEventView& e) {
     // Main table (always prepared)
     stmt_main_->bind(
         static_cast<int64_t>(e.event_id),
@@ -259,10 +263,10 @@ void SqlEventSink::finalize() {
     finalized_ = true;
 }
 
-void SqlEventSink::write_debug_insert(const PersistedEvent& e) {
+void SqlEventSink::write_debug_insert(const PersistedEventView& e) {
     if (!debug_sql_.is_open()) return;
 
-    auto esc = [this](const std::string& s) { return escape_for_sql(s); };
+    auto esc = [this](std::string_view s) { return escape_for_sql(s); };
 
     debug_sql_ << "INSERT OR IGNORE INTO " << table_base_ << " (id, thread_id, per_thread_event_id, flags_raw, category, payload, timestamp_us) VALUES ("
                << e.event_id << ", " << e.thread_id << ", " << e.per_thread_event_id << ", " << e.flags << ", '"
@@ -293,7 +297,7 @@ void SqlEventSink::write_debug_insert(const PersistedEvent& e) {
     }
 }
 
-std::string SqlEventSink::escape_for_sql(const std::string& s) const {
+std::string SqlEventSink::escape_for_sql(std::string_view s) const {
     std::string out;
     out.reserve(s.size() * 2);
     for (char c : s) {

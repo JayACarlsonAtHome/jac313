@@ -30,7 +30,7 @@ public:
                 std::shared_ptr<PgTimings> timings = {});
     ~PgEventSink() override;
 
-    void write_batch(std::span<const PersistedEvent> batch) override;
+    void write_batch(std::span<const PersistedEventView> batch) override;
     void flush() override {}
     void finalize() override;
     std::string_view name() const override { return "PgEventSink"; }

@@ -59,6 +59,9 @@ void write_html_epilogue(std::ostream& os) {
 namespace fs = std::filesystem;
 
 struct HtmlSplitEventLog::Impl {
+    StreamBuffer main_buf;
+    StreamBuffer ints_buf;
+    StreamBuffer floats_buf;
     std::ofstream main_ofs;
     std::ofstream ints_ofs;
     std::ofstream floats_ofs;
@@ -102,19 +105,20 @@ HtmlSplitEventLog::HtmlSplitEventLog(
         return t.empty() ? "persist" : t;
     }();
 
-    auto open_main = [&](std::ofstream& ofs, const std::string& path,
+    auto open_main = [&](std::ofstream& ofs, StreamBuffer& buf, const std::string& path,
                          std::string_view purpose, std::string_view related,
                          std::string_view title, const std::vector<std::string>& columns) {
         ofs.open(path, std::ios::out | std::ios::trunc);
         if (!ofs.is_open()) {
             throw std::runtime_error("HtmlSplitEventLog: failed to open " + path);
         }
+        buf.arm(ofs);
         write_file_comment_header(ofs, path, purpose, related);
         write_html_preamble(ofs, title, columns);
     };
 
     const std::string main_related = std::format("type=ts_store table={}", table_name);
-    open_main(i.main_ofs, i.main_path, "HTML Data File", main_related,
+    open_main(i.main_ofs, i.main_buf, i.main_path, "HTML Data File", main_related,
               std::format("{} — main events", table_name),
               {"id", "thread_id", "per_thread_event_id", "flags_raw", "category", "payload", "timestamp_us"});
 
@@ -124,7 +128,7 @@ HtmlSplitEventLog::HtmlSplitEventLog(
             cols.emplace_back(std::format("int{}", k));
         }
         const std::string rel = std::format("type=ts_store table={}_ints", table_name);
-        open_main(i.ints_ofs, i.ints_path, "HTML Data File", rel,
+        open_main(i.ints_ofs, i.ints_buf, i.ints_path, "HTML Data File", rel,
                   std::format("{} — integer metrics", table_name), cols);
     }
 
@@ -134,7 +138,7 @@ HtmlSplitEventLog::HtmlSplitEventLog(
             cols.emplace_back(std::format("dbl{}", k));
         }
         const std::string rel = std::format("type=ts_store table={}_floats", table_name);
-        open_main(i.floats_ofs, i.floats_path, "HTML Data File", rel,
+        open_main(i.floats_ofs, i.floats_buf, i.floats_path, "HTML Data File", rel,
                   std::format("{} — double metrics", table_name), cols);
     }
 
@@ -158,8 +162,8 @@ void HtmlSplitEventLog::append_event(
     std::string_view category,
     std::string_view payload,
     uint64_t timestamp_us,
-    const std::vector<int64_t>& int_metrics,
-    const std::vector<double>& dbl_metrics
+    std::span<const int64_t> int_metrics,
+    std::span<const double> dbl_metrics
 ) {
     auto& i = *impl_;
     if (!i.body_open) return;

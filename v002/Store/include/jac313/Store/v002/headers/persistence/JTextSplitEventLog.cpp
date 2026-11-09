@@ -70,6 +70,9 @@ struct MetricRow {
 } // namespace
 
 struct JTextSplitEventLog::Impl {
+    StreamBuffer main_buf;
+    StreamBuffer ints_buf;
+    StreamBuffer floats_buf;
     std::ofstream main_ofs;
     std::ofstream ints_ofs;
     std::ofstream floats_ofs;
@@ -122,31 +125,32 @@ JTextSplitEventLog::JTextSplitEventLog(
 
     // Open files ourselves first so we can prepend the required standardized // header comments.
     // Then attach JTextWriter to the open stream (its # header comes after our // block).
-    auto open_and_prep = [](std::ofstream& ofs, const std::string& path, std::string_view purpose,
-                             std::string_view related = {}) {
+    auto open_and_prep = [](std::ofstream& ofs, StreamBuffer& buf, const std::string& path,
+                             std::string_view purpose, std::string_view related = {}) {
         ofs.open(path, std::ios::out | std::ios::trunc);
         if (!ofs.is_open()) {
             throw std::runtime_error("JTextSplitEventLog: failed to open " + path);
         }
+        buf.arm(ofs);
         write_file_comment_header(ofs, path, purpose, related);
     };
 
     // Compact form for ts_store event logs:
     //   //Related: type=ts_store table=TS_STORE_TEST_005_TS
     std::string main_related = std::format("type=ts_store table={}", base_name);
-    open_and_prep(i.main_ofs, i.main_path, "jText Data File", main_related);
+    open_and_prep(i.main_ofs, i.main_buf, i.main_path, "jText Data File", main_related);
     i.main_writer = std::make_unique<JTextWriter>(i.main_ofs);
     i.main_writer->set_profile(JTextProfile::Full);
     i.main_writer->set_filename(i.main_path);
 
     std::string ints_related = std::format("type=ts_store table={}_ints", base_name);
-    open_and_prep(i.ints_ofs, i.ints_path, "jText Data File", ints_related);
+    open_and_prep(i.ints_ofs, i.ints_buf, i.ints_path, "jText Data File", ints_related);
     i.ints_writer = std::make_unique<JTextWriter>(i.ints_ofs);
     i.ints_writer->set_profile(JTextProfile::Full);
     i.ints_writer->set_filename(i.ints_path);
 
     std::string floats_related = std::format("type=ts_store table={}_floats", base_name);
-    open_and_prep(i.floats_ofs, i.floats_path, "jText Data File", floats_related);
+    open_and_prep(i.floats_ofs, i.floats_buf, i.floats_path, "jText Data File", floats_related);
     i.floats_writer = std::make_unique<JTextWriter>(i.floats_ofs);
     i.floats_writer->set_profile(JTextProfile::Full);
     i.floats_writer->set_filename(i.floats_path);

@@ -98,9 +98,8 @@ save_event(size_t thread_id,
                         std::move(int_metrics), std::move(dbl_metrics));
 }
 
-// fill_persisted_event() — row `id` as the PersistedEvent a sink receives, written into `pe`.
-// Assigns into pe's strings and vectors, so a reused PersistedEvent keeps its capacity (the
-// persistence worker's batch allocates nothing after warm-up).
+// fill_persisted_event() — owning copy of row `id` for readers and read-back, written into `pe`.
+// Assigns into pe's strings and vectors, so a reused PersistedEvent keeps its capacity.
 inline void fill_persisted_event(size_t id, PersistedEvent& pe) const
 {
     const auto& stored = rows_[id];
@@ -119,8 +118,31 @@ inline void fill_persisted_event(size_t id, PersistedEvent& pe) const
     pe.dbl_metrics.assign(stored.dbl_metrics.begin(), stored.dbl_metrics.end());
 }
 
-// persisted_event() — the exact PersistedEvent the persistence worker hands the sink for row
-// `id`. Read-back verification compares what a backend stored against this.
+// persisted_event_view() — the view the persistence worker hands a sink. category, payload, and
+// the metric spans point at this row. Rows are not overwritten during a run, so the view stays
+// valid until write_batch returns. Precondition: id < rows_.size() and the row has been written.
+inline PersistedEventView persisted_event_view(size_t id) const
+{
+    JAC313_PRE(id < rows_.size());
+    const auto& stored = rows_[id];
+    PersistedEventView v;
+    v.event_id            = id;
+    v.thread_id           = stored.thread_id;
+    v.per_thread_event_id = stored.event_id;
+    v.flags               = stored.event_flags;
+    v.category            = stored.category_storage.view();
+    v.payload             = stored.value_storage.view();
+    if constexpr (Config::use_timestamps) {
+        v.timestamp_us = stored.ts_us;
+    } else {
+        v.timestamp_us = 0;
+    }
+    v.int_metrics = stored.int_metrics;
+    v.dbl_metrics = stored.dbl_metrics;
+    return v;
+}
+
+// persisted_event() — owning copy of row `id`. Read-back compares what a backend stored against this.
 // Precondition: id < rows_.size() and the row has been written.
 inline PersistedEvent persisted_event(size_t id) const
 {

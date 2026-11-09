@@ -39,7 +39,8 @@ int main() {
     ev.int_metrics = {11, 22};
     ev.dbl_metrics = {3.3, 4.4};
 
-    sink->write_batch(std::span{&ev, 1});
+    const auto view = jac313::Store::v001::view_of(ev);
+    sink->write_batch(std::span{&view, 1});
     sink->flush();
     sink->finalize();
 

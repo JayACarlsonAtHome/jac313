@@ -33,7 +33,7 @@ public:
 
     ~SqlEventSink() override;
 
-    void write_batch(std::span<const PersistedEvent> batch) override;
+    void write_batch(std::span<const PersistedEventView> batch) override;
     void flush() override;
     void finalize() override;
 
@@ -46,9 +46,9 @@ public:
 
 private:
     void ensure_tables_and_prepare();
-    void insert_event(const PersistedEvent& e);
-    void write_debug_insert(const PersistedEvent& e);
-    std::string escape_for_sql(const std::string& s) const;
+    void insert_event(const PersistedEventView& e);
+    void write_debug_insert(const PersistedEventView& e);
+    std::string escape_for_sql(std::string_view s) const;
 
     std::unique_ptr<Sqlite> db_;
     std::ofstream debug_sql_;

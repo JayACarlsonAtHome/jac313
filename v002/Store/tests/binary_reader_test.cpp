@@ -41,7 +41,8 @@ int main() {
     ev.int_metrics = {11, 22};
     ev.dbl_metrics = {3.3, 4.4};
 
-    sink->write_batch(std::span{&ev, 1});
+    const auto view = jac313::Store::v002::view_of(ev);
+    sink->write_batch(std::span{&view, 1});
     sink->flush();
     sink->finalize();
 
@@ -79,7 +80,8 @@ int main() {
             bev.event_id = 1;
             bev.category = "big";
             bev.payload = big_payload;
-            bsink->write_batch(std::span{&bev, 1});
+            const auto bview = jac313::Store::v002::view_of(bev);
+            bsink->write_batch(std::span{&bview, 1});
             bsink->flush();
             bsink->finalize();
         }

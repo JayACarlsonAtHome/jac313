@@ -16,13 +16,13 @@ public:
                     size_t int_count,
                     size_t dbl_count,
                     PersistMode mode = PersistMode::All,
-                    size_t internal_buffer_size = 64 * 1024 * 1024)
+                    size_t internal_buffer_size = 1 << 20)
         : impl_(std::make_unique<BinaryEventLog>(base_name, int_count, dbl_count, mode, internal_buffer_size))
     {
         targets_ = {{"", "", 0, "", impl_->file_path()}};
     }
 
-    void write_batch(std::span<const PersistedEvent> batch) override {
+    void write_batch(std::span<const PersistedEventView> batch) override {
         if (!impl_) return;
 
         for (const auto& e : batch) {

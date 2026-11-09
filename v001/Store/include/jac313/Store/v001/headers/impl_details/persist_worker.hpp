@@ -9,9 +9,9 @@
 // the producers' side: save_event's last statement marks its row ready (a release store of the
 // current epoch) and returns. The worker keeps a watermark (the next id not yet persisted) and,
 // each round, takes the contiguous run of ready rows from there (capped by next_id_, by
-// max_persist_rows_ and by the batch size), copies them into ONE reusable batch (its strings and
-// vectors keep their capacity, so allocations stop after warm-up, all on this thread), hands the
-// batch to the sink and advances the watermark. An empty round waits ~1 ms on a condition variable
+// max_persist_rows_ and by the batch size), fills ONE reusable batch of views into those rows
+// (no string or metric copy, all on this thread), hands the batch to the sink and advances the
+// watermark. An empty round waits ~1 ms on a condition variable
 // (or until flush / finalize is asked for). Only this thread ever calls its sink.
 //
 // The watermark starts at the id the next save gets when the worker is attached: rows saved before
@@ -141,8 +141,8 @@ private:
         const size_t n = to - from;
         if (!failed()) {
             if (batch_.size() < n) batch_.resize(n);
-            for (size_t k = 0; k < n; ++k) store_.fill_persisted_event(from + k, batch_[k]);
-            guarded([&] { sink_->write_batch(std::span<const PersistedEvent>(batch_.data(), n)); });
+            for (size_t k = 0; k < n; ++k) batch_[k] = store_.persisted_event_view(from + k);
+            guarded([&] { sink_->write_batch(std::span<const PersistedEventView>(batch_.data(), n)); });
         }
         // Advance even after a failure: nothing waits on the sink.
         watermark_.store(to, std::memory_order_release);
@@ -231,7 +231,7 @@ private:
     std::unique_ptr<IEventSink> sink_;
     const size_t                batch_size_;
     size_t                      start_;            // owner thread only (attach / clear)
-    std::vector<PersistedEvent> batch_;            // worker thread only; reused every round
+    std::vector<PersistedEventView> batch_;        // worker thread only; views into rows_, reused
 
     std::atomic<size_t> watermark_{0};             // next id not yet persisted
     std::atomic<bool>   failed_{false};

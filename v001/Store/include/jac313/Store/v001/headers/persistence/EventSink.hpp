@@ -15,8 +15,8 @@
 
 namespace jac313::Store::v001 {
 
-/// A single event record ready for persistence.
-/// This is the canonical form passed to all sinks.
+/// An owning event record. Readers, read-back, and tests keep one of these past the source.
+/// A sink's write_batch receives a PersistedEventView, not this copy.
 struct PersistedEvent {
     size_t      event_id{0};
     size_t      thread_id{0};
@@ -29,6 +29,37 @@ struct PersistedEvent {
     std::vector<int64_t> int_metrics;
     std::vector<double>  dbl_metrics;
 };
+
+/// One event as a sink sees it during write_batch. category, payload, and the metric spans
+/// point at storage the caller owns (a store row, or a PersistedEvent passed through view_of).
+/// They are valid only until write_batch returns.
+struct PersistedEventView {
+    size_t      event_id{0};
+    size_t      thread_id{0};
+    size_t      per_thread_event_id{0};
+    uint64_t    flags{0};
+    std::string_view category;
+    std::string_view payload;
+    uint64_t    timestamp_us{0};
+
+    std::span<const int64_t> int_metrics;
+    std::span<const double>  dbl_metrics;
+};
+
+/// View of an owning event. Valid while `e` is alive.
+[[nodiscard]] inline PersistedEventView view_of(const PersistedEvent& e) noexcept {
+    return {
+        e.event_id,
+        e.thread_id,
+        e.per_thread_event_id,
+        e.flags,
+        e.category,
+        e.payload,
+        e.timestamp_us,
+        e.int_metrics,
+        e.dbl_metrics,
+    };
+}
 
 /// One table or file a sink writes: what results.db records per run (run_target). A file sink
 /// gives one per file (`table` = the file path); a database sink one per table, with `dbname`
@@ -61,8 +92,8 @@ public:
     virtual ~IEventSink() = default;
 
     /// Write a batch of events. The batch is guaranteed to be non-empty.
-    /// The implementation should not assume it can hold onto the span after return.
-    virtual void write_batch(std::span<const PersistedEvent> batch) = 0;
+    /// The views and the span are valid only until write_batch returns. Do not keep them.
+    virtual void write_batch(std::span<const PersistedEventView> batch) = 0;
 
     /// Flush any internal buffers to durable storage.
     virtual void flush() = 0;

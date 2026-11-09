@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -39,8 +40,8 @@ public:
                       std::string_view category,
                       std::string_view payload,
                       uint64_t timestamp_us,
-                      const std::vector<int64_t>& int_metrics,
-                      const std::vector<double>& dbl_metrics);
+                      std::span<const int64_t> int_metrics,
+                      std::span<const double> dbl_metrics);
 
     void flush();
     void finalize();

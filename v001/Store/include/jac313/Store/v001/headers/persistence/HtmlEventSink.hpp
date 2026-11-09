@@ -21,7 +21,7 @@ public:
         targets_ = file_targets(*impl_, int_count, dbl_count);
     }
 
-    void write_batch(std::span<const PersistedEvent> batch) override {
+    void write_batch(std::span<const PersistedEventView> batch) override {
         if (!impl_) return;
 
         for (const auto& e : batch) {

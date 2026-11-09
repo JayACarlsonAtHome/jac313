@@ -41,6 +41,9 @@ std::string json_escape(std::string_view text) {
 namespace fs = std::filesystem;
 
 struct JsonSplitEventLog::Impl {
+    StreamBuffer main_buf;
+    StreamBuffer ints_buf;
+    StreamBuffer floats_buf;
     std::ofstream main_ofs;
     std::ofstream ints_ofs;
     std::ofstream floats_ofs;
@@ -83,24 +86,25 @@ JsonSplitEventLog::JsonSplitEventLog(
         return t.empty() ? "persist" : t;
     }();
 
-    auto open_json = [&](std::ofstream& ofs, const std::string& path,
+    auto open_json = [&](std::ofstream& ofs, StreamBuffer& buf, const std::string& path,
                          std::string_view purpose, std::string_view related) {
         ofs.open(path, std::ios::out | std::ios::trunc);
         if (!ofs.is_open()) {
             throw std::runtime_error("JsonSplitEventLog: failed to open " + path);
         }
+        buf.arm(ofs);
         write_file_comment_header(ofs, path, purpose, related);
     };
 
-    open_json(i.main_ofs, i.main_path, "JSON Data File",
+    open_json(i.main_ofs, i.main_buf, i.main_path, "JSON Data File",
               std::format("type=ts_store table={}", table_name));
 
     if (int_count > 0) {
-        open_json(i.ints_ofs, i.ints_path, "JSON Data File",
+        open_json(i.ints_ofs, i.ints_buf, i.ints_path, "JSON Data File",
                   std::format("type=ts_store table={}_ints", table_name));
     }
     if (dbl_count > 0) {
-        open_json(i.floats_ofs, i.floats_path, "JSON Data File",
+        open_json(i.floats_ofs, i.floats_buf, i.floats_path, "JSON Data File",
                   std::format("type=ts_store table={}_floats", table_name));
     }
 }
@@ -122,8 +126,8 @@ void JsonSplitEventLog::append_event(
     std::string_view category,
     std::string_view payload,
     uint64_t timestamp_us,
-    const std::vector<int64_t>& int_metrics,
-    const std::vector<double>& dbl_metrics
+    std::span<const int64_t> int_metrics,
+    std::span<const double> dbl_metrics
 ) {
     auto& i = *impl_;
     if (i.finalized) return;

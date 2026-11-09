@@ -31,7 +31,7 @@ never overwritten within a run, so the worker reads them **in place**: the [hot 
 last statement marks its row ready (a release store) and that is all it does for persistence — no
 copy, no queue, no lock. The worker keeps a watermark (the next id not yet persisted), takes the
 contiguous run of ready rows from there (at most `batch_size`, capped by `max_persist_rows`),
-copies them into one reusable batch, hands it to the sink and advances; with nothing ready it
+fills one reusable batch of views into those rows, hands it to the sink and advances; with nothing ready it
 waits ~1 ms. A sink exception latches that worker's failure; its watermark keeps moving, so no
 producer ever waits on a sink.
 

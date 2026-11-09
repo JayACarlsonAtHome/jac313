@@ -79,7 +79,7 @@ PgEventSink::~PgEventSink() {
     try { finalize(); } catch (...) {}
 }
 
-void PgEventSink::write_batch(std::span<const PersistedEvent> batch) {
+void PgEventSink::write_batch(std::span<const PersistedEventView> batch) {
     if (!conn_ || finalized_ || batch.empty()) return;
 
     main_buf_.clear();

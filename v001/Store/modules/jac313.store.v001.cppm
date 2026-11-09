@@ -24,6 +24,8 @@ export namespace jac313::Store::v001 {
     using jac313::Store::v001::ts_store_config;
     using jac313::Store::v001::IEventSink;
     using jac313::Store::v001::PersistedEvent;
+    using jac313::Store::v001::PersistedEventView;
+    using jac313::Store::v001::view_of;
     using jac313::Store::v001::PersistMode;
     using jac313::Store::v001::BinaryRecord;
     using jac313::Store::v001::BinaryEventLogReader;

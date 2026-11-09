@@ -65,7 +65,7 @@ public:
     CountingSink(Seen& seen, size_t throw_on_call = SIZE_MAX, S::PersistMode mode = S::PersistMode::All,
                  bool check_flags = false)
         : seen_(seen), throw_on_call_(throw_on_call), mode_(mode), check_flags_(check_flags) {}
-    void write_batch(std::span<const S::PersistedEvent> batch) override {
+    void write_batch(std::span<const S::PersistedEventView> batch) override {
         std::lock_guard lock(seen_.m);
         if (seen_.calls++ == throw_on_call_) throw std::runtime_error("persist_view_test: injected sink failure");
         for (const auto& e : batch) {

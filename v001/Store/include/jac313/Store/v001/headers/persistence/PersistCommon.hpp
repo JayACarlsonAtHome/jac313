@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <fcntl.h>
 #include <locale.h>   // newlocale (parse_double_text)
@@ -21,6 +22,16 @@
 namespace jac313::Store::v001 {
 
 enum class PersistMode { All, KeeperOnly, DatabaseOnly };
+
+// A 1 MiB buffer for an ofstream. pubsetbuf only sticks if it runs before the first
+// read or write, so arm() belongs immediately after open. The vector must outlive the stream.
+struct StreamBuffer {
+    std::vector<char> mem;
+    void arm(std::ostream& os, size_t bytes = 1 << 20) {
+        mem.resize(bytes);
+        os.rdbuf()->pubsetbuf(mem.data(), static_cast<std::streamsize>(mem.size()));
+    }
+};
 
 // Standardized // metadata header for all persist files (kept in sync with jText's
 // write_file_comment_header; the sinks that do not link jText use this one).
