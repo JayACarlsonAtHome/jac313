@@ -5,19 +5,24 @@
 // Drops std::string overhead in the critical in-memory save_event path.
 // NO namespace — this file is included inside ts_store class
 
+// Take n consecutive ids. The caller writes every one, in order, before the thread
+// exits. A hole stays unready and the persistence worker waits on it.
+inline size_t claim_ids(size_t n) noexcept {
+    return next_id_.fetch_add(n, std::memory_order_relaxed);
+}
+
 inline std::pair<bool, size_t>
-save_event(size_t thread_id,
-           size_t event_id,
-           Config::ValueT value,
-           size_t event_flag_param = 0,
-           Config::CategoryT category = {},
-           bool debug = false,
-           std::array<int64_t, Config::the_IntMetrics> int_metrics = {},
-           std::array<double,  Config::the_DblMetrics> dbl_metrics = {}
+save_claimed(size_t id,
+             size_t thread_id,
+             size_t event_id,
+             std::string_view value,
+             size_t event_flag_param = 0,
+             std::string_view category = {},
+             bool debug = false,
+             std::array<int64_t, Config::the_IntMetrics> int_metrics = {},
+             std::array<double,  Config::the_DblMetrics> dbl_metrics = {}
 )
 {
-    const size_t id = next_id_.fetch_add(1, std::memory_order_relaxed);
-
     // Direct reference into the pre-sized + pre-reserved row slot.
     // Strings already have capacity reserved at construction; we write straight into them (no per-event alloc).
     auto& row = rows_[id];
@@ -26,8 +31,8 @@ save_event(size_t thread_id,
     row.is_debug  = debug;
 
     // Direct write into fixed bounded buffer (no std::string, no alloc, memcpy under the hood).
-    row.value_storage.assign_truncated(std::string_view(value), Config::max_payload_length);
-    row.category_storage.assign_truncated(std::string_view(category), Config::max_category_length);
+    row.value_storage.assign_truncated(value, Config::max_payload_length);
+    row.category_storage.assign_truncated(category, Config::max_category_length);
 
     row.int_metrics = std::move(int_metrics);
     row.dbl_metrics = std::move(dbl_metrics);
@@ -73,6 +78,21 @@ save_event(size_t thread_id,
     JAC313_HAPPENS_BEFORE(&row.ready);
     row.ready.store(epoch_.load(std::memory_order_relaxed), std::memory_order_release);
     return {true, id};
+}
+
+inline std::pair<bool, size_t>
+save_event(size_t thread_id,
+           size_t event_id,
+           std::string_view value,
+           size_t event_flag_param = 0,
+           std::string_view category = {},
+           bool debug = false,
+           std::array<int64_t, Config::the_IntMetrics> int_metrics = {},
+           std::array<double,  Config::the_DblMetrics> dbl_metrics = {}
+)
+{
+    return save_claimed(claim_ids(1), thread_id, event_id, value, event_flag_param, category, debug,
+                        std::move(int_metrics), std::move(dbl_metrics));
 }
 
 // fill_persisted_event() — row `id` as the PersistedEvent a sink receives, written into `pe`.

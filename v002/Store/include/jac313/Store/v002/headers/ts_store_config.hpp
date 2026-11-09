@@ -12,7 +12,7 @@ namespace jac313::Store::v002 {
     // Package version, "major.minor": major = the v002 API line, minor = the revision. Bump on
     // each small code change (edit the minor); v002 stays until a real (breaking) change, then
     // this becomes "v002.001". Enforced by `jac313_test_cli version-check` (pre-push).
-    [[nodiscard]] constexpr std::string_view version() noexcept { return "v002.027"; }
+    [[nodiscard]] constexpr std::string_view version() noexcept { return "v002.028"; }
 
     /// Fixed-size storage for category/payload.
     /// Replaces std::string for the hot-path row storage.
@@ -52,6 +52,13 @@ namespace jac313::Store::v002 {
         // Direct write into our fixed buffer. This is the hot path replacement
         // for the old std::string + truncate + assign.
         void assign_truncated(std::string_view sv, size_t max_cp) {
+            // A code point is at least one byte, so a string no longer than the cap fits whole.
+            if (sv.size() <= max_cp && sv.size() < max_bytes) {
+                if (!sv.empty()) std::memcpy(buf, sv.data(), sv.size());
+                len = sv.size();
+                if (len < max_bytes) buf[len] = '\0';
+                return;
+            }
             len = 0;
             size_t count = 0;
             for (size_t i = 0; i < sv.size() && count < max_cp; ) {

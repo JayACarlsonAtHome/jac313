@@ -423,18 +423,27 @@ bool do_workload(const Params& p, bool verify, bool readback = false) {
         ths.emplace_back([&, t]() {
             std::array<std::int64_t, LogConfig::the_IntMetrics> ints{};
             std::array<double, LogConfig::the_DblMetrics> dbls{};
-            for (std::size_t i = 0; i < p.events_per_thread; ++i) {
-                std::string payload = pre_payloads[i % pre_payloads.size()];
-                std::string cat = pre_cats[t % pre_cats.size()];
-                std::uint64_t f = base_flags;
-                if (production) {
-                    const std::size_t k = t * p.events_per_thread + i;
-                    if (k % 100 < p.prod.keeper_pct) f |= keeper_bit;
-                    if ((k * 37 + 11) % 100 < p.prod.database_pct) f |= database_bit;
+            // One id per event serializes every thread on next_id_. A short claim keeps
+            // that off the inner loop and leaves only a small hole for the worker.
+            constexpr std::size_t claim = 64;
+            for (std::size_t i = 0; i < p.events_per_thread; ) {
+                const std::size_t n = std::min(claim, p.events_per_thread - i);
+                const std::size_t base = store.claim_ids(n);
+                for (std::size_t k = 0; k < n; ++k) {
+                    const std::size_t ev = i + k;
+                    const std::string_view payload = pre_payloads[ev % pre_payloads.size()];
+                    const std::string_view cat = pre_cats[t % pre_cats.size()];
+                    std::uint64_t f = base_flags;
+                    if (production) {
+                        const std::size_t seq = t * p.events_per_thread + ev;
+                        if (seq % 100 < p.prod.keeper_pct) f |= keeper_bit;
+                        if ((seq * 37 + 11) % 100 < p.prod.database_pct) f |= database_bit;
+                    }
+                    f = set_severity(f, static_cast<StoreFlags::Severity>(ev % 8));
+                    auto [ok, id] = store.save_claimed(base + k, t, ev, payload, f, cat, true, ints, dbls);
+                    if (!ok) { std::cerr << "CLAIM FAILED t=" << t << " i=" << ev << "\n"; std::abort(); }
                 }
-                f = set_severity(f, static_cast<StoreFlags::Severity>(i % 8));
-                auto [ok, id] = store.save_event(t, i, std::move(payload), f, std::move(cat), true, ints, dbls);
-                if (!ok) { std::cerr << "CLAIM FAILED t=" << t << " i=" << i << "\n"; std::abort(); }
+                i += n;
             }
         });
     }
