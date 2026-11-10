@@ -4,7 +4,6 @@
 //
 //   Setup/compilers.jtext      toolchains + toolchain_os   the compiler registry, by OS family
 //   Setup/recipes.jtext        components + recipe_os      provision recipes, by OS family
-//   Setup/compilers.pin.jtext  pins                        this machine's pinned gcc / clang
 //   Setup/contracts.jtext      contract_modes              contract modes by OS and toolchain
 //   tests/test_limits.jtext    test_control                seed of the results DB testControl table
 //   tests/test_params*.jtext   selection + settings        what a matrix run selects (--params)
@@ -18,6 +17,9 @@
 // (jtext::parse_file_structure + jtext::validate) and returns one section as rows of column ->
 // value. The typed loaders below build on it. Setup (toolchain sensing) does not link jText: it
 // takes the toolchains and recipes loaded here.
+//
+// One file is not in the repository: the compiler pin, <base>/Compiler_Pins/compilers.pin.jtext
+// (section pins), shared with Qlite, jText and jText_GUI (their tools/hooks/compiler-pin.sh).
 
 #include <jac313/Setup/v001.hpp>
 
@@ -80,19 +82,35 @@ std::vector<jac313::Setup::v001::ProvisionRecipe> load_recipes(const std::filesy
 std::string pinned_tool_version(const std::filesystem::path& source_dir, const std::string& os_family,
                                 const std::string& tool);
 
-// ---- compiler pin (Setup/compilers.pin.jtext): committed, per-machine {gcc, clang} labels ----
-// A row is keyed on the machine (cpu, cores, ram_gb, disk); os is information only. A row written
-// before the disk column ('' disk) matches the machine on cpu, cores and ram_gb.
+// ---- compiler pin: <base>/Compiler_Pins/compilers.pin.jtext, OUTSIDE every repository ----
+// <base> is the folder the repositories are in (like SQL_Secrets), so removing the git folder starts
+// over; $COMPILER_PINS names another file. Qlite, jText and jText_GUI read and write the same file
+// (tools/hooks/compiler-pin.sh), so it is read and written here in exactly that helper's format:
+// one row per machine (host = uname nodename), the GCC and Clang with their full versions as
+// pinned (the MAJOR version is what is held) and their paths as found (/usr/bin/clang++, not the
+// clang-NN it links to, which is the C driver). Values never contain '|'.
+inline constexpr int kMinPinnedGccMajor = 15;
+inline constexpr int kMinPinnedClangMajor = 21;
 struct CompilerPinRow {
-    std::string label, cpu, os, gcc_label, clang_label;
-    int cores = 0, ram_gb = 0;
-    std::string disk;
+    std::string host, gcc_version, gcc_path, clang_version, clang_path, pinned;   // pinned: YYYY-MM-DD
 };
-std::filesystem::path compiler_pin_path(const std::filesystem::path& source_dir);
-// The pins, in table order; none when the file does not exist.
-std::vector<CompilerPinRow> load_compiler_pins(const std::filesystem::path& source_dir);
-// Rewrite the file with `rows`, through jText's writer (JTextWriter).
-void write_compiler_pins(const std::filesystem::path& source_dir, const std::vector<CompilerPinRow>& rows);
+// $COMPILER_PINS, else <base>/Compiler_Pins/compilers.pin.jtext, <base> = the folder holding the
+// repository that <version_dir> (v001, v002) is in.
+std::filesystem::path compiler_pin_path(const std::filesystem::path& version_dir);
+// The rows of `file` (its data lines), in file order; none when the file does not exist.
+std::vector<CompilerPinRow> load_compiler_pins(const std::filesystem::path& file);
+// Rewrite `file` (folders made) with `rows`, ids renumbered from 1: the bash helper's exact header.
+void write_compiler_pins(const std::filesystem::path& file, const std::vector<CompilerPinRow>& rows);
+// The row of `host`, or nullptr.
+const CompilerPinRow* find_compiler_pin(const std::vector<CompilerPinRow>& rows, const std::string& host);
+// `rows` with `row` as its host's row: that host's old rows dropped, `row` appended, others kept.
+void set_compiler_pin(std::vector<CompilerPinRow>& rows, const CompilerPinRow& row);
+// The major version of "16.2.1" (16); 0 when it does not start with a number.
+int version_major_of(const std::string& version);
+// The toolchain label (Setup/compilers.jtext) for a `kind` compiler of major version `major`: the
+// row with that exact version, else a row whose min_version it reaches; '' when none fits.
+std::string toolchain_label_for(const std::vector<jac313::Setup::v001::Toolchain>& toolchains,
+                                const std::string& kind, int major);
 
 // ---- tests/test_limits.jtext: per-test timeout and memory limit ----
 struct TestLimit {

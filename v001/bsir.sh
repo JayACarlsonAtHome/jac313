@@ -725,6 +725,15 @@ echo "Linked ./jac313_wipe_all -> build-bootstrap/tools/jac313_wipe_all"
 echo "Linked ./jac313_wipe_one -> build-bootstrap/tools/jac313_wipe_one"
 echo "Linked ./jac313_wipe_jac -> build-bootstrap/tools/jac313_wipe_jac"
 
+# --- compiler pin: THIS machine's GCC and Clang (find-or-create) ---
+# Kept outside the repository, beside it: ../../Compiler_Pins/compilers.pin.jtext, shared with Qlite,
+# jText and jText_GUI (one row per hostname). A new machine pins the newest GCC 15+ and Clang 21+, so
+# every later run uses the SAME compilers; a newer major version is asked about here. Non-fatal: a pin
+# hiccup must never block bootstrap (the gates say it again).
+echo
+echo "=== compiler pin (find-or-create) ==="
+$ACT "$CLI" pin --ensure --source-dir "$ROOT" || echo "(pin --ensure failed — non-fatal; see above)"
+
 # --- install the pre-push gate hook (git hooks are local, not version-controlled) ---
 # Runs the valgrind verify-lite before every push. Bypass once with: git push --no-verify
 # Under the v00N/ layout the repo's .git lives at the PARENT root (shared by every

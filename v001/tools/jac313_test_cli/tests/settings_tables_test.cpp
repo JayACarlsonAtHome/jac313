@@ -2,7 +2,8 @@
 // reads through settings.cpp, validates with jText's validator without errors, has the expected
 // columns, and agrees with the others: every recipe has an install command on every OS family,
 // every toolchain has an activation on every OS family, and every toolchain a recipe is `for`
-// exists. The pin writer's output reads back the same. The machine-local override files (the
+// exists. The compiler pin file (outside the repository, shared with Qlite, jText and jText_GUI)
+// is read and written in their helper's exact format; this test writes only a temporary copy. The machine-local override files (the
 // Setup/*.local.jtext.example files, used as local files of copies of the tracked tables) replace,
 // add and remove rows; a missing one changes nothing and a malformed one is an error naming it.
 
@@ -74,14 +75,13 @@ SettingsTable table(const fs::path& path, std::string_view section, const std::v
 int main() {
     const fs::path compilers = kSource / "Setup" / "compilers.jtext";
     const fs::path recipes = kSource / "Setup" / "recipes.jtext";
-    const fs::path pins = kSource / "Setup" / "compilers.pin.jtext";
     const fs::path limits = kSource / "tests" / "test_limits.jtext";
     const std::vector<fs::path> params = {kSource / "tests" / "test_params.jtext",
                                           kSource / "tests" / "test_params_full.jtext",
                                           kSource / "tests" / "test_params_bench.jtext"};
     const fs::path production = kSource / "tests" / "production.jtext";
 
-    for (const auto& p : {compilers, recipes, pins, limits, production}) check_validates(p);
+    for (const auto& p : {compilers, recipes, limits, production}) check_validates(p);
     for (const auto& p : params) check_validates(p);
 
     // ---- compilers.jtext ----
@@ -246,29 +246,76 @@ int main() {
         fs::remove_all(tmp);
     }
 
-    // ---- compilers.pin.jtext ----
-    table(pins, "pins", {"id", "label", "cpu_model", "cores", "ram_gb", "disk", "os_pretty", "gcc_label", "clang_label"});
+    // ---- the compiler pin: <base>/Compiler_Pins/compilers.pin.jtext (never the real one here) ----
     try {
-        for (const auto& p : load_compiler_pins(kSource)) {
-            check(labels.count(p.gcc_label) == 1, "pin " + p.label + " gcc is a toolchain: " + p.gcc_label);
-            check(labels.count(p.clang_label) == 1, "pin " + p.label + " clang is a toolchain: " + p.clang_label);
-        }
-        // the writer's output reads back as written
         const fs::path tmp = fs::temp_directory_path() / ("jac313_settings_test_" + std::to_string(::getpid()));
-        fs::create_directories(tmp / "Setup");
-        const std::vector<CompilerPinRow> rows = {
-            {"jac313-001", "Intel(R) Core(TM) Ultra 7 265", "Fedora Linux 44 (Workstation Edition)", "gcc16", "clang", 20, 62, "xssd"},
-            {"jac313-002", "CPU with | ^ ~ # and ' in it", "Linux Mint 22.3", "gcc15", "clang", 8, 31, "rx7k"}};
-        write_compiler_pins(tmp, rows);
-        check_validates(compiler_pin_path(tmp));
-        const auto back = load_compiler_pins(tmp);
-        check(back.size() == rows.size(), "pins read back: count");
-        for (std::size_t i = 0; i < std::min(back.size(), rows.size()); ++i)
-            check(back[i].label == rows[i].label && back[i].cpu == rows[i].cpu && back[i].os == rows[i].os
-                      && back[i].gcc_label == rows[i].gcc_label && back[i].clang_label == rows[i].clang_label
-                      && back[i].cores == rows[i].cores && back[i].ram_gb == rows[i].ram_gb
-                      && back[i].disk == rows[i].disk,
-                  "pin row " + std::to_string(i + 1) + " reads back as written");
+        fs::create_directories(tmp);
+        // where it is: $COMPILER_PINS, else beside the repository the version folder is in
+        const char* saved_env = std::getenv("COMPILER_PINS");
+        const std::string saved = saved_env ? saved_env : "";
+        ::unsetenv("COMPILER_PINS");
+        check(compiler_pin_path(tmp / "repo" / "v001") == tmp / "Compiler_Pins" / "compilers.pin.jtext",
+              "pin file: <base>/Compiler_Pins/compilers.pin.jtext");
+        const fs::path file = tmp / "pins" / "compilers.pin.jtext";
+        ::setenv("COMPILER_PINS", file.c_str(), 1);
+        check(compiler_pin_path(tmp / "repo" / "v001") == file, "pin file: $COMPILER_PINS wins");
+        if (saved_env) ::setenv("COMPILER_PINS", saved.c_str(), 1); else ::unsetenv("COMPILER_PINS");
+
+        check(load_compiler_pins(file).empty(), "no pin file: no rows");
+        // what tools/hooks/compiler-pin.sh writes reads as its rows
+        {
+            fs::create_directories(file.parent_path());
+            std::ofstream(file) << "=== jText File ===\n=== Section: pins ===\n=== Data ===\n"
+                                   "1. #|# 1|Other-Box|15.1.0|/opt/rh/gcc-toolset-15/root/usr/bin/g++|21.1.8|/usr/bin/clang++|2026-11-01\n\n"
+                                   "1. #|# 2|Fedora-Tower-001|16.2.1|/usr/bin/g++|22.1.8|/usr/bin/clang++|2026-11-10\n\n"
+                                   "=== End Data ===\n=== End Section ===\n=== End File ===\n";
+            const auto rows = load_compiler_pins(file);
+            check(rows.size() == 2, "helper file: two rows");
+            const CompilerPinRow* r = find_compiler_pin(rows, "Fedora-Tower-001");
+            check(r && r->gcc_version == "16.2.1" && r->gcc_path == "/usr/bin/g++" && r->clang_version == "22.1.8"
+                      && r->clang_path == "/usr/bin/clang++" && r->pinned == "2026-11-10",
+                  "helper file: this host's row");
+            check(find_compiler_pin(rows, "Nobody") == nullptr, "no row for another host");
+        }
+        // writing: this host's row replaced, the other host's kept, the helper's exact lines
+        {
+            auto rows = load_compiler_pins(file);
+            set_compiler_pin(rows, {"Fedora-Tower-001", "17.0.1", "/usr/bin/g++-17", "23.1.0", "/usr/bin/clang++", "2026-11-11"});
+            write_compiler_pins(file, rows);
+            check_validates(file);
+            std::ifstream in(file);
+            std::stringstream ss;
+            ss << in.rdbuf();
+            const std::string text = ss.str();
+            check(text.starts_with("//File:    compilers.pin.jtext\n"), "written: the helper's header");
+            check(text.find(" 2. #/# host/String/Not Null          # uname -n\n") != std::string::npos, "written: the helper's fields");
+            check(text.find("1. #|# 1|Other-Box|15.1.0|/opt/rh/gcc-toolset-15/root/usr/bin/g++|21.1.8|/usr/bin/clang++|2026-11-01\n\n"
+                            "1. #|# 2|Fedora-Tower-001|17.0.1|/usr/bin/g++-17|23.1.0|/usr/bin/clang++|2026-11-11\n\n"
+                            "=== End Data ===\n") != std::string::npos,
+                  "written: other host kept, this host's row last, ids from 1");
+            const auto back = load_compiler_pins(file);
+            check(back.size() == 2 && back[1].gcc_version == "17.0.1" && back[0].host == "Other-Box", "written: reads back");
+            bool refused = false;
+            try { write_compiler_pins(file, {{"bad|host", "1", "p", "1", "p", "d"}}); } catch (const std::exception&) { refused = true; }
+            check(refused, "a value with '|' is refused");
+        }
+        // a malformed row is an error naming the file
+        {
+            std::ofstream(file) << "1. #|# 1|only|three\n";
+            bool threw = false;
+            try { (void)load_compiler_pins(file); } catch (const std::exception& e) {
+                threw = std::string(e.what()).find(file.string()) != std::string::npos;
+            }
+            check(threw, "a pin row without 7 fields is an error naming the file");
+        }
+        // the pinned major version picks the toolchain label
+        const auto tcs_fedora = load_toolchains(kSource, "fedora");
+        check(version_major_of("16.2.1") == 16 && version_major_of("x") == 0, "version_major_of");
+        check(toolchain_label_for(tcs_fedora, "gcc", 16) == "gcc16", "GCC 16 -> gcc16");
+        check(toolchain_label_for(tcs_fedora, "gcc", 15) == "gcc15", "GCC 15 -> gcc15");
+        check(toolchain_label_for(tcs_fedora, "gcc", 99).empty(), "GCC 99 -> no toolchain");
+        check(toolchain_label_for(tcs_fedora, "clang", 22) == "clang", "Clang 22 -> clang (min_version)");
+        check(toolchain_label_for(tcs_fedora, "clang", 19).empty(), "Clang 19 -> below min_version");
         fs::remove_all(tmp);
     } catch (const std::exception& e) {
         check(false, std::string("compiler pins: ") + e.what());

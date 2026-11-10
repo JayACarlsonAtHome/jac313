@@ -18,9 +18,20 @@ The settings are jText tables (full profile, an OS column where they depend on t
 |------|--------|---------|
 | [`compilers.jtext`](compilers.jtext) | `toolchains` (label, kind, version, min_version, build_dir, flag, cc_names, scan_deps); `toolchain_os` (os, toolchain, required, activation_seq, activation) | `jac313_test_cli`, `bsir.sh` |
 | [`recipes.jtext`](recipes.jtext) | `components` (component, desc, for, required, check); `recipe_os` (os, component, command) | `jac313_test_cli`, `bsir.sh` |
-| `compilers.pin.jtext` | `pins` (label, cpu_model, cores, ram_gb, os_pretty, gcc_label, clang_label) | `jac313_test_cli pin` (reads and writes it) |
 | [`contracts.jtext`](contracts.jtext) | `contract_modes` (os, toolchain, enforce, observe, quick_enforce, ignore) | `jac313_test_cli`, Jac313Runner |
 | [`setup_pg_server.sh`](setup_pg_server.sh), [`find_pg_password.sh`](find_pg_password.sh) | scripts, not tables | Jac313Runner's **Setup Remote PG Server...**; by hand on the server |
+
+The compiler pin is not here: it is machine-local and outside every repository, beside them like
+`SQL_Secrets`, so removing the git folder starts over: `<base>/Compiler_Pins/compilers.pin.jtext`
+(`<base>` is the folder the repositories are in; `$COMPILER_PINS` names another file). Qlite, jText
+and jText_GUI build with the same file (their `tools/hooks/compiler-pin.sh`); `jac313_test_cli pin`
+reads and writes it in the same format: section `pins`, one row per machine (`uname -n`) with the
+GCC and Clang full versions and paths. The major version is what is held: the first run on a machine
+pins the newest GCC 15+ and Clang 21+; a newer major version is asked about on the terminal (with no
+terminal the pin is kept and one line says `jac313_test_cli pin --upgrade`); a pinned compiler that
+is gone stops the run (`jac313_test_cli pin --repin`). The pinned major version picks the
+`toolchains` row of `compilers.jtext` (its label: build dir, flag), and the pinned path is the
+compiler that builds. `pin --show` shows the pin and what is installed.
 
 `Setup` itself reads none of them: it links nothing but the standard library. `jac313_test_cli`
 reads them with jText's parser and validator (`tools/jac313_test_cli/settings.cpp`) and hands the

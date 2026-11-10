@@ -783,10 +783,11 @@ Runner::Runner()
 	lType.SetText("Type:");
 	lFront.SetText("Front-end:");
 	lSize.SetText("Size:");
-	// gcc / clang: the newest of each on this machine (the CLI's --gcc / --clang); lCompVer shows
-	// which versions those are (jac313_test_cli compiler-versions)
+	// gcc / clang: this machine's pinned ones (the CLI's --gcc / --clang); lCompVer shows which
+	// versions those are (jac313_test_cli compiler-versions)
 	comp.Add("gcc", "gcc").Add("clang", "clang").Add("both", "both");
-	comp.Tip("gcc and clang: the newest of each on this machine (pinned in Setup/compilers.pin.jtext). "
+	comp.Tip("gcc and clang: this machine's pinned ones (Compiler_Pins/compilers.pin.jtext beside the "
+	         "repositories; jac313_test_cli pin --upgrade moves the pin to the newest). "
 	         "The versions are shown to the right.");
 	type.Add("Debug", "Debug").Add("Release", "Release");
 	front.Add("textual", "textual").Add("modules", "modules");

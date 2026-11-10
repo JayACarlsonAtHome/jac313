@@ -1,5 +1,7 @@
 #pragma once
 
+#include "settings.hpp"
+
 #include <jac313/Setup/v001.hpp>
 
 #include <filesystem>
@@ -90,5 +92,40 @@ struct NinjaChoice {
 NinjaChoice find_ninja();
 
 bool is_clang_compiler(const std::string& compiler);
+
+// ---- the compiler pin at run time (the file: settings.hpp, compiler_pin_path) ----
+// The same rules as tools/hooks/compiler-pin.sh in Qlite, jText and jText_GUI.
+struct InstalledCompiler {
+    int major = 0;
+    std::string version;   // full: 16.2.1
+    std::string path;      // as found: /usr/bin/clang++, not the clang-NN it links to
+};
+// Every GCC (g++ and g++-N on PATH, /opt/rh/gcc-toolset-*/root/usr/bin/g++) or Clang (clang++ and
+// clang++-N on PATH) here, one per real file, newest first. `kind`: gcc | clang.
+std::vector<InstalledCompiler> installed_compilers(const std::string& kind);
+// The full version the compiler at `path` reports; '' when it does not run.
+std::string compiler_full_version(const std::string& path, const std::string& kind);
+// This machine in the pin file: uname nodename.
+std::string pin_host_name();
+// The newest of `kind` that is at least the pin minimum (GCC 15, Clang 21).
+std::optional<InstalledCompiler> newest_pinnable(const std::string& kind);
+
+struct PinnedCompilers {
+    std::filesystem::path file;
+    CompilerPinRow row;                     // this machine's row
+    std::string gcc_label, clang_label;     // their toolchains in Setup/compilers.jtext
+};
+// This machine's pinned GCC and Clang (once per process; later calls return the first answer):
+//   - no row for this machine: pins the newest GCC 15+ and Clang 21+ and says so
+//   - a newer major version installed: asks on the terminal whether to upgrade the pin (only when
+//     standard input is a terminal and nothing in this run asked yet); otherwise keeps the pin and
+//     says how to upgrade (`jac313_test_cli pin --upgrade`)
+//   - the pinned compiler is gone (or is another major version now): says how to re-pin
+//     (`jac313_test_cli pin --repin`) and returns nothing
+// Messages go to standard error (standard output may be read by a program).
+std::optional<PinnedCompilers> ensure_compiler_pin(const std::filesystem::path& version_dir);
+// Pin this machine to the newest GCC 15+ and Clang 21+ (pin --upgrade / --repin); false (and a
+// message) when there is none.
+bool repin_newest(const std::filesystem::path& version_dir);
 
 } // namespace jac313::test_cli

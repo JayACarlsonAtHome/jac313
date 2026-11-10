@@ -3,13 +3,10 @@
 #include "parser/section.hpp"
 #include "validator/validator.hpp"
 
-#include <jac313/jText/v001.hpp>
-
 #include <algorithm>
 #include <cctype>
 #include <charconv>
-#include <chrono>
-#include <format>
+#include <cstdlib>
 #include <fstream>
 #include <optional>
 #include <sstream>
@@ -254,86 +251,110 @@ std::vector<setup::ProvisionRecipe> load_recipes(const fs::path& source_dir) {
     return out;
 }
 
-fs::path compiler_pin_path(const fs::path& source_dir) { return source_dir / "Setup" / "compilers.pin.jtext"; }
-
-std::vector<CompilerPinRow> load_compiler_pins(const fs::path& source_dir) {
-    const fs::path path = compiler_pin_path(source_dir);
+fs::path compiler_pin_path(const fs::path& version_dir) {
+    if (const char* e = std::getenv("COMPILER_PINS"); e != nullptr && *e != '\0') return fs::path(e);
     std::error_code ec;
-    if (!fs::exists(path, ec)) return {};
-    const SettingsTable pins = read_jtext_table(path, "pins");
-    require_columns(pins, path, "pins",
-                    {"label", "cpu_model", "cores", "ram_gb", "os_pretty", "gcc_label", "clang_label"});
+    fs::path v = fs::weakly_canonical(fs::absolute(version_dir, ec), ec);
+    if (v.filename().empty()) v = v.parent_path();
+    // <base>/<repository>/<vNNN>: the pins folder sits beside the repository
+    return v.parent_path().parent_path() / "Compiler_Pins" / "compilers.pin.jtext";
+}
+
+std::vector<CompilerPinRow> load_compiler_pins(const fs::path& file) {
+    std::error_code ec;
+    if (!fs::exists(file, ec)) return {};
+    std::ifstream in(file);
+    if (!in) throw std::runtime_error("cannot read " + file.string());
     std::vector<CompilerPinRow> out;
-    for (const auto& r : pins.rows) {
-        CompilerPinRow p;
-        p.label = r.at("label");
-        p.cpu = r.at("cpu_model");
-        p.cores = to_int(r, "cores", path, "pins");
-        p.ram_gb = to_int(r, "ram_gb", path, "pins");
-        p.os = r.at("os_pretty");
-        if (const auto d = r.find("disk"); d != r.end()) p.disk = d->second;   // '' in a row from before the column
-        p.gcc_label = r.at("gcc_label");
-        p.clang_label = r.at("clang_label");
-        out.push_back(std::move(p));
+    int line_no = 0;
+    for (std::string line; std::getline(in, line);) {
+        ++line_no;
+        // a data line: " 1. #|# id|host|gcc_version|gcc_path|clang_version|clang_path|pinned"
+        const std::size_t start = line.find_first_not_of(' ');
+        if (start == std::string::npos || line.compare(start, 7, "1. #|# ") != 0) continue;
+        std::vector<std::string> f;
+        std::string_view rest = std::string_view(line).substr(start + 7);
+        for (std::size_t bar; (bar = rest.find('|')) != std::string_view::npos; rest.remove_prefix(bar + 1))
+            f.emplace_back(rest.substr(0, bar));
+        f.emplace_back(rest);
+        if (f.size() != 7)
+            throw std::runtime_error(file.string() + ":" + std::to_string(line_no) + ": a pin row has 7 fields "
+                                     "(id|host|gcc_version|gcc_path|clang_version|clang_path|pinned), this one "
+                                     + std::to_string(f.size()));
+        out.push_back({f[1], f[2], f[3], f[4], f[5], f[6]});
     }
     return out;
 }
 
-void write_compiler_pins(const fs::path& source_dir, const std::vector<CompilerPinRow>& rows) {
-    using namespace jac313::jText::v001;
-    const fs::path path = compiler_pin_path(source_dir);
+void write_compiler_pins(const fs::path& file, const std::vector<CompilerPinRow>& rows) {
     std::ostringstream out;
+    // Exactly what tools/hooks/compiler-pin.sh writes, so either one can rewrite the file.
     out << "//File:    compilers.pin.jtext\n"
-        << "//Date:    " << std::format("{:%Y-%m-%d}", std::chrono::floor<std::chrono::days>(
-                                                         std::chrono::system_clock::now())) << "\n"
-        << "//Purpose: The committed per-machine compiler pin (v001). One row per machine, keyed on the\n"
-        << "//         hardware identity (cpu_model / cores / ram_gb / disk), labeled jac313-###; os_pretty is\n"
-        << "//         information only (the OS the row was written under). bootstrap find-or-creates a\n"
-        << "//         row; the chosen gcc / clang are then DETERMINISTIC across runs.\n"
-        << "//\n"
-        << "// Change a row by editing it, or: jac313_test_cli pin --gcc <label> --clang <label>\n"
-        << "// (labels are from the toolchains table of Setup/compilers.jtext).\n"
-        << "// Written by jac313_test_cli pin through jText's writer.\n"
-        << "//\n";
-    {
-        JTextWriter w(out);
-        w.set_profile(JTextProfile::Full);
-        w.set_filename("compilers.pin.jtext");
-        w.set_purpose("Per-machine compiler pin (v001)");
-        w.write_header();
-        w.begin_section("pins");
-        w.begin_fields();
-        const std::vector<std::vector<std::string>> fields = {
-            {"id", "Integer", "Not Null"},          {"label", "String", "Not Null", "Not Empty"},
-            {"cpu_model", "String", "Not Null"},    {"cores", "Integer", "Not Null"},
-            {"ram_gb", "Integer", "Not Null"},      {"disk", "String", "Not Null"},
-            {"os_pretty", "String", "Not Null"},
-            {"gcc_label", "String", "Not Null"},    {"clang_label", "String", "Not Null"}};
-        for (std::size_t f = 0; f < fields.size(); ++f) {
-            JTextEntry e;
-            e.number = f + 1;
-            e.delimiter = U'#';
-            e.level_sep = U'/';
-            for (const auto& level : fields[f]) e.fields.emplace_back(level);
-            w.append_entry(e);
-        }
-        w.begin_data();
-        for (std::size_t n = 0; n < rows.size(); ++n) {
-            const CompilerPinRow& r = rows[n];
-            w.append_row(1, {std::to_string(n + 1), r.label, r.cpu, std::to_string(r.cores),
-                             std::to_string(r.ram_gb), r.disk, r.os, r.gcc_label, r.clang_label});
-            w.end_record();
-        }
-        w.finalize();
+           "//Purpose: The GCC and Clang each machine builds with, pinned. Outside every repository (like\n"
+           "//         SQL_Secrets), so removing the git folder starts over. One row per machine (hostname).\n"
+           "//         Written by tools/hooks/compiler-pin.sh (Qlite, jText, jText_GUI). Values never contain '|'.\n"
+           "//\n"
+           "=== jText File ===\n"
+           " 1. #?# compilers.pin\n"
+           " 3. #?# Pinned compilers per machine\n"
+           "\n\n"
+           "=== Section: pins ===\n"
+           "\n\n"
+           "=== Fields ===\n"
+           " 1. #/# id/Identity(1,1)/Not Null\n"
+           " 2. #/# host/String/Not Null          # uname -n\n"
+           " 3. #/# gcc_version/String/Not Null   # when pinned; the major version is what is held\n"
+           " 4. #/# gcc_path/String/Not Null\n"
+           " 5. #/# clang_version/String/Not Null\n"
+           " 6. #/# clang_path/String/Not Null\n"
+           " 7. #/# pinned/String/Not Null        # date of the last pin or upgrade\n"
+           "=== End Fields ===\n"
+           "\n\n"
+           "=== Data ===\n";
+    int id = 0;
+    for (const CompilerPinRow& r : rows) {
+        for (const std::string* v : {&r.host, &r.gcc_version, &r.gcc_path, &r.clang_version, &r.clang_path, &r.pinned})
+            if (v->find_first_of("|\n") != std::string::npos)
+                throw std::runtime_error("a compiler pin value holds '|' or a line break: " + *v);
+        out << "1. #|# " << ++id << '|' << r.host << '|' << r.gcc_version << '|' << r.gcc_path << '|'
+            << r.clang_version << '|' << r.clang_path << '|' << r.pinned << "\n\n";
     }
+    out << "=== End Data ===\n=== End Section ===\n=== End File ===\n";
+    std::error_code ec;
+    fs::create_directories(file.parent_path(), ec);
     // Write beside it, then rename over it: a reader never sees half a file.
-    const fs::path tmp = path.string() + ".tmp";
+    const fs::path tmp = file.string() + ".tmp";
     {
         std::ofstream f(tmp, std::ios::trunc);
         f << out.str();
         if (!f.flush()) throw std::runtime_error("cannot write " + tmp.string());
     }
-    fs::rename(tmp, path);
+    fs::rename(tmp, file);
+}
+
+const CompilerPinRow* find_compiler_pin(const std::vector<CompilerPinRow>& rows, const std::string& host) {
+    for (const auto& r : rows)
+        if (r.host == host) return &r;
+    return nullptr;
+}
+
+void set_compiler_pin(std::vector<CompilerPinRow>& rows, const CompilerPinRow& row) {
+    std::erase_if(rows, [&](const CompilerPinRow& r) { return r.host == row.host; });
+    rows.push_back(row);
+}
+
+int version_major_of(const std::string& version) {
+    int major = 0;
+    const auto [end, ec] = std::from_chars(version.data(), version.data() + version.size(), major);
+    return ec == std::errc{} ? major : 0;
+}
+
+std::string toolchain_label_for(const std::vector<setup::Toolchain>& toolchains, const std::string& kind, int major) {
+    for (const auto& tc : toolchains)
+        if (tc.kind == kind && !tc.min_version && tc.version_major == major) return tc.label;
+    for (const auto& tc : toolchains)
+        if (tc.kind == kind && tc.min_version && major >= *tc.min_version) return tc.label;
+    return {};
 }
 
 std::vector<TestLimit> load_test_limits(const fs::path& path) {

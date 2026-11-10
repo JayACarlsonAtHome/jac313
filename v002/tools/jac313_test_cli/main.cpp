@@ -29,6 +29,7 @@
 #include <jac313/Qlite/v002.hpp>   // shared testList catalog in the bench results DB
 #include "jac313_results_db.hpp"   // jac313::results — shared schema + dimension helpers
 
+#include <array>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -69,7 +70,9 @@ void print_usage() {
         "  build       Build the configured tree\n"
         "  build-times compile-time matrix (smoke+bench x front-end x compiler), gap-filled per host\n"
         "  strict-build fresh gcc/clang x headers/modules builds; any warning fails (pre-push gate)\n"
-        "  pin         find-or-create this machine's committed compiler pin (Setup/compilers.pin.jtext)\n"
+        "  pin         this machine's compiler pin, shared with Qlite/jText/jText_GUI, outside the repository\n"
+        "              (<base>/Compiler_Pins/compilers.pin.jtext; $COMPILER_PINS names another file):\n"
+        "              --show (default), --ensure (pin if missing), --upgrade (to the newest), --repin\n"
         "  compilers   Sense toolchains from the registry (writes FileCheckList.txt)\n"
         "  setup       Sense readiness; name anything ./bsir.sh still has to install\n"
         "  version-check  check each package owes a version() bump (git, no build)\n"
@@ -2163,8 +2166,8 @@ void safe_rmdir(const fs::path& source_dir, const fs::path& target) {
     fs::remove_all(t, ec);
 }
 
-// Resolve this machine's pinned gcc/clang to a compiler path — DEFINED below the pin helpers
-// (find_pin_for_host lives further down in this file).
+// This machine's pinned gcc/clang compiler path ('' when there is no pin) — DEFINED with the pin
+// helpers further down in this file.
 std::string resolve_pinned_cc(const fs::path& src, bool want_gcc);
 
 // Does a 'build' row already exist for (this machine, compiler, front-end, target)?
@@ -2185,13 +2188,12 @@ struct BuildTimesCfg { std::string label, cc; std::vector<std::string> feflags; 
 int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = false) {
     const std::string gcc_cc = resolve_pinned_cc(source_dir, true);
     const std::string clang_cc = resolve_pinned_cc(source_dir, false);
-    if (gcc_cc.empty() && clang_cc.empty()) {
-        std::cerr << "build-times: no pinned compiler resolved — run ./bsir.sh first.\n";
+    if (gcc_cc.empty() || clang_cc.empty()) {
+        std::cerr << "build-times: no pinned compilers (the [compiler-pin] line above says why)\n";
         return 1;
     }
     std::vector<BuildTimesCfg> cfgs;
     for (const auto& [name, cc] : {std::pair<std::string,std::string>{"gcc", gcc_cc}, {"clang", clang_cc}}) {
-        if (cc.empty()) continue;
         cfgs.push_back({name + "-hdr",  cc, {}, "off", "off"});
         cfgs.push_back({name + "-mod",  cc, {"-DJAC313_BUILD_MODULES=ON"}, "on", "off"});
     }
@@ -2227,7 +2229,7 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
     // without configuring anything. (A newly-added test, absent from all configs alike, won't be
     // detected here; a normal run's capture-on-build or a forced re-run fills it.)
     if (!new_setup && !force) {
-        const int expected = (gcc_cc.empty() ? 0 : 2) + (clang_cc.empty() ? 0 : 2);
+        const int expected = static_cast<int>(cfgs.size());   // {hdr, mod} x {gcc, clang}
         int combos = 0; std::int64_t lo = -1, hi = 0;
         auto st = db.prepare(
             "SELECT COUNT(DISTINCT tr.test_list_id) FROM testRun tr JOIN run r ON r.run_id=tr.run_id "
@@ -2305,13 +2307,12 @@ std::string last_lines(const std::string& text, std::size_t n) {
 int run_strict_build_gate(const fs::path& source_dir) {
     const std::string gcc_cc = resolve_pinned_cc(source_dir, true);
     const std::string clang_cc = resolve_pinned_cc(source_dir, false);
-    if (gcc_cc.empty() && clang_cc.empty()) {
-        std::cerr << "strict-build: no pinned compiler resolved — run ./bsir.sh first.\n";
+    if (gcc_cc.empty() || clang_cc.empty()) {
+        std::cerr << "strict-build: no pinned compilers (the [compiler-pin] line above says why)\n";
         return 1;
     }
     std::vector<BuildTimesCfg> cfgs;
     for (const auto& [name, cc] : {std::pair<std::string,std::string>{"gcc", gcc_cc}, {"clang", clang_cc}}) {
-        if (cc.empty()) { std::cout << "  " << name << ": not pinned on this machine — skipped\n"; continue; }
         cfgs.push_back({name + "-hdr", cc, {}, "off", "off"});
         cfgs.push_back({name + "-mod", cc, {"-DJAC313_BUILD_MODULES=ON"}, "on", "off"});
     }
@@ -3164,7 +3165,7 @@ int execute_matrix_run(GlobalOptions& global, ConfigureOptions& configure_opts,
 }
 
 // Forward — defined with the compiler-pin helpers below; presets need it early.
-std::pair<std::string, std::string> pinned_or_highest_labels(const fs::path& source_dir);
+std::pair<std::string, std::string> pinned_labels(const fs::path& source_dir);
 
 // ---- preset gates: generate ./run_latest_config.sh, run it, leave it re-runnable ----
 // The composable flags (--ctest/--smoke/--bench/--report/--verify[-lite]) expand into a
@@ -3411,14 +3412,13 @@ int run_preset_command(const GlobalOptions& global_in, const ConfigureOptions& c
         }
     }
 
-    // Preset gates run BOTH compilers (gcc first, then clang), using THIS machine's pinned
-    // labels from Setup/compilers.pin.jtext — or highest-available from compilers.jtext when unpinned
-    // (gcc16 on Fedora, gcc15 on RHEL/Mint, etc.). --gcc / --clang run just that one; --compiler L
-    // runs exactly L.
-    const auto [gcc_label, clang_label] = pinned_or_highest_labels(root);
+    // Preset gates run BOTH compilers (gcc first, then clang): THIS machine's pinned ones (the
+    // shared Compiler_Pins/compilers.pin.jtext; pinned to the newest on first use), as their
+    // toolchain labels (gcc16 on Fedora, gcc15 on RHEL/Mint, etc.). --gcc / --clang run just that
+    // one; --compiler L runs exactly L.
+    const auto [gcc_label, clang_label] = pinned_labels(root);
     if (!configure_opts.compiler && (gcc_label.empty() || clang_label.empty())) {
-        std::cerr << "preset: could not resolve gcc/clang for this machine "
-                     "(run `jac313_test_cli pin --ensure`)\n";
+        std::cerr << "preset: no pinned gcc/clang for this machine (the [compiler-pin] line above says why)\n";
         return 1;
     }
     const StepFlags sf = step_flags(global, configure_opts, build_opts, run_opts, matrix_opts, gcc_label, clang_label,
@@ -3686,60 +3686,29 @@ int run_machine_id_command(const GlobalOptions& global) {
     }
 }
 
-// ---- compiler pin (Setup/compilers.pin.jtext, settings.cpp): committed, per-machine {gcc,clang}
-// toolchain labels so the choice is DETERMINISTIC — no "highest changes when a newer compiler lands"
-// drift. Keyed on the machine: cpu+cores+ram+disk (Setup/compilers.pin.jtext rows; os_pretty is
-// information only), labeled jac313-###. bootstrap does find-or-create; you change a row by editing it
-// or `pin --gcc <label> --clang <label>`. No pin -> highest-available. ----
-// This machine's row: cpu, cores and ram_gb equal, and the same disk tier (a row from before the disk
-// column, disk '', matches on the other three; an exact disk match wins over it).
-const CompilerPinRow* find_pin_for_host(const std::vector<CompilerPinRow>& rows, const HostHardwareRecord& hw) {
-    const CompilerPinRow* legacy = nullptr;
-    for (const auto& r : rows) {
-        if (r.cpu != hw.cpu_model || r.cores != hw.cpu_cores || r.ram_gb != hw.ram_gb) continue;
-        if (r.disk == hw.disk_type_label) return &r;
-        if (r.disk.empty() && legacy == nullptr) legacy = &r;
-    }
-    return legacy;
-}
-
-// "sense the highest": the highest-version available toolchain label of a kind from the live probe.
-std::string highest_toolchain_label(const std::vector<ResolvedToolchain>& probes, const std::string& kind) {
-    const ResolvedToolchain* best = nullptr;
-    for (const auto& p : probes) {
-        if (!p.available || p.spec.kind != kind) continue;
-        if (best == nullptr || p.detected_major > best->detected_major) best = &p;
-    }
-    return best ? best->spec.label : std::string{};
-}
-
-// Resolve this machine's pinned gcc/clang to a compiler path (highest-available if unpinned).
+// ---- compiler pin (compiler.cpp: ensure_compiler_pin): this machine's GCC and Clang, pinned in the
+// SHARED <base>/Compiler_Pins/compilers.pin.jtext — outside every repository, keyed on the hostname,
+// the same file Qlite, jText and jText_GUI build with — so the choice is DETERMINISTIC: a newer
+// major version is offered (asked on the terminal), never taken silently. ----
+// The pinned compiler's path; '' when there is no pin (ensure_compiler_pin said why).
 // Forward-declared up by the build-times gate; defined here, after the pin helpers it needs.
 std::string resolve_pinned_cc(const fs::path& src, bool want_gcc) {
-    CompilerResolveRequest request; request.source_dir = src;
-    const HostHardwareRecord hw = collect_host_hardware_record(machine_disk_tier("."));
-    const auto rows = load_compiler_pins(src);
-    const CompilerPinRow* row = find_pin_for_host(rows, hw);
-    std::string label = row ? (want_gcc ? row->gcc_label : row->clang_label)
-                            : highest_toolchain_label(probe_compilers(src), want_gcc ? "gcc" : "clang");
-    if (label.empty()) return {};
-    request.explicit_compiler = label;
-    try { return resolve_compiler(request).cc_path; } catch (...) { return {}; }
+    const auto pin = ensure_compiler_pin(src);
+    if (!pin) return {};
+    return want_gcc ? pin->row.gcc_path : pin->row.clang_path;
 }
 
-// {gcc_label, clang_label} for this machine: the committed pin if present, else highest-available.
-std::pair<std::string, std::string> pinned_or_highest_labels(const fs::path& source_dir) {
-    const HostHardwareRecord hw = collect_host_hardware_record(machine_disk_tier("."));
-    const auto rows = load_compiler_pins(source_dir);
-    if (const CompilerPinRow* row = find_pin_for_host(rows, hw))
-        return {row->gcc_label, row->clang_label};
-    const auto probes = probe_compilers(source_dir);
-    return {highest_toolchain_label(probes, "gcc"), highest_toolchain_label(probes, "clang")};
+// {gcc_label, clang_label}: the toolchains (Setup/compilers.jtext) of this machine's pinned
+// compilers; {'', ''} when there is no pin.
+std::pair<std::string, std::string> pinned_labels(const fs::path& source_dir) {
+    const auto pin = ensure_compiler_pin(source_dir);
+    if (!pin) return {};
+    return {pin->gcc_label, pin->clang_label};
 }
 
 // --run-everything: the full battery, orchestrated IN CODE (per-step exit codes, continue-on-error,
 // a failure summary). Re-invokes this CLI's own subcommands per step. Uses THIS machine's PINNED
-// gcc/clang (Setup/compilers.pin.jtext) so the run is deterministic. Run from v002/.
+// gcc/clang (Compiler_Pins/compilers.pin.jtext) so the run is deterministic. Run from v002/.
 int run_everything_command(const GlobalOptions& global_in, const ConfigureOptions& configure_opts,
                            const BuildOptions& build_opts, const RunOptions& run_opts,
                            const MatrixOptions& matrix_opts) {
@@ -3759,10 +3728,9 @@ int run_everything_command(const GlobalOptions& global_in, const ConfigureOption
     // dir, which may be anywhere (and so may hold a space).
     const std::string CLI = "\"" + fs::read_symlink("/proc/self/exe", ec).string() + "\"";
     if (ec) { std::cerr << "run-everything: cannot find this program (/proc/self/exe)\n"; return 1; }
-    const auto [gcc_label, clang_label] = pinned_or_highest_labels(".");
+    const auto [gcc_label, clang_label] = pinned_labels(".");
     if (!configure_opts.compiler && (gcc_label.empty() || clang_label.empty())) {
-        std::cerr << "run-everything: could not resolve this machine's pinned/highest compilers "
-                     "(run `jac313_test_cli pin --ensure`)\n";
+        std::cerr << "run-everything: no pinned gcc/clang for this machine (the [compiler-pin] line above says why)\n";
         return 1;
     }
     // Every flag given is forwarded to the steps that take it (the rest are named, not dropped).
@@ -3928,29 +3896,25 @@ int refuse_root_unless_allowed(int& argc, char** argv) {
 }
 } // namespace
 
-// `compiler-versions`: the gcc and the clang a run uses on this machine (pinned in
-// Setup/compilers.pin.jtext, else the newest installed), one line each: "gcc gcc16 16.2.1",
-// "clang clang 22.1.8" ("-" when missing), then the contract modes it has on this OS
-// (Setup/contracts.jtext, e.g. "enforce,observe,quick_enforce,ignore"). Jac313Runner shows the versions
-// beside its choices and enables only those contract modes.
+// `compiler-versions`: the gcc and the clang a run uses on this machine (pinned in the shared
+// Compiler_Pins/compilers.pin.jtext; pinned to the newest on first use), one line each:
+// "gcc gcc16 16.2.1", "clang clang 22.1.8" ("-" when there is no pin), then the contract modes it
+// has on this OS (Setup/contracts.jtext, e.g. "enforce,observe,quick_enforce,ignore"). Jac313Runner
+// shows the versions beside its choices and enables only those contract modes. Never asks: the
+// window reads standard output (pin messages go to standard error).
 int run_compiler_versions_command(const GlobalOptions& global) {
-    const auto [gcc_label, clang_label] = pinned_or_highest_labels(global.source_dir);
-    const auto probes = probe_compilers(global.source_dir);
-    const std::regex number(R"((\d+\.\d+(\.\d+)?))");
+    const auto pin = ensure_compiler_pin(global.source_dir);
     const std::string os_family = jac313::Setup::v002::sense_host().os_family;
-    const std::pair<std::string, std::string> kinds[] = {{"gcc", gcc_label}, {"clang", clang_label}};
-    for (const auto& [kind, label] : kinds) {
-        std::string version;
-        for (const auto& p : probes) {
-            std::smatch m;
-            if (p.available && p.spec.label == label && std::regex_search(p.version_line, m, number))
-                version = m[1];
-        }
+    const std::array<std::pair<std::string, std::string>, 2> kinds = {{
+        {"gcc", pin ? pin->gcc_label + ' ' + pin->row.gcc_version : std::string{}},
+        {"clang", pin ? pin->clang_label + ' ' + pin->row.clang_version : std::string{}}}};
+    for (const auto& [kind, label_version] : kinds) {
+        const std::string label = label_version.substr(0, label_version.find(' '));
         std::string modes;
-        for (const auto& m : contract_modes(global.source_dir, os_family, label))
-            modes += (modes.empty() ? "" : ",") + m;
-        std::cout << kind << ' ' << (label.empty() ? "-" : label) << ' '
-                  << (version.empty() ? "-" : version) << ' ' << modes << '\n';
+        if (!label.empty())
+            for (const auto& m : contract_modes(global.source_dir, os_family, label))
+                modes += (modes.empty() ? "" : ",") + m;
+        std::cout << kind << ' ' << (label_version.empty() ? "- -" : label_version) << ' ' << modes << '\n';
     }
     return 0;
 }
@@ -4106,62 +4070,53 @@ static int run_main(int argc, char** argv) {
         return rc;
     }
 
-    if (command == "pin") {   // committed per-machine compiler pin (Setup/compilers.pin.jtext); find-or-create
-        fs::path src = "."; bool ensure = false; std::string set_gcc, set_clang;
+    if (command == "pin") {   // this machine's compiler pin in the shared <base>/Compiler_Pins/compilers.pin.jtext
+        fs::path src = ".";
+        std::string mode = "--show";
         for (int i = 2; i < argc; ++i) {
             const std::string a = argv[i];
-            if (a == "--ensure") ensure = true;
-            else if (a == "--gcc" && i + 1 < argc) set_gcc = argv[++i];
-            else if (a == "--clang" && i + 1 < argc) set_clang = argv[++i];
+            if (a == "--show" || a == "--ensure" || a == "--upgrade" || a == "--repin") mode = a;
             else if (a == "--source-dir" && i + 1 < argc) src = argv[++i];
+            else {
+                std::cerr << "pin: unknown option " << a << "  (pin [--show | --ensure | --upgrade | --repin] [--source-dir D])\n";
+                return 2;
+            }
         }
-        const HostHardwareRecord hw = collect_host_hardware_record(machine_disk_tier("."));
-        auto rows = load_compiler_pins(src);
-        const CompilerPinRow* existing = find_pin_for_host(rows, hw);
-        const std::string machine_text = hw.cpu_model + " · " + std::to_string(hw.cpu_cores) + " cores · "
-                                       + std::to_string(hw.ram_gb) + " GB · " + (hw.disk_type_label.empty() ? "-" : hw.disk_type_label);
-        if (!ensure && set_gcc.empty() && set_clang.empty()) {   // default: show this machine's pin
-            if (existing) std::cout << "pinned " << existing->label << ": gcc=" << existing->gcc_label
-                                    << " clang=" << existing->clang_label << "  (" << machine_text << ")\n";
-            else std::cout << "no pin for this machine (" << machine_text
-                           << ") — run: jac313_test_cli pin --ensure\n";
+        try {
+            if (mode == "--upgrade" || mode == "--repin") return repin_newest(src) ? 0 : 1;   // the newest, as the bash helper does
+            if (mode == "--ensure") {   // pin if missing; a newer one is offered; a gone one fails
+                const auto pin = ensure_compiler_pin(src);
+                if (!pin) return 1;
+                std::cout << pin->row.host << " pinned: GCC " << pin->row.gcc_version << " (" << pin->row.gcc_path
+                          << ") = " << pin->gcc_label << ", Clang " << pin->row.clang_version << " ("
+                          << pin->row.clang_path << ") = " << pin->clang_label << "  (" << pin->file.string() << ")\n";
+                return 0;
+            }
+            // --show: reads only
+            const fs::path file = compiler_pin_path(src);
+            const std::string host = pin_host_name();
+            const auto rows = load_compiler_pins(file);
+            std::cout << "pin file: " << file.string() << "\n";
+            if (const CompilerPinRow* r = find_compiler_pin(rows, host)) {
+                const auto registry = load_registry(src);
+                const std::string gl = toolchain_label_for(registry, "gcc", version_major_of(r->gcc_version));
+                const std::string cl = toolchain_label_for(registry, "clang", version_major_of(r->clang_version));
+                std::cout << "this machine (" << host << "): GCC " << r->gcc_version << " (" << r->gcc_path << ") = "
+                          << (gl.empty() ? "no toolchain" : gl) << ", Clang " << r->clang_version << " ("
+                          << r->clang_path << ") = " << (cl.empty() ? "no toolchain" : cl) << ", pinned " << r->pinned << "\n";
+            } else {
+                std::cout << "this machine (" << host << "): not pinned (the next run pins the newest; or: pin --ensure)\n";
+            }
+            for (const char* kind : {"gcc", "clang"}) {
+                std::cout << "installed " << (kind == std::string_view("gcc") ? "GCC" : "Clang") << ":\n";
+                for (const auto& c : installed_compilers(kind))
+                    std::cout << "  " << c.major << ' ' << c.version << ' ' << c.path << "\n";
+            }
             return 0;
+        } catch (const std::exception& e) {
+            std::cerr << "pin: " << e.what() << "\n";
+            return 1;
         }
-        if (ensure && existing && set_gcc.empty() && set_clang.empty() && !existing->disk.empty()) {   // find-or-create: never overwrite
-            std::cout << "pin exists " << existing->label << " (gcc=" << existing->gcc_label
-                      << " clang=" << existing->clang_label << ") — unchanged  (" << machine_text << ")\n";
-            return 0;
-        }
-        const auto probes = probe_compilers(src);
-        const std::string gcc_label = !set_gcc.empty() ? set_gcc
-            : (existing ? existing->gcc_label : highest_toolchain_label(probes, "gcc"));
-        const std::string clang_label = !set_clang.empty() ? set_clang
-            : (existing ? existing->clang_label : highest_toolchain_label(probes, "clang"));
-        if (gcc_label.empty() && clang_label.empty()) {
-            std::cerr << "pin: no gcc or clang toolchain available to pin (see Setup/compilers.jtext)\n"; return 1;
-        }
-        std::string row_label = existing ? existing->label : std::string{};
-        if (row_label.empty()) {
-            int maxn = 0;
-            for (const auto& r : rows)
-                if (r.label.rfind("jac313-", 0) == 0)
-                    try { maxn = std::max(maxn, std::stoi(r.label.substr(7))); } catch (...) {}
-            char buf[24]; std::snprintf(buf, sizeof buf, "jac313-%03d", maxn + 1); row_label = buf;
-        }
-        // The machine's row (a row from before the disk column gains this machine's disk tier).
-        const bool updated = existing != nullptr;
-        if (updated) {
-            auto& r = rows[static_cast<std::size_t>(existing - rows.data())];
-            r.gcc_label = gcc_label; r.clang_label = clang_label;
-            r.disk = hw.disk_type_label; r.os = hw.os_pretty;
-        } else {
-            rows.push_back({row_label, hw.cpu_model, hw.os_pretty, gcc_label, clang_label, hw.cpu_cores, hw.ram_gb,
-                            hw.disk_type_label});
-        }
-        write_compiler_pins(src, rows);
-        std::cout << (updated ? "updated " : "pinned ") << row_label << ": gcc=" << gcc_label
-                  << " clang=" << clang_label << "  (" << machine_text << ")\n";
-        return 0;
     }
 
     if (command == "build-times") {   // the folded-in build_matrix.sh: gap-filled compile-time matrix

@@ -27,8 +27,10 @@ The big recent changes, any of which breaks an older checkout, its results or it
 - **Results database:** schema 1 to 6. Every column is NOT NULL; a run records its target,
   its operating system, its machine and every setting it ran with. An older database is
   rebuilt; a newer one is refused.
-- **Settings:** the old settings files are now jText tables (compilers, recipes, pins, test
+- **Settings:** the old settings files are now jText tables (compilers, recipes, test
   limits and parameters, `production.jtext`), each with an optional machine-local override.
+  The compiler pin is machine-local, outside the repository: `Compiler_Pins/compilers.pin.jtext`
+  beside it, the same file Qlite, jText and jText_GUI build with.
 - **Machines:** numbered per piece of hardware by a shared registry (`fleet.machine`); see
   [Machine numbers](#machine-numbers).
 - **Command line:** `--machine-id`, `--production`, `--no-record`; the presets pass every
