@@ -49,15 +49,15 @@ void require_columns(const SettingsTable& table, const std::filesystem::path& pa
 bool jtext_bool(std::string_view value);
 
 // ---- machine-local overrides: Setup/compilers.local.jtext, Setup/recipes.local.jtext ----
-// Gitignored and optional. A local file has the sections of its tracked table (compilers: toolchains
-// + toolchain_os; recipes: components + recipe_os), each with every column of the tracked one, and
-// optionally a Bool column `delete`. Its rows apply by key (toolchains: label; toolchain_os: os +
+// Gitignored and optional. A local file holds any of the sections of its tracked table (compilers:
+// toolchains, toolchain_os; recipes: components, recipe_os): a section it leaves out has no overrides.
+// A section it holds has every column of the tracked one, and optionally a Bool column `delete`. Its rows apply by key (toolchains: label; toolchain_os: os +
 // toolchain + activation_seq; components: component; recipe_os: os + component), in file order: a
 // row whose key the tracked table has REPLACES that row in place, a new key is ADDED at the end, and
 // a row with delete = true REMOVES the row with its key (nothing when there is none). Every loader
 // below sees the merged rows. No local file = no change; a local file that cannot be read, does not
-// validate, lacks a section or a column, or has a column the tracked table lacks is an error that
-// names it.
+// validate, lacks a column in a section it holds, or has a column the tracked table lacks is an error
+// that names it.
 
 std::filesystem::path compilers_table_path(const std::filesystem::path& source_dir);   // Setup/compilers.jtext
 std::filesystem::path recipes_table_path(const std::filesystem::path& source_dir);     // Setup/recipes.jtext

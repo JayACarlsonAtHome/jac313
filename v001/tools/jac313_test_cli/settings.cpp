@@ -11,6 +11,7 @@
 #include <chrono>
 #include <format>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
@@ -57,12 +58,16 @@ const std::vector<OverrideSection>& override_sections(const fs::path& tracked) {
     throw std::runtime_error(tracked.string() + " has no local override file");
 }
 
-// Section `section` of the local file `local`, checked against the tracked table's columns.
-SettingsTable read_local_section(const fs::path& local, std::string_view section, const SettingsTable& tracked,
-                                 const fs::path& tracked_path) {
-    SettingsTable loc = read_jtext_table(local, section);
-    require_columns(loc, local, section, tracked.columns);
-    for (const auto& c : loc.columns)
+std::optional<SettingsTable> find_jtext_table(const fs::path& path, std::string_view section);
+
+// Section `section` of the local file `local`, checked against the tracked table's columns; none when
+// the local file leaves that section out (no overrides for it: the tracked rows stand as they are).
+std::optional<SettingsTable> read_local_section(const fs::path& local, std::string_view section,
+                                                const SettingsTable& tracked, const fs::path& tracked_path) {
+    std::optional<SettingsTable> loc = find_jtext_table(local, section);
+    if (!loc) return std::nullopt;
+    require_columns(*loc, local, section, tracked.columns);
+    for (const auto& c : loc->columns)
         if (c != "delete" && std::find(tracked.columns.begin(), tracked.columns.end(), c) == tracked.columns.end())
             throw std::runtime_error(where(local, section) + ": column " + c + " is not in " + tracked_path.string());
     return loc;
@@ -78,7 +83,9 @@ SettingsTable read_with_local(const fs::path& path, std::string_view section) {
     const auto& sections = override_sections(path);
     const auto sec = std::find_if(sections.begin(), sections.end(), [&](const auto& s) { return s.section == section; });
     if (sec == sections.end()) throw std::runtime_error(where(path, section) + ": no local override key");
-    const SettingsTable loc = read_local_section(local, section, table, path);
+    const std::optional<SettingsTable> local_rows = read_local_section(local, section, table, path);
+    if (!local_rows) return table;
+    const SettingsTable& loc = *local_rows;
     const bool has_delete = std::find(loc.columns.begin(), loc.columns.end(), "delete") != loc.columns.end();
     const auto key_of = [&](const std::map<std::string, std::string>& row) {
         std::string k;
@@ -124,11 +131,21 @@ std::string local_override_note(const fs::path& tracked) {
     if (!fs::exists(local, ec)) return {};
     std::size_t rows = 0;
     for (const auto& s : override_sections(tracked))
-        rows += read_local_section(local, s.section, read_jtext_table(tracked, s.section), tracked).rows.size();
+        if (const auto loc = read_local_section(local, s.section, read_jtext_table(tracked, s.section), tracked))
+            rows += loc->rows.size();
     return "local overrides: " + local.string() + " (" + std::to_string(rows) + (rows == 1 ? " row)" : " rows)");
 }
 
 SettingsTable read_jtext_table(const fs::path& path, std::string_view section) {
+    if (std::optional<SettingsTable> table = find_jtext_table(path, section)) return std::move(*table);
+    throw std::runtime_error(path.string() + ": no section " + std::string(section));
+}
+
+namespace {
+
+// Section `section` of `path`, or none when the file has no such section. A file that cannot be read
+// or does not validate is an error either way.
+std::optional<SettingsTable> find_jtext_table(const fs::path& path, std::string_view section) {
     std::ifstream in(path);
     if (!in) throw std::runtime_error("cannot read " + path.string());
     std::stringstream ss;
@@ -155,8 +172,10 @@ SettingsTable read_jtext_table(const fs::path& path, std::string_view section) {
         }
         return table;
     }
-    throw std::runtime_error(path.string() + ": no section " + std::string(section));
+    return std::nullopt;
 }
+
+} // namespace
 
 void require_columns(const SettingsTable& table, const fs::path& path, std::string_view section,
                      const std::vector<std::string>& columns) {

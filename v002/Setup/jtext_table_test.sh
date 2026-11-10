@@ -88,6 +88,13 @@ sed 's|^ 6\. /# build_dir/.*$| 6. /# build_dirx/String/Not Null|' "$HERE/compile
 check "malformed: check fails" "$(jtext_local_check "$LC" toolchains toolchain_os 2>/dev/null; echo "rc=$?")" "rc=1"
 check "malformed: names the file" \
       "$(jtext_local_check "$LC" toolchains toolchain_os 2>&1 >/dev/null | grep -c "^$D/compilers.local.jtext (section toolchains): no column build_dir")" 1
+# a local file may leave a section out: no overrides for it, the tracked rows stand
+awk '/=== Section: toolchain_os ===/ { skip = 1 } /=== End File ===/ { skip = 0 } !skip' \
+    "$HERE/compilers.local.jtext.example" > "$D/compilers.local.jtext"
+check "one section: check passes" "$(jtext_local_check "$LC" toolchains toolchain_os; echo "rc=$?")" "rc=0"
+check "one section: its override applies" "$(jtext_select "$LC" toolchains build_dir label gcc16)" build-gcc16-local
+check "one section: the other is the tracked one" "$(jtext_select "$LC" toolchain_os id | wc -l | tr -d ' ')" \
+      "$(jtext_rows "$C" toolchain_os | wc -l | tr -d ' ')"
 rm -rf "$D"
 
 [ "$fails" -eq 0 ] && echo "jtext_table_test: all passed" || echo "jtext_table_test: $fails failed"

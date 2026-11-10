@@ -84,6 +84,17 @@ jtext_fields() {
 # Setup/*.local.jtext.example): a local row whose key FILE has replaces that row in place, a new key
 # is added after FILE's rows, a row with delete = true removes the row with its key.
 
+# exit 0 when FILE has a section named SECTION
+_jt_has_section() {
+  awk -v want="$2" '
+    /^[ \t]*=== Section: / {
+      name = $0; sub(/^[ \t]*=== Section: /, "", name); sub(/[ \t]*===[ \t]*$/, "", name)
+      if (name == want) { found = 1; exit }
+    }
+    END { exit !found }
+  ' "$1"
+}
+
 # the key columns (comma list) of a section a local file may hold
 _jt_key() {
   case $1 in
@@ -98,11 +109,12 @@ _jt_key() {
 #   jtext_local_rows FILE SECTION
 #
 # prints the rows of SECTION as jtext_rows does, in the order of FILE's Fields block, with the rows
-# of FILE's local file applied when it exists. A local file that lacks the section or one of FILE's
+# of FILE's local file applied when it exists. A local file that leaves the section out has no
+# overrides for it (FILE's rows as they are). One that holds the section but lacks one of FILE's
 # columns, or has a column FILE lacks (other than delete), is an error naming it (exit 1).
 jtext_local_rows() {
   _jt_loc=${1%.jtext}.local.jtext
-  if [ ! -e "$_jt_loc" ]; then jtext_rows "$1" "$2"; return; fi
+  if [ ! -e "$_jt_loc" ] || ! _jt_has_section "$_jt_loc" "$2"; then jtext_rows "$1" "$2"; return; fi
   _jt_keys=$(_jt_key "$2") || { echo "$_jt_loc: no override key for section $2" >&2; return 1; }
   _jt_tn=$(jtext_fields "$1" "$2" | tr '\n' ' ')
   _jt_ln=$(jtext_fields "$_jt_loc" "$2" | tr '\n' ' ')

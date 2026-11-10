@@ -5,7 +5,8 @@
 //         never read. jac313_test_cli (settings.cpp) and bsir.sh (Setup/jtext_table.sh) read
 //         recipes.jtext with the local file's rows applied, row by row:
 //
-//   - The local file has both sections of recipes.jtext (components, recipe_os), each with every
+//   - The local file holds any of the sections of recipes.jtext (components, recipe_os); a section it
+//     leaves out has no overrides. Each section it holds has every
 //     column of the tracked one (a section may have no rows), plus an optional Bool column
 //     delete. A column the tracked table does not have is an error.
 //   - A row's key: components: component; recipe_os: os + component.
@@ -14,7 +15,7 @@
 //     other columns of that row are not used; nothing happens when no row has the key). Rows
 //     apply in file order. id is not part of the key.
 //   - No local file = recipes.jtext as it is. A local file that does not read or validate, or
-//     lacks a section or a column, is an error naming it (the CLI stops; bsir.sh says so and
+//     lacks a column in a section it holds, is an error naming it (the CLI stops; bsir.sh says so and
 //     stops). `jac313_test_cli setup` prints "local overrides: <file> (N rows)".
 //
 // This example: Fedora installs ninja from its own package (override), a tmux component with its

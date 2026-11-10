@@ -228,8 +228,15 @@ int main() {
             text = ss_r.str();
             text.erase(text.find("=== Section: recipe_os ==="), text.find("=== End File ===") - text.find("=== Section: recipe_os ==="));
             write(lr, text);
-            check(throws_naming([&] { load_recipes(tmp); }, lr + ": no section recipe_os"),
-                  "recipes.local.jtext without recipe_os: error names it");
+            try {
+                const auto only_components = load_recipes(tmp);
+                check(!only_components.empty() && only_components.back().component == "tmux",
+                      "recipes.local.jtext without recipe_os: its components rows still apply");
+                check(local_override_note(recipes_table_path(tmp)).ends_with(" (2 rows)"),
+                      "recipes.local.jtext without recipe_os: the note counts only the rows it has");
+            } catch (const std::exception& e) {
+                check(false, std::string("recipes.local.jtext without recipe_os must load: ") + e.what());
+            }
             fs::remove(lr);
             check(load_toolchains(tmp, "fedora").size() == base_tc.size() && load_recipes(tmp).size() == base_rec.size(),
                   "local files removed: back to the tracked tables");
