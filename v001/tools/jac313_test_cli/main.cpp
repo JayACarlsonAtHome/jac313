@@ -1386,6 +1386,30 @@ std::string bench_row_name(std::string name, const std::string& server, std::int
     return name;
 }
 
+// The rows a run capped by --max-persist-rows wrote per second, over the same process time as its
+// median ops/sec: median × rows written ÷ events. Rows written = the read-back's rows_persisted, else
+// (no read-back) the cap's event ids [0, max_rows) for one sink; production with no read-back has no
+// known database row count. 0 = no rate to show (not capped, every event written, or rows unknown).
+std::int64_t capped_rows_per_sec(std::int64_t median_ops, std::int64_t events, std::int64_t max_rows,
+                                 std::int64_t rows_persisted, bool production) {
+    if (max_rows <= 0 || events <= 0) return 0;
+    const std::int64_t rows = rows_persisted > 0 ? rows_persisted
+                            : production         ? std::int64_t{0}
+                                                 : std::min(events, max_rows);
+    if (rows <= 0 || rows >= events) return 0;
+    return static_cast<std::int64_t>(
+        static_cast<long double>(median_ops) * static_cast<long double>(rows) / static_cast<long double>(events)
+        + 0.5L);
+}
+
+// A bench cell's median ops/sec; a capped run adds the rows it wrote per second ("8,202,254 · 82,023
+// rows/s"; production: the database rows, "db rows/s").
+std::string bench_median_cell(std::int64_t median_ops, std::int64_t rows_per_sec, bool production) {
+    std::string s = fmt_num(median_ops);
+    if (rows_per_sec > 0) s += " · " + fmt_num(rows_per_sec) + (production ? " db rows/s" : " rows/s");
+    return s;
+}
+
 // Bench page = a HOST-SCOPED comparison: throughput is hardware-specific, so each machine
 // (jac313-###) is its own section with a hardware header (cpu/cores/ram/disk) and its OWN columns,
 // one per build configuration (config_label). Groups in order: Production, Databases, Files,
@@ -1410,7 +1434,9 @@ void write_bench_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
           "(the keeper file + the database + the binary replay log at once, events routed by their "
           "KeeperRecord / DatabaseEntry flags — the run that looks like a real program), then each "
           "**database** alone, each **file** alone, and the **non-durable** flag sweep; each split @1M / "
-          "@10M events and sorted by median ops/sec (descending). Production has one line per build "
+          "@10M events and sorted by median ops/sec (descending). On a `[max N rows]` row, ops/sec counts every "
+          "event and `rows/s` is the rows actually written per second of the same run (production: `db rows/s`, "
+          "the database rows). Production has one line per build "
           "configuration under each row (a `build` column), so its five values stay on screen: hot path ops/sec "
           "(producers until they join) · drain ms (binary / keeper / database: attach → that sink's "
           "finalize done) · durable total median ops/sec (the whole process) · band · size. Each run's page "
@@ -1432,23 +1458,23 @@ void write_bench_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
 
         // Every bench row of this machine, newest run first: the first row seen for a (row, column)
         // fills that cell.
-        struct Fact { std::int64_t run, events, threads, epe, runs, batch, med, low, high, bytes, hot, dbin, dkeep, ddb,
-                      binlog, flags_raw; std::string base, persist; int group, scale; };
+        struct Fact { std::int64_t run, events, threads, epe, runs, batch, max_rows, rows_persisted, med, low, high,
+                      bytes, hot, dbin, dkeep, ddb, binlog, flags_raw; std::string base, persist; int group, scale; };
         std::vector<Fact> facts;
         { auto st = db.prepare(
             std::string("SELECT tr.run_id, ") + kBenchNameSql + ", p.persist, p.threads, p.events_per_thread, "
-            "p.runs, p.batch, tr.max_persist_rows, tr.median_ops, tr.low_ops, tr.high_ops, tr.bytes, tr.hot_ops, "
+            "p.runs, p.batch, tr.max_persist_rows, tr.rows_persisted, tr.median_ops, tr.low_ops, tr.high_ops, tr.bytes, tr.hot_ops, "
             "tr.drain_binary_ms, tr.drain_keeper_ms, tr.drain_database_ms, p.binary_log, p.flags_raw "
             "FROM testRun tr JOIN run r ON r.run_id=tr.run_id LEFT JOIN testList tl ON tl.id=tr.test_list_id "
             "JOIN parameter p ON p.id=tr.parameter_id JOIN testType tt ON tt.id=tr.test_type_id "
             "WHERE tt.name='bench' AND r.machine_id=? ORDER BY tr.run_id DESC, tr.id");
           st.bind(g);
           while (st.step()) {
-              Fact f{}; std::string config; std::int64_t max_rows = 0;
-              st.get(f.run, config, f.persist, f.threads, f.epe, f.runs, f.batch, max_rows, f.med, f.low, f.high,
-                     f.bytes, f.hot, f.dbin, f.dkeep, f.ddb, f.binlog, f.flags_raw);
+              Fact f{}; std::string config;
+              st.get(f.run, config, f.persist, f.threads, f.epe, f.runs, f.batch, f.max_rows, f.rows_persisted, f.med,
+                     f.low, f.high, f.bytes, f.hot, f.dbin, f.dkeep, f.ddb, f.binlog, f.flags_raw);
               f.events = f.threads * f.epe;
-              f.base = bench_row_name(config, server_tag(db, f.run, f.persist), f.events, max_rows);
+              f.base = bench_row_name(config, server_tag(db, f.run, f.persist), f.events, f.max_rows);
               f.group = bench_group(f.persist);
               f.scale = f.group == 3 ? 0 : (f.events <= 1000000 ? 1 : 2);
               facts.push_back(std::move(f)); } }
@@ -1473,7 +1499,9 @@ void write_bench_pages(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
             if (cell.set) continue;   // a newer run already filled it
             cell.set    = true;
             cell.med    = f.med;
-            cell.median = fmt_num(f.med);
+            const bool production = f.group == 0;
+            cell.median = bench_median_cell(
+                f.med, capped_rows_per_sec(f.med, f.events, f.max_rows, f.rows_persisted, production), production);
             cell.band   = human_ops(f.low) + "–" + human_ops(f.high);
             cell.size   = human_bytes(f.bytes);
             cell.hot    = fmt_num(f.hot);

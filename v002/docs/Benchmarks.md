@@ -209,6 +209,11 @@ each), four groups in this order, each split @1M / @10M and sorted by median ops
 3. **Files** — binary, jtext, html, json alone: median · band · size.
 4. **Non-durable (flag sweep)** — 0 / 2 / 4 / 6 flags, no sink.
 
+A row run with `--max-persist-rows N` carries `[max N rows]` in its name. Its median ops/sec still
+counts every event over the whole process, so its cell adds the rows actually written per second of
+the same run: `8,202,254 · 82,023 rows/s` (production: `db rows/s`, the database rows from the
+read-back; no rate when the read-back did not run).
+
 Each run's detail page (`Run_NNN.md`) lists the same, production figures included.
 
 ## Sample report
