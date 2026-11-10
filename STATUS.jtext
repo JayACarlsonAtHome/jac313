@@ -43,8 +43,6 @@
 
 1. #|# 2|2|Run a real calibration on this machine|A real bench needs jac313_store_bench --calibrate first. It sweeps binary, jtext, html and json only (about 8 minutes at full size); the databases (sql, pg-local, pg-remote) are never calibrated and run at the default batch 10,000.
 
-1. #|# 4|4|Small nits from the end-to-end loop|Host is not a run so a registry contact writes no run_target row.
-
 === End Data ===
 === End Section ===
 
