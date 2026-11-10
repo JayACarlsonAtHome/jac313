@@ -10,6 +10,7 @@
 #include "parser/section.hpp"
 #include "validator/validator.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <optional>
@@ -254,9 +255,81 @@ void test_bom() {
     }
 }
 
+// SPEC 2.2: jText is UTF-8; readers convert. A value with any character (U+25AE, an emoji) is
+// read as is, with no warning; a byte that is not UTF-8 (a Latin-1 e-acute, a cp1252 en dash,
+// a truncated, overlong or surrogate sequence) is read as Windows-1252, and the validator warns
+// on that line, from text and from a stream.
+std::string utf8_doc(const std::string& value) {
+    return "=== jText File ===\n"
+           " 1. #?# utf8_test\n"
+           " 2. #?# 2026-11-10\n"
+           " 3. #?# UTF-8 only\n"
+           "\n"
+           "=== Section: D ===\n"
+           "\n"
+           "=== Fields ===\n"
+           " 1. #/# id/Number/Not Null\n"
+           " 2. #/# name/String/Not Null\n"
+           "\n"
+           "=== End Fields ===\n"
+           "=== Data ===\n"
+           " 1. #?# 1\n"
+           " 2. #?# " + value + "\n"
+           "\n"
+           "=== End Data ===\n"
+           "=== End Section ===\n"
+           "=== End File ===\n";
+}
+
+void test_cp1252_conversion() {
+    const auto value_of = [](const jtext::parsed_file& pf) -> std::string {
+        const auto& d = pf.sections.at(0).data_lines;
+        return d.at(1).values.empty() ? std::string{} : d.at(1).values.at(0);
+    };
+    for (const std::string& good : {std::string("caf\xC3\xA9 \xE2\x96\xAE"), std::string("\xF0\x9F\x98\x80 ok")}) {
+        auto r = jtext::parse_file_structure(utf8_doc(good));
+        if (!r || !r->converted.empty() || value_of(*r) != good) {
+            std::cerr << "FAIL[utf8-ok]: a valid UTF-8 value was not read as is\n";
+            ++failures;
+        }
+    }
+    const auto first_high = [](const std::string& s) -> std::size_t {
+        return static_cast<std::size_t>(std::ranges::find_if(s, [](char c) { return static_cast<unsigned char>(c) >= 0x80; }) - s.begin());
+    };
+    struct Bad { std::string bytes; std::string read_as; const char* what; };
+    for (const Bad& bad : {Bad{"caf\xE9", "caf\xC3\xA9", "Latin-1 e-acute"},
+                           Bad{"a\x96" "b", "a\xE2\x80\x93" "b", "cp1252 en dash"},
+                           Bad{"x\xE2\x96", "x\xC3\xA2\xE2\x80\x93", "truncated"},
+                           Bad{"x\xC0\xAF", "x\xC3\x80\xC2\xAF", "overlong"},
+                           Bad{"x\x81", "x\xC2\x81", "undefined in cp1252"}}) {
+        const std::string doc = utf8_doc(bad.bytes);
+        auto r = jtext::parse_file_structure(doc);
+        std::istringstream in(doc);
+        auto rs = jtext::parse_file_structure(in);
+        for (const auto* res : {&r, &rs}) {
+            if (!res->has_value() || value_of(**res) != bad.read_as || (*res)->converted.size() != 1 ||
+                (*res)->converted[0].line_no != 15 || (*res)->converted[0].byte != 9 + first_high(bad.bytes)) {
+                std::cerr << "FAIL[cp1252]: " << bad.what << " not read as Windows-1252 on line 15\n";
+                ++failures;
+                continue;
+            }
+            const auto vr = jtext::validate(**res, jtext::validation_level::minimal);
+            const auto warned = std::ranges::any_of(vr.report.issues, [](const auto& i) {
+                return i.kind == jtext::issue_kind::line_converted_from_cp1252 &&
+                       i.severity == jtext::issue_severity::warning && i.line_no == 15;
+            });
+            if (!warned) {
+                std::cerr << "FAIL[cp1252-warn]: " << bad.what << " gave no warning on line 15\n";
+                ++failures;
+            }
+        }
+    }
+}
+
 int main() {
     using K = jtext::parse_error_kind;
     test_bom();
+    test_cp1252_conversion();
 
     // --- line numbers ---
     expect_err("0. #?# x",   K::invalid_line_number, "line-number-zero");

@@ -83,6 +83,7 @@ auto to_string(issue_kind k) -> std::string_view
         case issue_kind::header_older_jtext_version:   return "header_older_jtext_version";
         case issue_kind::header_newer_jtext_version:   return "header_newer_jtext_version";
         case issue_kind::header_invalid_jtext_version: return "header_invalid_jtext_version";
+        case issue_kind::line_converted_from_cp1252:   return "line_converted_from_cp1252";
         case issue_kind::template_placeholder_out_of_range: return "template_placeholder_out_of_range";
         case issue_kind::section_empty:                return "section_empty";
         case issue_kind::section_duplicate_name:       return "section_duplicate_name";
@@ -1079,6 +1080,11 @@ auto validate(const parsed_file& pf, validation_level level) -> validate_result
 
     vr.file.header = interpret_header(pf.header_lines, vr.report);
     check_jtext_version(pf, vr.file, vr.report);
+    for (const auto& c : pf.converted)
+        report_issue(vr.report, issue_severity::warning, issue_kind::line_converted_from_cp1252, c.line_no,
+                     std::format("line {}", c.line_no),
+                     std::format("not UTF-8 at byte {} ({}); read as Windows-1252. jText files are UTF-8: "
+                                 "saving the file writes it as UTF-8", c.byte, c.found));
 
     std::set<std::string> section_names_seen;
 

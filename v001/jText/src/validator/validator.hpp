@@ -264,6 +264,9 @@ enum class issue_kind : std::uint8_t {
     header_newer_jtext_version,       // jtext_version newer than jtext::kFormatVersion
     header_invalid_jtext_version,     // jtext_version not a version number
 
+    // Encoding
+    line_converted_from_cp1252,       // a line was not all UTF-8; its bad bytes were read as Windows-1252
+
     // Templates
     template_placeholder_out_of_range, // {N} references field 0 or > field_count
 

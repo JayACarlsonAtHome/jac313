@@ -118,6 +118,14 @@ struct parsed_section {
 //  "=== jText File ===" and the first "=== Section: ===".
 // ──────────────────────────────────────────────────────────────
 
+// A line that was not all UTF-8: each byte that did not decode was read as Windows-1252
+// (SPEC 2.2), so the file still opens; the validator warns once per line.
+struct converted_line {
+    std::size_t line_no = 0;      // 1-based
+    std::size_t byte    = 0;      // 1-based, the first byte converted
+    std::string found;            // the bytes found there, "0xE9" ...
+};
+
 struct parsed_file {
     std::vector<parsed_line>     header_lines;
     // Light profile: the "#" metadata lines before the first section, without
@@ -125,6 +133,7 @@ struct parsed_file {
     std::vector<std::string>     metadata;
     std::vector<comment_line>    header_comments;   // comment lines in the file header
     std::vector<parsed_section>  sections;
+    std::vector<converted_line>  converted;         // lines read as Windows-1252 (SPEC 2.2)
 };
 
 // ──────────────────────────────────────────────────────────────
