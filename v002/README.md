@@ -1,21 +1,19 @@
 # jac313
 
-A carefully crafted C++ ecosystem built around one compelling idea: **Store**, a high-performance, fully configurable time-series event logger that is genuinely greater than the sum of its parts.
+> **Experimental, and changing a great deal.** What we are building and what changed lately:
+> see the [front page](../README.md).
+
+The C++26 version of jac313: **Store**, a fast event logger, its two libraries (**Qlite**, a
+SQLite wrapper, and **jText**, a self-describing text format), and the test and benchmark
+harness built around them. The front page is [../README.md](../README.md).
+
+**C++26 contracts.** v002 uses the standard contracts (`pre`, `post`, `contract_assert`)
+through the `JAC313_PRE/POST/ASSERT` macros: native on GCC 16, plain run-time checks where
+the compiler does not have them yet (Clang). v001 tries contracts written as C++23 library
+code instead; the two are meant to be compared. See docs/Cpp26_Adoption.md.
 
 > **Linux only.** Uses Linux/POSIX APIs (`fork`/`exec`, `mmap`, `/proc`, etc.).
 
-At its core are two elegant supporting libraries:
-
-- **Qlite** — a clean, modern SQLite wrapper with rich ergonomics
-- **jText** — a self-describing, human-readable structured text format
-
-Together they deliver multiple persistence backends while keeping the hot path extremely fast.
-
-What makes jac313 special is the complete, serious testing and benchmarking world built around it. v002 is the evolving C++26 frontier (currently compiled as C++26 with limited feature adoption so far) while still sharing the same rigorous validation approach that has already helped expose real toolchain issues.
-
-This is modern C++ done with care: real code, real scale, real results.
-
-The whole is bigger than the parts — and it shows.
 
 ---
 

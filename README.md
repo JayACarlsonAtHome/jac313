@@ -3,6 +3,43 @@
 jac313 is a fast event logger for Linux, written in C++, and the test and benchmark harness
 built around it.
 
+> **This is all experimental, and it is changing a great deal.** File formats, the results
+> database, settings, command-line flags and the Store API have all changed in the last
+> weeks and will change again. Nothing here is stable enough to build on without reading
+> the latest commits first.
+
+## What we are building
+
+1. **A logging Store**: a hot, in-memory event store, with a binary log and other outputs
+   (jText, HTML, JSON, SQLite, PostgreSQL) written behind it for auditing and replay.
+2. **A testing framework** that times things: compilers (build and run), the Store itself,
+   and persistence to durable storage (how long each output takes to reach the disk), and
+   more as we go.
+3. **Contracts for C++23** that do not need the official C++26 contracts: written as plain
+   library code, in v001.
+4. **Contracts in C++26**: the standard `pre`, `post` and `contract_assert`, in v002, so the
+   two approaches can be compared side by side.
+
+## What has changed lately
+
+The big recent changes, any of which breaks an older checkout, its results or its scripts:
+
+- **Results database:** schema 1 to 6. Every column is NOT NULL; a run records its target,
+  its operating system, its machine and every setting it ran with. An older database is
+  rebuilt; a newer one is refused.
+- **Settings:** the old settings files are now jText tables (compilers, recipes, pins, test
+  limits and parameters, `production.jtext`), each with an optional machine-local override.
+- **Machines:** numbered per piece of hardware by a shared registry (`fleet.machine`); see
+  [Machine numbers](#machine-numbers).
+- **Command line:** `--machine-id`, `--production`, `--no-record`; the presets pass every
+  flag through.
+- **Store API:** `attach_persistence(sink, batch)`, several outputs at once (the old flag
+  router is gone), exact doubles, NaN and infinity kept (SQLite stores them as NULL, the one
+  compromise).
+- **Reports:** rendered from the results database on each machine, no longer committed.
+- **Builds:** every compiler and linker warning is an error.
+- **Contracts:** v001 gained its C++23 library contracts (in Qlite).
+
 ## What it is for
 
 Anything that has to record a lot of small events quickly and keep them: a robot's position

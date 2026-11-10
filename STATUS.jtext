@@ -39,8 +39,6 @@
 
 
 === Data ===
-1. #|# 1|1|Docs pass with a BREAKING CHANGES section|Deferred by Jay until things shake out. Since 9710b52b: results.db schema 1 to 6 (every column NOT NULL; rebuild on older, refuse on newer; run_target; os and machine tables; every pickable setting recorded), settings files replaced by jText tables (compilers, recipes, pins, test_limits, test_params, production.jtext, local override tables), fleet registry DDL v0_2 (machine number per hardware), CLI flags (--machine-id, --production, --no-record, presets forward every flag), Store API (attach_persistence(sink, batch), several sinks at once, flag router gone, exact doubles, NaN carried with the SQLite NULL compromise), rendered reports no longer committed, Runner summary contract 5 (gui/README.md still says 1 to 4). Each with the why: the three goals.
-
 === End Data ===
 === End Section ===
 

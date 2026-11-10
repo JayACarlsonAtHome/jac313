@@ -1,5 +1,8 @@
 # jac313
 
+> **Experimental, and changing a great deal.** What we are building and what changed lately:
+> see the [front page](../README.md).
+
 The C++23 version of jac313: **Store**, a fast event logger, its two libraries (**Qlite**, a
 SQLite wrapper, and **jText**, a self-describing text format), and the test and benchmark
 harness built around them. The front page is [../README.md](../README.md).

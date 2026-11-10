@@ -1,5 +1,8 @@
 # jac313
 
+> **Experimental, and changing a great deal.** What we are building and what changed lately:
+> see the [front page](../README.md).
+
 This is the longer introduction. The front page is [README.md](../README.md).
 
 A carefully crafted C++ ecosystem built around one compelling idea: **Store**, a high-performance, fully configurable time-series event logger that is genuinely greater than the sum of its parts.
