@@ -4012,7 +4012,7 @@ static int run_main(int argc, char** argv) {
         fs::path src = fs::current_path();
         std::vector<std::string> packages;
         std::string method = "GCC";   // a U++ build method: the GCC.bm / CLANG.bm beside umk when there is one
-        bool clean = false;            // rebuild every package (umk -a): U++ shares one object cache
+        bool clean = false;            // rebuild every package (umk -a)
         for (int i = 2; i < argc; ++i) {
             const std::string a = argv[i];
             if (a == "--source-dir" && i + 1 < argc) src = argv[++i];
@@ -4025,8 +4025,9 @@ static int run_main(int argc, char** argv) {
                              "  GCC.bm and CLANG.bm next to its umk. U++ is taken from $UPP_DIR, else\n"
                              "  upp_basefix_install beside this repository.\n"
                              "  The build method must ask for C++23 or later; gui-build refuses any other.\n"
-                             "  --clean rebuilds everything (umk -a). Use it when the link fails with undefined\n"
-                             "  references: U++ shares one object cache per method, and stale objects break links.\n";
+                             "  U++ keeps its objects in gui/out/.upp.out, one cache per vNNN world (and per\n"
+                             "  clone), not U++'s shared ~/.cache/upp.out, so v001 and v002 never mix objects.\n"
+                             "  --clean rebuilds everything (umk -a).\n";
                 return 0;
             } else packages.push_back(a);
         }
@@ -4098,8 +4099,11 @@ static int run_main(int argc, char** argv) {
             { std::ifstream in(stamp); std::getline(in, built_in); }
             const bool rebuild_all = clean || built_in != fs::weakly_canonical(gui, ec).string();
             std::cout << "gui-build: " << pkg << "  (umk " << umk.string() << ", " << method << ")\n";
+            // umk's objects go to this world's own cache, not U++'s shared ~/.cache/upp.out: one
+            // cache for v001 and v002 made a build of one world link the other world's objects.
+            const fs::path cache = gui / "out" / ".upp.out";
             const auto r = run_process({umk.string(), gui.string() + "," + uppsrc.string(), pkg, method, rebuild_all ? "-abrsH" : "-brsH",
-                                        out.string()}, 1800);
+                                        "--out-dir", cache.string(), out.string()}, 1800);
             std::cout << r.stdout_text;
             std::cerr << r.stderr_text;
             const bool ok = r.exit_code == 0 && fs::exists(out, ec);

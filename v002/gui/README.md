@@ -132,9 +132,10 @@ build. Package options apply to our code, not to uppsrc. The jac313 CMake builds
 every warning is an error there (-Werror, with the strict and conversion warnings), in every
 build; Jac313Runner's Build box says so ("Always on").
 
-U++ keeps one object cache per build method (an upp_basefix install keeps it in its own
-`.config`, apart from any other U++). Build with the same compiler each time. If the compiler changes, rebuild everything
-once with `-a`.
+`gui-build` keeps U++'s objects in `gui/out/.upp.out`: one cache per vNNN world (and per clone),
+with a folder per build method inside, instead of U++'s shared `~/.cache/upp.out`. A shared one let a
+v002 build leave objects a v001 build then linked. If U++ or the compiler itself changes, rebuild
+everything once with `--clean` (umk `-a`).
 
 ### Wayland first (2026-10-16)
 

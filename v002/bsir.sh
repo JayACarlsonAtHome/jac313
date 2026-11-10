@@ -327,8 +327,8 @@ bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner
     upp_gui_libs_ok || { echo "The GUI libraries are still missing (pkg-config)."; return 1; }
   fi
   install_upp || return 1
-  # U++ keeps one object cache per build method; stale objects from an older U++ break the link,
-  # so a failed build is retried once with --clean (rebuild everything).
+  # gui-build keeps this world's U++ objects in gui/out/.upp.out; objects from an older U++ or
+  # compiler break the link, so a failed build is retried once with --clean (rebuild everything).
   gui_clean=""
   if [ "${UPP_UPDATED:-0}" = 1 ]; then gui_clean="--clean"; fi
   ( cd "$ROOT" && UPP_DIR="$UPP_DIR" $ACT "$CLI" gui-build --method "$UPP_METHOD" $gui_clean ) \
