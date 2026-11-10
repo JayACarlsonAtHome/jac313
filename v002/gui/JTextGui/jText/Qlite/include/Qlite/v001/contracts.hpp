@@ -9,7 +9,8 @@
 //             contract-violation handler and terminates. Link with -fcontracts.
 //   RUNTIME : no __cpp_contracts (clang, gcc15, any C++23 build): a check that prints the
 //             condition and where, then aborts.
-//   OFF     : QLITE_CONTRACTS_ENABLED == 0: the macros compile to nothing.
+//   OFF     : QLITE_CONTRACTS_ENABLED == 0: the macros compile to nothing (an unevaluated
+//             sizeof keeps the names they mention used).
 //
 // Pre/post are checked in the function body (a macro cannot put pre()/post() on the
 // declarator portably), at entry and at the point of the result.
@@ -47,8 +48,10 @@ namespace Qlite::contracts {
 #  define QLITE_PRE(expr)    ((expr) ? (void)0 : Qlite::contracts::violation("precondition", #expr))
 #  define QLITE_POST(expr)   ((expr) ? (void)0 : Qlite::contracts::violation("postcondition", #expr))
 #else
+// sizeof is unevaluated: no code and no side effects, but the names in expr stay used, so a
+// parameter checked only by a contract is not an unused-parameter error with contracts off.
 #  define QLITE_CONTRACTS_NATIVE 0
-#  define QLITE_ASSERT(expr) ((void)0)
-#  define QLITE_PRE(expr)    ((void)0)
-#  define QLITE_POST(expr)   ((void)0)
+#  define QLITE_ASSERT(expr) ((void)sizeof((expr) ? 1 : 0))
+#  define QLITE_PRE(expr)    ((void)sizeof((expr) ? 1 : 0))
+#  define QLITE_POST(expr)   ((void)sizeof((expr) ? 1 : 0))
 #endif

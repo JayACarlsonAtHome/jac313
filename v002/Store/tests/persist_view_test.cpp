@@ -263,6 +263,7 @@ void clear_right_after_attach() {
     check(ids_are_0_to(seen.ids, 40), "clear after attach: ids [0, 40) once each");
 }
 
+#if defined(JAC313_PV_CONTRACTS_TERMINATE)   // only the death test below uses these two
 // Run `fn` in a forked child; true iff the child did not exit cleanly (a contract fired).
 template <class Fn>
 bool child_terminates(Fn fn) {
@@ -286,6 +287,7 @@ void clear_after_persisting(bool finalize_first) {
     if (finalize_first) store.finalize_persistence();
     store.clear();
 }
+#endif
 
 } // namespace
 

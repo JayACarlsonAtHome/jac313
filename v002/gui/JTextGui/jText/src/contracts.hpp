@@ -7,7 +7,8 @@
 //             and a violation goes to the contract-violation handler and terminates.
 //   RUNTIME : no native contracts (clang, gcc15, v001's C++23): a check that prints the
 //             condition and where, then aborts.
-//   OFF     : JTEXT_CONTRACTS_ENABLED == 0: the macros compile to nothing.
+//   OFF     : JTEXT_CONTRACTS_ENABLED == 0: the macros compile to nothing (an unevaluated
+//             sizeof keeps the names they mention used).
 //
 // Pre/post are checked in the function body (a macro cannot put pre()/post() on the
 // declarator portably), at entry and at the point of the result.
@@ -44,8 +45,10 @@ namespace jtext::contracts {
 #  define JTEXT_PRE(expr)    ((expr) ? (void)0 : ::jtext::contracts::violation("precondition", #expr))
 #  define JTEXT_POST(expr)   ((expr) ? (void)0 : ::jtext::contracts::violation("postcondition", #expr))
 #else
+// sizeof is unevaluated: no code and no side effects, but the names in expr stay used, so a
+// parameter checked only by a contract is not an unused-parameter error with contracts off.
 #  define JTEXT_CONTRACTS_NATIVE 0
-#  define JTEXT_ASSERT(expr) ((void)0)
-#  define JTEXT_PRE(expr)    ((void)0)
-#  define JTEXT_POST(expr)   ((void)0)
+#  define JTEXT_ASSERT(expr) ((void)sizeof((expr) ? 1 : 0))
+#  define JTEXT_PRE(expr)    ((void)sizeof((expr) ? 1 : 0))
+#  define JTEXT_POST(expr)   ((void)sizeof((expr) ? 1 : 0))
 #endif

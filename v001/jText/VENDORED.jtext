@@ -23,15 +23,15 @@
 
 1. #|# 2|canonical_dir|jText/v001
 
-1. #|# 3|canonical_commit|558bb63a8ea9
+1. #|# 3|canonical_commit|bba3ea57da58
 
 1. #|# 4|canonical_dirty|No
 
-1. #|# 5|canonical_version|v001.036
+1. #|# 5|canonical_version|v001.037
 
 1. #|# 6|transform|jac313-prefix
 
-1. #|# 7|ported|2026-11-07
+1. #|# 7|ported|2026-11-09
 
 1. #|# 8|baseline|No
 
@@ -60,7 +60,7 @@
 === Data ===
 1. #|# 1|Qlite/include/jac313/Qlite/v001.hpp|Qlite/include/Qlite/v001.hpp|2f4be1e0263e1ca942d496d87e05aa36d62b52e7bf4fad49c1daf983595a3ac9|1d185351c40d0e34ee25b0a4b813940fc89313d09c910e4e81464d9c7933b7af
 
-1. #|# 2|Qlite/include/jac313/Qlite/v001/Database.body.hpp|Qlite/include/Qlite/v001/Database.body.hpp|a03e638110c6dd44578ceb4ccbef757a90c0bac0ec28fbde6a7f4d79a7080c7c|2b4c435fb00bd8f99f6a6323a0cb884d606d38ee8a760eb1cf9374c49c429bef
+1. #|# 2|Qlite/include/jac313/Qlite/v001/Database.body.hpp|Qlite/include/Qlite/v001/Database.body.hpp|3962bea92a985e608f8b39e581f1c3928def5e3b722a19c50c29ec58dbeefa39|14eb98d51753d831b8fe929f81b96488ec5ec34fec8a35d803a0d78b6b63661d
 
 1. #|# 3|Qlite/include/jac313/Qlite/v001/Database.hpp|Qlite/include/Qlite/v001/Database.hpp|7dc6fa2f50fa8e51840526571e297e3114352e16b1a9a012078c2936b99ed29c|be9a66f5a8899da090683cbff741f6dca3890ba383fc435a02ff2c9dbfe63dd0
 
@@ -76,13 +76,13 @@
 
 1. #|# 9|Qlite/include/jac313/Qlite/v001/Sqlite.hpp|Qlite/include/Qlite/v001/Sqlite.hpp|047f6dee6495cb83fbcb4d6c75204cdcd7369c3b123cb1f633ae181bbbdc8649|f244133c7bf278c9ec1f53151b7573c16177faad77fbecde676f94ab2867b94a
 
-1. #|# 10|Qlite/include/jac313/Qlite/v001/contracts.hpp|Qlite/include/Qlite/v001/contracts.hpp|9e95e89e942c3428bc60d17f278e3611091d2b049925810e77848be0881091c3|39cc84bdb1e714a224bd532e8607b57396ca07c1d636d75cba1a5feadf0daa51
+1. #|# 10|Qlite/include/jac313/Qlite/v001/contracts.hpp|Qlite/include/Qlite/v001/contracts.hpp|b6a03fe1b65a2441e575b9da73ebe524c674a4865fa2e19471e8ad4911cb0556|f0054af826f7806eee69e29c4413fda486b7b592aa299486d4a0474ab5d0028e
 
 1. #|# 11|examples/v001_example.cpp|examples/v001_example.cpp|71eef80b8fa4666d58af2383b09c9843c28e925d9271e9708e74f369b3ef080c|646ff7759d63f6702851c1afa399e0809d1611c4920e844cace03c7cf769aa9b
 
 1. #|# 12|include/jac313/jText/v001.hpp|include/jText/v001.hpp|50fa0c094772ea9628f53c827a5cef50ad76b5f4623bae28e8a19305ef40f210|06af37f1fcbf98aaa653f9e6500d7edd4d1ae8cf226ca88844a5fe2aca621814
 
-1. #|# 13|jText.api.inc|jText.api.inc|218f47e0414669f1b86b36fef88898232cad37f46ab00a69712f497b63c08ced|388ff4d59610b125200e0876a3107e9176f013c723e6a9b5b6f11626f1f4107f
+1. #|# 13|jText.api.inc|jText.api.inc|72de9a5d1d25ad1f07d5d31a2efb4178eb69214dc21c4ced72ff6f55e3a1742d|7737d280ac27c086bee4004625e9753bf58e197223d2e712622e2c07e0e0b31c
 
 1. #|# 14|jText.cpp|jText.cpp|338383ba327598db48a56969fe24f64fa369221c75de65b8d33d5a40d1f4c77c|4857f8d280a8e01b8edc0b8bd6aec8c09e2a249d6014c98908636f3dae0b7740
 
@@ -98,7 +98,7 @@
 
 1. #|# 20|modules/jac313.jtext.v001.writer.cppm|modules/jText.v001.writer.cppm|1f149b94f6fbef19b630321ee982cbf5ca58a9e197f8e311cd0968635cc380e8|1a3a599bed56ed82570df4d66459c2ef76594b22976ff35050fd8ff1e6efd4cc
 
-1. #|# 21|src/contracts.hpp|src/contracts.hpp|0e709a4d779078a614ec5ca7d517856ceebefb62237160017f672a816d910576|0e709a4d779078a614ec5ca7d517856ceebefb62237160017f672a816d910576
+1. #|# 21|src/contracts.hpp|src/contracts.hpp|8ed4584cd971455406afceb89aa327e2a6b9c6e7267ac114aa58291783560a42|8ed4584cd971455406afceb89aa327e2a6b9c6e7267ac114aa58291783560a42
 
 1. #|# 22|src/export/xml_export.cpp|src/export/xml_export.cpp|cb4310c54314adac53a3ad4077b3b12d4ff8841d553c0a8074b7c0df623470f7|cb4310c54314adac53a3ad4077b3b12d4ff8841d553c0a8074b7c0df623470f7
 
@@ -124,13 +124,13 @@
 
 1. #|# 33|src/validator/validator.hpp|src/validator/validator.hpp|5a3ea9a121feeff5d5042a339d575c9a60d9b1ed371806027778d606f0f17118|5a3ea9a121feeff5d5042a339d575c9a60d9b1ed371806027778d606f0f17118
 
-1. #|# 34|tests/contracts_test.cpp|tests/contracts_test.cpp|ddde089a3e845127bffc87df4e0bcf69574e0917a3848ffca732606b6b343d47|19633ca0d6e03376e61398ac6dd647545e4976b055cd78afb5dd143fb3d23860
+1. #|# 34|tests/contracts_test.cpp|tests/contracts_test.cpp|e6c064b3050058f4f039eaff057e611c1b3d121e0969163f019b34a493f1affe|c730017570ebb8aaf2b7e1194c3df3dbb2811be9c531677b9a102b90b3f1db29
 
 1. #|# 35|tests/module/v001_module_test.cpp|tests/module/v001_module_test.cpp|11c7e5d9b6252404c6a369183bf2a89cbebaf01e89ce7edabedcc34a10d22b30|2fdef3b8d27962566e12d8266967301eb1c934ec622c29ab829c10c9989fc7fc
 
 1. #|# 36|tests/parser_validator_test.cpp|tests/parser_validator_test.cpp|680b60cd42ee565ed2c6a653b273d48eaaf5d1d52d83311e6a7ffee097dd2069|06ed5e1421b57997e6466de868c31f862a75c78e0fdf8e91c5e7f0f0134a064f
 
-1. #|# 37|tests/v001_test.cpp|tests/v001_test.cpp|08cdc6a44caf795a2c3b8f69b96f6e19fdf956abf66521f276f193edb7d26eb2|09b92760826b9b373497a69b5950280ad5c00eca61991b63ba9d3da58f48aa3e
+1. #|# 37|tests/v001_test.cpp|tests/v001_test.cpp|a0d38a312297cabb6daabf346f3881b9d2946169dc883afb098a790896d11cd4|c08936eabb5846339d7077bf93cd7126e60a2ee559517c8ff4a2ea996f20b2ad
 
 1. #|# 38|tools/common/record_lines.hpp|tools/common/record_lines.hpp|77d76b33723603912a3c14655f0cc5a979295a5968978faaad2e2a0c7a5b4ff6|c8e08a51d238a6ec076f4d81d8f544c263acb810b7072e3cc25c847187edd0cc
 

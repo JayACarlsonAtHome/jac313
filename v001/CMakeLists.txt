@@ -81,11 +81,6 @@ else()
 endif()
 add_compile_definitions(JAC313_BUILD_TYPE="${CMAKE_BUILD_TYPE}" JAC313_BUILD_MODULES="${_jac313_modules_state}"
                         JAC313_STRICT="on" JAC313_HARDENED="${_jac313_hardened_state}")
-if(JAC313_CONTRACTS STREQUAL "enforce")
-    set(JAC313_CONTRACTS_TERMINATE ON)   # the death tests hold only when violations terminate
-else()
-    set(JAC313_CONTRACTS_TERMINATE OFF)
-endif()
 
 if(JAC313_HARDENED)
     # The explicit equivalent of gcc's -fhardened, spelled so clang takes it too.

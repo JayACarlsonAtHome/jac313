@@ -10,7 +10,8 @@
 //                  C++26 contract assertion that terminates when violated.
 //   (B) RUNTIME  : contracts enabled but the compiler has no native contracts
 //                  (clang, gcc15). Macros do a runtime check + fail-fast abort.
-//   (C) DISABLED : JAC313_CONTRACTS_ENABLED == 0. Macros are zero-cost no-ops.
+//   (C) DISABLED : JAC313_CONTRACTS_ENABLED == 0. Macros are zero-cost no-ops (an unevaluated
+//                  sizeof keeps the names they mention used).
 //
 // WHY MACROS (and not native pre()/post() at the call sites): native pre()/post()
 // must appear on the FUNCTION DECLARATOR; a macro cannot inject text there. So the
@@ -90,9 +91,11 @@ violation(const char* kind, const char* expr,
 
 #else // ---- (C) contracts disabled — zero-cost no-ops (release/perf builds) -------
 
+// sizeof is unevaluated: no code and no side effects, but the names in expr stay used, so a
+// parameter checked only by a contract is not an unused-parameter error with contracts off.
 #  define JAC313_CONTRACTS_NATIVE 0
-#  define JAC313_ASSERT(expr) ((void)0)
-#  define JAC313_PRE(expr)    ((void)0)
-#  define JAC313_POST(expr)   ((void)0)
+#  define JAC313_ASSERT(expr) ((void)sizeof((expr) ? 1 : 0))
+#  define JAC313_PRE(expr)    ((void)sizeof((expr) ? 1 : 0))
+#  define JAC313_POST(expr)   ((void)sizeof((expr) ? 1 : 0))
 
 #endif

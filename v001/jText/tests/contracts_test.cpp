@@ -1,8 +1,9 @@
 // Death-test for jText's contracts: calling the writer out of order must terminate
 // (v001 is C++23, so these are the runtime checks), and the right
-// order must not.
+// order must not. With the contracts compiled out, the conditions must not be evaluated at all.
 
 #include <jText.h>
+#include "../src/contracts.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -51,6 +52,7 @@ int main() {
         w.append_row(1, {"1", "a"});
         w.finalize();
     });
+#if JTEXT_CONTRACTS_ENABLED
     expect(true, "set_purpose after the header", [] {
         std::ostringstream os;
         JTextWriter w(os);
@@ -90,5 +92,19 @@ int main() {
     });
 
     if (failures == 0) std::cout << "jText contracts — writer misuse terminates, the right order does not\n";
+#else
+    // Contracts compiled out (JTEXT_CONTRACTS_ENABLED=0): misuse is not caught, so the cases above
+    // do not apply. The macros must still evaluate nothing.
+    int evaluated = 0;
+    auto mark = [&evaluated] { ++evaluated; return false; };
+    JTEXT_ASSERT(mark());
+    JTEXT_PRE(mark());
+    JTEXT_POST(mark());
+    if (evaluated != 0) {
+        std::cerr << "FAIL: a compiled-out contract evaluated its condition\n";
+        ++failures;
+    }
+    if (failures == 0) std::cout << "jText contracts compiled out — no condition evaluated, the right order runs\n";
+#endif
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
