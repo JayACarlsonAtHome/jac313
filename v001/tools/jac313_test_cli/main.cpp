@@ -1328,6 +1328,30 @@ std::string drain_cell(bool binary_log, std::int64_t bin, std::int64_t keeper, s
 // Bench per-run detail (ops format): each config with persist/events + median/band/bytes, grouped
 // like the bench page; production rows also show the hot path and the three drain times. Then the
 // run's settings (batch, caps, read-back, PostgreSQL timings per config) and what it wrote where.
+// The rows a run capped by --max-persist-rows wrote per second, over the same process time as its
+// median ops/sec: median × rows written ÷ events. Rows written = the read-back's rows_persisted, else
+// (no read-back) the cap's event ids [0, max_rows) for one sink; production with no read-back has no
+// known database row count. 0 = no rate to show (not capped, every event written, or rows unknown).
+std::int64_t capped_rows_per_sec(std::int64_t median_ops, std::int64_t events, std::int64_t max_rows,
+                                 std::int64_t rows_persisted, bool production) {
+    if (max_rows <= 0 || events <= 0) return 0;
+    const std::int64_t rows = rows_persisted > 0 ? rows_persisted
+                            : production         ? std::int64_t{0}
+                                                 : std::min(events, max_rows);
+    if (rows <= 0 || rows >= events) return 0;
+    return static_cast<std::int64_t>(
+        static_cast<long double>(median_ops) * static_cast<long double>(rows) / static_cast<long double>(events)
+        + 0.5L);
+}
+
+// A bench cell's median ops/sec; a capped run adds the rows it wrote per second ("8,202,254 · 82,023
+// rows/s"; production: the database rows, "db rows/s").
+std::string bench_median_cell(std::int64_t median_ops, std::int64_t rows_per_sec, bool production) {
+    std::string s = fmt_num(median_ops);
+    if (rows_per_sec > 0) s += " · " + fmt_num(rows_per_sec) + (production ? " db rows/s" : " rows/s");
+    return s;
+}
+
 void write_bench_detail(jac313::Qlite::v001::Sqlite& db, const fs::path& dir, std::int64_t run_id) {
     const std::string rl = run_label_md(run_id);
     std::ofstream det(dir / (rl + ".md"));
@@ -1336,27 +1360,30 @@ void write_bench_detail(jac313::Qlite::v001::Sqlite& db, const fs::path& dir, st
     write_run_header(db, det, run_id);
     det << "_Production rows: hot path = producers until they join (before finalize); drain = attach → "
            "that sink's finalize done, binary / keeper / database; durable total = the whole process "
-           "(median ops/sec, as for every row)._\n\n";
+           "(median ops/sec, as for every row). A run capped by `--max-persist-rows` adds the rows it wrote per "
+           "second of the same run: `rows/s` (production: `db rows/s`, the database rows)._\n\n";
     struct Line { int group; std::string text; };
     std::vector<Line> lines;
     auto st = db.prepare(
         std::string("SELECT ") + kBenchNameSql + ", p.persist, p.threads, p.events_per_thread, p.runs, "
         "tr.median_ops, tr.low_ops, tr.high_ops, tr.bytes, tr.hot_ops, tr.drain_binary_ms, tr.drain_keeper_ms, "
-        "tr.drain_database_ms, p.binary_log "
+        "tr.drain_database_ms, p.binary_log, tr.max_persist_rows, tr.rows_persisted "
         "FROM testRun tr LEFT JOIN testList tl ON tl.id=tr.test_list_id JOIN parameter p ON p.id=tr.parameter_id "
         "JOIN testType tt ON tt.id=tr.test_type_id WHERE tr.run_id=? AND tt.name='bench' ORDER BY tr.median_ops DESC");
     st.bind(run_id);
     while (st.step()) {
         std::string name, per; std::int64_t threads = 0, epe = 0, runs = 0, med = 0, low = 0, high = 0, bytes = 0;
-        std::int64_t hot = 0, dbin = 0, dkeep = 0, ddb = 0, binlog = 0;
-        st.get(name, per, threads, epe, runs, med, low, high, bytes, hot, dbin, dkeep, ddb, binlog);
+        std::int64_t hot = 0, dbin = 0, dkeep = 0, ddb = 0, binlog = 0, max_rows = 0, rows_persisted = 0;
+        st.get(name, per, threads, epe, runs, med, low, high, bytes, hot, dbin, dkeep, ddb, binlog, max_rows,
+               rows_persisted);
         const int g = bench_group(per);
         std::ostringstream l;
         l << "| " << kBenchGroupTitle[g] << " | " << name << " | " << dash(per) << server_tag(db, run_id, per) << " | "
           << fmt_num(threads) << " × " << fmt_num(epe) << " | " << fmt_num(runs) << " | "
           << (g == 0 ? fmt_num(hot) : std::string("-")) << " | "
           << (g == 0 ? drain_cell(binlog != 0, dbin, dkeep, ddb) : std::string("-")) << " | "
-          << fmt_num(med) << " | " << human_ops(low) << "–" << human_ops(high) << " | " << human_bytes(bytes) << " |\n";
+          << bench_median_cell(med, capped_rows_per_sec(med, threads * epe, max_rows, rows_persisted, g == 0), g == 0)
+          << " | " << human_ops(low) << "–" << human_ops(high) << " | " << human_bytes(bytes) << " |\n";
         lines.push_back({g, l.str()});
     }
     std::stable_sort(lines.begin(), lines.end(), [](const Line& a, const Line& b) { return a.group < b.group; });
@@ -1384,30 +1411,6 @@ std::string bench_row_name(std::string name, const std::string& server, std::int
     }
     if (max_rows > 0) name += " [max " + fmt_num(max_rows) + " rows]";
     return name;
-}
-
-// The rows a run capped by --max-persist-rows wrote per second, over the same process time as its
-// median ops/sec: median × rows written ÷ events. Rows written = the read-back's rows_persisted, else
-// (no read-back) the cap's event ids [0, max_rows) for one sink; production with no read-back has no
-// known database row count. 0 = no rate to show (not capped, every event written, or rows unknown).
-std::int64_t capped_rows_per_sec(std::int64_t median_ops, std::int64_t events, std::int64_t max_rows,
-                                 std::int64_t rows_persisted, bool production) {
-    if (max_rows <= 0 || events <= 0) return 0;
-    const std::int64_t rows = rows_persisted > 0 ? rows_persisted
-                            : production         ? std::int64_t{0}
-                                                 : std::min(events, max_rows);
-    if (rows <= 0 || rows >= events) return 0;
-    return static_cast<std::int64_t>(
-        static_cast<long double>(median_ops) * static_cast<long double>(rows) / static_cast<long double>(events)
-        + 0.5L);
-}
-
-// A bench cell's median ops/sec; a capped run adds the rows it wrote per second ("8,202,254 · 82,023
-// rows/s"; production: the database rows, "db rows/s").
-std::string bench_median_cell(std::int64_t median_ops, std::int64_t rows_per_sec, bool production) {
-    std::string s = fmt_num(median_ops);
-    if (rows_per_sec > 0) s += " · " + fmt_num(rows_per_sec) + (production ? " db rows/s" : " rows/s");
-    return s;
 }
 
 // Bench page = a HOST-SCOPED comparison: throughput is hardware-specific, so each machine
