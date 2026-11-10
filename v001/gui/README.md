@@ -17,14 +17,14 @@ when it needs it). `<vdir>` is this version's folder, for example `~/git/jac313/
    `bootstrap.sh` until 2026-10-23). After its one "Install everything?" and one sudo password
    it builds `jac313_test_cli`, installs the GUI's build libraries (GTK3, libnotify, FreeType,
    Fontconfig, X11), installs U++ from
-   [upp_basefix](https://github.com/JayACarlsonAtHome/upp_basefix) into `upp_basefix_install`
-   beside this repository
+   [upp_basefix](https://github.com/JayACarlsonAtHome/upp_basefix) (cloned as `UPP` beside this
+   repository) into `UPP/<version>/install`
    (U++ pinned to a GitHub commit plus patches: 0 warnings, sanitizer and valgrind clean),
    builds `gui/out/Jac313Runner` and `gui/out/JTextGui`, and opens the Runner:
    ```
    cd <vdir> && ./bsir.sh
    ```
-   An upp_basefix install in `$UPP_DIR` (default `upp_basefix_install` beside this repository) is updated when its clone
+   Each `UPP/<version>/install` (UPP beside this repository, or `$UPP_ROOT`) is updated when its clone
    has moved on; the clone follows the branch this checkout is on, when upp_basefix has it, and the build after an update rebuilds everything. Any other `umk` + `uppsrc`
    there is used as it is. `./bsir.sh --no-gui` leaves out U++, the Runner, JTextGui and DBeaver.
 2. **Rebuild later:**
@@ -71,15 +71,15 @@ cd <vdir> && ./jac313_test_cli gui-build      # builds gui/Jac313Runner -> gui/o
 cd <vdir> && ./jac313_test_cli gui-build JTextGui   # the editor -> gui/out/JTextGui
 ```
 
-umk and its uppsrc come as a pair from one U++ install (the jac314 `gui_build` rule):
-`$UPP_DIR`, else `upp_basefix_install` beside this repository. The clone is `upp_basefix` and
-its work area `upp_basefix_work`, both beside it too.
-By hand, with the upp_basefix install:
+Each window is built with the U++ of its own version (a version is a C++ standard): `UPP/v001`
+is a pinned, patched U++ for C++23, `UPP/v002` the same for C++26, each with its own `install/`
+(umk and its uppsrc as a pair, `GCC.bm`, `CLANG.bm`). This world is v001 (C++23): both windows use `UPP/v001`.
+`gui-build` refuses a method whose `-std` is not the window's standard. `$UPP_ROOT` names another
+UPP clone. By hand:
 
 ```
-U=<vdir>/../../upp_basefix_install
+U=<vdir>/../../UPP/v001/install
 $U/umk <vdir>/gui,$U/uppsrc Jac313Runner $U/GCC.bm -brsH <vdir>/gui/out/Jac313Runner
-$U/umk <vdir>/gui,$U/uppsrc JTextGui $U/GCC.bm -brsH <vdir>/gui/out/JTextGui
 ```
 
 Name the method by path. By name, umk looks in its config folders first and writes a default of
@@ -89,33 +89,29 @@ The folders, all side by side (`<root>` is `~/git/jac313` here):
 
 ```
 ~/git/jac313                the project
-~/git/upp_basefix           the upp_basefix clone: follows the branch the project is on
-~/git/upp_basefix_install   umk, uppsrc, GCC.bm, CLANG.bm, VERSION
+~/git/UPP                   the upp_basefix clone: follows the branch the project is on
+~/git/UPP/v001/install      U++ for C++23: umk, uppsrc, GCC.bm, CLANG.bm, VERSION
+~/git/UPP/v002/install      U++ for C++26: the same
+~/git/UPP/v00N/work         the download, the trees, the build of umk (per version)
 ~/git/valgrind_install      Linux Mint only: the valgrind version it must use
 ~/git/cmake_install         the CMake version every system uses
-~/git/upp_basefix_work      the download, the trees, the build of umk
 ```
 
-A version is a C++ standard, and v001 is C++23: both windows are built as C++23.
-upp_basefix's `GCC.bm` and `CLANG.bm` ask for C++26, and umk puts a package's options before the
-method's, so a `-std` in the `.upp` would lose; `gui-build` writes a copy of the method with
-`-std=c++23` (`gui/out/GCC-cxx23.bm`, `CLANG-cxx23.bm`) and builds with that, in its own cache.
-`Model.h` and jText_GUI's `standard.hpp` stop any other build at compile time. A method that asks
-for less than C++23 is refused. `-fcontracts` on the link
-is not in the `.upp` files: `upp_basefix install` writes it into `GCC.bm` only for a GCC with
-native contracts (GCC 16). An older GCC's driver would turn it into `-lstdc++exp`, which
-gcc-toolset-15 on RHEL does not ship.
+`Model.h` (and, for JTextGui, jText_GUI's `standard.hpp`) stops a build at the wrong standard at
+compile time. `-fcontracts` on the link is not in the `.upp` files: UPP/v002's install writes it
+into `GCC.bm` only for a GCC with native contracts (GCC 16); C++23 (UPP/v001) has none.
 
 ### Removing an old U++ from your home folder
 
-U++ used to live in `~/upp_basefix`, with `~/upp_basefix_src` and `~/upp_basefix_work`. This project
-no longer reads them, but a `UPP_DIR` left set in your shell still takes priority over the install
-beside the repository. Clear it and remove the old folders:
+U++ used to live in `~/upp_basefix`, with `~/upp_basefix_src` and `~/upp_basefix_work`, and later in
+`upp_basefix`, `upp_basefix_install` and `upp_basefix_work` beside the repository. This project no
+longer reads any of them (and no longer reads `UPP_DIR`). Remove them:
 
 ```bash
 grep -n UPP_DIR ~/.bashrc ~/.bash_profile ~/.profile   # delete any line this finds
 unset UPP_DIR
 rm -rf ~/upp_basefix ~/upp_basefix_src ~/upp_basefix_work
+rm -rf <base>/upp_basefix <base>/upp_basefix_install <base>/upp_basefix_work   # <base>: beside the repository
 ```
 
 Projects not moved yet (jac315, jac317, Date_001) still use `~/upp_basefix`, so keep it if you build

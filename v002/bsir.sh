@@ -23,7 +23,7 @@
 #
 #   6. A PostgreSQL 18 server for the PG local gate (role + database jac313).
 #   7. The GUI (skipped with --no-gui): the U++ GUI build libraries (recipe upp_gui), U++ from
-#      upp_basefix into <base>/upp_basefix_install, Jac313Runner and JTextGui via `jac313_test_cli gui-build`, and
+#      upp_basefix into <base>/UPP/<version>/install, Jac313Runner and JTextGui via `jac313_test_cli gui-build`, and
 #      DBeaver and Google Chrome (Open Reports in Chrome); then the Runner opens.
 #
 # Idempotent: re-run it any time; what is already there is left alone, except that an
@@ -51,7 +51,7 @@ for arg in "$@"; do
     -h|--help)
       echo "usage: ./bsir.sh [--yes] [--no-gui]"
       echo "Installs what is missing, builds the tests, the Jac313Runner window and JTextGui (U++ into"
-      echo "upp_basefix_install beside this repository), adds DBeaver (a database browser) and Google Chrome (the reports),"
+      echo "UPP/<version>/install beside this repository), adds DBeaver (a database browser) and Google Chrome (the reports),"
       echo "then opens the Runner."
       echo "  --yes      install everything that is missing without asking"
       echo "  --no-gui   no window: skip U++, the Runner, DBeaver and Chrome (e.g. a server without a screen)"
@@ -210,11 +210,16 @@ try_cxx() {  # $1 = activation prefix (may be empty), $2 = compiler name, $3 = v
 # U++ comes from upp_basefix (github.com/JayACarlsonAtHome/upp_basefix): U++ pinned to a GitHub
 # commit, plus patches that make it build with 0 warnings and run clean under the sanitizers
 # and valgrind. Its patch 0001 also fixes the GCC 15 start-up crash of plain U++ 2026.1, so the
-# GUI is built with GCC again. An install is $UPP_DIR/{umk,uppsrc,GCC.bm,CLANG.bm}.
+# GUI is built with GCC again. An install is UPP/<version>/install/{umk,uppsrc,GCC.bm,CLANG.bm}.
 UPP_BASE="$(dirname "$(dirname "$ROOT")")"   # the folder this repository was cloned into
-UPP_DIR="${UPP_DIR:-$UPP_BASE/upp_basefix_install}"
+# UPP holds a pinned, patched U++ per C++ standard (a version is a standard): UPP/v001 is C++23,
+# UPP/v002 C++26, each installed into UPP/<version>/install. The repository is still named
+# upp_basefix. UPP_ROOT names another UPP clone.
+# This world is v002 (C++26): the Runner uses UPP/v002; JTextGui is a copy of jText_GUI's v001
+# code (C++23) and uses UPP/v001.
+UPP_ROOT="${UPP_ROOT:-$UPP_BASE/UPP}"
+UPP_VERSIONS="v002 v001"
 UPP_BASEFIX_REPO="${UPP_BASEFIX_REPO:-https://github.com/JayACarlsonAtHome/upp_basefix.git}"
-UPP_BASEFIX_SRC="${UPP_BASEFIX_SRC:-$UPP_BASE/upp_basefix}"   # its clone (the script, the patches)
 UPP_METHOD="GCC"
 
 upp_gui_libs_ok() {  # what U++ CtrlCore links for a GTK (Wayland-first) build, plus zlib (JTextGui .xlsx)
@@ -228,27 +233,29 @@ upp_gui_libs_ok() {  # what U++ CtrlCore links for a GTK (Wayland-first) build, 
 
 upp_follow_branch() {  # the clone goes to the branch this checkout is on, when upp_basefix has one by that name
   upp_branch=$(git -C "$ROOT" symbolic-ref --short -q HEAD || true)
-  echo "Updating upp_basefix in $UPP_BASEFIX_SRC…"
-  if ! git -C "$UPP_BASEFIX_SRC" fetch -q origin; then
+  echo "Updating upp_basefix in $UPP_ROOT…"
+  if ! git -C "$UPP_ROOT" fetch -q origin; then
     echo "(git fetch failed — offline? going on with the clone as it is)"; return 0
   fi
-  if [ -n "$upp_branch" ] && git -C "$UPP_BASEFIX_SRC" show-ref --verify -q "refs/remotes/origin/$upp_branch"; then
-    git -C "$UPP_BASEFIX_SRC" checkout -q "$upp_branch" \
+  if [ -n "$upp_branch" ] && git -C "$UPP_ROOT" show-ref --verify -q "refs/remotes/origin/$upp_branch"; then
+    git -C "$UPP_ROOT" checkout -q "$upp_branch" \
       || echo "(cannot switch upp_basefix to $upp_branch — local changes there? staying where it is)"
   else
-    echo "(upp_basefix has no branch ${upp_branch:-for a detached checkout}; staying on $(git -C "$UPP_BASEFIX_SRC" symbolic-ref --short -q HEAD || echo 'its commit'))"
+    echo "(upp_basefix has no branch ${upp_branch:-for a detached checkout}; staying on $(git -C "$UPP_ROOT" symbolic-ref --short -q HEAD || echo 'its commit'))"
   fi
-  git -C "$UPP_BASEFIX_SRC" pull -q --ff-only || echo "(git pull failed — local changes? going on with the clone as it is)"
+  git -C "$UPP_ROOT" pull -q --ff-only || echo "(git pull failed — local changes? going on with the clone as it is)"
 }
 
-upp_install_commit() {  # the upp_basefix commit a $UPP_DIR install came from: first line of its VERSION
-  sed -n '1s/.*+ upp_basefix //p' "$UPP_DIR/VERSION" 2>/dev/null
+upp_install_commit() {  # upp_install_commit DIR: the upp_basefix commit an install came from (first line of VERSION)
+  sed -n '1s/.*+ upp_basefix //p' "$1/VERSION" 2>/dev/null
 }
 
-install_upp() {  # U++ into $UPP_DIR via upp_basefix; an upp_basefix install follows its clone
+install_upp() {  # install_upp VERSION: U++ into UPP/VERSION/install; an install follows its clone
+  local ver="$1"
+  local UPP_DIR="$UPP_ROOT/$ver/install" script="$UPP_ROOT/$ver/upp_basefix.sh"
   upp_have=""   # the commit of an upp_basefix install already there; empty = nothing to fall back on
   if [ -x "$UPP_DIR/umk" ] && [ -d "$UPP_DIR/uppsrc" ]; then
-    upp_have=$(upp_install_commit)
+    upp_have=$(upp_install_commit "$UPP_DIR")
     if [ -z "$upp_have" ]; then   # some other U++: upp_basefix install refuses to touch it, and so do we
       echo "U++ found at $UPP_DIR (umk + uppsrc, not an upp_basefix install) — using it."; return 0
     fi
@@ -256,23 +263,24 @@ install_upp() {  # U++ into $UPP_DIR via upp_basefix; an upp_basefix install fol
     echo "$UPP_DIR exists but has no umk + uppsrc. Not touching it: move it aside and re-run."
     return 1
   fi
-  if [ ! -x "$UPP_BASEFIX_SRC/upp_basefix.sh" ]; then
+  if [ ! -d "$UPP_ROOT/.git" ] && [ ! -x "$script" ]; then
     if ! command -v git >/dev/null 2>&1; then
       [ -n "$upp_have" ] && { echo "git missing — keeping U++ at $UPP_DIR (upp_basefix $upp_have) unchecked."; return 0; }
       echo "git missing — cannot fetch upp_basefix."; return 1
     fi
-    echo "Fetching upp_basefix -> $UPP_BASEFIX_SRC…"
-    if ! git clone -q "$UPP_BASEFIX_REPO" "$UPP_BASEFIX_SRC"; then
+    echo "Fetching upp_basefix -> $UPP_ROOT…"
+    if ! git clone -q "$UPP_BASEFIX_REPO" "$UPP_ROOT"; then
       [ -n "$upp_have" ] && { echo "git clone failed (network?) — keeping U++ at $UPP_DIR (upp_basefix $upp_have) unchecked."; return 0; }
       echo "git clone failed (network?)."; return 1
     fi
   fi
   # an older clone may lack a fix (e.g. EPEL for xxhash-devel on RHEL): bring it up to date first
-  if [ -d "$UPP_BASEFIX_SRC/.git" ]; then upp_follow_branch; fi
+  if [ -d "$UPP_ROOT/.git" ] && [ "${UPP_FOLLOWED:-0}" = 0 ]; then upp_follow_branch; UPP_FOLLOWED=1; fi
+  [ -x "$script" ] || { echo "$script missing: the UPP clone in $UPP_ROOT has no $ver (its branch?)"; return 1; }
   # An install from an older upp_basefix can lack patches or have its build methods where umk
   # does not read them; gui-build refuses a method below C++23.
   if [ -n "$upp_have" ]; then
-    upp_want=$(git -C "$UPP_BASEFIX_SRC" describe --always --dirty 2>/dev/null || true)
+    upp_want=$(git -C "$UPP_ROOT" describe --always --dirty 2>/dev/null || true)
     if [ -z "$upp_want" ] || [ "$upp_want" = "$upp_have" ]; then
       echo "U++ found at $UPP_DIR ($(head -1 "$UPP_DIR/VERSION")) — using it."; return 0
     fi
@@ -287,19 +295,26 @@ install_upp() {  # U++ into $UPP_DIR via upp_basefix; an upp_basefix install fol
   # system packages U++ needs and installs them only when asked (sudo). A yes to the GUI
   # libraries above already covers these, so the user is asked once.
   if [ "${UPP_PKGS_AGREED:-0}" = 1 ] || [ "$ASSUME_YES" = 1 ]; then
-    "$UPP_BASEFIX_SRC/upp_basefix.sh" bootstrap --install || { echo "upp_basefix bootstrap failed."; return 1; }
-  elif ! "$UPP_BASEFIX_SRC/upp_basefix.sh" bootstrap; then
-    if [ ! -t 0 ]; then echo "(non-interactive — not installing; run $UPP_BASEFIX_SRC/upp_basefix.sh bootstrap --install)"; return 1; fi
+    "$script" bootstrap --install || { echo "upp_basefix bootstrap failed."; return 1; }
+  elif ! "$script" bootstrap; then
+    if [ ! -t 0 ]; then echo "(non-interactive — not installing; run $script bootstrap --install)"; return 1; fi
     printf "Install those packages now (sudo)? [y/N] "
     read -r ans || ans=""
     case "$ans" in
-      [yY]|[yY][eE][sS]) "$UPP_BASEFIX_SRC/upp_basefix.sh" bootstrap --install || { echo "upp_basefix bootstrap failed."; return 1; } ;;
+      [yY]|[yY][eE][sS]) "$script" bootstrap --install || { echo "upp_basefix bootstrap failed."; return 1; } ;;
       *) echo "Skipped — U++ is not installed."; return 1 ;;
     esac
   fi
-  "$UPP_BASEFIX_SRC/upp_basefix.sh" install "$UPP_DIR" || { echo "upp_basefix install failed."; return 1; }
+  "$script" install "$UPP_DIR" || { echo "upp_basefix install failed."; return 1; }
   echo "Installed $(head -1 "$UPP_DIR/VERSION") -> $UPP_DIR"
   UPP_UPDATED=1   # objects from the U++ before this one must not be linked in: the next build is --clean
+}
+
+upp_installed() {  # every U++ version this world needs is installed
+  local ver
+  for ver in $UPP_VERSIONS; do
+    { [ -x "$UPP_ROOT/$ver/install/umk" ] && [ -d "$UPP_ROOT/$ver/install/uppsrc" ]; } || return 1
+  done
 }
 
 bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner and JTextGui
@@ -328,14 +343,14 @@ bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner a
     esac
     upp_gui_libs_ok || { echo "The GUI libraries are still missing (pkg-config)."; return 1; }
   fi
-  install_upp || return 1
+  for ver in $UPP_VERSIONS; do install_upp "$ver" || return 1; done
   # gui-build keeps this world's U++ objects in gui/out/.upp.out; objects from an older U++ or
   # compiler break the link, so a failed build is retried once with --clean (rebuild everything).
   gui_clean=""
   if [ "${UPP_UPDATED:-0}" = 1 ]; then gui_clean="--clean"; fi
   # Both windows, so a clean machine proves the editor builds too (it links libpq and libmariadb).
-  ( cd "$ROOT" && UPP_DIR="$UPP_DIR" $ACT "$CLI" gui-build Jac313Runner JTextGui --method "$UPP_METHOD" $gui_clean ) \
-    || { echo "Retrying with a clean rebuild (stale U++ cache)…"; ( cd "$ROOT" && UPP_DIR="$UPP_DIR" $ACT "$CLI" gui-build Jac313Runner JTextGui --method "$UPP_METHOD" --clean ); } \
+  ( cd "$ROOT" && UPP_ROOT="$UPP_ROOT" $ACT "$CLI" gui-build Jac313Runner JTextGui --method "$UPP_METHOD" $gui_clean ) \
+    || { echo "Retrying with a clean rebuild (stale U++ cache)…"; ( cd "$ROOT" && UPP_ROOT="$UPP_ROOT" $ACT "$CLI" gui-build Jac313Runner JTextGui --method "$UPP_METHOD" --clean ); } \
     || { echo "gui-build failed."; return 1; }
   install_dbeaver || true   # optional; the GUI is ready either way
   install_chrome || return 1   # required: the Runner's Open Reports in Chrome
@@ -520,7 +535,7 @@ need_install=0
 pg_local_ok || need_install=1   # the PG local gate's server
 if [ "$WANT_GUI" = 1 ]; then
   upp_gui_libs_ok || need_install=1
-  { [ -x "$UPP_DIR/umk" ] && [ -d "$UPP_DIR/uppsrc" ]; } || need_install=1
+  upp_installed || need_install=1
   dbeaver_ok || need_install=1
   chrome_ok || need_install=1
 fi

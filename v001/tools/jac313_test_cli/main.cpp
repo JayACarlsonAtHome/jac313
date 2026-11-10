@@ -3970,13 +3970,16 @@ static int run_main(int argc, char** argv) {
         return run_connections_command(argc, argv, 2);
     }
     if (command == "gui-build") {   // build a U++ GUI package under gui/ with umk (no shell script)
-        // umk and its uppsrc come as a pair from one U++ install (jac314 gui_build rule):
-        // $UPP_DIR, else upp_basefix_install beside this repository (upp_basefix.sh install: the
-        // pinned, patched U++). No fixed drive paths: the repository can be anywhere.
+        // A version is a C++ standard, and each window is built with the U++ of its own version:
+        // UPP/<version>/install beside this repository (upp_basefix.sh install: umk, the pinned
+        // and patched uppsrc, GCC.bm and CLANG.bm), or under $UPP_ROOT. umk and its uppsrc come as
+        // a pair from one install. No fixed drive paths: the repository can be anywhere.
+        // This world is v001 (C++23): both windows use UPP/v001.
+        static const std::map<std::string, std::pair<std::string, std::string>> kPackageUpp = {
+            {"Jac313Runner", {"v001", "23"}}, {"JTextGui", {"v001", "23"}}};   // package -> (UPP version, the C++ standard its methods must ask for)
         fs::path src = fs::current_path();
         std::vector<std::string> packages;
-        std::string method = "GCC";   // a U++ build method (GCC uses the g++ on PATH; CLANG uses clang++)
-        std::string method_std;        // the C++ standard the method asks for (23, 26, ...)
+        std::string method = "GCC";   // a U++ build method: GCC.bm / CLANG.bm in the install
         bool clean = false;            // rebuild every package (umk -a)
         for (int i = 2; i < argc; ++i) {
             const std::string a = argv[i];
@@ -3986,10 +3989,11 @@ static int run_main(int argc, char** argv) {
             else if (a == "--help" || a == "-h") {
                 std::cout << "gui-build [PACKAGE...] [--source-dir DIR] [--method GCC|CLANG] [--clean]\n"
                              "  Builds U++ packages in gui/ (default: Jac313Runner) into gui/out/<PACKAGE>.\n"
-                             "  --method picks the U++ build method (default GCC). An upp_basefix install has\n"
-                             "  GCC.bm and CLANG.bm next to its umk. U++ is taken from $UPP_DIR, else\n"
-                             "  upp_basefix_install beside this repository.\n"
-                             "  The build method must ask for C++23 or later; gui-build refuses any other.\n"
+                             "  Each package is built with the U++ of its own version (a version is a C++\n"
+                             "  standard): UPP/<version>/install beside this repository, or under $UPP_ROOT.\n"
+                             "  Here (v001, C++23): Jac313Runner and JTextGui use UPP/v001.\n"
+                             "  --method picks the build method in that install (default GCC; or CLANG). Its\n"
+                             "  -std must be the package's standard; gui-build refuses any other.\n"
                              "  U++ keeps its objects in gui/out/.upp.out, one cache per vNNN world (and per\n"
                              "  clone), not U++'s shared ~/.cache/upp.out, so v001 and v002 never mix objects.\n"
                              "  --clean rebuilds everything (umk -a).\n";
@@ -4000,98 +4004,63 @@ static int run_main(int argc, char** argv) {
         fs::path vdir = fs::absolute(src).lexically_normal();
         if (vdir.filename().empty()) vdir = vdir.parent_path();   // "…/v002/" -> "…/v002"
         const fs::path gui = vdir / "gui";
-        const char* home = std::getenv("HOME");
-        std::vector<std::pair<fs::path, fs::path>> pairs;   // (umk, uppsrc) in preference order
-        if (const char* d = std::getenv("UPP_DIR"); d && *d) pairs.emplace_back(fs::path(d) / "umk", fs::path(d) / "uppsrc");
-        const fs::path install = vdir.parent_path().parent_path() / "upp_basefix_install";
-        pairs.emplace_back(install / "umk", install / "uppsrc");
-        fs::path umk, uppsrc;
-        for (const auto& [u, s] : pairs) {
-            std::error_code ec;
-            if (fs::is_regular_file(u, ec) && fs::is_directory(s, ec)) { umk = u; uppsrc = s; break; }
-        }
-        if (umk.empty()) {
-            std::cerr << "gui-build: no umk + uppsrc pair found (looked in $UPP_DIR and " << vdir.parent_path().parent_path().string() << "/upp_basefix_install);\n"
-                         "  ./bsir.sh installs U++ (upp_basefix)\n";
-            return 1;
-        }
-        // umk looks a method name up in its config dirs before the folder it sits in, and writes a
-        // default theide/GCC.bm there on its first run, which would shadow the install's GCC.bm.
-        // So the .bm is found here and passed by path, and C++23 is the least it may ask for.
-        {
-            std::error_code ec;
-            fs::path bm = method;
-            if (method.find('/') == std::string::npos) {
-                const std::string file = method + ".bm";
-                std::vector<fs::path> places = {umk.parent_path() / file, umk.parent_path() / ".config/u++/theide" / file};
-                if (home) places.push_back(fs::path(home) / ".config/u++/theide" / file);
-                bm.clear();
-                for (const auto& p : places) {
-                    if (fs::is_regular_file(p, ec)) { bm = p; break; }
-                }
+        const fs::path upp_root = [&] {
+            if (const char* d = std::getenv("UPP_ROOT"); d && *d) return fs::path(d);
+            return vdir.parent_path().parent_path() / "UPP";
+        }();
+        int rc = 0;
+        for (const auto& pkg : packages) {
+            const auto it = kPackageUpp.find(pkg);
+            if (it == kPackageUpp.end()) {
+                std::cerr << "gui-build: " << pkg << " is not a window of this world (its U++ version is not known)\n";
+                return 1;
             }
-            if (bm.empty() || !fs::is_regular_file(bm, ec)) {
-                std::cerr << "gui-build: no build method " << method << " for " << umk.string()
-                          << ": umk would write its own default. ./bsir.sh installs U++ with its methods\n";
+            const auto& [upp_version, want_std] = it->second;
+            const fs::path install = upp_root / upp_version / "install";
+            const fs::path umk = install / "umk", uppsrc = install / "uppsrc";
+            std::error_code ec;
+            if (!fs::is_regular_file(umk, ec) || !fs::is_directory(uppsrc, ec)) {
+                std::cerr << "gui-build: " << pkg << " needs U++ " << upp_version << " (C++" << want_std
+                          << "): no umk + uppsrc in " << install.string() << ";\n  ./bsir.sh installs it (UPP)\n";
+                return 1;
+            }
+            // umk looks a method name up in its config dirs before the folder it sits in, and writes
+            // a default theide/GCC.bm there on its first run, which would shadow the install's. So the
+            // .bm is found here and passed by path, and its -std must be the package's standard.
+            const fs::path bm = method.find('/') == std::string::npos ? install / (method + ".bm") : fs::path(method);
+            if (!fs::is_regular_file(bm, ec)) {
+                std::cerr << "gui-build: no build method " << bm.string() << ": ./bsir.sh installs U++ with its methods\n";
                 return 1;
             }
             std::string standard;
-            std::ifstream bm_in(bm);
-            for (std::string line; std::getline(bm_in, line);) {
-                std::smatch m;
+            {
+                std::ifstream bm_in(bm);
                 static const std::regex std_flag(R"(COMMON_CPP_OPTIONS.*-std=(?:c|gnu)\+\+(\w+))");
-                if (std::regex_search(line, m, std_flag)) standard = m[1].str();
+                for (std::string line; std::getline(bm_in, line);) {
+                    std::smatch m;
+                    if (std::regex_search(line, m, std_flag)) standard = m[1].str();
+                }
             }
-            // 23, 26, ... and the working names 2b, 2c, ...; not 98, 17, 20 or 2a (C++20)
-            const bool enough = standard.size() == 2 && standard[0] == '2' && standard[1] >= '3' && standard[1] != 'a';
-            if (!enough) {
+            if (standard != want_std) {
                 std::cerr << "gui-build: " << bm.string() << " asks for "
-                          << (standard.empty() ? std::string("no C++ standard") : "C++" + standard)
-                          << "; the GUI needs C++23 or later. Update U++: ./bsir.sh\n";
+                          << (standard.empty() ? std::string("no C++ standard") : "C++" + standard) << "; " << pkg
+                          << " is C++" << want_std << " (UPP/" << upp_version << "). Update U++: ./bsir.sh\n";
                 return 1;
             }
-            method = bm.string();
-            method_std = standard;
-        }
-        // A version is a C++ standard: each window is built as its own. When the method asks for
-        // another, gui/out/ gets a copy of it with that -std (GCC-cxx23.bm, ...): umk puts a
-        // package's options before the method's, so a -std in the .upp would lose. The copy's own
-        // name gives it its own objects in the cache.
-        // v001 is C++23, so both of its windows are.
-        static const std::map<std::string, std::string> kPackageStd = {{"Jac313Runner", "23"}, {"JTextGui", "23"}};
-        int rc = 0;
-        for (const auto& pkg : packages) {
             const fs::path out = gui / "out" / pkg;
-            std::error_code ec;
             fs::create_directories(out.parent_path(), ec);
-            std::string pkg_method = method;
-            if (const auto it = kPackageStd.find(pkg); it != kPackageStd.end() && it->second != method_std) {
-                const fs::path src_bm = method;
-                const fs::path copy = gui / "out" / (src_bm.stem().string() + "-cxx" + it->second + ".bm");
-                std::ifstream in(src_bm);
-                std::ofstream o(copy);
-                static const std::regex std_any(R"(-std=(?:c|gnu)\+\+\w+)");
-                for (std::string line; std::getline(in, line);) {
-                    if (line.rfind("COMMON_CPP_OPTIONS", 0) == 0) line = std::regex_replace(line, std_any, "-std=c++" + it->second);
-                    o << line << "\n";
-                }
-                if (!o) {
-                    std::cerr << "gui-build: could not write " << copy.string() << "\n";
-                    return 1;
-                }
-                pkg_method = copy.string();
-            }
             // Each window holds the folder it was compiled in, and umk's cache can outlive a move
             // (a moved file keeps its time): a build in a new place compiles everything.
             const fs::path stamp = out.parent_path() / (pkg + ".compiled_in");
             std::string built_in;
             { std::ifstream in(stamp); std::getline(in, built_in); }
             const bool rebuild_all = clean || built_in != fs::weakly_canonical(gui, ec).string();
-            std::cout << "gui-build: " << pkg << "  (umk " << umk.string() << ", " << pkg_method << ")\n";
+            std::cout << "gui-build: " << pkg << "  (umk " << umk.string() << ", " << bm.string() << ")\n";
             // umk's objects go to this world's own cache, not U++'s shared ~/.cache/upp.out: one
-            // cache for v001 and v002 made a build of one world link the other world's objects.
+            // cache for v001 and v002 made a build of one world link the other world's objects. The
+            // two UPP versions' objects are told apart by their method's path.
             const fs::path cache = gui / "out" / ".upp.out";
-            const auto r = run_process({umk.string(), gui.string() + "," + uppsrc.string(), pkg, pkg_method, rebuild_all ? "-abrsH" : "-brsH",
+            const auto r = run_process({umk.string(), gui.string() + "," + uppsrc.string(), pkg, bm.string(), rebuild_all ? "-abrsH" : "-brsH",
                                         "--out-dir", cache.string(), out.string()}, 1800);
             std::cout << r.stdout_text;
             std::cerr << r.stderr_text;

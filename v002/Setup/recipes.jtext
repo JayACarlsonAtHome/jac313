@@ -46,7 +46,7 @@
 //   client (JTextGui links libmariadb: mariadb-connector-c-devel, headers in /usr/include/mysql;
 //   Mint libmariadb-dev, headers in /usr/include/mariadb). libpq comes from pg18, SQLite from
 //   sqlite. U++ itself
-//   comes from upp_basefix into upp_basefix_install beside the repository (pinned GitHub commit + SHA-256-checked
+//   comes from upp_basefix into UPP/<version>/install beside the repository (pinned GitHub commit + SHA-256-checked
 //   tree, no sudo).
 // dbeaver: the GUI step (skipped with --no-gui): DBeaver Community, a database browser for
 //   results.db (SQLite) and the PostgreSQL / MariaDB tables. DBeaver's own package from its
