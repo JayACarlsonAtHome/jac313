@@ -23,7 +23,7 @@
 
 1. #|# 2|canonical_dir|jText_GUI/v001/jText
 
-1. #|# 3|canonical_commit|0b925d076597
+1. #|# 3|canonical_commit|dfab3d597f8f
 
 1. #|# 4|canonical_dirty|No
 
@@ -31,7 +31,7 @@
 
 1. #|# 6|transform|none
 
-1. #|# 7|ported|2026-11-09
+1. #|# 7|ported|2026-11-10
 
 1. #|# 8|baseline|No
 
@@ -86,13 +86,13 @@
 
 1. #|# 14|Qlite/include/Qlite/v001/jac321/text.hpp|Qlite/include/Qlite/v001/jac321/text.hpp|59c4f2d87493c2128ffb4dcbdc1ec616ea1a1b1c05c547169da076ccb6786d34|59c4f2d87493c2128ffb4dcbdc1ec616ea1a1b1c05c547169da076ccb6786d34
 
-1. #|# 15|jText.api.inc|jText.api.inc|d7b214b9a5bdb7a56bc679e5c34a59ad29899547c08778bd9b7dfaaf81af9c06|d7b214b9a5bdb7a56bc679e5c34a59ad29899547c08778bd9b7dfaaf81af9c06
+1. #|# 15|jText.api.inc|jText.api.inc|e24e858a5e2161c54984e631745f5e6132b63333c3a183a52841c52b6a831f6d|e24e858a5e2161c54984e631745f5e6132b63333c3a183a52841c52b6a831f6d
 
 1. #|# 16|jText.cpp|jText.cpp|338383ba327598db48a56969fe24f64fa369221c75de65b8d33d5a40d1f4c77c|338383ba327598db48a56969fe24f64fa369221c75de65b8d33d5a40d1f4c77c
 
 1. #|# 17|jText.h|jText.h|08b1bab29df782b68342c8a97419a7a47d0865ddf4d52261ad1b3a34b7a6cb1c|08b1bab29df782b68342c8a97419a7a47d0865ddf4d52261ad1b3a34b7a6cb1c
 
-1. #|# 18|jText.impl.inc|jText.impl.inc|973c620dfa42c86c42847c4f3dc9861b2bbd75eb278cd635c601f32d54779639|973c620dfa42c86c42847c4f3dc9861b2bbd75eb278cd635c601f32d54779639
+1. #|# 18|jText.impl.inc|jText.impl.inc|8d7f6e678e995f41e6802d928063a7b8ea6347cd187ad5e25fd8f207fccf8b71|8d7f6e678e995f41e6802d928063a7b8ea6347cd187ad5e25fd8f207fccf8b71
 
 1. #|# 19|src/contracts.hpp|src/contracts.hpp|8ed4584cd971455406afceb89aa327e2a6b9c6e7267ac114aa58291783560a42|8ed4584cd971455406afceb89aa327e2a6b9c6e7267ac114aa58291783560a42
 
@@ -108,17 +108,17 @@
 
 1. #|# 25|src/parser/line.hpp|src/parser/line.hpp|290197ccb1091457d142d32a3abd6780713c1777d7f3e1f0d310fcf380bcf147|290197ccb1091457d142d32a3abd6780713c1777d7f3e1f0d310fcf380bcf147
 
-1. #|# 26|src/parser/section.cpp|src/parser/section.cpp|7f9db7f36f4e4663b6bac1276af82a3e41a71c818bd15324f4e80e0f01e12d3e|7f9db7f36f4e4663b6bac1276af82a3e41a71c818bd15324f4e80e0f01e12d3e
+1. #|# 26|src/parser/section.cpp|src/parser/section.cpp|9bb4f591868dff604687c70b7e8ed2fe21912bba1443c90f2b86298bae837a67|9bb4f591868dff604687c70b7e8ed2fe21912bba1443c90f2b86298bae837a67
 
-1. #|# 27|src/parser/section.hpp|src/parser/section.hpp|d42c2af1e82cf6b47453e4c5bf156f6d17648644ae1603c5a0bce0a726e4473a|d42c2af1e82cf6b47453e4c5bf156f6d17648644ae1603c5a0bce0a726e4473a
+1. #|# 27|src/parser/section.hpp|src/parser/section.hpp|cdc26c5ec4613685d5cab6645f8cef891044b6074561e94ac84fcba0c550a35b|cdc26c5ec4613685d5cab6645f8cef891044b6074561e94ac84fcba0c550a35b
 
 1. #|# 28|src/parser/unicode_ps_table.hpp|src/parser/unicode_ps_table.hpp|d6f16f5a1fde668861fd3acee4d660b02e9858dccdc0a95de323070299fad4d9|d6f16f5a1fde668861fd3acee4d660b02e9858dccdc0a95de323070299fad4d9
 
-1. #|# 29|src/parser/utf8.hpp|src/parser/utf8.hpp|6145c76b55380e5c4b164f3752e40094748dd49fba120f03540059da43c2f53c|6145c76b55380e5c4b164f3752e40094748dd49fba120f03540059da43c2f53c
+1. #|# 29|src/parser/utf8.hpp|src/parser/utf8.hpp|98270cf6dc528b58d172aef3ba6e243af269f8bcbce8de95cddd8df68c21ec31|98270cf6dc528b58d172aef3ba6e243af269f8bcbce8de95cddd8df68c21ec31
 
-1. #|# 30|src/validator/validator.cpp|src/validator/validator.cpp|33c57057908b2aedfeb5247dc29cc9e674b1a41d081020ce63b05dd745564b4c|33c57057908b2aedfeb5247dc29cc9e674b1a41d081020ce63b05dd745564b4c
+1. #|# 30|src/validator/validator.cpp|src/validator/validator.cpp|bca3048ca30ebd71e0ce1fa789c525b9901870dce55b021b86cff8f220c9a92d|bca3048ca30ebd71e0ce1fa789c525b9901870dce55b021b86cff8f220c9a92d
 
-1. #|# 31|src/validator/validator.hpp|src/validator/validator.hpp|5a3ea9a121feeff5d5042a339d575c9a60d9b1ed371806027778d606f0f17118|5a3ea9a121feeff5d5042a339d575c9a60d9b1ed371806027778d606f0f17118
+1. #|# 31|src/validator/validator.hpp|src/validator/validator.hpp|45294d79d6de487a8ee053d2c51ac16ea3a6e419d2eb5f2095b5891d7e84cfcf|45294d79d6de487a8ee053d2c51ac16ea3a6e419d2eb5f2095b5891d7e84cfcf
 
 === End Data ===
 === End Section ===

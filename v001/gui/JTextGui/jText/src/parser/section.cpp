@@ -909,6 +909,52 @@ static void strip_bom(std::vector<std::string>& lines)
     if (!lines.empty() && lines[0].starts_with("\xEF\xBB\xBF")) lines[0].erase(0, 3);
 }
 
+// jText is UTF-8 (SPEC 2.2). Writers write what they are given; the reader converts: a byte
+// that does not decode strictly (a lone Latin-1 byte, a truncated, overlong or surrogate
+// sequence, anything past U+10FFFF) is read as Windows-1252 and re-encoded, so the file opens,
+// and each line that needed it is recorded for the validator's warning.
+static auto convert_to_utf8(std::vector<std::string>& lines) -> std::vector<converted_line>
+{
+    std::vector<converted_line> converted;
+    for (std::size_t n = 0; n < lines.size(); ++n) {
+        std::string_view rest = lines[n];
+        if (std::ranges::all_of(rest, [](char c) { return static_cast<unsigned char>(c) < 0x80; })) continue;
+        std::string out;
+        out.reserve(rest.size() + 8);
+        std::size_t byte = 0;
+        bool first = true;
+        while (!rest.empty()) {
+            if (const auto d = decode_utf8(rest)) {
+                out.append(rest.substr(0, d->len));
+                rest.remove_prefix(d->len);
+                byte += d->len;
+                continue;
+            }
+            if (first) {
+                std::string found;
+                for (std::size_t i = 0; i < rest.size() && i < 4; ++i)
+                    found += std::format("{}0x{:02X}", i ? " " : "", static_cast<unsigned char>(rest[i]));
+                converted.push_back({n + 1, byte + 1, std::move(found)});
+                first = false;
+            }
+            out.append(utf8_char_of(cp1252_code_point(static_cast<unsigned char>(rest[0]))).view());
+            rest.remove_prefix(1);
+            ++byte;
+        }
+        if (!first) lines[n] = std::move(out);
+    }
+    return converted;
+}
+
+static auto read_lines(std::vector<std::string>& lines) -> std::expected<parsed_file, file_error>
+{
+    strip_bom(lines);
+    auto converted = convert_to_utf8(lines);
+    auto pf = build_from_lines(lines);
+    if (pf) pf->converted = std::move(converted);
+    return pf;
+}
+
 auto parse_file_structure(std::istream& in)
     -> std::expected<parsed_file, file_error>
 {
@@ -925,8 +971,7 @@ auto parse_file_structure(std::istream& in)
     if (in.bad()) {
         return err(file_error_kind::io_error, lines.size(), "I/O error during read");
     }
-    strip_bom(lines);
-    return build_from_lines(lines);
+    return read_lines(lines);
 }
 
 auto parse_file_structure(std::string_view text)
@@ -945,8 +990,7 @@ auto parse_file_structure(std::string_view text)
     if (start < text.size()) {
         lines.emplace_back(text.substr(start));
     }
-    strip_bom(lines);
-    return build_from_lines(lines);
+    return read_lines(lines);
 }
 
 // ──────────────────────────────────────────────────────────────

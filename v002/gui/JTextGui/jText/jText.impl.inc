@@ -127,6 +127,13 @@ auto JTextFile::read_file(std::string_view filepath, std::string_view only_secti
         std::println(stderr, "Warning: {}: {}", filepath, w);
         warnings.push_back(std::move(w));
     }
+    // A byte that is not UTF-8 was read as Windows-1252 (SPEC 2.2: readers convert): one
+    // warning per line; the next write is UTF-8.
+    for (const auto& c : parsed->converted) {
+        auto w = std::format("line {}: not UTF-8 at byte {} ({}); read as Windows-1252", c.line_no, c.byte, c.found);
+        std::println(stderr, "Warning: {}: {}", filepath, w);
+        warnings.push_back(std::move(w));
+    }
 
     // Header: the light profile's "#" metadata, or the full profile's numbered
     // header lines by position (SPEC 2.3).
