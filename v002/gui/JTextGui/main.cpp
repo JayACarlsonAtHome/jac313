@@ -1758,7 +1758,7 @@ struct JTextGui : TopWindow {
 	}
 
 	// Delete Record: the record shown is blanked, never removed. It keeps its id and its
-	// place; every other value, its markers and comments are cleared. Saved when you save.
+	// place; every other value becomes empty text (never NULL), markers and comments are cleared.
 	void DeleteRecord() {
 		if (loaded < 0 || loaded >= (int)session.rows.size()) {
 			Status("Pick the record to delete first.");

@@ -272,28 +272,31 @@ struct TableSession {
         return top + 1;
     }
 
-    /// Add Record: a new record at the end, with the next free id and no other lines;
-    /// inserted on save.
+    /// Add Record: a new record at the end, with the next free id; every other field (one per
+    /// known column) is empty text, never NULL, so a NOT NULL column takes it. Inserted on save.
     std::size_t add_record() {
         Record rec;
-        rec.mark_all_absent();
+        rec.ensure_size(std::max({rec.size(), column_names.size(), columns.size()}));
+        for (std::size_t f = 0; f < rec.size(); ++f) {
+            rec.fields[f].clear();
+            rec.is_null[f] = false;
+            rec.has_line[f] = true;
+        }
         rec.fields[0] = std::to_string(next_record_id());
-        rec.is_null[0] = false;
-        rec.has_line[0] = true;
         return append_row(std::move(rec));
     }
 
     /// Delete Record: the record is never removed, it is blanked. It keeps its id (line 1)
-    /// and its place; every other line, its marker and every comment are cleared, so a save
-    /// writes it with empty values (a table row keeps its key; a jText file keeps the id
-    /// line). Ids are never renumbered. False when row is out of range.
+    /// and its place; every other field becomes empty text (never NULL), its markers and
+    /// every comment are cleared, so a save writes it with empty values (a table row keeps
+    /// its key). Ids are never renumbered. False when row is out of range.
     bool blank_record(std::size_t row) {
         if (row >= rows.size()) return false;
         auto& rec = rows[row];
         for (std::size_t f = 1; f < rec.size(); ++f) {
-            rec.fields[f].clear();
-            rec.is_null[f] = true;
-            rec.has_line[f] = false;
+            rec.fields[f].clear();          // empty text, never NULL: a NOT NULL column takes it
+            rec.is_null[f] = false;
+            rec.has_line[f] = true;
             rec.field_markers[f].clear();
         }
         rec.line_comments.clear();

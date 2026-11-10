@@ -41,8 +41,6 @@
 === Data ===
 1. #|# 1|1|Docs pass with a BREAKING CHANGES section|Deferred by Jay until things shake out. Since 9710b52b: results.db schema 1 to 6 (every column NOT NULL; rebuild on older, refuse on newer; run_target; os and machine tables; every pickable setting recorded), settings files replaced by jText tables (compilers, recipes, pins, test_limits, test_params, production.jtext, local override tables), fleet registry DDL v0_2 (machine number per hardware), CLI flags (--machine-id, --production, --no-record, presets forward every flag), Store API (attach_persistence(sink, batch), several sinks at once, flag router gone, exact doubles, NaN carried with the SQLite NULL compromise), rendered reports no longer committed, Runner summary contract 5 (gui/README.md still says 1 to 4). Each with the why: the three goals.
 
-1. #|# 2|2|Run a real calibration on this machine|A real bench needs jac313_store_bench --calibrate first. It sweeps binary, jtext, html and json only (about 8 minutes at full size); the databases (sql, pg-local, pg-remote) are never calibrated and run at the default batch 10,000.
-
 === End Data ===
 === End Section ===
 
@@ -62,8 +60,6 @@
 
 === Data ===
 1. #|# 1|Run --assign-new for real, and to which number?|A real run renumbers this machine in results.db and in the R430 fleet registry (fleet.machine). The flag was proven to parse and reach the host step; --claim passed end to end. Alternative: accept that proof.|2026-10-30|Claude jay-35|
-
-1. #|# 2|Run --run-everything for real?|It wipes this machine's results first, then runs the full battery with a full-size calibration of the file sinks (minutes; the databases are not calibrated). It forwards flags through the same code the presets use, which passed end to end.|2026-10-30|Claude jay-35|
 
 === End Data ===
 === End Section ===
