@@ -1041,6 +1041,7 @@ struct JTextGui : TopWindow {
 	ArrayCtrl list;
 	ParentCtrl listPane;      // the Records list and its Detach/Attach button
 	Button detachBtn;
+	Button addRecordBtn, deleteRecordBtn;   // above the Records list: Add Record, Delete Record
 	Label lRecords;
 	CellGrid grid;            // the Records as a grid, while a Lines list is active
 	Vector<int> gridCols;     // grid column -> field (0 = the id, then the Lines list)
@@ -1121,7 +1122,7 @@ struct JTextGui : TopWindow {
 		lTable.SetText("Table");
 		lWhere.SetText("WHERE");
 		lFilter.SetText("Filter");
-		where.NullText("SQL for Pull, sent as WHERE");
+		where.NullText("SQL condition, e.g. id > 1 (Enter or Pull reads the table)");
 		filter.NullText("search every field, e.g. hammer or *claw*");
 		filter.WhenAction = THISBACK(OnFilter);
 		connStatus.SetText("Not connected");
@@ -1137,7 +1138,9 @@ struct JTextGui : TopWindow {
 		section.NoWantFocus();
 		lSection.SetText("Section");
 		section.WhenAction = THISBACK(OnSection);
-		where.NoWantFocus();
+		// WHERE must take the focus to be typed in; Enter in it runs Pull (the condition is
+		// only used when the table is read again).
+		where.WhenEnter = THISBACK(Pull);
 		// the Filter box takes the focus at start (ActiveFocus below), so it must want focus
 		marker.NoWantFocus();
 		list.NoWantFocus();
@@ -1220,8 +1223,20 @@ struct JTextGui : TopWindow {
 		lRecords.SetText("Records");
 		listPane.Add(lRecords.LeftPosZ(4, 200).TopPosZ(2, 22));
 		listPane.Add(detachBtn.RightPosZ(2, 70).TopPosZ(1, 22));
-		listPane.Add(list.HSizePosZ(0, 0).VSizePosZ(26, 0));
-		listPane.Add(grid.HSizePosZ(0, 0).VSizePosZ(26, 0));
+		// Add Record / Delete Record, in a row of their own under the title.
+		addRecordBtn.SetLabel("Add Record");
+		addRecordBtn.Tip("Add a record at the end, with the next id (the highest + 1); it is inserted when you save");
+		addRecordBtn.NoWantFocus();
+		addRecordBtn.WhenAction = THISBACK(AddRecord);
+		deleteRecordBtn.SetLabel("Delete Record");
+		deleteRecordBtn.Tip("Blank the record shown: it keeps its id and its place, every other value is cleared "
+		                    "(saved when you save; ids are never renumbered)");
+		deleteRecordBtn.NoWantFocus();
+		deleteRecordBtn.WhenAction = THISBACK(DeleteRecord);
+		listPane.Add(addRecordBtn.LeftPosZ(2, 110).TopPosZ(26, 22));
+		listPane.Add(deleteRecordBtn.LeftPosZ(116, 110).TopPosZ(26, 22));
+		listPane.Add(list.HSizePosZ(0, 0).VSizePosZ(52, 0));
+		listPane.Add(grid.HSizePosZ(0, 0).VSizePosZ(52, 0));
 		grid.Hide();
 		SetupGrid();
 		recordsWin.Title("jText GUI - Records").Sizeable().Zoomable();
@@ -1714,6 +1729,53 @@ struct JTextGui : TopWindow {
 		field[i].SetFocus();
 		field[i].SetSelection();
 		Status(Format("Line %d added. Type its value; left empty it is not saved.", i + 1));
+	}
+
+	// Add Record: a new record at the end with the next id (the highest + 1), shown and
+	// selected; inserted when saved. A Filter that would hide it is cleared.
+	void AddRecord() {
+		if (session.rows.empty() && session.table.empty()) {
+			Status("Open a jText file or pull a table first (or use New Form).");
+			return;
+		}
+		SaveCurrent();
+		const int idx = (int)session.add_record();
+		const auto& rec = session.rows[(std::size_t)idx];
+		if (!TrimBoth(Field(filter)).IsEmpty() && !RowMatchesFilter(rec, Field(filter), session.case_sensitive)) {
+			loading = true;
+			filter <<= String();
+			loading = false;
+		}
+		loaded = idx;          // RefreshList keeps the cursor on the loaded record
+		loading = true;
+		list.KillCursor();
+		loading = false;
+		RefreshList();
+		LoadRow(idx);
+		NoteEdit();
+		Status(Format("Record %d added (id %s) at the end. Type its values; it is inserted when you save.",
+		              idx + 1, S(jtext_gui::field_text(rec, 0))));
+	}
+
+	// Delete Record: the record shown is blanked, never removed. It keeps its id and its
+	// place; every other value, its markers and comments are cleared. Saved when you save.
+	void DeleteRecord() {
+		if (loaded < 0 || loaded >= (int)session.rows.size()) {
+			Status("Pick the record to delete first.");
+			return;
+		}
+		SaveCurrent();
+		const int row = loaded;
+		const String id = S(jtext_gui::field_text(session.rows[(std::size_t)row], 0));
+		if (!PromptOKCancel(DeQtfLf(Format("Delete record %d (id %s)?\n\nIts values are cleared; it keeps its id "
+		                                   "and its place in the list (ids are never renumbered). Nothing is "
+		                                   "written until you save.", row + 1, id))))
+			return;
+		session.blank_record((std::size_t)row);
+		RefreshList();
+		LoadRow(row);
+		NoteEdit();
+		Status(Format("Record %d (id %s) blanked: only its id is left. Saved when you save.", row + 1, id));
 	}
 
 	// Row i's number label: "id" for line 1, else the line number.
