@@ -8,7 +8,7 @@
 // Package version, "major.minor": major = the v002 API line, minor = the revision. Bump on
 // each small code change (edit the minor); v002 stays until a real (breaking) change, then
 // this becomes "v002.001". Enforced by `jac313_test_cli version-check` (pre-push).
-[[nodiscard]] constexpr std::string_view version() noexcept { return "v002.039"; }
+[[nodiscard]] constexpr std::string_view version() noexcept { return "v002.040"; }
 
 enum class CaseMode { Insensitive, Sensitive };
 
@@ -68,7 +68,8 @@ public:
     // the library's own (jtext::kFormatVersion), so a save upgrades an older file.
     std::string jtext_version;
     // What the last read noticed but read past, such as a missing, older or newer
-    // jText version. Each is also printed to stderr as "Warning: ...".
+    // jText version, or a line that was not UTF-8 (read as Windows-1252). Each is also
+    // printed to stderr as "Warning: ...".
     std::vector<std::string> warnings;
 
     std::vector<JTextSection> sections;

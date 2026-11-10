@@ -1,6 +1,6 @@
 #include <jac313/jText/v001.hpp>
 
-static_assert(jac313::jText::v001::version() == "v001.040", "v001 version");
+static_assert(jac313::jText::v001::version() == "v001.041", "v001 version");
 
 #include "parser/close.hpp"
 #include "parser/line.hpp"
@@ -12,6 +12,7 @@ static_assert(jac313::jText::v001::version() == "v001.040", "v001 version");
 #include <sys/wait.h>
 #include <unistd.h>
 #include <fstream>
+#include <iterator>
 #include <filesystem>
 #include <iostream>
 #include <array>
@@ -988,6 +989,26 @@ int main() {
         JTextFile g;
         check(g.read_full(path.string()).has_value(), "the written file reads");
         check(g.jtext_version == "0.8" && g.warnings.empty(), "the written file is 0.8, with no warning");
+        std::filesystem::remove(path);
+    }
+
+    {
+        // JTextFile: a byte that is not UTF-8 is read as Windows-1252 and warned about
+        // (SPEC 2.2: readers convert); the write is UTF-8, and reads back with no warning.
+        using namespace jac313::jText::v001;
+        const auto path = std::filesystem::temp_directory_path() / "jtext_cp1252_test.jtext";
+        { std::ofstream fo(path, std::ios::binary);
+          fo << "# JText File - created x\n# jText Version: 0.8\n\n-- A --\n1. |# 1|caf\xE9\n-- End A --\n-- EOF --\n"; }
+        JTextFile f;
+        check(f.read_full(path.string()).has_value(), "a file with a Latin-1 byte reads");
+        check(f.warnings.size() == 1 && f.warnings[0].find("Windows-1252") != std::string::npos,
+              "its read warns once: read as Windows-1252");
+        check(f.write(path.string()).has_value(), "it writes back");
+        JTextFile g;
+        check(g.read_full(path.string()).has_value() && g.warnings.empty(), "the written file reads with no warning");
+        std::ifstream back(path, std::ios::binary);
+        const std::string text{std::istreambuf_iterator<char>(back), std::istreambuf_iterator<char>()};
+        check(text.find("caf\xC3\xA9") != std::string::npos, "the written value is UTF-8");
         std::filesystem::remove(path);
     }
 
