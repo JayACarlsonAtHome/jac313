@@ -141,15 +141,19 @@ public:
         // Variadic extraction from the current row.
         template<typename... Ts>
         void get(Ts&... values) {
-            int col = 0;
-            ((values = column_value<Ts>(col++)), ...);
+            const FirstColumns<sizeof...(Ts)> cols{column_count()};
+            [&]<std::size_t... I>(std::index_sequence<I...>) {
+                ((values = column_value<Ts>(cols.template at<I>())), ...);
+            }(std::index_sequence_for<Ts...>{});
         }
 
         template<typename... Ts>
         std::tuple<Ts...> get_row() {
             std::tuple<Ts...> row{};
-            int col = 0;
-            std::apply([&](auto&... v) { ((v = column_value<std::remove_cvref_t<decltype(v)>>(col++)), ...); }, row);
+            const FirstColumns<sizeof...(Ts)> cols{column_count()};
+            [&]<std::size_t... I>(std::index_sequence<I...>) {
+                ((std::get<I>(row) = column_value<Ts>(cols.template at<I>())), ...);
+            }(std::index_sequence_for<Ts...>{});
             return row;
         }
 
@@ -170,10 +174,10 @@ public:
             throw PostgresError("no such column: " + std::string(name));
         }
         template<typename T>
-        T get_by_name(std::string_view name) { return column_value<T>(column_index(name)); }
+        T get_by_name(std::string_view name) { return column_value<T>(column_at(column_index(name))); }
         // Column `col` (0-based) of the current row, for a width known only at run time.
         template<typename T>
-        T get_at(int col) { return column_value<T>(col); }
+        T get_at(int col) { return column_value<T>(column_at(col)); }
 
 #if defined(__cpp_lib_expected)
         // Non-throwing step: errors come back as std::unexpected(PostgresError).
@@ -219,11 +223,12 @@ public:
             row_ = -1;
         }
 
+        ColumnIndex column_at(int col) const { return ColumnIndex{col, column_count()}; }
+
         template<typename T>
-        T column_value(int col) {
+        T column_value(ColumnIndex col) {
             // A current row (step() returned true) and a column of it; libpq would read as NULL.
             QLITE_PRE(result_ && row_ >= 0 && row_ < PQntuples(result_.get()));
-            QLITE_PRE(col >= 0 && col < column_count());
             const PGresult* r = result_.get();
             const bool null = PQgetisnull(r, row_, col);
             if constexpr (std::is_same_v<T, std::vector<std::byte>>) {

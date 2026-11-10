@@ -13,7 +13,39 @@
 
 // Package version, "major.minor": major = the v001 API line, minor = the revision.
 // Bump the minor on each small code change; a real (breaking) change moves the major.
-[[nodiscard]] constexpr std::string_view version() noexcept { return "v001.019"; }
+[[nodiscard]] constexpr std::string_view version() noexcept { return "v001.021"; }
+
+// ---------------------------------------------------------------------------
+// Column and bind indexes as types (jac321, vendored in Qlite/v001/jac321/ by jac321's
+// tools/vendor.sh; change jac321 and vendor again, never edit the copy).
+// A ColumnIndex is 0 <= i < count, a BindIndex 1 <= i <= count, checked once when made;
+// code that takes one needs no check of its own. FirstColumns<N> checks count >= N once
+// and hands out columns 0..N-1, so get(a, b, c) costs one check, not three.
+// QLITE_CONTRACTS_ENABLED picks the policy at compile time: on, a violation reports like
+// every Qlite contract and aborts; off (BuildOff), nothing is evaluated. Every index check
+// guards a public call's arguments, so it reports as a precondition (jac321 calls the
+// check itself an invariant of the index type).
+// ---------------------------------------------------------------------------
+struct ContractPolicy {
+    static constexpr bool evaluate = true;
+    static constexpr bool stops    = true;
+    [[noreturn]] static void on_violation(const jac321::Violation& v) noexcept {
+        Qlite::contracts::violation("precondition", v.expr, v.loc);
+    }
+};
+
+consteval auto index_policy() noexcept {
+    if constexpr ((QLITE_CONTRACTS_ENABLED) != 0) return ContractPolicy{};
+    else return jac321::BuildOff{};
+}
+using IndexPolicy = decltype(index_policy());
+
+struct ColumnTag;
+struct BindTag;
+using ColumnIndex = jac321::Index<ColumnTag, 0, IndexPolicy>;
+using BindIndex   = jac321::Index<BindTag, 1, IndexPolicy>;
+template<std::size_t N>
+using FirstColumns = jac321::FirstIndexes<ColumnIndex, N>;
 
 // ---------------------------------------------------------------------------
 // Errors: each database throws its own type, all derived from Error.

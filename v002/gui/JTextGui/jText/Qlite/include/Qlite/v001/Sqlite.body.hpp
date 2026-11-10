@@ -279,17 +279,15 @@ public:
         }
 
         // Runtime indexed bind helpers (dynamic column counts, e.g. metric tables).
-        void bind_int64(int idx, std::int64_t v) { placeholder(idx); sqlite3_bind_int64(stmt_, idx, v); }
-        void bind_double(int idx, double v)       { placeholder(idx); sqlite3_bind_double(stmt_, idx, v); }
+        void bind_int64(int idx, std::int64_t v) { sqlite3_bind_int64(stmt_, placeholder(idx), v); }
+        void bind_double(int idx, double v)       { sqlite3_bind_double(stmt_, placeholder(idx), v); }
         void bind_text(int idx, std::string_view v) {
-            placeholder(idx);
-            sqlite3_bind_text(stmt_, idx, v.data(), static_cast<int>(v.size()), SQLITE_TRANSIENT);
+            sqlite3_bind_text(stmt_, placeholder(idx), v.data(), static_cast<int>(v.size()), SQLITE_TRANSIENT);
         }
         void bind_blob(int idx, std::span<const std::byte> v) {
-            placeholder(idx);
-            sqlite3_bind_blob(stmt_, idx, v.data(), static_cast<int>(v.size()), SQLITE_TRANSIENT);
+            sqlite3_bind_blob(stmt_, placeholder(idx), v.data(), static_cast<int>(v.size()), SQLITE_TRANSIENT);
         }
-        void bind_null(int idx) { placeholder(idx); sqlite3_bind_null(stmt_, idx); }
+        void bind_null(int idx) { sqlite3_bind_null(stmt_, placeholder(idx)); }
 
         // Named-parameter bind (":name" / "@name" / "$name" / "?NNN").
         template<typename T>
@@ -299,16 +297,22 @@ public:
             bind_value(stmt_, idx, std::forward<T>(v));
         }
 
-        // Variadic extraction using the "peel first, recurse on ellipses" pattern.
+        // Variadic extraction: one check that the row has the columns, then each one.
         template<typename... Ts>
         void get(Ts&... values) {
-            get_impl(0, values...);
+            const FirstColumns<sizeof...(Ts)> cols{sqlite3_data_count(stmt_)};
+            [&]<std::size_t... I>(std::index_sequence<I...>) {
+                ((values = cell<Ts>(cols.template at<I>())), ...);
+            }(std::index_sequence_for<Ts...>{});
         }
 
         template<typename... Ts>
         std::tuple<Ts...> get_row() {
             std::tuple<Ts...> row{};
-            get_tuple_impl<0>(row);
+            const FirstColumns<sizeof...(Ts)> cols{sqlite3_data_count(stmt_)};
+            [&]<std::size_t... I>(std::index_sequence<I...>) {
+                ((std::get<I>(row) = cell<Ts>(cols.template at<I>())), ...);
+            }(std::index_sequence_for<Ts...>{});
             return row;
         }
 
@@ -336,12 +340,12 @@ public:
         }
         template<typename T>
         T get_by_name(std::string_view name) {
-            return cell<T>(column_index(name));
+            return cell<T>(column_at(column_index(name)));
         }
         // Column `col` (0-based) of the current row, for a width known only at run time.
         template<typename T>
         T get_at(int col) {
-            return cell<T>(col);
+            return cell<T>(column_at(col));
         }
 
 #if defined(__cpp_lib_expected)
@@ -359,15 +363,18 @@ public:
 
     private:
         // The placeholder idx (1-based) is in the SQL: SQLite would ignore a bind past them.
-        void placeholder(int idx) const {
-            QLITE_PRE(idx >= 1 && idx <= sqlite3_bind_parameter_count(stmt_));
+        BindIndex placeholder(int idx) const {
+            return BindIndex{idx, sqlite3_bind_parameter_count(stmt_)};
         }
 
         // Column col of the current row. sqlite3_data_count is 0 without one (before step(),
         // or after it returned false), where SQLite would read as NULL / 0 without a word.
+        ColumnIndex column_at(int col) const {
+            return ColumnIndex{col, sqlite3_data_count(stmt_)};
+        }
+
         template<typename T>
-        T cell(int col) {
-            QLITE_PRE(col >= 0 && col < sqlite3_data_count(stmt_));
+        T cell(ColumnIndex col) {
             return column<T>(stmt_, col);
         }
 
@@ -377,23 +384,6 @@ public:
         void bind_impl(int idx, T&& val, Rest&&... rest) {
             bind_value(stmt_, idx, std::forward<T>(val));
             bind_impl(idx + 1, std::forward<Rest>(rest)...);
-        }
-
-        void get_impl(int /*col*/) {} // base case
-
-        template<typename T, typename... Rest>
-        void get_impl(int col, T& val, Rest&... rest) {
-            val = cell<T>(col);
-            get_impl(col + 1, rest...);
-        }
-
-        template<std::size_t I, typename Tuple>
-        void get_tuple_impl(Tuple& t) {
-            if constexpr (I < std::tuple_size_v<Tuple>) {
-                using T = std::tuple_element_t<I, Tuple>;
-                std::get<I>(t) = cell<T>(static_cast<int>(I));
-                get_tuple_impl<I + 1>(t);
-            }
         }
 
         sqlite3_stmt* stmt_ = nullptr;

@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "jac313/Qlite/v001/contracts.hpp"   // QLITE_PRE/POST/ASSERT, used by the bodies
+#include "jac313/Qlite/v001/jac321/index.hpp" // ColumnIndex / BindIndex (vendored jac321, see Database.body.hpp)
 
 namespace jac313::Qlite::v001 {
 
