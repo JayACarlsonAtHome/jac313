@@ -1,5 +1,7 @@
 #pragma once
 
+#include "jtext_gui/core/standard.hpp"   // v001 is C++23
+
 // connections_file.hpp — saved database servers for the connect dialog, kept in a jText file
 // OUTSIDE every git project (the Captain, 2026-10-16: the same layout in every jac project).
 // Default: <projects>/SQL_Secrets/jtext_gui_connections.jtext, i.e. a SQL_Secrets folder

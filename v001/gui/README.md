@@ -96,7 +96,12 @@ The folders, all side by side (`<root>` is `~/git/jac313` here):
 ~/git/upp_basefix_work      the download, the trees, the build of umk
 ```
 
-C++23 is the minimum: `gui-build` refuses a method that asks for less. `-fcontracts` on the link
+A version is a C++ standard, and v001 is C++23: both windows are built as C++23.
+upp_basefix's `GCC.bm` and `CLANG.bm` ask for C++26, and umk puts a package's options before the
+method's, so a `-std` in the `.upp` would lose; `gui-build` writes a copy of the method with
+`-std=c++23` (`gui/out/GCC-cxx23.bm`, `CLANG-cxx23.bm`) and builds with that, in its own cache.
+`Model.h` and jText_GUI's `standard.hpp` stop any other build at compile time. A method that asks
+for less than C++23 is refused. `-fcontracts` on the link
 is not in the `.upp` files: `upp_basefix install` writes it into `GCC.bm` only for a GCC with
 native contracts (GCC 16). An older GCC's driver would turn it into `-lstdc++exp`, which
 gcc-toolset-15 on RHEL does not ship.

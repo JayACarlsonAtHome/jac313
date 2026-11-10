@@ -1,5 +1,7 @@
 #pragma once
 
+#include "jtext_gui/core/standard.hpp"   // v001 is C++23
+
 /// Ultimate backends: SQLite, MariaDB, PostgreSQL readers/writers + jText file store.
 /// GUI talks only to TableSession + these store APIs (testable without the window).
 

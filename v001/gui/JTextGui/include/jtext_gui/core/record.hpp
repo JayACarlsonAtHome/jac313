@@ -1,5 +1,7 @@
 #pragma once
 
+#include "jtext_gui/core/standard.hpp"   // v001 is C++23
+
 #include <algorithm>
 #include <charconv>
 #include <cstddef>

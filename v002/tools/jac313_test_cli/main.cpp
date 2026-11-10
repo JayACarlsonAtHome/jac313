@@ -4009,6 +4009,7 @@ static int run_main(int argc, char** argv) {
         fs::path src = fs::current_path();
         std::vector<std::string> packages;
         std::string method = "GCC";   // a U++ build method: the GCC.bm / CLANG.bm beside umk when there is one
+        std::string method_std;        // the C++ standard the method asks for (23, 26, ...)
         bool clean = false;            // rebuild every package (umk -a)
         for (int i = 2; i < argc; ++i) {
             const std::string a = argv[i];
@@ -4083,23 +4084,48 @@ static int run_main(int argc, char** argv) {
                 return 1;
             }
             method = bm.string();
+            method_std = standard;
         }
+        // A version is a C++ standard: each window is built as its own. When the method asks for
+        // another, gui/out/ gets a copy of it with that -std (GCC-cxx23.bm, ...): umk puts a
+        // package's options before the method's, so a -std in the .upp would lose. The copy's own
+        // name gives it its own objects in the cache.
+        // v002 is C++26, so the Runner is; JTextGui is a copy of jText_GUI's v001 code (C++23,
+        // its standard.hpp checks it), the one exception until jText_GUI has v002 code.
+        static const std::map<std::string, std::string> kPackageStd = {{"Jac313Runner", "26"}, {"JTextGui", "23"}};
         int rc = 0;
         for (const auto& pkg : packages) {
             const fs::path out = gui / "out" / pkg;
             std::error_code ec;
             fs::create_directories(out.parent_path(), ec);
+            std::string pkg_method = method;
+            if (const auto it = kPackageStd.find(pkg); it != kPackageStd.end() && it->second != method_std) {
+                const fs::path src_bm = method;
+                const fs::path copy = gui / "out" / (src_bm.stem().string() + "-cxx" + it->second + ".bm");
+                std::ifstream in(src_bm);
+                std::ofstream o(copy);
+                static const std::regex std_any(R"(-std=(?:c|gnu)\+\+\w+)");
+                for (std::string line; std::getline(in, line);) {
+                    if (line.rfind("COMMON_CPP_OPTIONS", 0) == 0) line = std::regex_replace(line, std_any, "-std=c++" + it->second);
+                    o << line << "\n";
+                }
+                if (!o) {
+                    std::cerr << "gui-build: could not write " << copy.string() << "\n";
+                    return 1;
+                }
+                pkg_method = copy.string();
+            }
             // Each window holds the folder it was compiled in, and umk's cache can outlive a move
             // (a moved file keeps its time): a build in a new place compiles everything.
             const fs::path stamp = out.parent_path() / (pkg + ".compiled_in");
             std::string built_in;
             { std::ifstream in(stamp); std::getline(in, built_in); }
             const bool rebuild_all = clean || built_in != fs::weakly_canonical(gui, ec).string();
-            std::cout << "gui-build: " << pkg << "  (umk " << umk.string() << ", " << method << ")\n";
+            std::cout << "gui-build: " << pkg << "  (umk " << umk.string() << ", " << pkg_method << ")\n";
             // umk's objects go to this world's own cache, not U++'s shared ~/.cache/upp.out: one
             // cache for v001 and v002 made a build of one world link the other world's objects.
             const fs::path cache = gui / "out" / ".upp.out";
-            const auto r = run_process({umk.string(), gui.string() + "," + uppsrc.string(), pkg, method, rebuild_all ? "-abrsH" : "-brsH",
+            const auto r = run_process({umk.string(), gui.string() + "," + uppsrc.string(), pkg, pkg_method, rebuild_all ? "-abrsH" : "-brsH",
                                         "--out-dir", cache.string(), out.string()}, 1800);
             std::cout << r.stdout_text;
             std::cerr << r.stderr_text;

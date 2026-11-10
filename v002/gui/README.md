@@ -96,7 +96,12 @@ The folders, all side by side (`<root>` is `~/git/jac313` here):
 ~/git/upp_basefix_work      the download, the trees, the build of umk
 ```
 
-C++23 is the minimum: `gui-build` refuses a method that asks for less. `-fcontracts` on the link
+A version is a C++ standard, and v002 is C++26: Jac313Runner is built with upp_basefix's own
+`GCC.bm` / `CLANG.bm` (C++26), and `Model.h` stops an older build. JTextGui is the exception: it
+is a copy of jText_GUI's v001 code, which is C++23 (its `standard.hpp` checks it), so `gui-build`
+builds it with a copy of the method set to `-std=c++23` (`gui/out/GCC-cxx23.bm`, ...; umk puts a
+package's options before the method's, so a `-std` in the `.upp` would lose), in its own cache,
+until jText_GUI has v002 code. A method that asks for less than C++23 is refused. `-fcontracts` on the link
 is not in the `.upp` files: `upp_basefix install` writes it into `GCC.bm` only for a GCC with
 native contracts (GCC 16). An older GCC's driver would turn it into `-lstdc++exp`, which
 gcc-toolset-15 on RHEL does not ship.

@@ -3,6 +3,9 @@
 // command for a result row, and the viewer's jText model (parsed by the jText library).
 // The headless modes (--dump-command, --dump-jtext, --dump-summary) use only this.
 #pragma once
+// A version is a C++ standard: jac313 v001 is C++23, the Runner included (gui-build builds it as
+// C++23 even when U++'s method asks for more). 202302L is C++23 in GCC 14+ and Clang 18+.
+static_assert(__cplusplus == 202302L, "jac313 v001 is C++23: build Jac313Runner with gui-build");
 #include <Core/Core.h>
 
 namespace Upp {

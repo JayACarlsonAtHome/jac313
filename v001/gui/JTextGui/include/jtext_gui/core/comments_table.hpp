@@ -1,5 +1,7 @@
 #pragma once
 
+#include "jtext_gui/core/standard.hpp"   // v001 is C++23
+
 // A table's comments in a database (SPEC 4.3): a column holds values, so the comments of
 // a table's records live beside it, in <table>_comments. A line is named by its record
 // (field 1, the record id) and the field it starts at, so each comment goes back on its

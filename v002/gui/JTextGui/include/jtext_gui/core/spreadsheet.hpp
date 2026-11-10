@@ -1,5 +1,7 @@
 #pragma once
 
+#include "jtext_gui/core/standard.hpp"   // v001 is C++23
+
 // Excel (.xlsx) files, and moving records in and out of them. (No CSV, by design: it loses
 // types and encoding, and spreadsheet programs rewrite its values.)
 //
