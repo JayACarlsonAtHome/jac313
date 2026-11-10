@@ -68,6 +68,7 @@ void print_usage() {
         "  configure   CMake configure (Ninja; auto-detect compiler)\n"
         "  build       Build the configured tree\n"
         "  build-times compile-time matrix (smoke+bench x front-end x compiler), gap-filled per host\n"
+        "  strict-build fresh gcc/clang x headers/modules builds; any warning fails (pre-push gate)\n"
         "  pin         find-or-create this machine's committed compiler pin (Setup/compilers.pin.jtext)\n"
         "  compilers   Sense toolchains from the registry (writes FileCheckList.txt)\n"
         "  setup       Sense readiness; name anything ./bsir.sh still has to install\n"
@@ -2287,6 +2288,67 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
     return failed ? 1 : 0;   // the pre-push hook stops on a broken compiler config
 }
 
+// ---- strict-build gate: every warning is an error, checked at push time ----
+// The CMake setup makes every warning fail the build: the compiler's (-Werror), the linker's
+// (--fatal-warnings), CMake's own (dev, deprecation) and clang-scan-deps' (through the strict
+// wrapper the top CMakeLists writes). This gate builds every front end ({hdr, mod}) with every
+// pinned compiler ({gcc, clang}) in FRESH trees, so a warning in a file an incremental build
+// would not recompile, or in a front end no other gate builds, still stops the push.
+std::string last_lines(const std::string& text, std::size_t n) {
+    std::size_t pos = text.size();
+    for (std::size_t seen = 0; pos > 0 && seen <= n; ) {
+        --pos;
+        if (text[pos] == '\n') ++seen;
+    }
+    return pos == 0 ? text : text.substr(pos + 1);
+}
+
+int run_strict_build_gate(const fs::path& source_dir) {
+    const std::string gcc_cc = resolve_pinned_cc(source_dir, true);
+    const std::string clang_cc = resolve_pinned_cc(source_dir, false);
+    if (gcc_cc.empty() && clang_cc.empty()) {
+        std::cerr << "strict-build: no pinned compiler resolved — run ./bsir.sh first.\n";
+        return 1;
+    }
+    std::vector<BuildTimesCfg> cfgs;
+    for (const auto& [name, cc] : {std::pair<std::string,std::string>{"gcc", gcc_cc}, {"clang", clang_cc}}) {
+        if (cc.empty()) { std::cout << "  " << name << ": not pinned on this machine — skipped\n"; continue; }
+        cfgs.push_back({name + "-hdr", cc, {}, "off", "off"});
+        cfgs.push_back({name + "-mod", cc, {"-DJAC313_BUILD_MODULES=ON"}, "on", "off"});
+    }
+    std::cout << "=== strict-build — fresh trees, every warning fails ===\n";
+    int failed = 0;
+    for (const auto& c : cfgs) {
+        const auto start = std::chrono::steady_clock::now();
+        const std::string rel = "tmp_build/strict-" + c.label;
+        const fs::path dir = source_dir / rel;
+        safe_rmdir(source_dir, dir);
+        std::vector<std::string> conf = {"cmake", "-G", "Ninja", "-S", ".", "-B", rel,
+            "-DCMAKE_CXX_COMPILER=" + c.cc, "-DCMAKE_BUILD_TYPE=Debug", "-DJAC313_BUILD_STORE_TESTS=ON"};
+        conf.insert(conf.end(), c.feflags.begin(), c.feflags.end());
+        auto r = run_process(conf, 0, source_dir.string(), 0);
+        const char* step = "configure";
+        if (r.exit_code == 0) {
+            r = run_process({"cmake", "--build", rel}, 0, source_dir.string(), 0);
+            step = "build";
+        }
+        const auto secs = std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::steady_clock::now() - start).count();
+        if (r.exit_code != 0) {
+            std::cout << "  " << c.label << ": " << step << " FAILED (" << secs << "s)\n"
+                      << last_lines(r.stdout_text + r.stderr_text, 40) << '\n';
+            ++failed;
+        } else {
+            std::cout << "  " << c.label << ": ok (" << secs << "s)\n";
+        }
+        safe_rmdir(source_dir, dir);
+    }
+    safe_rmdir(source_dir, source_dir / "tmp_build");
+    std::cout << "strict-build: " << (cfgs.size() - static_cast<std::size_t>(failed)) << " of " << cfgs.size()
+              << " config(s) built with no warning" << (failed ? " — FAILED" : "") << ".\n";
+    return failed ? 1 : 0;
+}
+
 // Record one testRun row per ctest unit test into results.db.
 // If a run_id is provided (>0), reuse it (for live status logging + testRun rows on same run).
 // Otherwise fall back to creating a new one via cli_begin_run.
@@ -4114,6 +4176,12 @@ static int run_main(int argc, char** argv) {
             else if (a == "--force") force = true;   // rebuild everything (ignore fast-skip + gap-query)
             else if (a == "--source-dir" && i + 1 < argc) src = argv[++i]; }
         return run_build_times_gate(src, dry, force);
+    }
+    if (command == "strict-build") {   // fresh gcc/clang x hdr/mod builds; any warning fails (pre-push)
+        fs::path src = ".";
+        for (int i = 2; i < argc; ++i) { const std::string a = argv[i];
+            if (a == "--source-dir" && i + 1 < argc) src = argv[++i]; }
+        return run_strict_build_gate(src);
     }
     if (command == "host") {   // sense + pin THIS machine (machine + current_host) and show the grid
         GlobalOptions host_global = global;

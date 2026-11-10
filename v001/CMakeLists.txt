@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.26)
 
+# Every warning is an error, CMake's own too: dev (AUTHOR_WARNING) and deprecation warnings stop
+# the configure. A plain message(WARNING) has no such switch: use FATAL_ERROR/SEND_ERROR instead.
+set(CMAKE_SUPPRESS_DEVELOPER_ERRORS FALSE CACHE INTERNAL "")
+set(CMAKE_ERROR_DEPRECATED TRUE CACHE INTERNAL "")
+
 project(jac313 VERSION 0.1.0 LANGUAGES CXX
         DESCRIPTION "jac313 umbrella libraries (Qlite, jText, store)")
 
@@ -54,6 +59,39 @@ add_compile_options(-Werror -Wformat=2 -Wconversion -Wsign-conversion
     -Wall -Wextra -Wpedantic
     -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Woverloaded-virtual
     -Wimplicit-fallthrough)
+
+# Every warning is an error outside the compiler too:
+# - the linker: --fatal-warnings;
+# - clang-scan-deps (C++ module scanning): it has no -Werror and ignores the compiler's, so CMake
+#   runs it through a wrapper, written here, that fails when it prints anything on stderr (its
+#   real output, the dependency file, is stdout). project() bakes the scanner's path into the
+#   scan rule (CMAKE_CXX_SCANDEP_SOURCE), so the path is swapped there. A parent project that
+#   already swapped it is kept.
+add_link_options(-Wl,--fatal-warnings)
+if(CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS AND CMAKE_CXX_SCANDEP_SOURCE
+   AND NOT CMAKE_CXX_SCANDEP_SOURCE MATCHES "clang-scan-deps-strict")
+    set(strict_scan_deps "${CMAKE_BINARY_DIR}/clang-scan-deps-strict")
+    file(WRITE "${strict_scan_deps}" "#!/usr/bin/env bash
+# Written by CMake: runs ${CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS}; any diagnostic it prints fails the build.
+err=\"\$(mktemp)\"
+trap 'rm -f \"\$err\"' EXIT
+\"${CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS}\" \"\$@\" 2>\"\$err\"
+rc=\$?
+if [ -s \"\$err\" ]; then
+    cat \"\$err\" >&2
+    echo 'clang-scan-deps printed a diagnostic: every warning is an error' >&2
+    [ \$rc -eq 0 ] && rc=1
+fi
+exit \$rc
+")
+    file(CHMOD "${strict_scan_deps}" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+         GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+    string(REPLACE "\"${CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS}\"" "\"${strict_scan_deps}\""
+           CMAKE_CXX_SCANDEP_SOURCE "${CMAKE_CXX_SCANDEP_SOURCE}")
+    if(NOT CMAKE_CXX_SCANDEP_SOURCE MATCHES "clang-scan-deps-strict")
+        message(FATAL_ERROR "could not route clang-scan-deps through ${strict_scan_deps}")
+    endif()
+endif()
 
 # Runtime hardening. Changes behaviour, so keep it out of bench and valgrind builds:
 # -ftrivial-auto-var-init=zero hides the uninitialized reads memcheck exists to find.

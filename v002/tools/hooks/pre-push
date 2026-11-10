@@ -92,6 +92,11 @@ verify_world() {
     echo "[pre-push:$vdir] version-check (sub_version bumps) ..."
     "$driver" version-check || return $?
 
+    # Every warning is an error: fresh gcc/clang x headers/modules builds, where the CMake setup
+    # makes any compiler, linker, CMake or clang-scan-deps warning fail the build.
+    echo "[pre-push:$vdir] strict-build (fresh gcc/clang x headers/modules; any warning fails) ..."
+    "$driver" strict-build || return $?
+
     # Vendored-copy drift (jText, Qlite): warnings only, never blocks the push (Captain
     # 2026-10-16: "warnings on drift, not breaking"). A failure to run it is a warning too.
     echo "[pre-push:$vdir] vendor-check (drift warnings only) ..."
