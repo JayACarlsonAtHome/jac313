@@ -612,6 +612,31 @@ struct FieldEdit : EditString {
 	}
 };
 
+// A long value or comment in full, wrapped, in a window of its own (the ... button after a
+// line's comment). Read only. Not modal, so a value and its comment can be open side by side
+// while the editor goes on working.
+struct TextViewer : TopWindow {
+	typedef TextViewer CLASSNAME;
+	DocEdit text;
+	Button copy, close;
+
+	void Popup(const String& title, const String& body, Ctrl* owner, Point at) {
+		Title(title);
+		Sizeable().Zoomable();
+		text <<= body;
+		text.SetReadOnly();
+		copy.SetLabel("Copy");
+		close.SetLabel("Close");
+		copy << [this] { WriteClipboardText(String(~text)); };
+		close << [this] { Close(); };
+		Add(text.HSizePosZ(8, 8).VSizePosZ(8, 40));
+		Add(copy.RightPosZ(96, 80).BottomPosZ(8, 24));
+		Add(close.RightPosZ(8, 80).BottomPosZ(8, 24));
+		SetRect(at.x, at.y, Zx(560), Zy(300));
+		Open(owner);
+	}
+};
+
 // A spreadsheet-style grid over the records: one row per record, one column per chosen
 // line. Only the visible cells are drawn. Two modes, Excel style:
 //   Cell mode (the grid has the focus, the current cell is highlighted = its whole value
@@ -1026,6 +1051,8 @@ struct JTextGui : TopWindow {
 	Array<FieldEdit> field;
 	Array<EditString> fieldMark;
 	Array<EditString> fieldComment;
+	Array<Button> viewBtn;          // "...": the line's value (and a long comment) in full
+	Array<TextViewer> viewers;      // the open ones; closed ones are dropped at the next open
 	LinesView lines;
 	int visible = 0;
 	Vector<int> lineOf;      // row -> field index (0 is the id); all lines, or the Lines list
@@ -1661,7 +1688,8 @@ struct JTextGui : TopWindow {
 
 	static constexpr int kRowStep = 30;   // pixels (unzoomed) from one line row to the next
 	static constexpr int kCommentWidth = 220;   // pixels (unzoomed): a line's comment box
-	static constexpr int kCommentBoxCy = 100;   // pixels (unzoomed): the comment lines, with their label
+	static constexpr int kCommentBoxCy = 100;
+	static constexpr int kViewBtnWidth = 28;   // pixels (unzoomed): the ... button after the comment   // pixels (unzoomed): the comment lines, with their label
 
 	// Create rows up to n (they stay hidden until SetVisibleRows shows them).
 	void EnsureRows(int n) {
@@ -1673,7 +1701,12 @@ struct JTextGui : TopWindow {
 			EditString& mk = fieldMark.Add();
 			FieldEdit& fd = field.Add();
 			EditString& cm = fieldComment.Add();
+			Button& vb = viewBtn.Add();
 			fd.WhenNull = [this, i] { SetRowNull(i); };
+			vb.SetLabel("...");
+			vb.Tip("Show this line's value in full (and its comment, when it is too long for its box)");
+			vb.NoWantFocus();
+			vb << [this, i] { ViewLong(i); };
 			lb.SetText(i == 0 ? String("id") : Format("%3d.", i + 1));
 			lb.SetFont(mono);
 			mk.SetFont(mono);
@@ -1685,8 +1718,9 @@ struct JTextGui : TopWindow {
 			fd.WantFocus();
 			lines.content.Add(lb.LeftPosZ(8, 36).TopPosZ(yy, 22));
 			lines.content.Add(mk.LeftPosZ(48, 84).TopPosZ(yy - 2, 24));
-			lines.content.Add(fd.HSizePosZ(140, kCommentWidth + 16).TopPosZ(yy - 2, 24));
-			lines.content.Add(cm.RightPosZ(8, kCommentWidth).TopPosZ(yy - 2, 24));
+			lines.content.Add(fd.HSizePosZ(140, kCommentWidth + kViewBtnWidth + 20).TopPosZ(yy - 2, 24));
+			lines.content.Add(cm.RightPosZ(kViewBtnWidth + 12, kCommentWidth).TopPosZ(yy - 2, 24));
+			lines.content.Add(vb.RightPosZ(8, kViewBtnWidth).TopPosZ(yy - 2, 24));
 		}
 	}
 
@@ -1700,9 +1734,32 @@ struct JTextGui : TopWindow {
 			fieldMark[i].Show(show);
 			field[i].Show(show);
 			fieldComment[i].Show(show);
+			viewBtn[i].Show(show);
 		}
 		visible = n;
 		lines.SetContentHeight(Zy(6 + n * kRowStep), Zy(kRowStep));
+	}
+
+	// The ... button of row i: the value in a window of its own; when the comment is longer
+	// than its box, a second window beside it shows the comment.
+	void ViewLong(int i) {
+		if (i < 0 || i >= visible) return;
+		for (int k = viewers.GetCount() - 1; k >= 0; k--)
+			if (!viewers[k].IsOpen()) viewers.Remove(k);
+		const int f = lineOf[i];
+		String name = f == 0 ? String("id") : Format("line %d", f + 1);
+		if (const auto* def = FieldDef(f); def && !def->name.empty())
+			name << " (" << S(def->name) << ")";
+		String rec;
+		if (loaded >= 0 && loaded < (int)session.rows.size())
+			rec = " - record " + S(jtext_gui::field_text(session.rows[(std::size_t)loaded], 0));
+		const Rect me = GetScreenRect();
+		const Point at(me.left + Zx(40), me.top + Zy(80));
+		viewers.Add().Popup("Value: " + name + rec, Field(field[i]), this, at);
+		const String comment = Field(fieldComment[i]);
+		EditString& cm = fieldComment[i];
+		if (GetTextSize(comment, StdFont()).cx > cm.GetSize().cx - Zx(8))
+			viewers.Add().Popup("Comment: " + name + rec, comment, this, at + Size(Zx(580), 0));
 	}
 
 	// The + Line button: one more line on the current record, shown as {NULL} (absent
