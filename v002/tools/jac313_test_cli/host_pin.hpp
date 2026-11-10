@@ -26,14 +26,10 @@ jac313::results::HostPinOptions to_pin_options(const HostPinFlags& flags);
 
 void print_fleet_table(std::ostream& out, jac313::Qlite::v002::Sqlite& db);
 
-void print_ambiguity_help(std::ostream& out, const jac313::results::HostPinResult& r,
-                          const jac313::results::MachineId& h);
 
-// Print fleet table + help and return 1.
-int exit_ambiguous(std::ostream& err, jac313::Qlite::v002::Sqlite& db,
-                   const jac313::results::HostPinResult& r, const jac313::results::MachineId& h);
-
-// Resolve + pin; on ambiguity prints table and returns nullopt. With a remote PG server set
+// Resolve + pin; returns nullopt on a refused --claim / --assign-new (message on err). A conflict
+// (same hardware under another hostname, or a generic hostname) gets a new number, as
+// --assign-new-### would. --assign-new-### with a server overwrites the registry first. With a remote PG server set
 // ($JAC313_PG_REMOTE) and no --claim / --assign-new, the number comes from the server's fleet
 // registry (fleet_registry.hpp) and the local rows are renumbered to it; when the server cannot
 // be reached the local number is used and checked again on the next run. source_dir is the

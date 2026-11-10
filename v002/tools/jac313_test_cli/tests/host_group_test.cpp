@@ -101,22 +101,22 @@ int main() {
         check(R::current_host(db, kVer) == 2, "the pin follows the last pinned machine");
     }
 
-    // Same hardware, different instance_hash -> ambiguous auto path.
+    // Same hardware, different instance_hash: a conflict, ended by a new number (as --assign-new).
     {
         Sqlite db2(":memory:");
         R::ensure_schema(db2);
         check(R::pin_host(db2, box_i7(), kVer) == 1, "pin_host(db2, box_i7()) == 1");
         const auto propose = R::propose_machine_id(db2, box_vm2(), false);
-        check(propose.error == R::HostPinError::Ambiguous, "same hardware, other hash: ambiguous");
-        check(!propose.ambiguous_candidates.empty(), "!propose.ambiguous_candidates.empty()");
-        const auto assigned = R::resolve_and_pin(db2, box_vm2(), HostPinOptions{}, false, kVer);
-        check(assigned.error == R::HostPinError::Ambiguous, "resolve_and_pin stays ambiguous");
-        HostPinOptions assign_opts;
-        assign_opts.assign_new = 2;
-        const auto created = R::resolve_and_pin(db2, box_vm2(), assign_opts, false, kVer);
-        check(created.error == R::HostPinError::None, "assign-new 2 succeeds");
-        check(created.mid == 2, "created.mid == 2");
+        check(propose.error == R::HostPinError::None && propose.mid == 2, "same hardware, other hash: new number 2");
+        check(!propose.conflict.empty(), "the conflict is reported");
+        const auto created = R::resolve_and_pin(db2, box_vm2(), HostPinOptions{}, false, kVer);
+        check(created.error == R::HostPinError::None && created.mid == 2, "pinned without a flag");
         check(hash_at(db2, 2) == box_vm2().instance_hash, "hash_at(db2, 2) == box_vm2().instance_hash");
+        check(hash_at(db2, 1) == box_i7().instance_hash, "machine 1 untouched");
+        check(R::propose_machine_id(db2, box_vm2(), false).conflict.empty(), "next time: an exact match, no conflict");
+        R::insert_run(db2, 20, R::os_id(db2, kFedora), 3, kVer, "s", "q", "j");   // stale rows on 3
+        const auto generic = R::propose_machine_id(db2, box_ryzen(), true);
+        check(generic.mid == 4 && !generic.conflict.empty(), "generic hostname: new number past every used one");
         const auto reclaim = R::resolve_and_pin(db2, box_i7(), HostPinOptions{"jac313-001"}, false, kVer);
         check(reclaim.error == R::HostPinError::None, "reclaim.error == None");
         check(reclaim.mid == 1, "reclaim.mid == 1");

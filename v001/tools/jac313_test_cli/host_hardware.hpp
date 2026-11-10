@@ -25,7 +25,7 @@ struct HostHardwareRecord {
 // uname nodename only — used for instance_hash (never host_label.local override).
 std::string nodename_for_hash();
 
-// True for localhost / localhost.localdomain — forces operator disambiguation.
+// True for localhost / localhost.localdomain: such a machine cannot be told from another instance.
 bool is_generic_nodename(const std::string& nodename);
 
 HostHardwareRecord collect_host_hardware_record(const std::string& disk_type_label,

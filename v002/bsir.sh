@@ -18,8 +18,8 @@
 #      item by item, from Setup/recipes.jtext, then go on.
 #   4. Build jac313_test_cli once and let it check this machine ('setup' for readiness;
 #      '--run-everything' for the full battery).
-#   5. Sense + pin this machine as jac313-### (machine + current_host). Auto-pins when
-#      unambiguous; otherwise bootstrap stops with --claim / --assign-new-### directions.
+#   5. Sense + pin this machine as jac313-### (machine + current_host). Always auto-pins:
+#      a conflict (same hardware under another hostname) gets a new number, as --assign-new-###.
 #
 #   6. A PostgreSQL 18 server for the PG local gate (role + database jac313).
 #   7. The GUI (skipped with --no-gui): the U++ GUI build libraries (recipe upp_gui), U++ from

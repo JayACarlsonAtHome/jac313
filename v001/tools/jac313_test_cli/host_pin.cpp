@@ -57,23 +57,6 @@ void print_fleet_table(std::ostream& out, jac313::Qlite::v001::Sqlite& db) {
     }
 }
 
-void print_ambiguity_help(std::ostream& out, const jac313::results::HostPinResult& r,
-                          const jac313::results::MachineId& h) {
-    out << "Cannot auto-assign a machine number: " << r.message << "\n"
-        << "This machine instance_hash: " << jac313::results::hash_prefix(h.instance_hash) << "\n"
-        << "Use --claim jac313-### to bind to an existing slot (same hardware),\n"
-        << "or --assign-new-### to create a new slot at an explicit number.\n";
-}
-
-int exit_ambiguous(std::ostream& err, jac313::Qlite::v001::Sqlite& db,
-                   const jac313::results::HostPinResult& r, const jac313::results::MachineId& h) {
-    err << "\nFleet (machine):\n";
-    print_fleet_table(err, db);
-    err << '\n';
-    print_ambiguity_help(err, r, h);
-    return 1;
-}
-
 namespace {
 
 bool g_fleet_renumbered = false;
@@ -147,20 +130,42 @@ std::optional<std::int64_t> try_resolve_and_pin(jac313::Qlite::v001::Sqlite& db,
                                                 const std::filesystem::path& source_dir) {
     const jac313::results::MachineId h = make_machine_id(hw);
     const bool generic = is_generic_nodename(nodename_for_hash());
-    // --claim / --assign-new and generic nodenames (no telling VMs apart) stay on the local path
+    // --claim / --assign-new and generic nodenames (no telling VMs apart) skip the server's look-up
     if (flags.claim.empty() && flags.assign_new == 0 && !generic) {
         if (const auto mid = pin_from_fleet(db, h, version, source_dir, err)) return mid;
     }
+    // --assign-new-### with a shared server: the server's number is overwritten first (it is the
+    // authority, so a local-only number would be put back by the next run). The local check comes
+    // before it, so a refused number changes neither side.
+    const std::string server = fleet_server_key();
+    const bool to_server = flags.assign_new > 0 && !server.empty() && !generic;
+    if (to_server) {
+        const auto local = jac313::results::assign_new_machine(db, h, flags.assign_new);
+        if (local.error != jac313::results::HostPinError::None) {
+            err << "host pin failed: " << local.message << "\n";
+            return std::nullopt;
+        }
+        const FleetResult fr = fleet_assign(h, flags.assign_new, source_dir);
+        if (fr.mid == 0) {
+            err << "host pin failed: " << jac313::results::assign_new_flag(flags.assign_new) << " was not written to the shared server ("
+                << fr.error << "); nothing changed\n";
+            return std::nullopt;
+        }
+        if (!fr.host.empty())
+            g_registry_target = jac313::results::RunTarget{"registry", "pg-remote", fr.host, fr.address, fr.port,
+                                                           fr.dbname, "fleet.machine"};
+        err << "[fleet] this machine is now " << jac313::results::host_label(fr.mid) << " on the shared server\n";
+    }
     const jac313::results::HostPinResult r =
         jac313::results::resolve_and_pin(db, h, to_pin_options(flags), generic, version);
-    if (r.error == jac313::results::HostPinError::Ambiguous) {
-        exit_ambiguous(err, db, r, h);
-        return std::nullopt;
-    }
     if (r.error != jac313::results::HostPinError::None) {
         err << "host pin failed: " << r.message << "\n";
         return std::nullopt;
     }
+    if (!r.conflict.empty())
+        err << "[host] " << r.conflict << ": this machine gets a new number, "
+            << jac313::results::host_label(r.mid) << " (as " << jac313::results::assign_new_flag(r.mid) << ")\n";
+    if (to_server) jac313::results::mark_fleet_synced(db, r.mid, server, jac313::results::utc_now_iso());
     return r.mid;
 }
 

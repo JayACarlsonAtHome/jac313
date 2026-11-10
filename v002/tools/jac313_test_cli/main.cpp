@@ -100,8 +100,9 @@ void print_usage() {
         "  --verify-lite        valgrind: ctest + matrix 001 (binary; 001 across jtext/html/json/sql)\n"
         "  --verify             valgrind: full smoke matrix (all sinks incl. html/json) + helgrind/DRD\n"
         "  --machine-id         read-only precheck: which jac313-### (machine) this machine records under\n"
-        "  --claim <jac313-###> bind this machine to an existing fleet slot (same OS+hardware)\n"
-        "  --assign-new-###     create a new slot at explicit ### (e.g. --assign-new-003)\n"
+        "  --claim <jac313-###> bind this machine to an existing local slot (same hardware)\n"
+        "  --assign-new-###     file this machine as ### (e.g. --assign-new-003); with a shared server\n"
+        "                       the registry is overwritten too (refused if another machine holds ###)\n"
         "  --run-everything     the FULL battery: every gate on both compilers + build-times + report\n"
         "                       (does NOT keep durable captures — add --keep-logs for that)\n"
         "  --keep-logs          opt-in: retain durable captures under kept-logs/ (see kept-logs/README.md)\n"
@@ -292,7 +293,7 @@ HostPinFlags host_pin_flags_from(const GlobalOptions& global) {
     return HostPinFlags{global.host_claim, global.host_assign_new};
 }
 
-// Pin this machine; returns nullopt on ambiguity or error (message on err).
+// Pin this machine; returns nullopt on a refused pin or error (message on err).
 // Read the "vNNN.NNN" literal from a package's version() source file (the same file version-check
 // treats as authoritative). Empty if the file/line can't be read.
 std::string read_version_literal(const fs::path& file) {
@@ -2202,9 +2203,7 @@ int run_build_times_gate(const fs::path& source_dir, bool dry_run, bool force = 
     jac313::results::ensure_schema(db);
     const HostHardwareRecord hw = collect_host_hardware_record(machine_disk_tier("."));
     const jac313::results::MachineId h = make_machine_id(hw);
-    const bool new_setup = jac313::results::find_exact_machine(db, h) == 0
-        && jac313::results::propose_machine_id(db, h, is_generic_nodename(nodename_for_hash())).mid
-               == jac313::results::next_auto_machine_id(db);
+    const bool new_setup = jac313::results::find_exact_machine(db, h) == 0;
     GlobalOptions pin_global;
     const auto mid_opt = pin_current_host(db, pin_global);
     if (!mid_opt) return 1;
@@ -3671,17 +3670,15 @@ int run_machine_id_command(const GlobalOptions& global) {
                   << "  hash:  " << jac313::results::hash_prefix(h.instance_hash) << "\n"
                   << (stale_pin ? "\n  NOTE: current_host pin in results.db names another machine — "
                                   "run `host` or bootstrap to re-pin.\n" : "");
-        if (propose.error == jac313::results::HostPinError::Ambiguous) {
-            std::cout << "\nProposed machine: (ambiguous — pin required before recording)\n";
-            print_ambiguity_help(std::cout, propose, h);
-            return 1;
-        }
         const std::string label = jac313::results::host_label(propose.mid);
         std::cout << "\nProposed machine: " << propose.mid << "   (" << label << ")\n"
                   << "   (matched on cpu+cores+ram+disk+instance_hash; pin is set only after this compare)\n"
                   << (jac313::results::find_exact_machine(db, h) != 0
                         ? "  -> REUSES an existing machine: recording ADDS rows under " + label + ".\n"
-                        : "  -> NEW machine: recording creates a fresh one; nothing existing is touched.\n");
+                        : "  -> NEW machine: recording creates a fresh one; nothing existing is touched.\n")
+                  << (propose.conflict.empty() ? std::string()
+                        : "  -> conflict (" + propose.conflict + "): a new number, as "
+                          + jac313::results::assign_new_flag(propose.mid) + "\n");
         (void)global;
         return 0;
     } catch (const std::exception& e) {

@@ -578,6 +578,11 @@ inline std::string host_label(std::int64_t machine_id) {
     char b[32]; std::snprintf(b, sizeof b, "jac313-%03lld", static_cast<long long>(machine_id)); return b;
 }
 
+// "--assign-new-002": the flag that files this machine under machine_id, as a person types it.
+inline std::string assign_new_flag(std::int64_t machine_id) {
+    return "--assign-new-" + host_label(machine_id).substr(std::string_view("jac313-").size());
+}
+
 // "jac313-002 · Fedora Linux 44 (Workstation Edition) · 7.2.13-200.fc44.x86_64": a run's machine and
 // the OS it ran under, from run.machine_id and run.os_id. "" when the run is unknown.
 inline std::string run_header(Sqlite& db, std::int64_t run_id) {
@@ -655,13 +660,6 @@ inline std::vector<std::int64_t> find_same_hw_candidates(Sqlite& db, const Machi
     return out;
 }
 
-inline std::int64_t next_auto_machine_id(Sqlite& db) {
-    std::int64_t mid = 1;
-    auto st = db.prepare("SELECT COALESCE(MAX(id),0)+1 FROM machine");
-    if (st.step()) st.get(mid);
-    return mid;
-}
-
 inline bool machine_id_taken(Sqlite& db, std::int64_t mid) {
     std::int64_t n = 0;
     auto st = db.prepare("SELECT COUNT(*) FROM machine WHERE id=?");
@@ -718,7 +716,7 @@ inline bool current_host_is_stale(Sqlite& db, const MachineId& h, const std::str
 }
 
 enum class HostPinError {
-    None, Ambiguous, InvalidLabel, ClaimNotFound, ClaimHwMismatch,
+    None, InvalidLabel, ClaimNotFound, ClaimHwMismatch,
     ClaimHashConflict, AssignTaken, ConflictingFlags,
 };
 
@@ -731,26 +729,26 @@ struct HostPinResult {
     HostPinError error = HostPinError::None;
     std::int64_t mid = 0;
     std::string message;
-    std::vector<std::int64_t> ambiguous_candidates;
-    bool generic_nodename = false;
+    // Set when this machine could not be told from one already filed (same hardware under another
+    // hostname, or a generic hostname): it gets the next free number, as --assign-new-### would,
+    // and this says why. Empty for an exact match or a plainly new machine.
+    std::string conflict;
 };
+
+inline std::int64_t next_free_machine_id(Sqlite& db);   // below, with kMachineTables
 
 inline HostPinResult propose_machine_id(Sqlite& db, const MachineId& h, bool generic_nodename) {
     HostPinResult r;
-    r.generic_nodename = generic_nodename;
     if (const std::int64_t exact = find_exact_machine(db, h); exact != 0) {
         r.mid = exact;
         return r;
     }
-    r.ambiguous_candidates = find_same_hw_candidates(db, h);
-    if (!r.ambiguous_candidates.empty() || generic_nodename) {
-        r.error = HostPinError::Ambiguous;
-        r.message = generic_nodename
-            ? "generic nodename — use --claim jac313-### or --assign-new-###"
-            : "same hardware, different instance_hash — use --claim jac313-### or --assign-new-###";
-        return r;
-    }
-    r.mid = next_auto_machine_id(db);
+    // A conflict ends itself: the machine gets a new number, as --assign-new-### would.
+    if (const auto same_hw = find_same_hw_candidates(db, h); !same_hw.empty())
+        r.conflict = "same hardware as " + host_label(same_hw.front()) + " under another hostname";
+    else if (generic_nodename)
+        r.conflict = "generic hostname (localhost): cannot be told from another instance";
+    r.mid = next_free_machine_id(db);
     return r;
 }
 

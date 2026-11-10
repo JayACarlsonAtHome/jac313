@@ -31,4 +31,10 @@ std::string fleet_server_key();
 FleetResult fleet_register(const jac313::results::MachineId& h, std::int64_t preferred,
                            const std::filesystem::path& source_dir);
 
+// --assign-new-###: this machine's number on the server becomes `mid` (its row renumbered, or
+// registered at `mid`). Refused, nothing changed, when another machine holds `mid` there.
+// Same locked transaction as fleet_register.
+FleetResult fleet_assign(const jac313::results::MachineId& h, std::int64_t mid,
+                         const std::filesystem::path& source_dir);
+
 } // namespace jac313::test_cli

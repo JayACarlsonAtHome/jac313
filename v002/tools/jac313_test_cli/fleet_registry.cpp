@@ -48,8 +48,20 @@ std::string fleet_server_key() {
 #endif
 }
 
-FleetResult fleet_register(const jac313::results::MachineId& h, std::int64_t preferred,
-                           const std::filesystem::path& source_dir) {
+namespace {
+
+#if JAC313_TEST_CLI_HAS_PG
+std::string identity_where(const jac313::results::MachineId& h) {
+    return "cpu = " + lit(h.cpu) + " AND cores = " + std::to_string(h.cores)
+         + " AND ram_gb = " + std::to_string(h.ram_gb)
+         + " AND disk = " + lit(h.disk) + " AND instance_hash = " + lit(h.instance_hash);
+}
+#endif
+
+// Connect to the server, make sure fleet.machine exists, then run `body` inside one transaction
+// that holds the table lock; `body` returns this machine's number (0 = refused, r.error says why).
+template <class Body>
+FleetResult with_registry(const std::filesystem::path& source_dir, Body&& body) {
     FleetResult r;
     const char* remote = remote_conninfo();
     if (!remote) {
@@ -57,7 +69,7 @@ FleetResult fleet_register(const jac313::results::MachineId& h, std::int64_t pre
         return r;
     }
 #if !JAC313_TEST_CLI_HAS_PG
-    (void)h; (void)preferred; (void)source_dir;
+    (void)source_dir; (void)body;
     r.error = "this jac313_test_cli was built without libpq 18+";
     return r;
 #else
@@ -81,17 +93,42 @@ FleetResult fleet_register(const jac313::results::MachineId& h, std::int64_t pre
         } catch (const std::exception&) {
             c.exec(ddl);   // two machines making the schema at the same moment: the second try sees it
         }
-        const std::string ident =
-            "cpu = " + lit(h.cpu) + " AND cores = " + std::to_string(h.cores)
-            + " AND ram_gb = " + std::to_string(h.ram_gb)
-            + " AND disk = " + lit(h.disk) + " AND instance_hash = " + lit(h.instance_hash);
-        const std::string pref = std::to_string(preferred > 0 ? preferred : 0);
         c.exec("BEGIN; LOCK TABLE fleet.machine IN SHARE ROW EXCLUSIVE MODE;");
-        const auto rows = c.query(
+        r.mid = body(c, r);
+        c.exec(r.mid > 0 ? "COMMIT" : "ROLLBACK");
+    } catch (const std::exception& e) {
+        // the connection's destructor ends an open transaction (rolled back)
+        r.mid = 0;
+        r.error = e.what();
+        while (!r.error.empty() && (r.error.back() == '\n' || r.error.back() == ' ')) r.error.pop_back();
+    }
+    return r;
+#endif
+}
+
+#if JAC313_TEST_CLI_HAS_PG
+// The first column of the first row as a number (0 when there is none).
+template <class Rows>
+std::int64_t first_id(const Rows& rows) {
+    return (rows.empty() || rows[0].empty() || !rows[0][0]) ? 0 : std::stoll(*rows[0][0]);
+}
+#endif
+
+} // namespace
+
+FleetResult fleet_register(const jac313::results::MachineId& h, std::int64_t preferred,
+                           const std::filesystem::path& source_dir) {
+#if !JAC313_TEST_CLI_HAS_PG
+    (void)h; (void)preferred;
+    return with_registry(source_dir, [](auto&, FleetResult&) { return std::int64_t{0}; });
+#else
+    return with_registry(source_dir, [&](jac313::Store::v002::PgConn& c, FleetResult& r) {
+        const std::string pref = std::to_string(preferred > 0 ? preferred : 0);
+        const std::int64_t mid = first_id(c.query(
             "WITH hit AS (\n"
             "  UPDATE fleet.machine SET last_seen = now(), p_cores = " + std::to_string(h.p_cores)
             + ", cpu_mhz_min = " + std::to_string(h.cpu_mhz_min) + ", cpu_mhz_max = " + std::to_string(h.cpu_mhz_max)
-            + "\n  WHERE " + ident + " RETURNING id),\n"
+            + "\n  WHERE " + identity_where(h) + " RETURNING id),\n"
             "ins AS (\n"
             "  INSERT INTO fleet.machine(id, cpu, cores, ram_gb, disk, instance_hash, "
             "p_cores, cpu_mhz_min, cpu_mhz_max)\n"
@@ -102,19 +139,38 @@ FleetResult fleet_register(const jac313::results::MachineId& h, std::int64_t pre
             + lit(h.disk) + ", " + lit(h.instance_hash) + ", " + std::to_string(h.p_cores)
             + ", " + std::to_string(h.cpu_mhz_min) + ", " + std::to_string(h.cpu_mhz_max) + "\n"
             "  WHERE NOT EXISTS (SELECT 1 FROM hit) RETURNING id)\n"
-            "SELECT id FROM hit UNION ALL SELECT id FROM ins");
-        c.exec("COMMIT");
-        if (rows.empty() || rows[0].empty() || !rows[0][0]) {
-            r.error = "the server returned no machine id";
-            return r;
+            "SELECT id FROM hit UNION ALL SELECT id FROM ins"));
+        if (mid == 0) r.error = "the server returned no machine id";
+        return mid;
+    });
+#endif
+}
+
+FleetResult fleet_assign(const jac313::results::MachineId& h, std::int64_t mid,
+                         const std::filesystem::path& source_dir) {
+#if !JAC313_TEST_CLI_HAS_PG
+    (void)h; (void)mid;
+    return with_registry(source_dir, [](auto&, FleetResult&) { return std::int64_t{0}; });
+#else
+    return with_registry(source_dir, [&](jac313::Store::v002::PgConn& c, FleetResult& r) -> std::int64_t {
+        const std::string id = std::to_string(mid);
+        // another machine on that number: refuse (it would lose its number)
+        if (first_id(c.query("SELECT id FROM fleet.machine WHERE id = " + id + " AND NOT ("
+                             + identity_where(h) + ")")) != 0) {
+            r.error = jac313::results::host_label(mid) + " belongs to another machine on the shared server";
+            return 0;
         }
-        r.mid = std::stoll(*rows[0][0]);
-    } catch (const std::exception& e) {
-        // the connection's destructor ends an open transaction (rolled back)
-        r.error = e.what();
-        while (!r.error.empty() && (r.error.back() == '\n' || r.error.back() == ' ')) r.error.pop_back();
-    }
-    return r;
+        const std::int64_t moved = first_id(c.query(
+            "UPDATE fleet.machine SET id = " + id + ", last_seen = now() WHERE " + identity_where(h)
+            + " RETURNING id"));
+        if (moved != 0) return moved;
+        return first_id(c.query(
+            "INSERT INTO fleet.machine(id, cpu, cores, ram_gb, disk, instance_hash, p_cores, cpu_mhz_min, "
+            "cpu_mhz_max) VALUES (" + id + ", " + lit(h.cpu) + ", " + std::to_string(h.cores) + ", "
+            + std::to_string(h.ram_gb) + ", " + lit(h.disk) + ", " + lit(h.instance_hash) + ", "
+            + std::to_string(h.p_cores) + ", " + std::to_string(h.cpu_mhz_min) + ", "
+            + std::to_string(h.cpu_mhz_max) + ") RETURNING id"));
+    });
 #endif
 }
 
