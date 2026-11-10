@@ -785,14 +785,23 @@ inline HostPinResult claim_machine(Sqlite& db, const MachineId& h, const std::st
     return r;
 }
 
-inline HostPinResult assign_new_machine(Sqlite& db, std::int64_t mid) {
+inline bool machine_in_use(Sqlite& db, std::int64_t mid);   // below, with kMachineTables
+inline void move_machine_refs(Sqlite& db, std::int64_t from, std::int64_t to);
+
+// --assign-new-###: a number no local table uses yet (a number only stale rows point at is taken
+// too, or they would be merged into this machine). This machine's own number is not "taken".
+inline HostPinResult assign_new_machine(Sqlite& db, const MachineId& h, std::int64_t mid) {
     HostPinResult r;
     if (mid <= 0) {
         r.error = HostPinError::InvalidLabel;
         r.message = "assign-new requires a positive machine number";
         return r;
     }
-    if (machine_id_taken(db, mid)) {
+    if (find_exact_machine(db, h) == mid) {
+        r.mid = mid;
+        return r;
+    }
+    if (machine_in_use(db, mid)) {
         r.error = HostPinError::AssignTaken;
         r.message = host_label(mid) + " is already taken";
         return r;
@@ -813,7 +822,7 @@ inline HostPinResult resolve_machine_id(Sqlite& db, const MachineId& h, const Ho
         return claim_machine(db, h, opts.claim);
     }
     if (opts.assign_new > 0) {
-        return assign_new_machine(db, opts.assign_new);
+        return assign_new_machine(db, h, opts.assign_new);
     }
     return propose_machine_id(db, h, generic_nodename);
 }
@@ -824,8 +833,18 @@ inline HostPinResult resolve_and_pin(Sqlite& db, const MachineId& h, const HostP
     if (r.error != HostPinError::None) {
         return r;
     }
+    std::optional<Sqlite::Transaction> tx;   // its own, or the caller's when one is open
+    if (sqlite3_get_autocommit(db.handle()) != 0) tx.emplace(db.transaction());
+    // --claim / --assign-new for a machine filed under another number: its runs, pins, calibration
+    // and the rest move with it (not only its machine row), and its fleet confirmation is dropped
+    // so the next run checks the shared server again.
+    if (const std::int64_t old = find_exact_machine(db, h); old != 0 && old != r.mid) {
+        move_machine_refs(db, old, r.mid);
+        db.exec("DELETE FROM fleet_sync WHERE machine_id=?", r.mid);
+    }
     upsert_machine(db, r.mid, h);
     set_current_host(db, r.mid, version);
+    if (tx) tx->commit();
     return r;
 }
 
@@ -855,6 +874,16 @@ inline bool machine_in_use(Sqlite& db, std::int64_t mid) {
         if (n > 0) return true;
     }
     return false;
+}
+
+// Every non-machine table's rows of machine `from` now belong to `to` (merged: a row of `to` with
+// the same key gives way). The machine row itself is left to upsert_machine().
+inline void move_machine_refs(Sqlite& db, std::int64_t from, std::int64_t to) {
+    if (from == to) return;
+    for (const auto& t : kMachineTables)
+        if (std::string_view(t.table) != "machine")
+            db.exec(std::string("UPDATE OR REPLACE ") + t.table + " SET " + t.column + "=? WHERE " + t.column + "=?",
+                    to, from);
 }
 
 // One past the highest machine number in any local table.

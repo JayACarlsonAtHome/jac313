@@ -149,8 +149,41 @@ int main() {
         Sqlite db4(":memory:");
         R::ensure_schema(db4);
         R::pin_host(db4, box_i7(), kVer);
-        const auto assign = R::assign_new_machine(db4, 1);
+        const auto assign = R::assign_new_machine(db4, box_ryzen(), 1);
         check(assign.error == R::HostPinError::AssignTaken, "assign-new 1 is taken");
+    }
+
+    // assign-new / claim for a machine already filed under another number: everything it owns
+    // moves with it (2026-11-10 live test: only the machine row moved, the runs, the other
+    // version's pin and the calibration were left on a number no machine had).
+    {
+        Sqlite db6(":memory:");
+        R::ensure_schema(db6);
+        const char* kOther = std::string_view(kVer) == "v001" ? "v002" : "v001";
+        check(R::pin_host(db6, box_i7(), kVer) == 1, "this machine is 1");
+        check(R::pin_host(db6, box_i7(), kOther) == 1, "both versions pinned to 1");
+        const std::int64_t os = R::os_id(db6, kFedora);
+        R::insert_run(db6, 10, os, 1, kVer, "s", "q", "j");
+        R::insert_run(db6, 11, os, 1, kOther, "s", "q", "j");
+        R::upsert_io_best_fit(db6, 1, "binary", 250, 250, 250, 1000, 250);
+        R::mark_fleet_synced(db6, 1, "srv", "t");
+        HostPinOptions to2;
+        to2.assign_new = 2;
+        const auto moved = R::resolve_and_pin(db6, box_i7(), to2, false, kVer);
+        check(moved.error == R::HostPinError::None && moved.mid == 2, "assign-new 2 for a known machine");
+        check(cpu_at(db6, 2) == box_i7().cpu && !R::machine_in_use(db6, 1), "nothing is left on 1");
+        check(R::current_host(db6, kVer) == 2 && R::current_host(db6, kOther) == 2, "both pins moved to 2");
+        check(R::io_best_fit_use(db6, 2, "binary", 0) == 250, "the calibration moved to 2");
+        check(!R::fleet_synced(db6, 2, "srv"), "fleet confirmation dropped: the next run asks the server");
+        const auto again = R::resolve_and_pin(db6, box_i7(), to2, false, kVer);
+        check(again.error == R::HostPinError::None && again.mid == 2, "assign-new to its own number again: ok");
+        R::insert_run(db6, 12, os, 7, kVer, "s", "q", "j");   // stale rows of a machine that is gone
+        HostPinOptions to7;
+        to7.assign_new = 7;
+        check(R::resolve_and_pin(db6, box_i7(), to7, false, kVer).error == R::HostPinError::AssignTaken,
+              "a number only stale rows use is taken too");
+        const auto back = R::resolve_and_pin(db6, box_i7(), HostPinOptions{"jac313-002"}, false, kVer);
+        check(back.error == R::HostPinError::None && back.mid == 2, "claim its own slot");
     }
 
     // renumber_machine: the shared server says this machine is 3, not its local 1. Every table moves,
