@@ -4244,12 +4244,6 @@ static int run_main(int argc, char** argv) {
                     std::cerr << arg << ": a slot number is needed (e.g. --assign-new-003)\n";
                     std::exit(2);
                 }
-            } else if (arg == "--claim" && i + 1 < argc) {
-                global.host_claim = argv[++i];
-            } else if (arg.rfind("--assign-new-", 0) == 0) {
-                global.host_assign_new = std::stoll(arg.substr(15));
-            } else if (arg == "--assign-new" && i + 1 < argc) {
-                global.host_assign_new = std::stoll(argv[++i]);
             } else if (arg == "--run-everything") {
                 preset.run_everything = true;
             } else if (arg == "--keep-logs") {
