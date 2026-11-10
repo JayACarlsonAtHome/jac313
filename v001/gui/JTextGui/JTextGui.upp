@@ -24,7 +24,7 @@ file
 	jText/src/export/xml_export.cpp;
 
 options
-	"-Iinclude -IjText -IjText/src -IjText/Qlite/include -I/usr/pgsql-18/include -I/usr/include/mysql";
+	"-Iinclude -IjText -IjText/src -IjText/Qlite/include -I/usr/pgsql-18/include -I/usr/include/postgresql -I/usr/include/mysql -I/usr/include/mariadb";
 
 library
 	sqlite3,

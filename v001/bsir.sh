@@ -23,7 +23,7 @@
 #
 #   6. A PostgreSQL 18 server for the PG local gate (role + database jac313).
 #   7. The GUI (skipped with --no-gui): the U++ GUI build libraries (recipe upp_gui), U++ from
-#      upp_basefix into <base>/upp_basefix_install, Jac313Runner via `jac313_test_cli gui-build`, and
+#      upp_basefix into <base>/upp_basefix_install, Jac313Runner and JTextGui via `jac313_test_cli gui-build`, and
 #      DBeaver and Google Chrome (Open Reports in Chrome); then the Runner opens.
 #
 # Idempotent: re-run it any time; what is already there is left alone, except that an
@@ -50,7 +50,7 @@ for arg in "$@"; do
     -y|--yes) ASSUME_YES=1 ;;
     -h|--help)
       echo "usage: ./bsir.sh [--yes] [--no-gui]"
-      echo "Installs what is missing, builds the tests and the Jac313Runner window (U++ into"
+      echo "Installs what is missing, builds the tests, the Jac313Runner window and JTextGui (U++ into"
       echo "upp_basefix_install beside this repository), adds DBeaver (a database browser) and Google Chrome (the reports),"
       echo "then opens the Runner."
       echo "  --yes      install everything that is missing without asking"
@@ -206,7 +206,7 @@ try_cxx() {  # $1 = activation prefix (may be empty), $2 = compiler name, $3 = v
   CXX="$p"; ACT="$1"; return 0
 }
 
-# --- the GUI (skipped with --no-gui): U++ and the Jac313Runner window ----------------
+# --- the GUI (skipped with --no-gui): U++, the Jac313Runner window and the JTextGui editor ---
 # U++ comes from upp_basefix (github.com/JayACarlsonAtHome/upp_basefix): U++ pinned to a GitHub
 # commit, plus patches that make it build with 0 warnings and run clean under the sanitizers
 # and valgrind. Its patch 0001 also fixes the GCC 15 start-up crash of plain U++ 2026.1, so the
@@ -217,11 +217,13 @@ UPP_BASEFIX_REPO="${UPP_BASEFIX_REPO:-https://github.com/JayACarlsonAtHome/upp_b
 UPP_BASEFIX_SRC="${UPP_BASEFIX_SRC:-$UPP_BASE/upp_basefix}"   # its clone (the script, the patches)
 UPP_METHOD="GCC"
 
-upp_gui_libs_ok() {  # what U++ CtrlCore links for a GTK (Wayland-first) build, plus zlib (JTextGui .xlsx),
-                     # and the patch + rsync that upp_basefix needs to make the patched tree
+upp_gui_libs_ok() {  # what U++ CtrlCore links for a GTK (Wayland-first) build, plus zlib (JTextGui .xlsx)
+                     # and the MariaDB client (JTextGui's MariaDB store), and the patch + rsync that
+                     # upp_basefix needs to make the patched tree
   command -v patch >/dev/null 2>&1 && command -v rsync >/dev/null 2>&1 \
     && command -v pkg-config >/dev/null 2>&1 \
-    && pkg-config --exists gtk+-3.0 libnotify freetype2 fontconfig x11 xinerama xrender xft xcb xext zlib
+    && pkg-config --exists gtk+-3.0 libnotify freetype2 fontconfig x11 xinerama xrender xft xcb xext zlib \
+    && { pkg-config --exists libmariadb || pkg-config --exists mariadb; }
 }
 
 upp_follow_branch() {  # the clone goes to the branch this checkout is on, when upp_basefix has one by that name
@@ -296,9 +298,9 @@ install_upp() {  # U++ into $UPP_DIR via upp_basefix; an upp_basefix install fol
   UPP_UPDATED=1   # objects from the U++ before this one must not be linked in: the next build is --clean
 }
 
-bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner
+bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner and JTextGui
   echo
-  echo "=== GUI: U++ (upp_basefix) + Jac313Runner ==="
+  echo "=== GUI: U++ (upp_basefix) + Jac313Runner + JTextGui ==="
   if ! upp_gui_libs_ok; then
     cmd=$(recipe_cmd upp_gui "$family")
     if [ -z "$cmd" ]; then
@@ -327,8 +329,9 @@ bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner
   # compiler break the link, so a failed build is retried once with --clean (rebuild everything).
   gui_clean=""
   if [ "${UPP_UPDATED:-0}" = 1 ]; then gui_clean="--clean"; fi
-  ( cd "$ROOT" && UPP_DIR="$UPP_DIR" $ACT "$CLI" gui-build --method "$UPP_METHOD" $gui_clean ) \
-    || { echo "Retrying with a clean rebuild (stale U++ cache)…"; ( cd "$ROOT" && UPP_DIR="$UPP_DIR" $ACT "$CLI" gui-build --method "$UPP_METHOD" --clean ); } \
+  # Both windows, so a clean machine proves the editor builds too (it links libpq and libmariadb).
+  ( cd "$ROOT" && UPP_DIR="$UPP_DIR" $ACT "$CLI" gui-build Jac313Runner JTextGui --method "$UPP_METHOD" $gui_clean ) \
+    || { echo "Retrying with a clean rebuild (stale U++ cache)…"; ( cd "$ROOT" && UPP_DIR="$UPP_DIR" $ACT "$CLI" gui-build Jac313Runner JTextGui --method "$UPP_METHOD" --clean ); } \
     || { echo "gui-build failed."; return 1; }
   install_dbeaver || true   # optional; the GUI is ready either way
   install_chrome || return 1   # required: the Runner's Open Reports in Chrome
@@ -524,7 +527,7 @@ if [ "$need_install" = 1 ] && [ "$ASSUME_YES" = 0 ] && [ -t 0 ]; then
   [ -n "$missing" ] && echo "  - build tools and libraries:$missing (dnf / apt, with sudo)"
   pg_local_ok || echo "  - a PostgreSQL 18 server on this machine for the PG local gate (sudo; role + database jac313)"
   if [ "$WANT_GUI" = 1 ]; then
-    echo "  - the U++ GUI libraries (sudo), U++ itself (no sudo) and the Jac313Runner window"
+    echo "  - the U++ GUI libraries (sudo), U++ itself (no sudo), the Jac313Runner window and JTextGui"
     echo "  - DBeaver, a database browser (~130 MB download, sudo)"
     chrome_ok || echo "  - Google Chrome, for Open Reports in Chrome (~120 MB download, sudo; Google's signed repository)"
   fi

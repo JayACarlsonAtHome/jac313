@@ -20,13 +20,13 @@ when it needs it). `<vdir>` is this version's folder, for example `~/git/jac313/
    [upp_basefix](https://github.com/JayACarlsonAtHome/upp_basefix) into `upp_basefix_install`
    beside this repository
    (U++ pinned to a GitHub commit plus patches: 0 warnings, sanitizer and valgrind clean),
-   builds `gui/out/Jac313Runner` and opens it:
+   builds `gui/out/Jac313Runner` and `gui/out/JTextGui`, and opens the Runner:
    ```
    cd <vdir> && ./bsir.sh
    ```
    An upp_basefix install in `$UPP_DIR` (default `upp_basefix_install` beside this repository) is updated when its clone
    has moved on; the clone follows the branch this checkout is on, when upp_basefix has it, and the build after an update rebuilds everything. Any other `umk` + `uppsrc`
-   there is used as it is. `./bsir.sh --no-gui` leaves out U++, the Runner and DBeaver.
+   there is used as it is. `./bsir.sh --no-gui` leaves out U++, the Runner, JTextGui and DBeaver.
 2. **Rebuild later:**
    ```
    cd <vdir> && ./jac313_test_cli gui-build              # GCC; --method CLANG for clang
@@ -60,7 +60,7 @@ execute bit when it runs as root. A tree root owns (a container, CI) runs as usu
 | Package | What it does |
 |---------|--------------|
 | **Jac313Runner** | Runs the jac313 test gates through `jac313_test_cli`, streams the run, and shows the results with a jText viewer for each result row's dataset |
-| **JTextGui** | The jText table editor, vendored from jText_GUI. Open and save jText, pull PostgreSQL or SQLite and Mergesert, records of up to 99 lines, a Lines box and field box, an Excel-style Records grid (detachable to a second monitor), and Excel (.xlsx) export and import. A blank marker starts as `|#`. Guide: the jText Editor Manual in jText_GUI (`Manual/pdf/jText-Editor-Manual.pdf`). The package carries its own `jText/` library snapshot and does not compile the sibling jText checkout or `vNNN/jText`; it links SQLite, libpq and zlib. |
+| **JTextGui** | The jText table editor, vendored from jText_GUI. Open and save jText, pull PostgreSQL or SQLite and Mergesert, records of up to 99 lines, a Lines box and field box, an Excel-style Records grid (detachable to a second monitor), and Excel (.xlsx) export and import. A blank marker starts as `|#`. Guide: the jText Editor Manual in jText_GUI (`Manual/pdf/jText-Editor-Manual.pdf`). The package carries its own `jText/` library snapshot and does not compile the sibling jText checkout or `vNNN/jText`; it links SQLite, libpq, the MariaDB client (libmariadb) and zlib. bsir.sh installs the MariaDB client with the GUI libraries (`upp_gui` in Setup/recipes.jtext) and builds JTextGui with the Runner. |
 
 ## Build
 

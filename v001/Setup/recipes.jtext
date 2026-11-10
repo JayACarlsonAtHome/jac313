@@ -42,7 +42,10 @@
 // upp_gui: the U++ GUI build (Jac313Runner / JTextGui). On purpose there is no check and no
 //   for: only the bootstrap's GUI step uses it (skipped with --no-gui), after its own
 //   pkg-config check. It installs GTK3 (U++'s Wayland-first GUI goes through GTK),
-//   libnotify, FreeType, Fontconfig and the X11 libs that U++ CtrlCore links. U++ itself
+//   libnotify, FreeType, Fontconfig and the X11 libs that U++ CtrlCore links, and the MariaDB
+//   client (JTextGui links libmariadb: mariadb-connector-c-devel, headers in /usr/include/mysql;
+//   Mint libmariadb-dev, headers in /usr/include/mariadb). libpq comes from pg18, SQLite from
+//   sqlite. U++ itself
 //   comes from upp_basefix into upp_basefix_install beside the repository (pinned GitHub commit + SHA-256-checked
 //   tree, no sudo).
 // dbeaver: the GUI step (skipped with --no-gui): DBeaver Community, a database browser for
@@ -92,7 +95,7 @@
  1. ^~ 7^cmake^CMake from the distro (the builds use the version in pinned_tools)^^false^command -v cmake >/dev/null 2>&1
  1. ^~ 8^vim^Vim (text editor; the full vim, not only vi)^^false^command -v vim >/dev/null 2>&1
  1. ^~ 9^valgrind^Valgrind + dev headers — memcheck + helgrind + DRD (the matrix verify gate)^^true^command -v valgrind >/dev/null 2>&1 && [ -e /usr/include/valgrind/valgrind.h ] && [ -e /usr/include/valgrind/helgrind.h ] && [ -e /usr/include/valgrind/drd.h ]
- 1. ^~ 10^upp_gui^U++ GUI build libraries (GTK3, libnotify, FreeType, Fontconfig, X11, zlib) for Jac313Runner and JTextGui; patch + rsync to build the patched U++ (not on Fedora Workstation by default)^^false^
+ 1. ^~ 10^upp_gui^U++ GUI build libraries (GTK3, libnotify, FreeType, Fontconfig, X11, zlib, the MariaDB client) for Jac313Runner and JTextGui; patch + rsync to build the patched U++ (not on Fedora Workstation by default)^^false^
  1. ^~ 11^dbeaver^DBeaver Community 26.2.3 (database browser; DBeaver's own RPM / DEB, sha256-checked)^^false^rpm -q dbeaver-ce >/dev/null 2>&1 || dpkg-query -W -f='${Status}' dbeaver-ce 2>/dev/null | grep -q 'install ok installed'
  1. ^~ 12^chrome^Google Chrome stable (Open Reports in Chrome; Google's signed repository, x86_64 only)^^false^command -v google-chrome >/dev/null 2>&1 || command -v google-chrome-stable >/dev/null 2>&1
 === End Data ===
@@ -133,9 +136,9 @@
  1. ^~ 25^rhel^valgrind^sudo dnf install -y valgrind valgrind-devel
  1. ^~ 26^fedora^valgrind^sudo dnf install -y valgrind valgrind-devel
  1. ^~ 27^linuxmint^valgrind^sudo apt-get install -y valgrind libc6-dbg make bzip2 curl
- 1. ^~ 28^rhel^upp_gui^sudo dnf install -y 'pkgconfig(gtk+-3.0)' 'pkgconfig(libnotify)' 'pkgconfig(freetype2)' 'pkgconfig(fontconfig)' 'pkgconfig(x11)' 'pkgconfig(xinerama)' 'pkgconfig(xrender)' 'pkgconfig(xft)' 'pkgconfig(xcb)' 'pkgconfig(xext)' 'pkgconfig(expat)' bzip2-devel zlib-devel openssl-devel make patch rsync
- 1. ^~ 29^fedora^upp_gui^sudo dnf install -y 'pkgconfig(gtk+-3.0)' 'pkgconfig(libnotify)' 'pkgconfig(freetype2)' 'pkgconfig(fontconfig)' 'pkgconfig(x11)' 'pkgconfig(xinerama)' 'pkgconfig(xrender)' 'pkgconfig(xft)' 'pkgconfig(xcb)' 'pkgconfig(xext)' 'pkgconfig(expat)' bzip2-devel zlib-devel openssl-devel make patch rsync
- 1. ^~ 30^linuxmint^upp_gui^sudo apt-get install -y libgtk-3-dev libnotify-dev libfreetype-dev libfontconfig-dev libx11-dev libxinerama-dev libxrender-dev libxft-dev libxcb1-dev libxext-dev libexpat1-dev libbz2-dev zlib1g-dev libssl-dev make pkg-config patch rsync
+ 1. ^~ 28^rhel^upp_gui^sudo dnf install -y 'pkgconfig(gtk+-3.0)' 'pkgconfig(libnotify)' 'pkgconfig(freetype2)' 'pkgconfig(fontconfig)' 'pkgconfig(x11)' 'pkgconfig(xinerama)' 'pkgconfig(xrender)' 'pkgconfig(xft)' 'pkgconfig(xcb)' 'pkgconfig(xext)' 'pkgconfig(expat)' bzip2-devel zlib-devel openssl-devel mariadb-connector-c-devel make patch rsync
+ 1. ^~ 29^fedora^upp_gui^sudo dnf install -y 'pkgconfig(gtk+-3.0)' 'pkgconfig(libnotify)' 'pkgconfig(freetype2)' 'pkgconfig(fontconfig)' 'pkgconfig(x11)' 'pkgconfig(xinerama)' 'pkgconfig(xrender)' 'pkgconfig(xft)' 'pkgconfig(xcb)' 'pkgconfig(xext)' 'pkgconfig(expat)' bzip2-devel zlib-devel openssl-devel mariadb-connector-c-devel make patch rsync
+ 1. ^~ 30^linuxmint^upp_gui^sudo apt-get install -y libgtk-3-dev libnotify-dev libfreetype-dev libfontconfig-dev libx11-dev libxinerama-dev libxrender-dev libxft-dev libxcb1-dev libxext-dev libexpat1-dev libbz2-dev zlib1g-dev libssl-dev libmariadb-dev make pkg-config patch rsync
  1. ^~ 31^rhel^dbeaver^v=26.2.3; case $(uname -m) in x86_64) a=x86_64 s=499f2b80a8fc5044e711116996a31c850236750ba32f99208c57526b3df61320 ;; aarch64) a=aarch64 s=12bad1814132d5c31df5dce67e798a7cc9a4c0f49304f2b8b2fbdb5102763a67 ;; *) echo "DBeaver: no package for $(uname -m)"; exit 1 ;; esac; f=dbeaver-ce-$v-linux-$a.rpm; d=$(mktemp -d) && curl -fL --progress-bar -o "$d/$f" "https://github.com/dbeaver/dbeaver/releases/download/$v/$f" && echo "$s  $d/$f" | sha256sum -c --quiet - && sudo dnf install -y "$d/$f"; rc=$?; rm -rf "$d"; exit $rc
  1. ^~ 32^fedora^dbeaver^v=26.2.3; case $(uname -m) in x86_64) a=x86_64 s=499f2b80a8fc5044e711116996a31c850236750ba32f99208c57526b3df61320 ;; aarch64) a=aarch64 s=12bad1814132d5c31df5dce67e798a7cc9a4c0f49304f2b8b2fbdb5102763a67 ;; *) echo "DBeaver: no package for $(uname -m)"; exit 1 ;; esac; f=dbeaver-ce-$v-linux-$a.rpm; d=$(mktemp -d) && curl -fL --progress-bar -o "$d/$f" "https://github.com/dbeaver/dbeaver/releases/download/$v/$f" && echo "$s  $d/$f" | sha256sum -c --quiet - && sudo dnf install -y "$d/$f"; rc=$?; rm -rf "$d"; exit $rc
  1. ^~ 33^linuxmint^dbeaver^v=26.2.3; case $(uname -m) in x86_64) a=x86_64 s=66a9d989dc36bdaf71f95e4186efc022399c0dfcfb37e69034038502f2fb3d21 ;; aarch64) a=aarch64 s=79daaeee8b64ade4a06505bcc5ea17f22e11bde6a4a366ef208f1c3d3e06b6e2 ;; *) echo "DBeaver: no package for $(uname -m)"; exit 1 ;; esac; f=dbeaver-ce-$v-linux-$a.deb; d=$(mktemp -d) && curl -fL --progress-bar -o "$d/$f" "https://github.com/dbeaver/dbeaver/releases/download/$v/$f" && echo "$s  $d/$f" | sha256sum -c --quiet - && sudo apt-get install -y "$d/$f"; rc=$?; rm -rf "$d"; exit $rc
