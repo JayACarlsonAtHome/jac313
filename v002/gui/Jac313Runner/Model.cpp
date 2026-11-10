@@ -544,30 +544,6 @@ Array<RunPlan> BuildPlans(const RunOptions& opts, const String& vdir)
 
 // ---------------------------------------------------------------- summary
 
-static bool Missing(const Value& v) { return IsError(v) || IsNull(v) || IsVoid(v); }
-
-static String Str(const Value& v)
-{
-	if(Missing(v))
-		return Null;
-	if(IsNumber(v)) {
-		double d = v;
-		if(d == floor(d) && fabs(d) < 9e15)
-			return AsString((int64)d);
-		return AsString(d);
-	}
-	if(v.Is<bool>())
-		return (bool)v ? "true" : "false";
-	return AsString(v);
-}
-
-static int Int(const Value& v)
-{
-	if(IsNumber(v))
-		return (int)(double)v;
-	return ScanInt(Str(v));
-}
-
 bool ResultRow::Failed() const
 {
 	String s = ToUpper(status);

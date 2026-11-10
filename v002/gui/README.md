@@ -126,11 +126,13 @@ the rebuild: it removes build folders made for another path and builds again. `g
 cache can outlive a move. The test, bench and example programs do not check: the gates build them
 right before running them.
 
-Both packages have `options "-Wformat=2 -Werror=format"` in their `.upp`: a printf-style call
-whose arguments do not match its format (such as a 64-bit value given to `%d`) fails the
-build. Package options apply to our code, not to uppsrc. The jac313 CMake builds go further:
-every warning is an error there (-Werror, with the strict and conversion warnings), in every
-build; Jac313Runner's Build box says so ("Always on").
+Every warning is an error here too. Both packages have `options "-Wall -Wextra -Wformat=2 -Werror"`
+and link with `-Wl,--fatal-warnings` in their `.upp`, so a warning in our code, or a printf-style
+call whose arguments do not match its format (such as a 64-bit value given to `%d`), fails the
+build. Package options apply to our code, not to uppsrc. The pre-push gate builds both packages
+clean with the CLANG and GCC methods and also fails on any warning line in the output, uppsrc's
+included. The jac313 CMake builds add the strict and conversion warnings; Jac313Runner's Build
+box says so ("Always on").
 
 `gui-build` keeps U++'s objects in `gui/out/.upp.out`: one cache per vNNN world (and per clone),
 with a folder per build method inside, instead of U++'s shared `~/.cache/upp.out`. A shared one let a

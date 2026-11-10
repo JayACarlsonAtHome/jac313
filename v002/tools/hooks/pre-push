@@ -40,6 +40,19 @@ while read -r _local_ref local_sha _remote_ref remote_sha; do
     fi
 done
 
+# --- a folder named like a version must be one: vNNN (v001, v002, ...). vtr3, v1, v01a or
+# v0001 at the top is a mistake, and the push stops here, before anything is built. ---
+bad_versions=()
+while IFS= read -r top; do
+    [[ -z "$top" ]] && continue
+    if [[ "$top" =~ ^v[^/]*[0-9] && ! "$top" =~ ^v[0-9]{3}$ ]]; then bad_versions+=("$top"); fi
+done < <( { printf '%s\n' "${changed:-}" | sed -n 's|/.*||p'; for d in */; do echo "${d%/}"; done; } | sort -u )
+if [[ "${#bad_versions[@]}" -gt 0 ]]; then
+    echo "[pre-push] FATAL: not a valid version folder: ${bad_versions[*]} (a version is v + three digits, e.g. v001)" >&2
+    echo "[pre-push] gate FAILED — push aborted (bypass: git push --no-verify)" >&2
+    exit 1
+fi
+
 # --- 2. map changed paths to v00N world(s); any root/shared change => all worlds ---
 shared=0
 [[ "$have_range" -eq 0 || "$range_unknown" -eq 1 ]] && shared=1   # no range (manual run), or one git cannot diff => all
@@ -96,6 +109,30 @@ verify_world() {
     # makes any compiler, linker, CMake or clang-scan-deps warning fail the build.
     echo "[pre-push:$vdir] strict-build (fresh gcc/clang x headers/modules; any warning fails) ..."
     "$driver" strict-build || return $?
+
+    # The windows (U++): clean builds of Jac313Runner and JTextGui with CLANG, then GCC (GCC last,
+    # so gui/out keeps the GCC builds). The packages have -Wall -Wextra -Werror and
+    # -Wl,--fatal-warnings; a warning line anywhere in the output (U++'s own packages too) fails as
+    # well. JAC313_GATE_NO_GUI=1 skips this on a machine with no window (bsir.sh --no-gui).
+    if [[ "${JAC313_GATE_NO_GUI:-0}" == 1 ]]; then
+        echo "[pre-push:$vdir] gui-build: SKIPPED (JAC313_GATE_NO_GUI=1)"
+    else
+        local method pkg glog
+        mkdir -p gui/out
+        for method in CLANG GCC; do
+            for pkg in Jac313Runner JTextGui; do
+                glog="gui/out/prepush-$pkg-$method.log"   # gitignored (gui/out/)
+                echo "[pre-push:$vdir] gui-build $pkg $method (clean; any warning fails) ..."
+                local args=(gui-build --method "$method" --clean)
+                [[ "$pkg" == JTextGui ]] && args=(gui-build JTextGui --method "$method" --clean)
+                if ! "$driver" "${args[@]}" > "$glog" 2>&1 || grep -q "warning:" "$glog"; then
+                    echo "[pre-push:$vdir] gui-build $pkg $method FAILED — $vdir/$glog:" >&2
+                    grep -E "error|warning:" "$glog" | head -n 20 >&2 || tail -n 20 "$glog" >&2
+                    return 1
+                fi
+            done
+        done
+    fi
 
     # Vendored-copy drift (jText, Qlite): warnings only, never blocks the push (Captain
     # 2026-10-16: "warnings on drift, not breaking"). A failure to run it is a warning too.

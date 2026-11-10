@@ -166,8 +166,13 @@ isn't installed it stops with install instructions (it's a hard prerequisite).
 
 **Enforcement.** `bsir.sh` installs `tools/hooks/pre-push` into `.git/hooks/pre-push`
 (git hooks are local and not version-controlled, so they're installed per clone). It runs
-`version-check` then **`matrix verify-lite`** before every push and blocks a dirty one. Bypass a
-single push with `git push --no-verify`.
+before every push, in order: `version-check`, a fresh strict build matrix (`strict-build`:
+gcc/clang x headers/modules, any warning fails), clean builds of both windows (Jac313Runner and
+JTextGui, U++ CLANG and GCC; any warning fails; `JAC313_GATE_NO_GUI=1` skips them on a machine
+with no window), `vendor-check` (warnings only), `build-times`, then **`matrix verify-lite`**,
+and blocks a dirty push. A top-level folder named like a version that is not `vNNN` (e.g.
+`vtr3`, `v1`) stops the push before anything is built. Bypass a single push with
+`git push --no-verify`.
 
 ## Honest limits — what this does **not** cover
 

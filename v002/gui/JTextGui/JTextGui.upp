@@ -33,10 +33,10 @@ library
 	z;
 
 link
-	"-L/usr/pgsql-18/lib";
+	"-L/usr/pgsql-18/lib -Wl,--fatal-warnings";
 
 mainconfig
 	"" = "GUI WAYLAND";
 
 options
-	"-Wformat=2 -Werror=format";
+	"-Wall -Wextra -Wformat=2 -Werror";

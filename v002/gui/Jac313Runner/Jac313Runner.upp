@@ -18,4 +18,7 @@ mainconfig
 	"" = "GUI WAYLAND";
 
 options
-	"-I../../jText -I../../jText/src -Wformat=2 -Werror=format";
+	"-I../../jText -I../../jText/src -Wall -Wextra -Wformat=2 -Werror";
+
+link
+	"-Wl,--fatal-warnings";
