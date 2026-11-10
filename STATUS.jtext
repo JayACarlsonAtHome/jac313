@@ -59,8 +59,6 @@
 
 
 === Data ===
-1. #|# 1|Run --assign-new for real, and to which number?|A real run renumbers this machine in results.db and in the R430 fleet registry (fleet.machine). The flag was proven to parse and reach the host step; --claim passed end to end. Alternative: accept that proof.|2026-10-30|Claude jay-35|
-
 === End Data ===
 === End Section ===
 === End File ===
