@@ -7,6 +7,7 @@
 #include "jtext_gui/core/connections_file.hpp"
 #include "jtext_gui/core/table_store.hpp"
 #include "jtext_gui/core/spreadsheet.hpp"
+#include "Qlite/v001/Database.hpp"   // Qlite::v001::version() for Help > About
 #include "parser/section.hpp"
 
 #include <filesystem>
@@ -1128,13 +1129,8 @@ struct JTextGui : TopWindow {
 				bar.Separator();
 				bar.Add("Exit", [this] { Close(); });
 			});
-			bar.Sub("Help", [](Bar& bar) {
-				bar.Add("About", [] {
-					PromptOK("jText GUI\n"
-					         "Table editor for jText files and SQL tables.\n"
-					         "U++ and C++23. Files go through the jText library.\n"
-					         "Saved servers are the SQL_Secrets connection files.");
-				});
+			bar.Sub("Help", [this](Bar& bar) {
+				bar.Add("About", THISBACK(About));
 			});
 		});
 		AddFrame(menu);
@@ -2773,6 +2769,24 @@ struct JTextGui : TopWindow {
 		fflush(stdout);
 		selfTestRc = bad ? 1 : 0;
 		Break();
+	}
+
+	// Help > About: what this is, what it was built with, and where its files are.
+	void About() {
+		const std::string conns = jtext_gui::default_connections_path(Std(GetExeFilePath()));
+		PromptOK(DeQtfLf(String()
+			<< "jText GUI\n"
+			<< "A table editor for jText files and database tables (SQLite, PostgreSQL, MariaDB).\n"
+			<< "\n"
+			<< "Built with: C++23, U++, the jText library, Qlite " << S(std::string(Qlite::v001::version()))
+			<< "\n"
+			<< "Compiler: " << __VERSION__ << "\n"
+			<< "\n"
+			<< "Saved connections: " << (conns.empty() ? String("(no checkout found above this program)") : S(conns))
+			<< "\n"
+			<< "Manual: jText_GUI/Manual/pdf/jText-Editor-Manual.pdf\n"
+			<< "\n"
+			<< "Experimental: it changes often."));
 	}
 
 	void Connect() {
