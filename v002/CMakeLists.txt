@@ -20,11 +20,14 @@ if(JAC313_BUILD_MODULES)
         message(FATAL_ERROR "JAC313_BUILD_MODULES requires the Ninja generator (-G Ninja)")
     endif()
     set(CMAKE_CXX_SCAN_FOR_MODULES ON)
-    # CMake 4 builds a separate BMI for each use of a module with its own rule: "--precompile ... -c",
-    # and clang reports that -c as unused, which -Werror stops. The -c is CMake's, not ours, so this
-    # turns off only that warning and only on that one kind of step.
+    # CMake 4 builds a BMI for each target that imports a module (a "synthetic target") with its
+    # normal compile line plus this flag. Its clang default, --precompile, stops after the BMI, so
+    # CMake's own -c is left unused: clang warns about it when compiling and clang-scan-deps warns
+    # when scanning (and ignores -Wno-unused-command-line-argument). -Xclang -emit-module-interface
+    # asks the front end for the same BMI while the driver still does a normal -c compile, so
+    # neither warns. It is a front-end option, not a driver flag: recheck it on a new clang.
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        set(CMAKE_CXX_MODULE_BMI_ONLY_FLAG "--precompile;-Wno-unused-command-line-argument")
+        set(CMAKE_CXX_MODULE_BMI_ONLY_FLAG "-Xclang;-emit-module-interface")
     endif()
     set(JAC313_SETUP_BUILD_MODULES ON CACHE BOOL "" FORCE)
     set(JAC313_JTEXT_BUILD_MODULES ON CACHE BOOL "" FORCE)
