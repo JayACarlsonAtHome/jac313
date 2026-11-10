@@ -17,7 +17,7 @@ What makes jac313 special is the complete world built around it: a real testing 
 
 Each major version is a complete, independent universe:
 
-- **v001** — the solid, battle-tested C++23 baseline
+- **v001** — the C++23 baseline, with experimental non-standard contracts that need only C++23 ([Contracts](../v001/docs/Contracts.md))
 - **v002** — the evolving C++26 frontier (compiled as C++26; limited feature adoption so far, with plans to add more within ~12 months)
 
 This is modern C++ as it should be experienced: clean namespaced APIs, C++23 modules, rigorous validation, and the kind of depth that only comes from building something real end-to-end.
@@ -114,8 +114,8 @@ language standard independently.
 
 | Version | Standard | State |
 |---------|----------|-------|
-| [**v001/**](../v001/README.md) | **C++23** | The proven baseline — builds and tests green on g++-15 and Clang across multiple Linux distros; the full persist × scale matrix is recorded. Modules build with the distro CMake. |
-| [**v002/**](../v002/README.md) | **C++26** | The evolving frontier — compiled as C++26. Currently using a small number of C++26 library facilities (via shims/workarounds) and a contracts shim (runtime checks today). Most new C++26 language features not yet adopted in main code. We plan to re-evaluate and add more within the next 12 months. Modules build with the distro CMake. |
+| [**v001/**](../v001/README.md) | **C++23** | The proven baseline — builds and tests green on GCC and Clang across multiple Linux distros; the full persist × scale matrix is recorded. Modules build with the distro CMake. Carries experimental, non-standard **library contracts** (from jac321) that need no compiler support beyond C++23; Qlite's column and bind numbers use them today ([Contracts](../v001/docs/Contracts.md)). |
+| [**v002/**](../v002/README.md) | **C++26** | The evolving frontier — compiled as C++26. Currently using a small number of C++26 library facilities (via shims/workarounds) and the C++26 contracts through a shim (`JAC313_PRE/POST/ASSERT`: native `contract_assert` on GCC 16, run-time checks on Clang). Most new C++26 language features not yet adopted in main code. We plan to re-evaluate and add more within the next 12 months. Modules build with the distro CMake. |
 
 The one coordination cost of full duplication: a shared-infra fix made *before* the two
 versions diverge must be applied to each `v00N/`. After they diverge, they are free to

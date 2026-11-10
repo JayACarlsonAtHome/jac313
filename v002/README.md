@@ -52,7 +52,7 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 
 - **A complete testing framework.** [`jac313_test_cli`](tools/jac313_test_cli/) is the whole
   CI — it probes compilers, configures/builds, runs ctest, and drives a **persist × scale
-  matrix** (116 smoke scenarios → full stress runs), recording every metric to a tracked
+  matrix** (344 smoke scenarios → full stress runs), recording every metric to a tracked
   results DB keyed by a `(os, compiler, build_type, disk, size)` **RunIdentity**. No GitHub
   Actions, no shell scripts. See [docs/Architecture.md](docs/Architecture.md). Testing details are in this README's Quick start section.
 - **C++23 modules**, additive over the headers, for all three libraries; they build with the
@@ -131,15 +131,13 @@ For more details on the project, see the docs in [docs/](docs/) (listed under Do
 | [docs/Results.md](docs/Results.md) | v002 results — recorded per-platform in `results.db` and rendered under [test-summary/](test-summary/) (median + low–high band) |
 | Package READMEs | [jText](jText/README.md) · [Store](Store/README.md) |
 
-**Status:** v002 is a **faithful copy of v001**, rebranded to `jac313::*::v002`. It builds clean
-(g++-15, modules + textual) and passed validation (smoke **116/116**; `matrix verify` **60/60**
-valgrind-clean), and records its per-platform results in `results.db` (rendered under
-[test-summary/](test-summary/)). The ISO **C++26** baseline is now in (`cxx_std_26`). We currently use a small number of C++26-era
-library facilities (via shims or workarounds) and contracts (`JAC313_PRE/POST/ASSERT`: native C++26
-`contract_assert` on GCC 16, runtime checks on clang and gcc15; see docs/Cpp26_Adoption.md). Most new C++26 language features are not yet used in the main code. We expect to
-re-evaluate and adopt more C++26 features within the next 12 months. v002 is staged and
-isolation-verified, continuing to diverge. The legacy repos (`jacQlite`, `jText`, `ts_store`)
-remain only as historical origin.
+**Status (2026-11-10):** v002 began as a copy of v001 and now builds as C++26 (`cxx_std_26`).
+From a fresh clone on Fedora 44, the full `--run-everything` passed on GCC 16 and Clang:
+ctest 104/0, smoke 344/0, bench 32/0, valgrind verify clean, no compiler warnings (every
+warning is an error). It uses the C++26 contracts (`JAC313_PRE/POST/ASSERT`: native
+`contract_assert` on GCC 16, run-time checks on Clang; see docs/Cpp26_Adoption.md) and a few
+C++26 library facilities; most new C++26 language features are not used yet. The legacy repos
+(`jacQlite`, `jText`, `ts_store`) remain only as historical origin.
 
 ---
 

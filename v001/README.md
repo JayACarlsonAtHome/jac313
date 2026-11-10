@@ -1,19 +1,14 @@
 # jac313
 
-A carefully crafted C++23 ecosystem built around one compelling idea: **Store**, a high-performance, fully configurable time-series event logger that is genuinely greater than the sum of its parts.
+The C++23 version of jac313: **Store**, a fast event logger, its two libraries (**Qlite**, a
+SQLite wrapper, and **jText**, a self-describing text format), and the test and benchmark
+harness built around them. The front page is [../README.md](../README.md).
 
-At its core are two elegant supporting libraries:
-
-- **Qlite** — a clean, modern SQLite wrapper
-- **jText** — a self-describing, human-readable structured text format
-
-Together they deliver multiple persistence backends (binary, jText, HTML, JSON, SQL; several at once, routed by flags) while keeping the hot path fast and allocation-free.
-
-What makes this project special is the complete world built around it: a serious, from-scratch testing and benchmarking harness that actually exercises the code at scale across compilers and configurations. This is not a toy — it's a real codebase that has already helped surface issues in production toolchains.
-
-v001 is the solid, battle-tested C++23 baseline with full matrix results recorded across multiple platforms.
-
-The whole is bigger than the parts — and it shows in both the engineering and the results.
+**Contracts without compiler support.** C++23 has no contracts, so v001 carries
+experimental, non-standard ones written as plain C++23 code (from jac321, copied into
+Qlite). They need nothing beyond `-std=c++23`. Today they guard Qlite's column and bind
+numbers: each is its own type, checked once when it is made. See
+[docs/Contracts.md](docs/Contracts.md), with a sample program.
 
 > **Linux only.** Uses Linux/POSIX APIs (`fork`/`exec`, `mmap`, `/proc`, etc.).
 
@@ -52,7 +47,7 @@ feature (and is a good candidate for AI-assisted exploration of its strengths an
 
 - **A complete testing framework.** [`jac313_test_cli`](tools/jac313_test_cli/) is the whole
   CI — it probes compilers, configures/builds, runs ctest, and drives a **persist × scale
-  matrix** (116 smoke scenarios → full stress runs), recording every metric to a tracked
+  matrix** (344 smoke scenarios → full stress runs), recording every metric to a tracked
   results DB keyed by a `(os, compiler, build_type, disk, size)` **RunIdentity**. No GitHub
   Actions, no shell scripts. See [docs/Architecture.md](docs/Architecture.md). Testing details are in this README's Quick start section.
 - **C++23 modules**, additive over the headers, for all three libraries; they build with the
@@ -123,6 +118,7 @@ For more details on the project, see the docs in [docs/](docs/) (listed under Do
 
 | Doc | Contents |
 |-----|----------|
+| [docs/Contracts.md](docs/Contracts.md) | The experimental C++23 library contracts (jac321): the idea, where Qlite uses them, a sample program |
 | [docs/Modules.md](docs/Modules.md) | C++23 modules: build, pitfalls, and why `import std;` was removed |
 | [docs/Architecture.md](docs/Architecture.md) | Layout, the umbrella model, the test pipeline, customization, design principles |
 | [docs/Verify.md](docs/Verify.md) | valgrind memcheck + helgrind/DRD — method, the tail-reader data race found & fixed, results, and honest limits |
@@ -131,12 +127,12 @@ For more details on the project, see the docs in [docs/](docs/) (listed under Do
 | [docs/Results.md](docs/Results.md) | What a clean build + test run actually produces, **per platform** — Linux Mint (116/116, ~2.9M events/s, ~611 MB), RHEL 9.8 (116/116, up to ~24.3M ops/s; CMake 3.31.8-vs-4.3.3 import-std comparison), and RHEL 10.2 (116/116 on **both g++-15 and clang**, up to ~24.3M ops/s, on a 7200 RPM HDD) |
 | Package READMEs | [jText](jText/README.md) · [Store](Store/README.md) |
 
-**Status:** all three packages in-tree (no sibling repos); ctest + 116/116 smoke matrix green on
-GCC and Clang on **Linux Mint**, **RHEL 9.8**, and **RHEL 10.2** — on **both RHEL 9.8 and RHEL 10.2,
-g++-15 and clang each ran the full Debug + Release matrix green** (116/116; Release peaks ~24.3M
-(gcc) / ~20.9M (clang) on 9.8 and ~23.9M (gcc) / ~24.3M (clang) on 10.2; see
-[docs/Results.md](docs/Results.md), throughput rows are the g++-15 reference per platform);
-The legacy repos (`jacQlite`, `jText`, `ts_store`) remain only as historical origin.
+**Status (2026-11-10):** all three packages in-tree. From a fresh clone on Fedora 44, the full
+`--run-everything` passed on GCC 16 and Clang: ctest 94/0, smoke 344/0, bench 32/0, valgrind
+verify 76/76 clean, no compiler warnings (every warning is an error). RHEL 9.8, RHEL 10.2 and
+Linux Mint passed earlier versions (116-scenario matrix, see [docs/Results.md](docs/Results.md))
+and are being run again. The legacy repos (`jacQlite`, `jText`, `ts_store`) remain only as
+historical origin.
 
 ---
 
