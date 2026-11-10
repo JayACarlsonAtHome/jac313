@@ -320,6 +320,7 @@ upp_installed() {  # every U++ version this world needs is installed
 bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner and JTextGui
   echo
   echo "=== GUI: U++ (upp_basefix) + Jac313Runner + JTextGui ==="
+  GUI_STEP="installing the GUI libraries (GTK3, X11, fonts)"
   if ! upp_gui_libs_ok; then
     cmd=$(recipe_cmd upp_gui "$family")
     if [ -z "$cmd" ]; then
@@ -343,7 +344,11 @@ bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner a
     esac
     upp_gui_libs_ok || { echo "The GUI libraries are still missing (pkg-config)."; return 1; }
   fi
-  for ver in $UPP_VERSIONS; do install_upp "$ver" || return 1; done
+  for ver in $UPP_VERSIONS; do
+    GUI_STEP="installing U++ $ver into $UPP_ROOT/$ver/install (from $UPP_BASEFIX_REPO)"
+    install_upp "$ver" || return 1
+  done
+  GUI_STEP="building Jac313Runner and JTextGui (jac313_test_cli gui-build)"
   # gui-build keeps this world's U++ objects in gui/out/.upp.out; objects from an older U++ or
   # compiler break the link, so a failed build is retried once with --clean (rebuild everything).
   gui_clean=""
@@ -353,6 +358,7 @@ bootstrap_gui() {  # build libraries ([y/N]), U++ (no sudo), then Jac313Runner a
     || { echo "Retrying with a clean rebuild (stale U++ cache)…"; ( cd "$ROOT" && UPP_ROOT="$UPP_ROOT" $ACT "$CLI" gui-build Jac313Runner JTextGui --method "$UPP_METHOD" --clean ); } \
     || { echo "gui-build failed."; return 1; }
   install_dbeaver || true   # optional; the GUI is ready either way
+  GUI_STEP="installing Google Chrome (the Runner's Open Reports in Chrome)"
   install_chrome || return 1   # required: the Runner's Open Reports in Chrome
 }
 
@@ -783,9 +789,13 @@ else
   echo "PG local: ready (jac313 logs in on localhost)."
 fi
 
-# --- the GUI (unless --no-gui). Non-fatal: the test tools above are ready either way. ---
+# --- the GUI (unless --no-gui). The steps after it still run (the test tools are ready either way);
+#     a failure here makes the bootstrap end with "NOT complete" and exit 1. ---
+# GUI_STEP names the stage bootstrap_gui is in, so the end of the bootstrap can say where it stopped.
+GUI_FAILED=""
 if [ "$WANT_GUI" = 1 ]; then
-  bootstrap_gui || echo "(GUI step did not complete — the test tools are ready; fix the above and re-run ./bsir.sh)"
+  GUI_STEP="the GUI step"
+  bootstrap_gui || GUI_FAILED="$GUI_STEP failed"
 fi
 
 echo
@@ -812,6 +822,13 @@ if ! $ACT "$CLI" host; then
 fi
 
 echo
+if [ -n "$GUI_FAILED" ]; then
+  echo "=== Bootstrap NOT complete: the window step stopped (Jac313Runner, JTextGui) ==="
+  echo "Why:  $GUI_FAILED (its message is further up)."
+  echo "The test tools, the databases and this machine's pin are ready (./jac313_test_cli works)."
+  echo "Fix that, then re-run: ./bsir.sh"
+  exit 1
+fi
 echo "Bootstrap complete."
 
 # --- the Jac313Runner window: opened at once when there is a screen ---
