@@ -560,7 +560,7 @@ struct Runner : TopWindow {
 	EditString root;                   // shows it
 	LabelBox  boxVersion, boxGates, boxBuild, boxPersist, boxRows;
 	Switch    comp, type, front, size, rb, pg;
-	Option    gCtest, gSmoke, gBench, gVerifyLite, gVerify;
+	Option    gCtest, gSmoke, gBench, gVerifyLite, gVerify, bSkipCommit;
 	Option    bHardened;
 	Option    pSql, pPgL, pPgR, pJt, pBin, pJson, pHtml;
 	// The bench's production run (the row of the version's tests/production.jtext)
@@ -629,6 +629,7 @@ struct Runner : TopWindow {
 	void   Start();
 	void   StartPlan();
 	void   PlanFinished();
+	bool   RunFailed() const;
 	void   AllFinished();
 	void   Feed(const String& s);
 	void   Poll();
@@ -775,6 +776,11 @@ Runner::Runner()
 	Place(s1p.body, gBench, 240, y + 18, 80, 22);
 	Place(s1p.body, gVerifyLite, 330, y + 18, 110, 22);
 	Place(s1p.body, gVerify, 450, y + 18, 160, 22);
+	bSkipCommit.SetLabel("skip commit on failure");
+	bSkipCommit.Tip("After a run with a failure, do not commit or push the run results: they stay saved in "
+	              "test-summary/results_main.jtext and results_note.jtext on this machine, so it can be "
+	              "fixed first. The next run that publishes commits and pushes them along.");
+	Place(s1p.body, bSkipCommit, 620, y + 18, 180, 22);
 	y += 52;
 
 	boxBuild.SetLabel("Build");
@@ -1022,7 +1028,7 @@ Runner::Runner()
 	SetMinSize(minsz);
 
 	Ctrl *live[] = { &comp, &type, &front, &size, &rb, &pg, &gCtest, &gSmoke, &gBench, &gVerifyLite,
-	                 &gVerify, &bHardened, &contracts, &pSql, &pPgL, &pPgR, &pJt, &pBin, &pJson, &pHtml,
+	                 &gVerify, &bSkipCommit, &bHardened, &contracts, &pSql, &pPgL, &pPgR, &pJt, &pBin, &pJson, &pHtml,
 	                 &prodKeeper, &prodDb, &prodKPct, &prodDPct, &prodBinary, &pgName, &pgHost, &pgPort, &pgDb, &pgUser, &connFile, &maxRuns, &maxRecords, &maxRows };
 	for(Ctrl *c : live)
 		c->WhenAction << THISBACK(UpdateCommand);
@@ -1178,6 +1184,7 @@ void Runner::FromOptions()
 	comp <<= opt.compiler;
 	type <<= opt.buildType;
 	bHardened <<= opt.hardened;
+	bSkipCommit <<= opt.skipCommitOnFailure;
 	contracts <<= opt.contracts;
 	front <<= opt.frontEnd;
 	size <<= opt.size;
@@ -1238,6 +1245,7 @@ void Runner::ToOptions()
 	opt.compiler = AsString(~comp);
 	opt.buildType = AsString(~type);
 	opt.hardened = bHardened;
+	opt.skipCommitOnFailure = bSkipCommit;
 	opt.contracts = AsString(~contracts);
 	opt.gccContracts = Join(gccModes.GetKeys(), ",");
 	opt.clangContracts = Join(clangModes.GetKeys(), ",");
@@ -1447,6 +1455,12 @@ void Runner::Start()
 
 void Runner::StartPlan()
 {
+	if(plans[planIx].publish && opt.skipCommitOnFailure && RunFailed()) {
+		out.Append("[a step failed and \"skip commit on failure\" is on: the run results are saved in "
+		           "test-summary/results_main.jtext and results_note.jtext, not committed or pushed]\n");
+		AllFinished();
+		return;
+	}
 	const RunPlan& p = plans[planIx];
 	nPass = nFail = 0;
 	lineBuf.Clear();
@@ -1521,6 +1535,17 @@ void Runner::Poll()
 			validation.SetText(vline);
 		}
 	}
+}
+
+// A step of this run failed: one ended badly, or a summary has a failed row.
+bool Runner::RunFailed() const
+{
+	if(failNote.GetCount())
+		return true;
+	for(const Summary& s : sums)
+		if(s.fail > 0)
+			return true;
+	return false;
 }
 
 void Runner::PlanFinished()

@@ -8,8 +8,10 @@
 //            (results.db is never the record). With no results_main.jtext yet, the tables are made
 //            from what results.db holds and saved to the files.
 //   save     after every recorded run: both tables to their files.
-//   publish  at the end of the run: commit only the two files on the current branch, and push that
-//            branch with --no-verify when it is dev-work (no other branch is pushed).
+//   publish  at the end of the run, on dev-work: pull dev-work, load the pulled files into results.db,
+//            add this machine's new rows, export each table to its file, commit only the two files and
+//            push dev-work with --no-verify, unless unpushed code commits would go with it (code goes
+//            through the gate). On another branch: export and commit only; nothing is pushed.
 //            $JAC313_RESULTS_PUBLISH = defer | off (as the CLI started) saves without committing:
 //            the Runner defers and publishes once at its end (results-publish); the pre-push gate
 //            sets off, and its rows go with the next commit.

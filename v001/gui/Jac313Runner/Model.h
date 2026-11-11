@@ -46,6 +46,10 @@ struct RunOptions {
 	String compiler   = "both";     // gcc | clang | both (each: the newest on this machine)
 	String buildType  = "Debug";    // Debug | Release
 	bool   hardened   = false;      // --hardened (runtime hardening; ctest/smoke builds only)
+	// After a run with a failure, skip the last step (results-publish): the run results stay saved in
+	// test-summary/results_main.jtext and results_note.jtext, not committed or pushed, so it can be
+	// fixed before anyone sees it; the next run that publishes commits and pushes them along.
+	bool   skipCommitOnFailure = false;
 	// --contracts: how contract checks run (ctest/smoke builds only): enforce | observe |
 	// quick_enforce | ignore. The screen enables only the modes the chosen compiler has on this
 	// OS (the version's Setup/contracts.jtext, via jac313_test_cli compiler-versions).

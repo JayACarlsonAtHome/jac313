@@ -212,6 +212,59 @@ void record(Sqlite& db, std::int64_t run_id, const std::string& gate, const fs::
 bool pending() { return g_requested || !g_recorded.empty(); }
 void request_publish() { g_requested = true; }
 
+namespace {
+
+// The key of a run_result row: a run, wherever and whenever it ran (the table's UNIQUE key).
+constexpr const char* kRunKey = "r.pin = k.pin AND r.version = k.version AND r.run_id = k.run_id AND r.run_started = k.run_started";
+
+// Put back the rows this machine has and the pulled files do not (kept in keep_result / keep_change
+// before the pull): each gets the next id, and its notes follow it.
+void merge_kept(Sqlite& db) {
+    std::string cols;
+    for (const Column& c : columns_of(db, "run_result"))
+        if (c.name != "id") cols += (cols.empty() ? "" : ", ") + c.name;
+    std::vector<std::pair<std::int64_t, std::int64_t>> moved;   // kept id -> its id now
+    {
+        auto st = db.prepare(std::string("SELECT k.id, COALESCE((SELECT r.id FROM run_result r WHERE ") + kRunKey
+                             + "), 0) FROM temp.keep_result k ORDER BY k.run_started, k.id");
+        while (st.step()) {
+            std::int64_t kept = 0, now = 0;
+            st.get(kept, now);
+            moved.emplace_back(kept, now);
+        }
+    }
+    for (auto& [kept, now] : moved) {
+        if (now != 0) continue;   // the pulled file has this run already
+        now = R::get_top_one_long(db, "SELECT COALESCE(MAX(id), 0) + 1 FROM run_result");
+        db.exec("INSERT INTO run_result(id, " + cols + ") SELECT ?, " + cols + " FROM temp.keep_result WHERE id = ?", now, kept);
+    }
+    for (const auto& [kept, now] : moved)
+        db.exec("INSERT INTO run_change(run_result_id, ts_utc, change_text) SELECT ?, c.ts_utc, c.change_text "
+                "FROM temp.keep_change c WHERE c.run_result_id = ? AND NOT EXISTS (SELECT 1 FROM run_change n "
+                "WHERE n.run_result_id = ? AND n.ts_utc = c.ts_utc AND n.change_text = c.change_text)",
+                now, kept, now);
+}
+
+// Unpushed commits on HEAD that change anything but the two results files ('' = none).
+std::string unpushed_code(const fs::path& dir, const std::string& m, const std::string& n) {
+    int code = 0;
+    const std::string files = git(dir, {"diff", "--name-only", "origin/dev-work", "HEAD"}, &code);
+    if (code != 0) return "cannot compare with origin/dev-work";
+    const fs::path top = git(dir, {"rev-parse", "--show-toplevel"});
+    std::string other;
+    std::size_t start = 0;
+    while (start < files.size()) {
+        std::size_t end = files.find('\n', start);
+        if (end == std::string::npos) end = files.size();
+        const std::string f = files.substr(start, end - start);
+        if (!f.empty() && (top / f).string() != m && (top / f).string() != n) other += (other.empty() ? "" : ", ") + f;
+        start = end + 1;
+    }
+    return other;
+}
+
+}  // namespace
+
 int publish(bool force) {
     if (!force && (g_publish_mode == "defer" || g_publish_mode == "off")) {
         if (!g_recorded.empty())
@@ -221,9 +274,40 @@ int publish(bool force) {
     }
     const fs::path dir = main_file().parent_path();
     int code = 0;
-    const std::string top = git(dir, {"rev-parse", "--show-toplevel"}, &code);
+    git(dir, {"rev-parse", "--show-toplevel"}, &code);
     if (code != 0) { std::cout << "[results] not committed: " << dir.string() << " is not in a git checkout\n"; return 0; }
     const std::string m = main_file().string(), n = note_file().string();
+    const std::string branch = git(dir, {"rev-parse", "--abbrev-ref", "HEAD"});
+    const bool on_dev_work = branch == "dev-work";
+    try {
+        Sqlite db(R::JAC313_RESULTS_DB);
+        R::ensure_schema(db);
+        if (on_dev_work) {
+            // 1. pull: the files as dev-work has them now. This machine's rows wait in temp tables
+            //    (results.db has them all), and the files' own edits are set aside so the pull can apply.
+            db.exec("DROP TABLE IF EXISTS temp.keep_result");
+            db.exec("DROP TABLE IF EXISTS temp.keep_change");
+            db.exec("CREATE TEMP TABLE keep_result AS SELECT * FROM main.run_result");
+            db.exec("CREATE TEMP TABLE keep_change AS SELECT * FROM main.run_change");
+            git(dir, {"checkout", "--", m, n}, &code);   // a file not committed yet has nothing to restore
+            const std::string pulled = git(dir, {"pull", "--ff-only", "--no-rebase", "origin", "dev-work"}, &code, 180);
+            if (code != 0)
+                std::cout << "[results] pull FAILED (going on with this machine's copy):\n" << pulled << '\n';
+            // 2. load the pulled files, 3. put this machine's new rows on top
+            load(db);
+            auto tx = db.transaction();
+            merge_kept(db);
+            tx.commit();
+            db.exec("DROP TABLE IF EXISTS temp.keep_result");
+            db.exec("DROP TABLE IF EXISTS temp.keep_change");
+        }
+        // 4. export each table to its file
+        save(db);
+    } catch (const std::exception& e) {
+        std::cout << "[results] update FAILED: " << e.what() << '\n';
+        return 1;
+    }
+    // 5. commit only the two files
     if (git(dir, {"status", "--porcelain", "--", m, n}, &code).empty() && code == 0) {
         std::cout << "[results] " << main_file().filename().string() << " and " << note_file().filename().string()
                   << " unchanged: nothing to commit\n";
@@ -240,16 +324,21 @@ int publish(bool force) {
         std::cout << "[results] commit FAILED (the files are saved; commit them by hand):\n" << out << '\n';
         return 1;
     }
-    const std::string branch = git(dir, {"rev-parse", "--abbrev-ref", "HEAD"});
     std::cout << "[results] committed " << main_file().filename().string() << " + " << note_file().filename().string()
               << " on " << branch << ": " << msg << '\n';
-    if (branch != "dev-work") {
+    // 6. push dev-work, and only when nothing but run results would go with it (code goes through the gate)
+    if (!on_dev_work) {
         std::cout << "[results] not pushed: run results are pushed only from dev-work (this is " << branch << ")\n";
+        return 0;
+    }
+    if (const std::string code_files = unpushed_code(dir, m, n); !code_files.empty()) {
+        std::cout << "[results] not pushed: dev-work has unpushed code (" << code_files
+                  << "); push it through the gate and the results go with it\n";
         return 0;
     }
     const std::string pushed = git(dir, {"push", "--no-verify", "origin", "dev-work"}, &code, 180);
     if (code != 0) {
-        std::cout << "[results] push FAILED (committed; push dev-work later):\n" << pushed << '\n';
+        std::cout << "[results] push FAILED (committed; the next run pulls and pushes again):\n" << pushed << '\n';
         return 1;
     }
     std::cout << "[results] pushed dev-work (--no-verify)\n";

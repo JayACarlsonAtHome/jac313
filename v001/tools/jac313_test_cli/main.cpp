@@ -4632,8 +4632,9 @@ static int run_main(int argc, char** argv) {
 
     if (command == "results-publish") {   // commit results_main/results_note.jtext; push dev-work (the Runner's last step)
         if (argc > 2 && (std::string(argv[2]) == "--help" || std::string(argv[2]) == "-h")) {
-            std::cout << "results-publish   commit only test-summary/results_main.jtext and results_note.jtext on the\n"
-                         "                  current branch, and push dev-work with --no-verify when that is the branch\n";
+            std::cout << "results-publish   pull dev-work, load and update the run results, export\n"
+                         "                  test-summary/results_main.jtext and results_note.jtext, commit only those two\n"
+                         "                  files, and push dev-work with --no-verify\n";
             return 0;
         }
         try {

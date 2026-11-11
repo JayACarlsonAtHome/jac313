@@ -11,7 +11,7 @@ namespace Upp {
 void RunOptions::Jsonize(JsonIO& io)
 {
 	io("ctest", ctest)("smoke", smoke)("bench", bench)("verify_lite", verifyLite)("verify", verify)
-	  ("compiler", compiler)("build_type", buildType)("hardened", hardened)("contracts", contracts)("front_end", frontEnd)("size", size)
+	  ("compiler", compiler)("build_type", buildType)("hardened", hardened)("skip_commit_on_failure", skipCommitOnFailure)("contracts", contracts)("front_end", frontEnd)("size", size)
 	  ("sqlite", sqlite)("pg_local", pgLocal)("pg_remote", pgRemote)
 	  ("jtext", jtext)("binary", binary)("json", json)("html", html)
 	  ("max_runs", maxRuns)("max_records", maxRecords)("max_persist_rows", maxRows)("readback", readback)("pg_cleanup", pgCleanup)
