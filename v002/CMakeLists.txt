@@ -1,4 +1,13 @@
 cmake_minimum_required(VERSION 3.26)
+# CMake 4.3.3 is required (the pinned CMake: Setup/recipes.jtext pinned_tools; ./bsir.sh installs it
+# into cmake_install). 4.3.0 compiled each imported module's BMI with -c plus --precompile, so
+# clang and clang-scan-deps warned and every -Werror Clang module build failed; 4.3.3 has a BMI
+# rule without -c (docs/Modules.md). Checked here rather than by raising cmake_minimum_required,
+# which would also switch every policy up to 4.3 to NEW.
+if(CMAKE_VERSION VERSION_LESS 4.3.3)
+    message(FATAL_ERROR "jac313 needs CMake 4.3.3 or newer (this is ${CMAKE_VERSION}). "
+                        "./bsir.sh installs the pinned CMake into cmake_install beside the repository.")
+endif()
 
 # Every warning is an error, CMake's own too: dev (AUTHOR_WARNING) and deprecation warnings stop
 # the configure. A plain message(WARNING) has no such switch: use FATAL_ERROR/SEND_ERROR instead.
@@ -25,15 +34,6 @@ if(JAC313_BUILD_MODULES)
         message(FATAL_ERROR "JAC313_BUILD_MODULES requires the Ninja generator (-G Ninja)")
     endif()
     set(CMAKE_CXX_SCAN_FOR_MODULES ON)
-    # CMake 4 builds a BMI for each target that imports a module (a "synthetic target") with its
-    # normal compile line plus this flag. Its clang default, --precompile, stops after the BMI, so
-    # CMake's own -c is left unused: clang warns about it when compiling and clang-scan-deps warns
-    # when scanning (and ignores -Wno-unused-command-line-argument). -Xclang -emit-module-interface
-    # asks the front end for the same BMI while the driver still does a normal -c compile, so
-    # neither warns. It is a front-end option, not a driver flag: recheck it on a new clang.
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        set(CMAKE_CXX_MODULE_BMI_ONLY_FLAG "-Xclang;-emit-module-interface")
-    endif()
     set(JAC313_SETUP_BUILD_MODULES ON CACHE BOOL "" FORCE)
     set(JAC313_JTEXT_BUILD_MODULES ON CACHE BOOL "" FORCE)
     set(JAC313_STORE_BUILD_MODULES ON CACHE BOOL "" FORCE)

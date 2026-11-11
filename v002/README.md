@@ -80,7 +80,7 @@ The window part installs U++ from [upp_basefix](https://github.com/JayACarlsonAt
 
 If you have an older U++ in your home folder or beside the repository, see "Removing an old U++ from your home folder" in `gui/README.md`.
 
-Every system uses CMake 4.3.0, and Linux Mint must also use valgrind 3.27.1: `./bsir.sh` puts them in `cmake_install` and `valgrind_install` beside this repository (no sudo), and configure and the verify gates refuse any other version. Other systems use their own valgrind. The table is `pinned_tools` in `Setup/recipes.jtext`.
+Every system uses CMake 4.3.3, and Linux Mint must also use valgrind 3.27.1: `./bsir.sh` puts them in `cmake_install` and `valgrind_install` beside this repository (no sudo), and configure and the verify gates refuse any other version. Other systems use their own valgrind. The table is `pinned_tools` in `Setup/recipes.jtext`.
 
 The GCC and Clang are pinned per machine in `Compiler_Pins/compilers.pin.jtext` beside this repository (outside it, shared with Qlite, jText and jText_GUI): the first run pins the newest GCC 15+ and Clang 21+, a newer major version is asked about on the terminal, and `./jac313_test_cli pin --show`, `--upgrade` and `--repin` show and move the pin. See `Setup/README.md`.
 

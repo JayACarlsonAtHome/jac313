@@ -15,8 +15,10 @@ optional C++23 module (Qlite, header-only inside jText, has none) that re-export
 | `jac313.store.v002` | yes | yes | yes\* |
 
 \* Clang modules need `clang-scan-deps-20`; `jac313_test_cli` passes it automatically with
-`--modules --clang`. Module builds require the **Ninja ≥ 1.11** generator and **CMake ≥ 3.28**
-(`-DJAC313_BUILD_MODULES=ON`); the distro's CMake package is enough.
+`--modules --clang`. Module builds require the **Ninja ≥ 1.11** generator and the CMake in
+`pinned_tools` (Setup/recipes.jtext, 4.3.3) (`-DJAC313_BUILD_MODULES=ON`).
+Clang module builds need CMake 4.3.3 or newer: 4.3.0 passes `-c` with `--precompile` on the BMI
+step and the `-Werror` build fails (v001/docs/Modules.md, "Resolved: CMake's Clang BMI-only step").
 
 All three module front-ends export their API **correctly qualified** under
 `jac313::<pkg>::v002` via `export namespace` — see the first pitfall below.
