@@ -1903,21 +1903,22 @@ void write_run_results_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out
     html << "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
             "<title>Run results</title>\n<style>\n"
-            ":root { color-scheme: light dark; --bg: #fbfbfa; --fg: #1d1d1b; --muted: #6b6b66; --line: #e2e2dd;\n"
-            "        --pass: #1e7a3c; --fail: #b3261e; --card: #ffffff; }\n"
-            "@media (prefers-color-scheme: dark) { :root { --bg: #161615; --fg: #e8e8e4; --muted: #a0a09a;\n"
-            "        --line: #34342f; --pass: #5cc77f; --fail: #f2766d; --card: #1f1f1d; } }\n"
+            ":root { color-scheme: light dark; --bg: #e4e4dc; --fg: #1d1d1b; --muted: #5f5f5a; --line: #cfcfc6; --panel: #9cc2e6; --edge: #9cc7ec;\n"
+            "        --pass: #1e7a3c; --fail: #b3261e; --card: #dfecf9; }\n"
+            "@media (prefers-color-scheme: dark) { :root { --bg: #0b0b0a; --fg: #e8e8e4; --muted: #a0a09a;\n"
+            "        --line: #3a3a35; --pass: #5cc77f; --fail: #f2766d; --card: #1c3654; --panel: #0a182a; --edge: #4f86b8; } }\n"
             "body { margin: 0; padding: 24px 16px 48px; background: var(--bg); color: var(--fg);\n"
             "       font: 14px/1.45 system-ui, sans-serif; }\n"
             "main { max-width: 1100px; margin: 0 auto; }\n"
             "h1 { font-size: 20px; margin: 0 0 4px; } .sub { color: var(--muted); margin: 0 0 20px; }\n"
-            ".run { background: var(--card); border: 1px solid var(--line); border-radius: 8px; margin: 0 0 10px; }\n"
+            ".run { background: var(--card); border: 1px solid var(--edge); border-radius: 8px; margin: 0 0 10px; }\n"
             ".line { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 10px 14px; align-items: baseline; }\n"
             ".line .id { font-weight: 600; } .line .when { color: var(--muted); font-variant-numeric: tabular-nums; }\n"
             ".badge { font-weight: 700; padding: 1px 8px; border-radius: 10px; border: 1px solid currentColor; }\n"
             ".pass { color: var(--pass); } .fail { color: var(--fail); }\n"
             "code { font: 12.5px ui-monospace, monospace; }\n"
-            ".detail { margin: 0 14px 12px 2.2em; padding-left: 12px; border-left: 2px solid var(--line); }\n"
+            ".detail { margin: 0 14px 12px 2.2em; padding: 4px 12px 10px; border-left: 3px solid var(--edge);\n"
+            "          background: var(--panel); border-radius: 0 6px 6px 0; }\n"
             ".detail h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);\n"
             "             margin: 10px 0 2px; }\n"
             ".detail dl { display: grid; grid-template-columns: max-content 1fr; gap: 1px 14px; margin: 0 0 0 1.4em; }\n"
@@ -1968,6 +1969,32 @@ void write_run_results_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out
         html << "<h3>Commit</h3>\n<dl><dt>commit</dt><dd><code>" << e(dash(r.commit)) << "</code></dd>"
              << "<dt>uncommitted changes</dt><dd>" << (r.dirty ? "yes: the commit alone does not name the code that ran" : "no")
              << "</dd></dl>\n";
+        html << "<h3>OS</h3>\n<dl><dt>family</dt><dd>" << e(dash(r.os_family)) << "</dd><dt>name</dt><dd>"
+             << e(dash(r.os_name)) << "</dd><dt>version</dt><dd>" << e(dash(r.os_version)) << "</dd><dt>kernel</dt><dd>"
+             << e(dash(r.kernel)) << "</dd><dt>arch</dt><dd>" << e(dash(r.arch)) << "</dd></dl>\n";
+        html << "<h3>Machine pin</h3>\n<dl><dt>pin</dt><dd>" << e(dash(r.pin)) << "</dd><dt>cpu</dt><dd>" << e(dash(r.cpu))
+             << "</dd><dt>cores</dt><dd>" << n(r.cores) << " (" << n(r.p_cores) << " physical)</dd><dt>ram</dt><dd>"
+             << n(r.ram_gb) << " GB</dd><dt>cpu MHz</dt><dd>" << n(r.mhz_lo) << " &ndash; " << n(r.mhz_hi)
+             << "</dd><dt>disk</dt><dd>" << e(dash(r.disk)) << " (from " << e(dash(r.disk_source)) << ")</dd>"
+             << "<dt>instance hash</dt><dd><code>" << e(dash(r.instance_hash)) << "</code></dd></dl>\n";
+        html << "<h3>Run options</h3>\n<dl><dt>command line</dt><dd><code>" << e(dash(r.command_line)) << "</code></dd>"
+             << "<dt>filter</dt><dd>" << e(dash(r.filter)) << "</dd><dt>params file</dt><dd>" << e(dash(r.params_file))
+             << "</dd><dt>selection</dt><dd>" << e(dash(r.selection)) << "</dd><dt>jobs</dt><dd>" << n(r.jobs)
+             << "</dd><dt>fail fast</dt><dd>" << (r.fail_fast ? "on" : "off") << "</dd><dt>keep logs</dt><dd>"
+             << (r.keep_logs ? "on" : "off") << (r.keep_logs_dir.empty() ? "" : " (" + e(r.keep_logs_dir) + ")")
+             << "</dd><dt>failsafe</dt><dd>" << (r.failsafe ? n(r.failsafe) + " s" : std::string("none"))
+             << "</dd><dt>pg cleanup</dt><dd>" << e(dash(r.pg_cleanup)) << "</dd><dt>store tests</dt><dd>"
+             << (r.store_tests ? "yes" : "no") << "</dd></dl>\n";
+        html << "<h3>What we changed</h3>\n";
+        auto st = db.prepare("SELECT ts_utc, change_text FROM run_change WHERE run_result_id=? ORDER BY id");
+        st.bind(r.id);
+        bool any = false;
+        while (st.step()) {
+            std::string ts, text; st.get(ts, text);
+            html << (any ? "" : "<ul>\n") << "<li>" << e(text) << " <span class=\"when\">(" << e(ts) << ")</span></li>\n";
+            any = true;
+        }
+        html << (any ? "</ul>\n" : "<p class=\"none\">Nothing written down.</p>\n");
         {   // every selection the run used, each the distinct values of its rows ('' = does not apply)
             static constexpr const char* kSelections[] = {
                 "compiler_version", "build_type", "modules", "import_std", "contracts", "strict", "hardened",
@@ -1991,32 +2018,7 @@ void write_run_results_page(jac313::Qlite::v002::Sqlite& db, const fs::path& out
             }
             html << "</dl>\n";
         }
-        html << "<h3>Machine pin</h3>\n<dl><dt>pin</dt><dd>" << e(dash(r.pin)) << "</dd><dt>cpu</dt><dd>" << e(dash(r.cpu))
-             << "</dd><dt>cores</dt><dd>" << n(r.cores) << " (" << n(r.p_cores) << " physical)</dd><dt>ram</dt><dd>"
-             << n(r.ram_gb) << " GB</dd><dt>cpu MHz</dt><dd>" << n(r.mhz_lo) << " &ndash; " << n(r.mhz_hi)
-             << "</dd><dt>disk</dt><dd>" << e(dash(r.disk)) << " (from " << e(dash(r.disk_source)) << ")</dd>"
-             << "<dt>instance hash</dt><dd><code>" << e(dash(r.instance_hash)) << "</code></dd></dl>\n";
-        html << "<h3>OS</h3>\n<dl><dt>family</dt><dd>" << e(dash(r.os_family)) << "</dd><dt>name</dt><dd>"
-             << e(dash(r.os_name)) << "</dd><dt>version</dt><dd>" << e(dash(r.os_version)) << "</dd><dt>kernel</dt><dd>"
-             << e(dash(r.kernel)) << "</dd><dt>arch</dt><dd>" << e(dash(r.arch)) << "</dd></dl>\n";
-        html << "<h3>Run options</h3>\n<dl><dt>command line</dt><dd><code>" << e(dash(r.command_line)) << "</code></dd>"
-             << "<dt>filter</dt><dd>" << e(dash(r.filter)) << "</dd><dt>params file</dt><dd>" << e(dash(r.params_file))
-             << "</dd><dt>selection</dt><dd>" << e(dash(r.selection)) << "</dd><dt>jobs</dt><dd>" << n(r.jobs)
-             << "</dd><dt>fail fast</dt><dd>" << (r.fail_fast ? "on" : "off") << "</dd><dt>keep logs</dt><dd>"
-             << (r.keep_logs ? "on" : "off") << (r.keep_logs_dir.empty() ? "" : " (" + e(r.keep_logs_dir) + ")")
-             << "</dd><dt>failsafe</dt><dd>" << (r.failsafe ? n(r.failsafe) + " s" : std::string("none"))
-             << "</dd><dt>pg cleanup</dt><dd>" << e(dash(r.pg_cleanup)) << "</dd><dt>store tests</dt><dd>"
-             << (r.store_tests ? "yes" : "no") << "</dd></dl>\n";
-        html << "<h3>What we changed</h3>\n";
-        auto st = db.prepare("SELECT ts_utc, change_text FROM run_change WHERE run_result_id=? ORDER BY id");
-        st.bind(r.id);
-        bool any = false;
-        while (st.step()) {
-            std::string ts, text; st.get(ts, text);
-            html << (any ? "" : "<ul>\n") << "<li>" << e(text) << " <span class=\"when\">(" << e(ts) << ")</span></li>\n";
-            any = true;
-        }
-        html << (any ? "</ul>\n" : "<p class=\"none\">Nothing written down.</p>\n") << "</div>\n</section>\n";
+        html << "</div>\n</section>\n";
     }
     html << "</main>\n</body>\n</html>\n";
 }
