@@ -132,6 +132,7 @@ struct RunPlan {
 	String         compiler;   // gcc | clang
 	String         summary;    // --summary path (test-summary/runner_last*.jtext)
 	Vector<String> args;       // without exe
+	bool           publish = false;   // the last step: jac313_test_cli results-publish (no summary)
 	String         Display() const;   // exe + args, quoted where needed
 };
 

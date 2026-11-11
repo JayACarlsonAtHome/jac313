@@ -81,6 +81,8 @@ int main(int argc, char** argv) {
     db.exec("DELETE FROM testRun WHERE run_id IN (SELECT run_id FROM run WHERE machine_id=?)", gid);
     db.exec("DELETE FROM runEvent WHERE run_id IN (SELECT run_id FROM run WHERE machine_id=?)", gid);
     db.exec("DELETE FROM run_target WHERE run_id IN (SELECT run_id FROM run WHERE machine_id=?)", gid);
+    db.exec("DELETE FROM run_change WHERE run_result_id IN (SELECT id FROM run_result WHERE machine_id=?)", gid);
+    db.exec("DELETE FROM run_result WHERE machine_id=?", gid);
     // run, machine, io_best_fit, package_version, fleet_sync, and the current_host pin (only if it
     // named this machine)
     for (const auto& t : jac313::results::kMachineTables)

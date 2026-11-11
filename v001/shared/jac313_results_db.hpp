@@ -101,7 +101,13 @@ inline const std::string& resolve_results_db(const std::filesystem::path& source
 //    UNIQUE key); testRun gains timeout_sec and memory_mb (the limits each test ran under);
 //    current_host gains disk_source; io_best_fit gains run_id (the calibration run). A calibration
 //    or a bench sweep is a run of its own (no testRun rows; its results are runEvent rows).
-inline constexpr int kResultsSchemaVersion = 6;
+// 7: run_result (one row per recorded run: the machine pin and what made it, the OS, the run's options,
+//    the git commit, pass/fail and the counts) and run_change (what we changed for it, when we remember,
+//    any number of rows per run_result). Added in place: a schema 6 DB keeps every row, because
+//    only new tables were added. Every other older schema is still dropped and created fresh.
+inline constexpr int kResultsSchemaVersion = 7;
+// The one older schema that ensure_schema brings up to date in place (a new table only, no row lost).
+inline constexpr int kResultsSchemaAddsTablesOnly = 6;
 
 namespace detail {
 // Every table and index, all idempotent (IF NOT EXISTS): cheap to run on every open.
@@ -370,6 +376,119 @@ inline void create_results_tables(Sqlite& db) {
             "  , memory_mb INTEGER NOT NULL DEFAULT 0\n"
             "  , description TEXT NOT NULL DEFAULT ''\n"
             ")");
+    // run_result: the outcome of one recorded run (record_run_result), one row per run. It stands on its own,
+    // copying its text instead of pointing at other rows, and is kept in results_main.jtext beside results.db
+    // (tracked in git); the CLI loads that file back into this table on every start (run_results.cpp).
+    // UNIQUE(pin, version, run_id, run_started): a run, wherever and whenever it ran.
+    //   id                its own key; run_change rows point at it (kept when the row is recorded again)
+    //   run_id            the run in results.db (a wiped results.db numbers runs again, so the key is pin + version + run_id + run_started)
+    //   run_started       when the run began (run.ts_utc)
+    //   ts_utc            when this row was recorded; files and loads are newest first by it
+    //   version           v001 | v002
+    //   gate              the gate(s) of its rows: ctest | smoke | bench | verify-lite | verify | build
+    //   result            pass = at least one row and no fail / error; fail otherwise
+    //   pass_count        rows with pass (built, for a build-times run)
+    //   fail_count        rows with fail or error
+    //   skip_count        rows with skip
+    //   git_commit        the full HEAD commit of the checkout ('' = unknown: not a git checkout, or a run from before this table)
+    //   git_dirty         1 = the version folder had uncommitted changes, so git_commit alone does not name the code
+    //   pin               the machine's fleet label (jac313-###)
+    //   machine_id        what made up the pin: the machine row ...
+    //   disk_source       where the disk tier came from
+    //   instance_hash     ... to here
+    //   os_family         the OS it ran under ...
+    //   arch              ... to here
+    //   compiler          the selections, each the distinct values its rows used, comma separated ('' = none): compiler name + major ...
+    //   compiler_version  the exact compiler version
+    //   build_type        Debug | Release
+    //   modules           headers (off) | modules (on)
+    //   contracts         enforce | observe | quick_enforce | ignore
+    //   persists          the persist outputs: binary | json | jtext | html | sql | pg-local | pg-remote | none ...
+    //   valgrind_tools    memcheck | helgrind | drd
+    //   readback_modes    ... to here
+    //   command_line      the run's options (the run row) ...
+    //   store_tests       ... to here
+    db.exec("CREATE TABLE IF NOT EXISTS run_result (\n"
+            "    id INTEGER PRIMARY KEY NOT NULL\n"
+            "  , run_id INTEGER NOT NULL DEFAULT 0\n"
+            "  , run_started TEXT NOT NULL DEFAULT ''\n"
+            "  , ts_utc TEXT NOT NULL DEFAULT ''\n"
+            "  , version TEXT NOT NULL DEFAULT ''\n"
+            "  , gate TEXT NOT NULL DEFAULT ''\n"
+            "  , result TEXT NOT NULL DEFAULT ''\n"
+            "  , pass_count INTEGER NOT NULL DEFAULT 0\n"
+            "  , fail_count INTEGER NOT NULL DEFAULT 0\n"
+            "  , skip_count INTEGER NOT NULL DEFAULT 0\n"
+            "  , git_commit TEXT NOT NULL DEFAULT ''\n"
+            "  , git_dirty INTEGER NOT NULL DEFAULT 0\n"
+            "  , pin TEXT NOT NULL DEFAULT ''\n"
+            "  , machine_id INTEGER NOT NULL DEFAULT 0\n"
+            "  , cpu TEXT NOT NULL DEFAULT ''\n"
+            "  , cores INTEGER NOT NULL DEFAULT 0\n"
+            "  , p_cores INTEGER NOT NULL DEFAULT 0\n"
+            "  , ram_gb INTEGER NOT NULL DEFAULT 0\n"
+            "  , cpu_mhz_min INTEGER NOT NULL DEFAULT 0\n"
+            "  , cpu_mhz_max INTEGER NOT NULL DEFAULT 0\n"
+            "  , disk TEXT NOT NULL DEFAULT ''\n"
+            "  , disk_source TEXT NOT NULL DEFAULT ''\n"
+            "  , instance_hash TEXT NOT NULL DEFAULT ''\n"
+            "  , os_family TEXT NOT NULL DEFAULT ''\n"
+            "  , os_name TEXT NOT NULL DEFAULT ''\n"
+            "  , os_version TEXT NOT NULL DEFAULT ''\n"
+            "  , kernel TEXT NOT NULL DEFAULT ''\n"
+            "  , arch TEXT NOT NULL DEFAULT ''\n"
+            "  , compiler TEXT NOT NULL DEFAULT ''\n"
+            "  , compiler_version TEXT NOT NULL DEFAULT ''\n"
+            "  , build_type TEXT NOT NULL DEFAULT ''\n"
+            "  , modules TEXT NOT NULL DEFAULT ''\n"
+            "  , import_std TEXT NOT NULL DEFAULT ''\n"
+            "  , contracts TEXT NOT NULL DEFAULT ''\n"
+            "  , strict TEXT NOT NULL DEFAULT ''\n"
+            "  , hardened TEXT NOT NULL DEFAULT ''\n"
+            "  , persists TEXT NOT NULL DEFAULT ''\n"
+            "  , output_modes TEXT NOT NULL DEFAULT ''\n"
+            "  , sizes TEXT NOT NULL DEFAULT ''\n"
+            "  , valgrind_tools TEXT NOT NULL DEFAULT ''\n"
+            "  , threads TEXT NOT NULL DEFAULT ''\n"
+            "  , events_per_thread TEXT NOT NULL DEFAULT ''\n"
+            "  , runs_per_test TEXT NOT NULL DEFAULT ''\n"
+            "  , batches TEXT NOT NULL DEFAULT ''\n"
+            "  , flag_counts TEXT NOT NULL DEFAULT ''\n"
+            "  , flags_raw TEXT NOT NULL DEFAULT ''\n"
+            "  , keeper_pct TEXT NOT NULL DEFAULT ''\n"
+            "  , database_pct TEXT NOT NULL DEFAULT ''\n"
+            "  , binary_log TEXT NOT NULL DEFAULT ''\n"
+            "  , max_runs TEXT NOT NULL DEFAULT ''\n"
+            "  , max_records TEXT NOT NULL DEFAULT ''\n"
+            "  , max_persist_rows TEXT NOT NULL DEFAULT ''\n"
+            "  , readback_modes TEXT NOT NULL DEFAULT ''\n"
+            "  , command_line TEXT NOT NULL DEFAULT ''\n"
+            "  , filter TEXT NOT NULL DEFAULT ''\n"
+            "  , params_file TEXT NOT NULL DEFAULT ''\n"
+            "  , selection TEXT NOT NULL DEFAULT ''\n"
+            "  , jobs INTEGER NOT NULL DEFAULT 0\n"
+            "  , fail_fast INTEGER NOT NULL DEFAULT 0\n"
+            "  , keep_logs INTEGER NOT NULL DEFAULT 0\n"
+            "  , keep_logs_dir TEXT NOT NULL DEFAULT ''\n"
+            "  , failsafe_sec INTEGER NOT NULL DEFAULT 0\n"
+            "  , pg_cleanup TEXT NOT NULL DEFAULT ''\n"
+            "  , store_tests INTEGER NOT NULL DEFAULT 0\n"
+            "  , UNIQUE(pin, version, run_id, run_started)\n"
+            ")");
+    db.exec("CREATE INDEX IF NOT EXISTS ix_run_result_commit ON run_result(git_commit, version)");
+    // run_change: the notes: what we changed for a run_result, when we remember it, one row per change
+    // (add_run_change, or by hand); a run_result may have none. Kept in results_note.jtext beside
+    // results_main.jtext and loaded back the same way.
+    //   run_result_id  the run_result.id it belongs to
+    //   ts_utc         when the change was written down
+    //   change_text    what was changed
+    db.exec("CREATE TABLE IF NOT EXISTS run_change (\n"
+            "    id INTEGER PRIMARY KEY NOT NULL\n"
+            "  , run_result_id INTEGER NOT NULL REFERENCES run_result(id)\n"
+            "  , ts_utc TEXT NOT NULL DEFAULT ''\n"
+            "  , change_text TEXT NOT NULL DEFAULT ''\n"
+            ")");
+    db.exec("CREATE INDEX IF NOT EXISTS ix_run_change_result ON run_change(run_result_id)");
     db.exec("CREATE INDEX IF NOT EXISTS ix_testRun_run ON testRun(run_id)");
     db.exec("CREATE INDEX IF NOT EXISTS ix_testRun_parameter ON testRun(parameter_id)");
     db.exec("CREATE INDEX IF NOT EXISTS ix_runEvent_run ON runEvent(run_id)");
@@ -404,7 +523,13 @@ inline void ensure_schema(Sqlite& db) {
         try {
             const std::int64_t have = detail::results_user_version(db);
             refuse_newer_schema(have);   // a newer program may have stamped it meanwhile
-            if (have != kResultsSchemaVersion) {
+            if (have == kResultsSchemaAddsTablesOnly) {
+                // Only new tables since: create them and keep every row.
+                std::fprintf(stderr, "results.db schema %lld -> %d: adding the new table(s), keeping every row\n",
+                             static_cast<long long>(have), kResultsSchemaVersion);
+                detail::create_results_tables(db);
+                db.exec("PRAGMA user_version = " + std::to_string(kResultsSchemaVersion));
+            } else if (have != kResultsSchemaVersion) {
                 std::vector<std::string> tables;
                 { auto st = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
                   while (st.step()) { std::string t; st.get(t); tables.push_back(t); } }
@@ -988,6 +1113,159 @@ inline void insert_run(Sqlite& db, std::int64_t run_id, std::int64_t os_id, std:
             run_id, os_id, machine_id, version, store_ver, qlite_ver, jtext_ver,
             s.command_line, s.filter, s.params_file, s.selection, s.jobs, s.fail_fast, s.keep_logs, s.keep_logs_dir,
             s.failsafe_sec, s.pg_cleanup, s.store_tests, s.disk_source);
+}
+
+// Record (or refresh, keeping its id) the run_result row of one run, from its run, machine, os, parameter
+// and testRun rows. Call it after the run's rows are in. gate: used only when the run has no rows to name it.
+// git_commit / git_dirty: the checkout's state (run_results::git_state_of).
+inline void record_run_result(Sqlite& db, std::int64_t run_id, const std::string& gate,
+                              const std::string& git_commit, std::int64_t git_dirty) {
+    const std::int64_t machine_id = get_top_one_id(db, "SELECT machine_id FROM run WHERE run_id = ?", run_id);
+    db.exec(
+            "INSERT INTO run_result(run_id, run_started, ts_utc, version, gate, result, pass_count, fail_count, skip_count, git_commit, git_dirty, pin, machine_id, cpu, cores, p_cores, ram_gb, cpu_mhz_min, cpu_mhz_max, disk, disk_source, instance_hash, os_family, os_name, os_version, kernel, arch, compiler, compiler_version, build_type, modules, import_std, contracts, strict, hardened, persists, output_modes, sizes, valgrind_tools, threads, events_per_thread, runs_per_test, batches, flag_counts, flags_raw, keeper_pct, database_pct, binary_log, max_runs, max_records, max_persist_rows, readback_modes, command_line, filter, params_file, selection, jobs, fail_fast, keep_logs, keep_logs_dir, failsafe_sec, pg_cleanup, store_tests)\n"
+            "SELECT\n"
+            "    r.run_id\n"
+            "  , r.ts_utc\n"
+            "  , strftime('%Y-%m-%dT%H:%M:%SZ','now')\n"
+            "  , r.version\n"
+            "  , COALESCE(NULLIF(COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(tt.name AS TEXT) AS v FROM testRun tr INNER JOIN testType tt ON tt.id = tr.test_type_id WHERE tr.run_id = r.run_id AND CAST(tt.name AS TEXT) NOT IN ('', '0') ORDER BY v)), ''), ''), ?)\n"
+            "  , CASE WHEN n.total > 0 AND n.failed = 0 THEN 'pass' ELSE 'fail' END\n"
+            "  , n.passed\n"
+            "  , n.failed\n"
+            "  , n.skipped\n"
+            "  , ?\n"
+            "  , ?\n"
+            "  , ?\n"
+            "  , r.machine_id\n"
+            "  , COALESCE(m.cpu, '')\n"
+            "  , COALESCE(m.cores, 0)\n"
+            "  , COALESCE(m.p_cores, 0)\n"
+            "  , COALESCE(m.ram_gb, 0)\n"
+            "  , COALESCE(m.cpu_mhz_min, 0)\n"
+            "  , COALESCE(m.cpu_mhz_max, 0)\n"
+            "  , COALESCE(m.disk, '')\n"
+            "  , r.disk_source\n"
+            "  , COALESCE(m.instance_hash, '')\n"
+            "  , COALESCE(o.family, '')\n"
+            "  , COALESCE(o.name, '')\n"
+            "  , COALESCE(o.version, '')\n"
+            "  , COALESCE(o.kernel, '')\n"
+            "  , COALESCE(o.arch, '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(c.name || c.major AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(c.name || c.major AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(c.name || ' ' || c.version AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(c.name || ' ' || c.version AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.build_type AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.build_type AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.modules AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.modules AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.import_std AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.import_std AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.contracts AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.contracts AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.strict AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.strict AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.hardened AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.hardened AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.persist AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.persist AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.output_mode AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.output_mode AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.size AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.size AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.valgrind_tool AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.valgrind_tool AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.threads AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.threads AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.events_per_thread AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.events_per_thread AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.runs AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.runs AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.batch AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.batch AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.flag_count AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.flag_count AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.flags_raw AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.flags_raw AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.keeper_pct AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.keeper_pct AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.database_pct AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.database_pct AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.binary_log AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.binary_log AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.max_runs AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.max_runs AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(p.max_records AS TEXT) AS v FROM testRun tr INNER JOIN parameter p ON p.id = tr.parameter_id LEFT JOIN compiler c ON c.id = p.compiler_id WHERE tr.run_id = r.run_id AND CAST(p.max_records AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(tr.max_persist_rows AS TEXT) AS v FROM testRun tr WHERE tr.run_id = r.run_id AND CAST(tr.max_persist_rows AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , COALESCE((SELECT GROUP_CONCAT(v, ',') FROM (SELECT DISTINCT CAST(tr.readback_mode AS TEXT) AS v FROM testRun tr WHERE tr.run_id = r.run_id AND CAST(tr.readback_mode AS TEXT) NOT IN ('', '0') ORDER BY v)), '')\n"
+            "  , r.command_line\n"
+            "  , r.filter\n"
+            "  , r.params_file\n"
+            "  , r.selection\n"
+            "  , r.jobs\n"
+            "  , r.fail_fast\n"
+            "  , r.keep_logs\n"
+            "  , r.keep_logs_dir\n"
+            "  , r.failsafe_sec\n"
+            "  , r.pg_cleanup\n"
+            "  , r.store_tests\n"
+            "FROM run r\n"
+            "LEFT JOIN machine m ON m.id = r.machine_id\n"
+            "LEFT JOIN os o ON o.id = r.os_id\n"
+            "CROSS JOIN (SELECT COUNT(*) AS total\n"
+            "                 , COALESCE(SUM(status IN ('pass', 'built')), 0) AS passed\n"
+            "                 , COALESCE(SUM(status IN ('fail', 'error')), 0) AS failed\n"
+            "                 , COALESCE(SUM(status = 'skip'), 0) AS skipped\n"
+            "            FROM testRun WHERE run_id = ?) n\n"
+            "WHERE r.run_id = ?\n"
+            "ON CONFLICT(pin, version, run_id, run_started) DO UPDATE SET\n"
+            "    ts_utc = excluded.ts_utc,\n"
+            "    gate = excluded.gate,\n"
+            "    result = excluded.result,\n"
+            "    pass_count = excluded.pass_count,\n"
+            "    fail_count = excluded.fail_count,\n"
+            "    skip_count = excluded.skip_count,\n"
+            "    git_commit = excluded.git_commit,\n"
+            "    git_dirty = excluded.git_dirty,\n"
+            "    machine_id = excluded.machine_id,\n"
+            "    cpu = excluded.cpu,\n"
+            "    cores = excluded.cores,\n"
+            "    p_cores = excluded.p_cores,\n"
+            "    ram_gb = excluded.ram_gb,\n"
+            "    cpu_mhz_min = excluded.cpu_mhz_min,\n"
+            "    cpu_mhz_max = excluded.cpu_mhz_max,\n"
+            "    disk = excluded.disk,\n"
+            "    disk_source = excluded.disk_source,\n"
+            "    instance_hash = excluded.instance_hash,\n"
+            "    os_family = excluded.os_family,\n"
+            "    os_name = excluded.os_name,\n"
+            "    os_version = excluded.os_version,\n"
+            "    kernel = excluded.kernel,\n"
+            "    arch = excluded.arch,\n"
+            "    compiler = excluded.compiler,\n"
+            "    compiler_version = excluded.compiler_version,\n"
+            "    build_type = excluded.build_type,\n"
+            "    modules = excluded.modules,\n"
+            "    import_std = excluded.import_std,\n"
+            "    contracts = excluded.contracts,\n"
+            "    strict = excluded.strict,\n"
+            "    hardened = excluded.hardened,\n"
+            "    persists = excluded.persists,\n"
+            "    output_modes = excluded.output_modes,\n"
+            "    sizes = excluded.sizes,\n"
+            "    valgrind_tools = excluded.valgrind_tools,\n"
+            "    threads = excluded.threads,\n"
+            "    events_per_thread = excluded.events_per_thread,\n"
+            "    runs_per_test = excluded.runs_per_test,\n"
+            "    batches = excluded.batches,\n"
+            "    flag_counts = excluded.flag_counts,\n"
+            "    flags_raw = excluded.flags_raw,\n"
+            "    keeper_pct = excluded.keeper_pct,\n"
+            "    database_pct = excluded.database_pct,\n"
+            "    binary_log = excluded.binary_log,\n"
+            "    max_runs = excluded.max_runs,\n"
+            "    max_records = excluded.max_records,\n"
+            "    max_persist_rows = excluded.max_persist_rows,\n"
+            "    readback_modes = excluded.readback_modes,\n"
+            "    command_line = excluded.command_line,\n"
+            "    filter = excluded.filter,\n"
+            "    params_file = excluded.params_file,\n"
+            "    selection = excluded.selection,\n"
+            "    jobs = excluded.jobs,\n"
+            "    fail_fast = excluded.fail_fast,\n"
+            "    keep_logs = excluded.keep_logs,\n"
+            "    keep_logs_dir = excluded.keep_logs_dir,\n"
+            "    failsafe_sec = excluded.failsafe_sec,\n"
+            "    pg_cleanup = excluded.pg_cleanup,\n"
+            "    store_tests = excluded.store_tests\n",
+            gate, git_commit, git_dirty, machine_id == 0 ? std::string{} : host_label(machine_id), run_id, run_id);
+}
+
+// Write down one thing we changed for a run in this results.db (its newest run_result row); the new run_change id.
+inline std::int64_t add_run_change(Sqlite& db, std::int64_t run_id, const std::string& change_text) {
+    const std::int64_t result_id = get_top_one_id(db, "SELECT id FROM run_result WHERE run_id = ? ORDER BY ts_utc DESC", run_id);
+    if (result_id == 0) throw std::runtime_error("run " + std::to_string(run_id) + " has no run_result row");
+    db.exec("INSERT INTO run_change(run_result_id, ts_utc, change_text) "
+            "VALUES(?, strftime('%Y-%m-%dT%H:%M:%SZ','now'), ?)", result_id, change_text);
+    return sqlite3_last_insert_rowid(db.handle());
 }
 
 // One parameter row: every axis of a configuration ('' / 0 where it does not apply to the test kind).

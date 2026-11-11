@@ -43,6 +43,23 @@ Results (including throughput from `--bench --report`) are written to the shared
 See [test-summary/README.md](../test-summary/README.md) (per version) for the current
 rendered reports.
 
+### The run results record (results_main.jtext, results_note.jtext)
+
+Each recorded run gets a `run_result` row (pass or fail, the counts, the git commit and
+`git_dirty`, the machine pin and what made it up, the OS, every selection the run used and its
+options) and may get `run_change` rows, the notes on what we changed for it. They are kept in
+two tracked jText files beside `results.db`, `test-summary/results_main.jtext` and
+`results_note.jtext`, newest first, and loaded back into `results.db` every time the CLI
+records or reports (`tools/jac313_test_cli/run_results.hpp`).
+
+- Before a run starts, the CLI prints whether this commit passed or failed here before.
+- After every recorded run both files are saved; at the end of the run only those two files
+  are committed on the current branch, and `dev-work` is pushed with `--no-verify` (from no other
+  branch). The Runner does this once, as its last step (`jac313_test_cli results-publish`).
+- `$JAC313_RESULTS_PUBLISH=defer` or `off` saves without committing (the Runner defers its
+  steps; the pre-push gate sets `off`, and its rows go with the next commit).
+- A push that changes only these two files does not run the gate's builds.
+
 ### results.db schema
 
 `shared/jac313_results_db.hpp` (`ensure_schema`) is the one definition of `results.db`. No

@@ -1418,6 +1418,17 @@ void Runner::Start()
 		return;
 	}
 	plans = BuildPlans(opt, r);
+	// The gate runs save the run results (test-summary/results_main.jtext, results_note.jtext) without
+	// committing them; the last step commits only those two files and pushes dev-work, once per run.
+	setenv("JAC313_RESULTS_PUBLISH", "defer", 1);
+	if(plans.GetCount()) {
+		RunPlan& pub = plans.Add();
+		pub.exe = plans[0].exe;
+		pub.cwd = plans[0].cwd;
+		pub.compiler = "results";
+		pub.publish = true;
+		pub.args << "results-publish";
+	}
 	sums.Clear();
 	out.Clear();
 	failNote.Clear();
@@ -1443,7 +1454,8 @@ void Runner::StartPlan()
 	counts.SetText("pass 0 fail 0");
 	runTitle.SetText(Format("Run %d of %d: %s", planIx + 1, plans.GetCount(), p.compiler));
 	out.Append(String("$ ") + p.Display() + "\n");
-	DeleteFile(p.summary);   // a summary left from an older run must not pass for this one
+	if(p.summary.GetCount())
+		DeleteFile(p.summary);   // a summary left from an older run must not pass for this one
 	if(!StartChild(proc, p.exe, p.args, p.cwd, false)) {
 		out.Append("cannot start " + p.exe + "\n");
 		PlanFinished();
@@ -1523,14 +1535,16 @@ void Runner::PlanFinished()
 	if(code != 0 && !stopping)
 		failNote << (failNote.GetCount() ? ", " : "") << p.compiler
 		         << (code >= 1000 ? Format(" ended by signal %d", code - 1000) : Format(" exit code %d", code));
-	Summary& s = sums.Add();
-	String err;
-	if(!s.Load(p.summary, err)) {
-		sums.Drop();
-		out.Append("[" + err + "]\n");
+	if(!p.publish) {
+		Summary& s = sums.Add();
+		String err;
+		if(!s.Load(p.summary, err)) {
+			sums.Drop();
+			out.Append("[" + err + "]\n");
+		}
+		else
+			out.Append(Format("[summary %s: pass %d fail %d, %d rows]\n", p.summary, s.pass, s.fail, s.rows.GetCount()));
 	}
-	else
-		out.Append(Format("[summary %s: pass %d fail %d, %d rows]\n", p.summary, s.pass, s.fail, s.rows.GetCount()));
 	out.SetCursor(out.GetLength());
 	if(!stopping && planIx + 1 < plans.GetCount()) {
 		planIx++;

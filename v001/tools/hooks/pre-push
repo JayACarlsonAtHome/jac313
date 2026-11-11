@@ -15,6 +15,9 @@
 # Bypass for a single push (use sparingly):  git push --no-verify
 #
 set -euo pipefail
+# The gate's own runs save their results to test-summary/results_main.jtext / results_note.jtext but do
+# not commit or push them (a push from inside this push would race it); the next run's commit carries them.
+export JAC313_RESULTS_PUBLISH=off
 
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
@@ -61,6 +64,7 @@ while IFS= read -r f; do
     [[ -z "$f" ]] && continue
     case "$f" in
         v[0-9][0-9][0-9]/*) want["${f%%/*}"]=1 ;;
+        test-summary/results_main.jtext|test-summary/results_note.jtext) ;;   # run results: data, nothing to build
         *)                  shared=1 ;;
     esac
 done <<< "$changed"

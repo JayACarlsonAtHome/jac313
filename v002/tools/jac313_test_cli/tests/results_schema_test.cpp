@@ -66,7 +66,7 @@ int main() {
         check(one_int(db, "SELECT COUNT(*) FROM testType") == 6, "testType seeded once (6 rows)");
 
         const auto tables = table_names(db);
-        check(tables.size() == 16, "16 tables");
+        check(tables.size() == 18, "18 tables");
         for (const auto& t : tables) {
             const std::int64_t cols = one_int(db, "SELECT COUNT(*) FROM pragma_table_info('" + t + "')");
             const std::int64_t nn   = one_int(db, "SELECT COUNT(*) FROM pragma_table_info('" + t + "') WHERE \"notnull\"=1");
@@ -79,7 +79,7 @@ int main() {
                   std::string("testRun has ") + col);
 
         // Schema 3: parameter.contracts, NOT NULL DEFAULT 'enforce', part of the UNIQUE key.
-        check(R::kResultsSchemaVersion == 6, "kResultsSchemaVersion == 6");
+        check(R::kResultsSchemaVersion == 7, "kResultsSchemaVersion == 7");
         check(one_int(db, "SELECT COUNT(*) FROM pragma_table_info('parameter') WHERE name='contracts' "
                           "AND \"notnull\"=1 AND dflt_value='''enforce'''") == 1,
               "parameter.contracts NOT NULL DEFAULT 'enforce'");
@@ -199,6 +199,48 @@ int main() {
         check(one_int(db, "SELECT COUNT(*) FROM os") == 2, "two os rows");
         check(one_int(db, "SELECT COUNT(DISTINCT os_id) FROM run WHERE machine_id=1") == 2, "its runs name both OSes");
 
+        // Schema 7: run_result, one row per recorded run, standing on its own (pin, machine, OS, options,
+        // commit, pass/fail and the counts).
+        db.exec("INSERT INTO testRun(run_id, status) VALUES(901, 'pass'), (901, 'fail'), (901, 'skip'), (901, 'error'), "
+                "(902, 'pass'), (902, 'built')");
+        R::record_run_result(db, 901, "ctest", "abc123", 0);
+        R::record_run_result(db, 902, "build", "abc123", 1);
+        check(one_int(db, "SELECT COUNT(*) FROM run_result") == 2, "one run_result row per run");
+        check(one_int(db, "SELECT pass_count FROM run_result WHERE run_id=901") == 1
+              && one_int(db, "SELECT fail_count FROM run_result WHERE run_id=901") == 2
+              && one_int(db, "SELECT skip_count FROM run_result WHERE run_id=901") == 1,
+              "run_result counts: pass 1, fail + error 2, skip 1");
+        check(one_int(db, "SELECT COUNT(*) FROM run_result WHERE run_id=901 AND result='fail'") == 1, "a failed row fails the run");
+        check(one_int(db, "SELECT COUNT(*) FROM run_result WHERE run_id=902 AND result='pass' AND pass_count=2 "
+                          "AND git_dirty=1 AND gate='build'") == 1, "built rows pass, git_dirty kept");
+        check(one_int(db, "SELECT COUNT(*) FROM run_result WHERE run_id=901 AND pin='jac313-001' AND cpu='cpu' "
+                          "AND cores=8 AND ram_gb=32 AND disk='ssd' AND instance_hash='hash' AND os_family='fedora' "
+                          "AND os_version='44' AND kernel='7.2.13' AND git_commit='abc123' AND version=(SELECT version FROM run WHERE run_id=901)") == 1,
+              "run_result copies the pin, what made it, the OS and the commit");
+        db.exec("DELETE FROM testRun WHERE run_id=901 AND status IN ('fail', 'error')");
+        R::record_run_result(db, 901, "ctest", "abc123", 0);
+        check(one_int(db, "SELECT COUNT(*) FROM run_result WHERE run_id=901 AND result='pass' AND fail_count=0") == 1
+              && one_int(db, "SELECT COUNT(*) FROM run_result") == 2, "recording again refreshes the row");
+        const std::int64_t id901 = one_int(db, "SELECT id FROM run_result WHERE run_id=901");
+        const std::int64_t change_id = R::add_run_change(db, 901, "raised Clang to 21 on Linux Mint");
+        R::add_run_change(db, 901, "CMake 4.3.3");
+        R::record_run_result(db, 901, "ctest", "abc123", 0);
+        check(one_int(db, "SELECT id FROM run_result WHERE run_id=901") == id901, "recording again keeps the id");
+        check(one_int(db, "SELECT COUNT(*) FROM run_change WHERE run_result_id=" + std::to_string(id901)) == 2
+              && one_int(db, "SELECT COUNT(*) FROM run_change WHERE id=" + std::to_string(change_id)
+                             + " AND change_text='raised Clang to 21 on Linux Mint' AND ts_utc<>''") == 1,
+              "run_change rows belong to their run_result");
+        check(one_int(db, "SELECT COUNT(*) FROM pragma_foreign_key_list('run_change') WHERE \"table\"='run_result' "
+                          "AND \"from\"='run_result_id' AND \"to\"='id'") == 1, "run_change.run_result_id references run_result(id)");
+        threw = false;
+        try { R::add_run_change(db, 999, "x"); } catch (const std::exception&) { threw = true; }
+        check(threw, "a change for a run with no run_result is refused");
+        db.exec("INSERT INTO run(run_id, os_id, machine_id) VALUES(903, " + std::to_string(os_fedora) + ", 1)");
+        R::record_run_result(db, 903, "ctest", "", 0);
+        check(one_int(db, "SELECT COUNT(*) FROM run_result WHERE run_id=903 AND result='fail' AND pass_count=0") == 1,
+              "a run with no rows does not pass");
+        db.exec("DELETE FROM run WHERE run_id=903");
+
         // machine is unique on the identity too: --assign-new-### for a machine already filed
         // under another number moves its row instead of failing on (or duplicating) the identity.
         R::HostPinOptions opts;
@@ -288,7 +330,26 @@ int main() {
         check(one_int(db, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='stray'") == 0, "stray table dropped");
         check(one_int(db, "PRAGMA user_version") == R::kResultsSchemaVersion, "user_version back to kResultsSchemaVersion");
         check(one_int(db, "SELECT COUNT(*) FROM parameter") == 0, "rebuilt DB starts empty");
-        check(table_names(db).size() == 16, "16 tables after rebuild");
+        check(table_names(db).size() == 18, "18 tables after rebuild");
+    }
+
+    // Schema 6 -> 7 only added run_result: it is created in place and every row is kept.
+    {
+        Sqlite db(path.string());
+        db.exec("INSERT INTO testList(name) VALUES('kept')");
+        db.exec("DROP TABLE run_change");
+        db.exec("DROP TABLE run_result");
+        db.exec("PRAGMA user_version = 6");
+    }
+    {
+        Sqlite db(path.string());
+        R::ensure_schema(db);
+        check(one_int(db, "PRAGMA user_version") == R::kResultsSchemaVersion, "schema 6 brought up to date");
+        check(one_int(db, "SELECT COUNT(*) FROM testList WHERE name='kept'") == 1, "schema 6 rows kept");
+        check(one_int(db, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='run_result'") == 1,
+              "schema 6 gains run_result");
+        check(one_int(db, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='run_change'") == 1,
+              "schema 6 gains run_change");
     }
 
     fs::remove(path);

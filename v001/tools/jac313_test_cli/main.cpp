@@ -21,6 +21,7 @@
 #include "host_pin.hpp"
 #include "kept_logs.hpp"
 #include "runner.hpp"
+#include "run_results.hpp"
 #include "test_logs.hpp"
 #include "summary.hpp"
 #include "connections.hpp"
@@ -631,6 +632,12 @@ const char* matrix_status_str(TestStatus s) {
     }
 }
 
+// The run_result row of a run just recorded, saved to results_main.jtext (run_results.hpp).
+void cli_record_run_result(jac313::Qlite::v001::Sqlite& db, const GlobalOptions& global, std::int64_t run_id,
+                           const std::string& gate) {
+    jac313::test_cli::run_results::record(db, run_id, gate, global.source_dir);
+}
+
 // Harness version (v001/v002/...) is derived from global.source_dir — see harness_version() in options.hpp.
 
 // Ensure schema, resolve this machine's number (the hardware, matching store_bench) and the OS it runs
@@ -638,6 +645,7 @@ const char* matrix_status_str(TestStatus s) {
 std::int64_t cli_begin_run(jac313::Qlite::v001::Sqlite& db, const GlobalOptions& global,
                            jac313::results::RunSettings settings) {
     jac313::results::ensure_schema(db);
+    jac313::test_cli::run_results::load(db);   // results_main.jtext / results_note.jtext are the record
     const auto mid = pin_current_host(db, global);
     if (!mid) {
         throw std::runtime_error("host pin required before recording (run `host` or use --claim / --assign-new-###)");
@@ -1862,6 +1870,136 @@ void write_machines_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
     nav_bottom(md, "../README.md");
 }
 
+// test-summary/run-results/index.html: one line per recorded run (run_result), newest first: when, the run,
+// the gate, the compiler, pass or fail with the counts, the commit and the machine pin. Under each line,
+// indented: the full commit, the pin and what made it up, the OS, the run's options, and what we changed
+// (run_change), when it was written down.
+void write_run_results_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
+    std::error_code ec; fs::create_directories(out / "run-results", ec);
+    std::ofstream html(out / "run-results" / "index.html");
+    const auto e = [](const std::string& t) { return jac313::test_cli::html_escape(t); };
+    const auto n = [](std::int64_t v) { return std::to_string(v); };
+    html << "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+            "<title>Run results</title>\n<style>\n"
+            ":root { color-scheme: light dark; --bg: #fbfbfa; --fg: #1d1d1b; --muted: #6b6b66; --line: #e2e2dd;\n"
+            "        --pass: #1e7a3c; --fail: #b3261e; --card: #ffffff; }\n"
+            "@media (prefers-color-scheme: dark) { :root { --bg: #161615; --fg: #e8e8e4; --muted: #a0a09a;\n"
+            "        --line: #34342f; --pass: #5cc77f; --fail: #f2766d; --card: #1f1f1d; } }\n"
+            "body { margin: 0; padding: 24px 16px 48px; background: var(--bg); color: var(--fg);\n"
+            "       font: 14px/1.45 system-ui, sans-serif; }\n"
+            "main { max-width: 1100px; margin: 0 auto; }\n"
+            "h1 { font-size: 20px; margin: 0 0 4px; } .sub { color: var(--muted); margin: 0 0 20px; }\n"
+            ".run { background: var(--card); border: 1px solid var(--line); border-radius: 8px; margin: 0 0 10px; }\n"
+            ".line { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 10px 14px; align-items: baseline; }\n"
+            ".line .id { font-weight: 600; } .line .when { color: var(--muted); font-variant-numeric: tabular-nums; }\n"
+            ".badge { font-weight: 700; padding: 1px 8px; border-radius: 10px; border: 1px solid currentColor; }\n"
+            ".pass { color: var(--pass); } .fail { color: var(--fail); }\n"
+            "code { font: 12.5px ui-monospace, monospace; }\n"
+            ".detail { margin: 0 14px 12px 2.2em; padding-left: 12px; border-left: 2px solid var(--line); }\n"
+            ".detail h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);\n"
+            "             margin: 10px 0 2px; }\n"
+            ".detail dl { display: grid; grid-template-columns: max-content 1fr; gap: 1px 14px; margin: 0 0 0 1.4em; }\n"
+            ".detail dt { color: var(--muted); } .detail dd { margin: 0; overflow-wrap: anywhere; }\n"
+            ".detail ul { margin: 0 0 0 1.4em; padding-left: 1em; } .none { color: var(--muted); margin-left: 1.4em; }\n"
+            "</style>\n</head>\n<body>\n<main>\n"
+            "<p><a href=\"../README.md\">&larr; back</a></p>\n<h1>Run results</h1>\n"
+            "<p class=\"sub\">Generated from <code>results.db</code> (<code>run_result</code>, <code>run_change</code>) "
+            "by <code>jac313_test_cli --report</code>. One line per recorded run, newest first; its details are "
+            "indented underneath.</p>\n";
+    struct Row {
+        std::int64_t id = 0, run_id = 0, dirty = 0, machine_id = 0, cores = 0, p_cores = 0, ram_gb = 0, mhz_lo = 0,
+                     mhz_hi = 0, jobs = 0, fail_fast = 0, keep_logs = 0, failsafe = 0, store_tests = 0, pass = 0,
+                     fail = 0, skip = 0;
+        std::string ts, version, gate, commit, pin, cpu, disk, disk_source, instance_hash, os_family, os_name,
+                    os_version, kernel, arch, compiler, command_line, filter, params_file, selection, keep_logs_dir,
+                    pg_cleanup, result;
+    };
+    std::vector<Row> rows;
+    {
+        auto st = db.prepare("SELECT id, run_id, git_dirty, machine_id, cores, p_cores, ram_gb, cpu_mhz_min, cpu_mhz_max, "
+                             "jobs, fail_fast, keep_logs, failsafe_sec, store_tests, pass_count, fail_count, skip_count, "
+                             "ts_utc, version, gate, git_commit, pin, cpu, disk, disk_source, instance_hash, os_family, "
+                             "os_name, os_version, kernel, arch, compiler, command_line, filter, params_file, selection, "
+                             "keep_logs_dir, pg_cleanup, result FROM run_result ORDER BY run_id DESC");
+        while (st.step()) {
+            Row r;
+            st.get(r.id, r.run_id, r.dirty, r.machine_id, r.cores, r.p_cores, r.ram_gb, r.mhz_lo, r.mhz_hi, r.jobs,
+                   r.fail_fast, r.keep_logs, r.failsafe, r.store_tests, r.pass, r.fail, r.skip, r.ts, r.version,
+                   r.gate, r.commit, r.pin, r.cpu, r.disk, r.disk_source, r.instance_hash, r.os_family, r.os_name,
+                   r.os_version, r.kernel, r.arch, r.compiler, r.command_line, r.filter, r.params_file, r.selection,
+                   r.keep_logs_dir, r.pg_cleanup, r.result);
+            rows.push_back(std::move(r));
+        }
+    }
+    if (rows.empty()) html << "<p class=\"none\">No run has a run_result row yet.</p>\n";
+    const auto dash = [](const std::string& t) { return t.empty() ? std::string("-") : t; };
+    for (const Row& r : rows) {
+        const std::string cls = r.result == "pass" ? "pass" : "fail";
+        const std::string short_commit = r.commit.empty() ? std::string("no commit") : r.commit.substr(0, 10);
+        html << "<section class=\"run\">\n<div class=\"line\"><span class=\"id\">Run " << n(r.run_id) << "</span>"
+             << "<span class=\"when\">" << e(r.ts) << "</span><span>" << e(r.version) << " &middot; " << e(r.gate)
+             << " &middot; " << e(dash(r.compiler)) << "</span>"
+             << "<span class=\"badge " << cls << "\">" << (r.result == "pass" ? "PASS" : "FAIL") << "</span>"
+             << "<span>pass " << n(r.pass) << " &middot; fail " << n(r.fail) << " &middot; skip " << n(r.skip) << "</span>"
+             << "<span><code>" << e(short_commit) << "</code>" << (r.dirty ? " + uncommitted changes" : "") << "</span>"
+             << "<span>" << e(dash(r.pin)) << "</span></div>\n<div class=\"detail\">\n";
+        html << "<h3>Commit</h3>\n<dl><dt>commit</dt><dd><code>" << e(dash(r.commit)) << "</code></dd>"
+             << "<dt>uncommitted changes</dt><dd>" << (r.dirty ? "yes: the commit alone does not name the code that ran" : "no")
+             << "</dd></dl>\n";
+        {   // every selection the run used, each the distinct values of its rows ('' = does not apply)
+            static constexpr const char* kSelections[] = {
+                "compiler_version", "build_type", "modules", "import_std", "contracts", "strict", "hardened",
+                "persists", "output_modes", "sizes", "valgrind_tools", "threads", "events_per_thread",
+                "runs_per_test", "batches", "flag_counts", "flags_raw", "keeper_pct", "database_pct", "binary_log",
+                "max_runs", "max_records", "max_persist_rows", "readback_modes"};
+            std::string sql = "SELECT ";
+            for (std::size_t i = 0; i < std::size(kSelections); ++i) sql += std::string(i ? ", " : "") + kSelections[i];
+            auto sel = db.prepare(sql + " FROM run_result WHERE id=?");
+            sel.bind(r.id);
+            html << "<h3>Selections</h3>\n<dl>";
+            if (sel.step()) {
+                for (std::size_t i = 0; i < std::size(kSelections); ++i) {
+                    const unsigned char* t = sqlite3_column_text(sel.handle(), static_cast<int>(i));
+                    const std::string v = t ? std::string(reinterpret_cast<const char*>(t)) : std::string{};
+                    std::string label = kSelections[i];
+                    std::replace(label.begin(), label.end(), '_', ' ');
+                    if (std::string(kSelections[i]) == "modules") label = "modules (off = headers)";
+                    html << "<dt>" << e(label) << "</dt><dd>" << e(dash(v)) << "</dd>";
+                }
+            }
+            html << "</dl>\n";
+        }
+        html << "<h3>Machine pin</h3>\n<dl><dt>pin</dt><dd>" << e(dash(r.pin)) << "</dd><dt>cpu</dt><dd>" << e(dash(r.cpu))
+             << "</dd><dt>cores</dt><dd>" << n(r.cores) << " (" << n(r.p_cores) << " physical)</dd><dt>ram</dt><dd>"
+             << n(r.ram_gb) << " GB</dd><dt>cpu MHz</dt><dd>" << n(r.mhz_lo) << " &ndash; " << n(r.mhz_hi)
+             << "</dd><dt>disk</dt><dd>" << e(dash(r.disk)) << " (from " << e(dash(r.disk_source)) << ")</dd>"
+             << "<dt>instance hash</dt><dd><code>" << e(dash(r.instance_hash)) << "</code></dd></dl>\n";
+        html << "<h3>OS</h3>\n<dl><dt>family</dt><dd>" << e(dash(r.os_family)) << "</dd><dt>name</dt><dd>"
+             << e(dash(r.os_name)) << "</dd><dt>version</dt><dd>" << e(dash(r.os_version)) << "</dd><dt>kernel</dt><dd>"
+             << e(dash(r.kernel)) << "</dd><dt>arch</dt><dd>" << e(dash(r.arch)) << "</dd></dl>\n";
+        html << "<h3>Run options</h3>\n<dl><dt>command line</dt><dd><code>" << e(dash(r.command_line)) << "</code></dd>"
+             << "<dt>filter</dt><dd>" << e(dash(r.filter)) << "</dd><dt>params file</dt><dd>" << e(dash(r.params_file))
+             << "</dd><dt>selection</dt><dd>" << e(dash(r.selection)) << "</dd><dt>jobs</dt><dd>" << n(r.jobs)
+             << "</dd><dt>fail fast</dt><dd>" << (r.fail_fast ? "on" : "off") << "</dd><dt>keep logs</dt><dd>"
+             << (r.keep_logs ? "on" : "off") << (r.keep_logs_dir.empty() ? "" : " (" + e(r.keep_logs_dir) + ")")
+             << "</dd><dt>failsafe</dt><dd>" << (r.failsafe ? n(r.failsafe) + " s" : std::string("none"))
+             << "</dd><dt>pg cleanup</dt><dd>" << e(dash(r.pg_cleanup)) << "</dd><dt>store tests</dt><dd>"
+             << (r.store_tests ? "yes" : "no") << "</dd></dl>\n";
+        html << "<h3>What we changed</h3>\n";
+        auto st = db.prepare("SELECT ts_utc, change_text FROM run_change WHERE run_result_id=? ORDER BY id");
+        st.bind(r.id);
+        bool any = false;
+        while (st.step()) {
+            std::string ts, text; st.get(ts, text);
+            html << (any ? "" : "<ul>\n") << "<li>" << e(text) << " <span class=\"when\">(" << e(ts) << ")</span></li>\n";
+            any = true;
+        }
+        html << (any ? "</ul>\n" : "<p class=\"none\">Nothing written down.</p>\n") << "</div>\n</section>\n";
+    }
+    html << "</main>\n</body>\n</html>\n";
+}
+
 // Top-level landing index: test-summary/README.md, linking to the compiler page and every test
 // type that has data (with its run/row counts).
 void write_index_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
@@ -1934,6 +2072,14 @@ void write_index_page(jac313::Qlite::v001::Sqlite& db, const fs::path& out) {
           "| [machines](machines/README.md) (each machine's hardware and the OSes it ran under) | — | — |\n"
           "| [compilers](compiler/README.md) | — | — |\n"
           "| [servers](servers/README.md) (what each run wrote where) | — | — |\n";
+    {
+        std::int64_t results = 0;
+        if (jac313::results::get_top_one_long(db, "SELECT COUNT(*) FROM sqlite_master WHERE name='run_result'") > 0)
+            results = jac313::results::get_top_one_long(db, "SELECT COUNT(*) FROM run_result");
+        if (results > 0)
+            md << "| [run results](run-results/index.html) (one line per run: pass or fail, the counts, the commit "
+                  "and the machine pin; the details indented underneath) | " << results << " | — |\n";
+    }
     // testType name (DB) vs. output dir/link name (GitHub-facing): they match except for
     // 'build', whose page lives in compiler-build-times/ to avoid the **/build/ ignore rule.
     struct Area { const char* type; const char* dir; };
@@ -1960,6 +2106,8 @@ int run_report_command(const fs::path& source_dir) {
     std::error_code ec;
     if (!fs::exists(db_path, ec)) { std::cerr << "no results.db at " << db_path.string() << "\n"; return 1; }
     try {
+        // The run results come from their jText files (results_main / results_note) every time.
+        { jac313::Qlite::v001::Sqlite wdb(db_path.string()); jac313::test_cli::run_results::load(wdb); }
         // Render-only: open READ-ONLY and skip ensure_schema, so --report only writes the .md pages
         // and never modifies results.db. The DB exists (checked above) and was schema'd by the recorders.
         jac313::Qlite::v001::Sqlite db(db_path.string(), SQLITE_OPEN_READONLY);
@@ -1978,6 +2126,15 @@ int run_report_command(const fs::path& source_dir) {
         db.exec("CREATE TEMP VIEW run_target AS SELECT t.* FROM main.run_target t "
                 "JOIN main.run r ON r.run_id=t.run_id "
                 "WHERE r.version='" + ver + "' OR r.version=''");
+        // run_result / run_change (schema 7): only when the DB has them (--report never changes the schema).
+        const bool has_run_result =
+            jac313::results::get_top_one_long(db, "SELECT COUNT(*) FROM main.sqlite_master WHERE name='run_change'") > 0;
+        if (has_run_result) {
+            db.exec("CREATE TEMP VIEW run_result AS SELECT * FROM main.run_result "
+                    "WHERE version='" + ver + "' OR version=''");
+            db.exec("CREATE TEMP VIEW run_change AS SELECT c.* FROM main.run_change c "
+                    "JOIN main.run_result r ON r.id=c.run_result_id WHERE r.version='" + ver + "' OR r.version=''");
+        }
         const fs::path out = source_dir / "test-summary";
         write_compiler_page(db, out);
         for (const char* t : {"ctest", "smoke", "verify-lite", "verify"}) write_type_pages(db, out, t);
@@ -1985,6 +2142,7 @@ int run_report_command(const fs::path& source_dir) {
         write_build_pages(db, out);
         write_servers_page(db, out);
         write_machines_page(db, out);
+        if (has_run_result) write_run_results_page(db, out);
         write_index_page(db, out);
         // Self-clean: a Run_<id>.md belongs in area <X>'s dir only if run <id> actually recorded rows of
         // type <X>. Drop any page whose run is gone OR is a different gate's run (stale pages left behind
@@ -2006,7 +2164,7 @@ int run_report_command(const fs::path& source_dir) {
                 }
             }
         }
-        std::cout << "[report] wrote test-summary/README.md + {compiler,ctest,smoke,verify-lite,verify,bench,compiler-build-times,servers,machines}/ from results.db"
+        std::cout << "[report] wrote test-summary/README.md + {compiler,ctest,smoke,verify-lite,verify,bench,compiler-build-times,servers,machines,run-results}/ from results.db"
                   << (swept ? (" (swept " + std::to_string(swept) + " orphan run page(s))") : std::string()) << "\n";
         return 0;
     } catch (const std::exception& e) { std::cerr << "report failed: " << e.what() << "\n"; return 1; }
@@ -2102,6 +2260,7 @@ void capture_build_times(const GlobalOptions& global, const fs::path& build_dir,
                     "VALUES(?,?,?,?,?,?,?)", run_id, type_id, list_id, param_id, std::string("built"), ms, bytes);
             ++banked;
         }
+        cli_record_run_result(db, global, run_id, "build");
         tx.commit();
         const std::string fe = (modules == "on") ? "mod" : "hdr";
         std::cout << "[results] build-times: banked " << banked << " target(s) under "
@@ -2357,6 +2516,7 @@ std::int64_t record_ctest_results(const GlobalOptions& global, const fs::path& b
             jac313::results::insert_run_targets(db, run_id, jac313::results::parse_target_lines(r.stdout_tail));
         }
         jac313::results::rebuild_safeness(db);   // refresh the safeness summary (read by report + verdict)
+        cli_record_run_result(db, global, run_id, "ctest");
         tx.commit();
         std::cout << "[results] recorded " << results.size() << " ctest results (run " << run_id << ") -> "
                   << db_path.string() << '\n';
@@ -2436,6 +2596,7 @@ std::int64_t record_matrix_results(const GlobalOptions& global, const fs::path& 
             }
         }
         jac313::results::rebuild_safeness(db);   // refresh the safeness summary (read by report + verdict)
+        cli_record_run_result(db, global, run_id, "smoke");
         tx.commit();
         std::cout << "[results] recorded " << results.size() << " smoke results (run " << run_id << ") -> "
                   << db_path.string() << '\n';
@@ -3036,6 +3197,7 @@ int run_verify_command(GlobalOptions global, ConfigureOptions configure_opts,
                 }
                 jac313::results::insert_run_targets(rdb, use_run, targets);
                 jac313::results::rebuild_safeness(rdb);   // refresh the safeness summary (read by report + verdict)
+                cli_record_run_result(rdb, global, use_run, name);
                 tx.commit();
                 std::cout << "[results] recorded " << recs.size() << " " << name << " results (run " << use_run
                           << ") -> " << rpath.string() << '\n';
@@ -4460,6 +4622,7 @@ static int run_main(int argc, char** argv) {
                     return 2;
                 }
             }
+            jac313::test_cli::run_results::announce(global.source_dir, harness_version(global));
             return run_verify_command(global, co, build_opts, full, sub);
         }
 
@@ -4467,6 +4630,22 @@ static int run_main(int argc, char** argv) {
         return 1;
     }
 
+    if (command == "results-publish") {   // commit results_main/results_note.jtext; push dev-work (the Runner's last step)
+        if (argc > 2 && (std::string(argv[2]) == "--help" || std::string(argv[2]) == "-h")) {
+            std::cout << "results-publish   commit only test-summary/results_main.jtext and results_note.jtext on the\n"
+                         "                  current branch, and push dev-work with --no-verify when that is the branch\n";
+            return 0;
+        }
+        try {
+            jac313::Qlite::v001::Sqlite db(JAC313_RESULTS_DB);
+            jac313::test_cli::run_results::load(db);
+            jac313::test_cli::run_results::save(db);
+        } catch (const std::exception& e) {
+            std::cerr << "results-publish: " << e.what() << '\n';
+            return 1;
+        }
+        return jac313::test_cli::run_results::publish(true);
+    }
     if (command == "vendor-check") return jac313::test_cli::vendor::run_vendor_check(argc, argv, 2);
     if (command == "vendor-sync") return jac313::test_cli::vendor::run_vendor_sync(argc, argv, 2);
     if (command == "vendor-baseline") return jac313::test_cli::vendor::run_vendor_baseline(argc, argv, 2);
@@ -4528,6 +4707,10 @@ static int run_main(int argc, char** argv) {
             if (run_wipe_logs_command(global) != 0) return 1;
         }
         if (preset.run_everything) {
+            jac313::test_cli::run_results::announce(global.source_dir, harness_version(global));
+            // its steps save their results; this process commits them once, at its end
+            jac313::test_cli::run_results::request_publish();
+            ::setenv("JAC313_RESULTS_PUBLISH", "defer", 1);
             return run_everything_command(global, configure_opts, build_opts, run_opts, matrix_opts);
         }
         const bool any_preset = preset.ctest || preset.smoke || preset.bench
@@ -4538,6 +4721,7 @@ static int run_main(int argc, char** argv) {
                                    || preset.verify_lite || preset.verify)) {
                 return run_report_command(global.source_dir);   // generate the report pages from results.db
             }
+            jac313::test_cli::run_results::announce(global.source_dir, harness_version(global));
             return run_preset_command(global, configure_opts, build_opts, run_opts, matrix_opts, preset);
         }
         if (global.wipe_logs) {
@@ -4580,6 +4764,8 @@ int main(int argc, char** argv) {
         std::cerr << "jac313_test_cli: " << e.what() << '\n';
         rc = 1;
     }
+    // A run that recorded results commits them (run_results.hpp): pass or fail, they are the record.
+    if (jac313::test_cli::run_results::pending()) jac313::test_cli::run_results::publish(false);
     for (const auto& why : g_not_recorded) std::cout << "NOT RECORDED: " << why << '\n';
     return (rc == 0 && !g_not_recorded.empty()) ? 1 : rc;
 }
