@@ -54,7 +54,7 @@ bool jtext_bool(std::string_view value);
 // Gitignored and optional. A local file holds any of the sections of its tracked table (compilers:
 // toolchains, toolchain_os; recipes: components, recipe_os): a section it leaves out has no overrides.
 // A section it holds has every column of the tracked one, and optionally a Bool column `delete`. Its rows apply by key (toolchains: label; toolchain_os: os +
-// toolchain + activation_seq; components: component; recipe_os: os + component), in file order: a
+// toolchain + activation_seq; toolchain_min_os: os + toolchain; components: component; recipe_os: os + component), in file order: a
 // row whose key the tracked table has REPLACES that row in place, a new key is ADDED at the end, and
 // a row with delete = true REMOVES the row with its key (nothing when there is none). Every loader
 // below sees the merged rows. No local file = no change; a local file that cannot be read, does not
@@ -89,8 +89,11 @@ std::string pinned_tool_version(const std::filesystem::path& source_dir, const s
 // one row per machine (host = uname nodename), the GCC and Clang with their full versions as
 // pinned (the MAJOR version is what is held) and their paths as found (/usr/bin/clang++, not the
 // clang-NN it links to, which is the C driver). Values never contain '|'.
-inline constexpr int kMinPinnedGccMajor = 15;
-inline constexpr int kMinPinnedClangMajor = 21;
+// The pin minimum of `kind` (gcc | clang) on `os_family`: the lowest minimum among that kind's
+// toolchains in Setup/compilers.jtext, with the family's toolchain_min_os rows applied. Each OS has
+// its own limit of the compilers its repositories offer (Linux Mint: Clang 21; RHEL: Clang 20).
+int min_pinnable_major(const std::filesystem::path& source_dir, const std::string& os_family,
+                       const std::string& kind);
 struct CompilerPinRow {
     std::string host, gcc_version, gcc_path, clang_version, clang_path, pinned;   // pinned: YYYY-MM-DD
 };

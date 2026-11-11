@@ -100,6 +100,7 @@ _jt_key() {
   case $1 in
     toolchains) echo label ;;
     toolchain_os) echo os,toolchain,activation_seq ;;
+    toolchain_min_os) echo os,toolchain ;;
     components) echo component ;;
     recipe_os) echo os,component ;;
     *) return 1 ;;

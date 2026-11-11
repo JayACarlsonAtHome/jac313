@@ -27,7 +27,7 @@ The compiler pin is not here: it is machine-local and outside every repository, 
 and jText_GUI build with the same file (their `tools/hooks/compiler-pin.sh`); `jac313_test_cli pin`
 reads and writes it in the same format: section `pins`, one row per machine (`uname -n`) with the
 GCC and Clang full versions and paths. The major version is what is held: the first run on a machine
-pins the newest GCC 15+ and Clang 21+; a newer major version is asked about on the terminal (with no
+pins the newest GCC and Clang at or above this OS's minimums (`Setup/compilers.jtext`: Clang 21 on Linux Mint, 20 on RHEL and Fedora; GCC 15); a newer major version is asked about on the terminal (with no
 terminal the pin is kept and one line says `jac313_test_cli pin --upgrade`); a pinned compiler that
 is gone stops the run (`jac313_test_cli pin --repin`). The pinned major version picks the
 `toolchains` row of `compilers.jtext` (its label: build dir, flag), and the pinned path is the

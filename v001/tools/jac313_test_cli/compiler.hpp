@@ -48,8 +48,6 @@ struct CompilerResolveRequest {
     bool prefer_clang{false};
 };
 
-constexpr int kMinClangMajorVersion = 21;
-
 // The CMake version this OS must use (pinned_tools in Setup/recipes.jtext); '' = the system's.
 std::string pinned_cmake_version(const std::filesystem::path& source_dir);
 // Puts a pinned CMake first on PATH, so this program and everything it starts use it; returns its
@@ -107,8 +105,9 @@ std::vector<InstalledCompiler> installed_compilers(const std::string& kind);
 std::string compiler_full_version(const std::string& path, const std::string& kind);
 // This machine in the pin file: uname nodename.
 std::string pin_host_name();
-// The newest of `kind` that is at least the pin minimum (GCC 15, Clang 21).
-std::optional<InstalledCompiler> newest_pinnable(const std::string& kind);
+// The newest of `kind` whose major version is at least `min_major` (this OS family's pin minimum:
+// min_pinnable_major in settings.hpp).
+std::optional<InstalledCompiler> newest_pinnable(const std::string& kind, int min_major);
 
 struct PinnedCompilers {
     std::filesystem::path file;
@@ -116,7 +115,7 @@ struct PinnedCompilers {
     std::string gcc_label, clang_label;     // their toolchains in Setup/compilers.jtext
 };
 // This machine's pinned GCC and Clang (once per process; later calls return the first answer):
-//   - no row for this machine: pins the newest GCC 15+ and Clang 21+ and says so
+//   - no row for this machine: pins the newest GCC and Clang at or above this OS family's minimums and says so
 //   - a newer major version installed: asks on the terminal whether to upgrade the pin (only when
 //     standard input is a terminal and nothing in this run asked yet); otherwise keeps the pin and
 //     says how to upgrade (`jac313_test_cli pin --upgrade`)
@@ -124,7 +123,7 @@ struct PinnedCompilers {
 //     (`jac313_test_cli pin --repin`) and returns nothing
 // Messages go to standard error (standard output may be read by a program).
 std::optional<PinnedCompilers> ensure_compiler_pin(const std::filesystem::path& version_dir);
-// Pin this machine to the newest GCC 15+ and Clang 21+ (pin --upgrade / --repin); false (and a
+// Pin this machine to the newest GCC and Clang at this OS family's minimums or above (pin --upgrade / --repin); false (and a
 // message) when there is none.
 bool repin_newest(const std::filesystem::path& version_dir);
 

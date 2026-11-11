@@ -99,8 +99,9 @@ ReleaseCompilerSlot make_gcc15_slot() {
     return {"gcc15", "g++-15", true, false};
 }
 
-ReleaseCompilerSlot make_clang_slot() {
-    return {"clang", "clang++-20", false, true};
+// each OS its own Clang: Linux Mint installs clang-21 (apt.llvm.org); RHEL-family keeps clang 20
+ReleaseCompilerSlot make_clang_slot(PlatformProfile profile) {
+    return {"clang", profile == PlatformProfile::LinuxMint ? "clang++-21" : "clang++-20", false, true};
 }
 
 } // namespace
@@ -138,9 +139,9 @@ std::vector<ReleaseCompilerSlot> release_compilers_for_platform(PlatformProfile 
     switch (profile) {
     case PlatformProfile::LinuxMint:
     case PlatformProfile::Rhel:
-        return {make_gcc15_slot(), make_clang_slot()};
+        return {make_gcc15_slot(), make_clang_slot(profile)};
     }
-    return {make_gcc15_slot(), make_clang_slot()};
+    return {make_gcc15_slot(), make_clang_slot(profile)};
 }
 
 std::string platform_profile_name(PlatformProfile profile) {

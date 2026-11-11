@@ -38,7 +38,7 @@ COMPILERS="$ROOT/Setup/compilers.jtext"
 . "$ROOT/Setup/jtext_table.sh"
 # A machine-local Setup/compilers.local.jtext / recipes.local.jtext (gitignored) overrides rows of
 # those tables; jtext_select applies it. A malformed one stops the bootstrap here, named.
-jtext_local_check "$COMPILERS" toolchains toolchain_os && jtext_local_check "$RECIPES" components recipe_os \
+jtext_local_check "$COMPILERS" toolchains toolchain_os toolchain_min_os && jtext_local_check "$RECIPES" components recipe_os \
   || { echo "Fix or remove the local override file named above, then re-run."; exit 1; }
 
 WANT_GUI=1   # the Runner window is part of a normal bootstrap; --no-gui skips it
@@ -134,6 +134,14 @@ gcc_toolchains() {
   jtext_select "$COMPILERS" toolchains version,label kind gcc | sort -rn | cut -f2
 }
 
+# tc_min LABEL: the toolchain's minimum MAJOR on this OS family: its toolchain_min_os row, else the
+# registry's min_version (each OS has its own limit of what its repositories offer)
+tc_min() {
+  m=$(jtext_select "$COMPILERS" toolchain_min_os min_version toolchain "$1" os "$family" | head -n1)
+  [ -n "$m" ] || m=$(jtext_select "$COMPILERS" toolchains min_version label "$1")
+  echo "$m"
+}
+
 # the gcc toolchain this OS family requires (the highest; else the highest there is): its recipe
 # installs a gcc when none is found
 required_gcc() {
@@ -158,7 +166,7 @@ detect_cxx() {
   CXX=""; ACT=""
   for tc in $(gcc_toolchains); do
     want=$(jtext_select "$COMPILERS" toolchains version label "$tc")
-    min=$(jtext_select "$COMPILERS" toolchains min_version label "$tc")
+    min=$(tc_min "$tc")
     names=$(jtext_select "$COMPILERS" toolchains cc_names label "$tc")
     acts=$(jtext_select "$COMPILERS" toolchain_os activation_seq,activation toolchain "$tc" os "$family")
     [ -n "$acts" ] || acts=$(jtext_select "$COMPILERS" toolchain_os activation_seq,activation toolchain "$tc")
@@ -179,10 +187,20 @@ ACTS
   return 0
 }
 
+clang_ok() {  # a clang++ that reaches the clang toolchain's minimum on this OS family (tc_min)
+  min=$(tc_min clang)
+  for c in $(jtext_select "$COMPILERS" toolchains cc_names label clang) \
+           $(compgen -c clang++- | grep -E '^clang\+\+-[0-9]+$' | sort -u); do
+    v=$("$c" -dumpversion 2>/dev/null) || continue
+    [ "${v%%.*}" -ge "${min:-0}" ] 2>/dev/null && return 0
+  done
+  return 1
+}
+
 compute_missing() {
   missing=""
   [ -n "$CXX" ]                    || missing="$missing $(required_gcc)"
-  ( command -v clang >/dev/null 2>&1 || command -v clang-20 >/dev/null 2>&1 ) || missing="$missing clang"
+  clang_ok                         || missing="$missing clang"
   command -v cmake >/dev/null 2>&1 || missing="$missing cmake"
   command -v vim >/dev/null 2>&1   || missing="$missing vim"
   ninja_ok                         || missing="$missing ninja"
@@ -738,7 +756,8 @@ echo "Linked ./jac313_wipe_jac -> build-bootstrap/tools/jac313_wipe_jac"
 
 # --- compiler pin: THIS machine's GCC and Clang (find-or-create) ---
 # Kept outside the repository, beside it: ../../Compiler_Pins/compilers.pin.jtext, shared with Qlite,
-# jText and jText_GUI (one row per hostname). A new machine pins the newest GCC 15+ and Clang 21+, so
+# jText and jText_GUI (one row per hostname). A new machine pins the newest GCC and Clang at or above
+# this OS's minimums (Setup/compilers.jtext: Clang 21 on Linux Mint, 20 on RHEL/Fedora; GCC 15), so
 # every later run uses the SAME compilers; a newer major version is asked about here. Non-fatal: a pin
 # hiccup must never block bootstrap (the gates say it again).
 echo

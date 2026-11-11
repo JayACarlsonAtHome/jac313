@@ -9,12 +9,12 @@ How jac313 uses C++23 modules, and the module friction it surfaced.
 Headers remain the compatibility layer; modules are **additive**. Each package ships an
 optional C++23 module (Qlite, header-only inside jText, has none) that re-exports the same public API:
 
-| Module | `g++-14` | `g++-15` | `clang++-21` |
+| Module | `g++-14` | `g++-15` | `clang++` (21 Mint, 20 RHEL/Fedora) |
 |--------|----------|----------|--------------|
 | `jac313.jtext.v001` | yes | yes | yes\* |
 | `jac313.store.v001` | yes | yes | yes\* |
 
-\* Clang modules need `clang-scan-deps-21`; `jac313_test_cli` passes it automatically with
+\* Clang modules need the `clang-scan-deps` of the compiler's own major version; `jac313_test_cli` passes it automatically with
 `--modules --clang`. Module builds require the **Ninja ≥ 1.11** generator and the CMake in
 `pinned_tools` (Setup/recipes.jtext, 4.3.3) (`-DJAC313_BUILD_MODULES=ON`). CMake 4.3.3 or newer
 is required: see [Resolved: CMake's Clang BMI-only step](#resolved-cmakes-clang-bmi-only-step-fixed-in-cmake-433).

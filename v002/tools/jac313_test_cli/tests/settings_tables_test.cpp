@@ -101,6 +101,26 @@ int main() {
         check(labels.count(o.at("toolchain")) == 1, "toolchain_os names a toolchain: " + o.at("toolchain"));
         check(o.at("activation").find("{CMD}") != std::string::npos, "activation holds {CMD}: " + o.at("activation"));
     }
+    // each OS its own limit: toolchain_min_os rows name a toolchain and an OS family
+    const auto tmins = table(compilers, "toolchain_min_os", {"id", "os", "toolchain", "min_version"});
+    for (const auto& m : tmins.rows) {
+        check(labels.count(m.at("toolchain")) == 1, "toolchain_min_os names a toolchain: " + m.at("toolchain"));
+        check(std::find(kFamilies.begin(), kFamilies.end(), m.at("os")) != kFamilies.end(),
+              "toolchain_min_os names an OS family: " + m.at("os"));
+    }
+    try {
+        check(min_pinnable_major(kSource, "linuxmint", "clang") == 21, "Linux Mint: Clang minimum 21");
+        check(min_pinnable_major(kSource, "rhel", "clang") == 20, "RHEL: Clang minimum 20");
+        check(min_pinnable_major(kSource, "fedora", "clang") == 20, "Fedora: Clang minimum 20");
+        for (const auto& fam : kFamilies)
+            check(min_pinnable_major(kSource, fam, "gcc") == 15, "GCC minimum 15 on " + fam);
+        check(toolchain_label_for(load_toolchains(kSource, "linuxmint"), "clang", 20).empty(),
+              "Linux Mint: Clang 20 is below its minimum");
+        check(toolchain_label_for(load_toolchains(kSource, "rhel"), "clang", 20) == "clang",
+              "RHEL: Clang 20 is its clang");
+    } catch (const std::exception& e) {
+        check(false, std::string("per-OS minimums: ") + e.what());
+    }
     for (const auto& fam : kFamilies) {
         try {
             const auto loaded = load_toolchains(kSource, fam);

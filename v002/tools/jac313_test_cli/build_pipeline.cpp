@@ -1,6 +1,7 @@
 #include "build_pipeline.hpp"
 #include "compiler.hpp"
 #include "process.hpp"
+#include "settings.hpp"
 
 #include <chrono>
 #include <filesystem>
@@ -71,11 +72,16 @@ int run_configure_command(const GlobalOptions& global, const ConfigureOptions& o
     if (opts.modules) {
         args.push_back("-DJAC313_BUILD_MODULES=ON");
         if (opts.compiler_kind == "clang") {
-            const auto scan_deps = find_scan_deps(opts.scan_deps_candidates);
+            // the scanner of the compiler's own major version first: clang++ 21 -> clang-scan-deps-21
+            std::vector<std::string> candidates;
+            if (const int major = version_major_of(compiler_full_version(opts.resolved_compiler, "clang")); major > 0)
+                candidates.push_back("clang-scan-deps-" + std::to_string(major));
+            candidates.insert(candidates.end(), opts.scan_deps_candidates.begin(), opts.scan_deps_candidates.end());
+            const auto scan_deps = find_scan_deps(candidates);
             if (!scan_deps) {
-                std::cerr << "modules require clang-scan-deps (need clang-scan-deps-"
-                          << kMinClangMajorVersion << " on PATH for "
-                          << opts.resolved_compiler << ")\n";
+                std::cerr << "modules require clang-scan-deps for " << opts.resolved_compiler << " (tried:";
+                for (const auto& c : candidates) std::cerr << ' ' << c;
+                std::cerr << ")\n";
                 return 1;
             }
             args.push_back("-DCMAKE_CXX_COMPILER_CLANG_SCAN_DEPS=" + *scan_deps);

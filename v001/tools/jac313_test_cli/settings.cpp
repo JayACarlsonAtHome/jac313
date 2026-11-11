@@ -47,7 +47,8 @@ struct OverrideSection {
 };
 const std::vector<OverrideSection>& override_sections(const fs::path& tracked) {
     static const std::vector<OverrideSection> compilers = {{"toolchains", {"label"}},
-                                                           {"toolchain_os", {"os", "toolchain", "activation_seq"}}};
+                                                           {"toolchain_os", {"os", "toolchain", "activation_seq"}},
+                                                           {"toolchain_min_os", {"os", "toolchain"}}};
     static const std::vector<OverrideSection> recipes = {{"components", {"component"}},
                                                          {"recipe_os", {"os", "component"}}};
     if (tracked.filename() == "compilers.jtext") return compilers;
@@ -194,6 +195,13 @@ std::vector<setup::Toolchain> load_toolchains(const fs::path& source_dir, const 
                     {"label", "kind", "version", "min_version", "build_dir", "flag", "cc_names", "scan_deps"});
     const SettingsTable os = read_with_local(path, "toolchain_os");
     require_columns(os, path, "toolchain_os", {"os", "toolchain", "required", "activation_seq", "activation"});
+    // each OS family its own minimum: a toolchain_min_os row replaces the toolchain's min_version there
+    const SettingsTable mins = read_with_local(path, "toolchain_min_os");
+    require_columns(mins, path, "toolchain_min_os", {"os", "toolchain", "min_version"});
+    for (const auto& m : mins.rows)
+        if (std::none_of(tcs.rows.begin(), tcs.rows.end(),
+                         [&](const auto& r) { return r.at("label") == m.at("toolchain"); }))
+            throw std::runtime_error(where(path, "toolchain_min_os") + ": no toolchain " + m.at("toolchain"));
 
     const bool family_listed = std::any_of(os.rows.begin(), os.rows.end(),
                                            [&](const auto& r) { return r.at("os") == os_family; });
@@ -204,6 +212,11 @@ std::vector<setup::Toolchain> load_toolchains(const fs::path& source_dir, const 
         tc.kind = r.at("kind");
         tc.version_major = to_int(r, "version", path, "toolchains");
         if (const int min = to_int(r, "min_version", path, "toolchains"); min > 0) tc.min_version = min;
+        for (const auto& m : mins.rows) {
+            if (m.at("os") != os_family || m.at("toolchain") != tc.label) continue;
+            const int min = to_int(m, "min_version", path, "toolchain_min_os");
+            tc.min_version = min > 0 ? std::optional<int>(min) : std::nullopt;
+        }
         tc.build_dir = r.at("build_dir");
         tc.flag = r.at("flag");
         tc.cc_names = split_words(r.at("cc_names"));
@@ -227,6 +240,17 @@ std::vector<setup::Toolchain> load_toolchains(const fs::path& source_dir, const 
         out.push_back(std::move(tc));
     }
     return out;
+}
+
+int min_pinnable_major(const fs::path& source_dir, const std::string& os_family, const std::string& kind) {
+    std::optional<int> low;
+    for (const auto& tc : load_toolchains(source_dir, os_family)) {
+        if (tc.kind != kind) continue;
+        const int m = tc.min_version ? *tc.min_version : tc.version_major;
+        if (!low || m < *low) low = m;
+    }
+    if (!low) throw std::runtime_error(compilers_table_path(source_dir).string() + ": no " + kind + " toolchain");
+    return *low;
 }
 
 std::vector<setup::ProvisionRecipe> load_recipes(const fs::path& source_dir) {

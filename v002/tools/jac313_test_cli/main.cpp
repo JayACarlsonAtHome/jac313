@@ -136,7 +136,7 @@ void print_usage() {
         "Configure options:\n"
         "  --compiler <cxx>     Explicit compiler: registry label, name, or path\n"
         "  --gcc                The newest gcc on this machine (default)\n"
-        "  --clang              Select the clang toolchain (min Clang 20)\n"
+        "  --clang              Select the clang toolchain (its minimum is per OS: Setup/compilers.jtext)\n"
         "  --modules            Enable JAC313_BUILD_MODULES=ON\n"
         "  --release            CMAKE_BUILD_TYPE=Release (default: Debug)\n"
         "  --pg-remote \"host=H [port=P] dbname=D user=U\"   the remote PostgreSQL server for pg-remote\n"

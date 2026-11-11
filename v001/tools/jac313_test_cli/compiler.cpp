@@ -109,7 +109,8 @@ CompilerSelection resolve_explicit(const std::vector<Toolchain>& registry,
     adhoc.activations = {"{CMD}"};
     adhoc.build_dir = "build-custom";
     if (adhoc.kind == "clang") {
-        adhoc.scan_deps = {"clang-scan-deps-20", "clang-scan-deps"};
+        // configure puts the clang-scan-deps of the compiler's own major version first
+        adhoc.scan_deps = {"clang-scan-deps"};
     }
     const ResolvedToolchain rt = resolve_toolchain(adhoc, baseline);
     if (rt.available) {
@@ -415,15 +416,32 @@ std::vector<InstalledCompiler> installed_compilers(const std::string& kind) {
     return out;
 }
 
+namespace {
+
+// This OS family's pin minimums (Setup/compilers.jtext; each OS has its own limit).
+struct PinMinimums {
+    std::string os_family;
+    int gcc = 0;
+    int clang = 0;
+};
+PinMinimums pin_minimums(const fs::path& version_dir) {
+    PinMinimums m;
+    m.os_family = jac313::Setup::v001::sense_host().os_family;
+    m.gcc = min_pinnable_major(version_dir, m.os_family, "gcc");
+    m.clang = min_pinnable_major(version_dir, m.os_family, "clang");
+    return m;
+}
+
+} // namespace
+
 std::string pin_host_name() {
     struct utsname u{};
     return ::uname(&u) == 0 ? std::string(u.nodename) : std::string{};
 }
 
-std::optional<InstalledCompiler> newest_pinnable(const std::string& kind) {
-    const int min = kind == "gcc" ? kMinPinnedGccMajor : kMinPinnedClangMajor;
+std::optional<InstalledCompiler> newest_pinnable(const std::string& kind, int min_major) {
     for (const auto& c : installed_compilers(kind))
-        if (c.major >= min) return c;
+        if (c.major >= min_major) return c;
     return std::nullopt;
 }
 
@@ -444,15 +462,16 @@ std::optional<PinnedCompilers> ensure_compiler_pin_uncached(const fs::path& vers
     PinnedCompilers p;
     p.file = compiler_pin_path(version_dir);
     const std::string host = pin_host_name();
-    const auto ng = newest_pinnable("gcc");
-    const auto nc = newest_pinnable("clang");
+    const PinMinimums mins = pin_minimums(version_dir);
+    const auto ng = newest_pinnable("gcc", mins.gcc);
+    const auto nc = newest_pinnable("clang", mins.clang);
     const auto rows = load_compiler_pins(p.file);
     if (const CompilerPinRow* row = find_compiler_pin(rows, host)) {
         p.row = *row;
     } else {
         if (!ng || !nc) {
-            std::cerr << tag << "no GCC " << kMinPinnedGccMajor << "+ and Clang " << kMinPinnedClangMajor
-                      << "+ found to pin on " << host << " (bsir.sh installs them)\n";
+            std::cerr << tag << "no GCC " << mins.gcc << "+ and Clang " << mins.clang
+                      << "+ (the " << mins.os_family << " minimums) found to pin on " << host << " (bsir.sh installs them)\n";
             return std::nullopt;
         }
         p.row = pin_row(host, *ng, *nc);
@@ -525,10 +544,11 @@ std::optional<PinnedCompilers> ensure_compiler_pin(const fs::path& version_dir) 
 }
 
 bool repin_newest(const fs::path& version_dir) {
-    const auto ng = newest_pinnable("gcc");
-    const auto nc = newest_pinnable("clang");
+    const PinMinimums mins = pin_minimums(version_dir);
+    const auto ng = newest_pinnable("gcc", mins.gcc);
+    const auto nc = newest_pinnable("clang", mins.clang);
     if (!ng || !nc) {
-        std::cerr << "no GCC " << kMinPinnedGccMajor << "+ and Clang " << kMinPinnedClangMajor << "+ found\n";
+        std::cerr << "no GCC " << mins.gcc << "+ and Clang " << mins.clang << "+ (the " << mins.os_family << " minimums) found\n";
         return false;
     }
     const fs::path file = compiler_pin_path(version_dir);
