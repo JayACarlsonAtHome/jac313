@@ -27,12 +27,15 @@ if(JAC313_BUILD_MODULES)
     set(CMAKE_CXX_SCAN_FOR_MODULES ON)
     # CMake 4 builds a BMI for each target that imports a module (a "synthetic target") with its
     # normal compile line plus this flag. Its clang default, --precompile, stops after the BMI, so
-    # CMake's own -c is left unused: clang warns about it when compiling and clang-scan-deps warns
-    # when scanning (and ignores -Wno-unused-command-line-argument). -Xclang -emit-module-interface
-    # asks the front end for the same BMI while the driver still does a normal -c compile, so
-    # neither warns. It is a front-end option, not a driver flag: recheck it on a new clang.
+    # CMake's own -c is left unused and clang and clang-scan-deps warn about it (scan-deps ignores
+    # -Wno-unused-command-line-argument). -Qunused-arguments is the driver switch that silences it
+    # in both, and only on these BMI-only steps. (Clang 20 used -Xclang -emit-module-interface
+    # instead; Clang 21's -c on a module unit runs a second front-end job on the .pcm, which gets
+    # that flag too and fails: "does not support input file format ... 'Precompiled'".)
+    # Open upstream issue, to drop this when CMake or Clang fixes it: docs/Modules.md,
+    # "Open: CMake's Clang BMI-only step".
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        set(CMAKE_CXX_MODULE_BMI_ONLY_FLAG "-Xclang;-emit-module-interface")
+        set(CMAKE_CXX_MODULE_BMI_ONLY_FLAG "--precompile;-Qunused-arguments")
     endif()
     set(JAC313_SETUP_BUILD_MODULES ON CACHE BOOL "" FORCE)
     set(JAC313_JTEXT_BUILD_MODULES ON CACHE BOOL "" FORCE)
