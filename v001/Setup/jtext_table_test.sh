@@ -17,7 +17,7 @@ check "toolchain_os rows" "$(jtext_rows "$C" toolchain_os | wc -l | tr -d ' ')" 
 check "toolchains fields" "$(jtext_fields "$C" toolchains | tr '\n' ' ')" \
       "id label kind version min_version build_dir flag cc_names scan_deps "
 check "clang row" "$(jtext_rows "$C" toolchains | sed -n 3p)" \
-      "3${tab}clang${tab}clang${tab}20${tab}20${tab}build-clang20${tab}--clang${tab}clang++-20 clang++20 clang++${tab}clang-scan-deps-20 clang-scan-deps"
+      "3${tab}clang${tab}clang${tab}21${tab}21${tab}build-clang21${tab}--clang${tab}clang++-21 clang++21 clang++${tab}clang-scan-deps-21 clang-scan-deps"
 check "gcc15 empty scan_deps" "$(jtext_select "$C" toolchains scan_deps label gcc15)" ""
 check "gcc15 rhel activation 4" \
       "$(jtext_select "$C" toolchain_os activation toolchain gcc15 os rhel activation_seq 4)" \

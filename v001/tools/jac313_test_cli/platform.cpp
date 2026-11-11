@@ -100,7 +100,7 @@ ReleaseCompilerSlot make_gcc15_slot() {
 }
 
 ReleaseCompilerSlot make_clang_slot() {
-    return {"clang", "clang++-20", false, true};
+    return {"clang", "clang++-21", false, true};
 }
 
 } // namespace

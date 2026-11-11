@@ -48,7 +48,7 @@ struct CompilerResolveRequest {
     bool prefer_clang{false};
 };
 
-constexpr int kMinClangMajorVersion = 20;
+constexpr int kMinClangMajorVersion = 21;
 
 // The CMake version this OS must use (pinned_tools in Setup/recipes.jtext); '' = the system's.
 std::string pinned_cmake_version(const std::filesystem::path& source_dir);

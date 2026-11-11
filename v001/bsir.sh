@@ -179,10 +179,18 @@ ACTS
   return 0
 }
 
+clang21_ok() {  # a Clang 21+ (the compiler pin's minimum), not just any clang on PATH
+  for c in clang++-23 clang++-22 clang++-21 clang++; do
+    v=$("$c" -dumpversion 2>/dev/null) || continue
+    [ "${v%%.*}" -ge 21 ] 2>/dev/null && return 0
+  done
+  return 1
+}
+
 compute_missing() {
   missing=""
   [ -n "$CXX" ]                    || missing="$missing $(required_gcc)"
-  ( command -v clang >/dev/null 2>&1 || command -v clang-20 >/dev/null 2>&1 ) || missing="$missing clang"
+  clang21_ok                       || missing="$missing clang"
   command -v cmake >/dev/null 2>&1 || missing="$missing cmake"
   command -v vim >/dev/null 2>&1   || missing="$missing vim"
   ninja_ok                         || missing="$missing ninja"
