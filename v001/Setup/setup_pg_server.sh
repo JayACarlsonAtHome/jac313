@@ -182,6 +182,34 @@ fi
 
 # --- 1. the server (same recipes as bsir.sh install_pg_local) ---
 step() { echo "--> $*"; }
+# A copy of Setup/pgdg_repo.sh's pgdg_fix_release (the Runner copies this script to the server
+# alone; keep the two the same): a PGDG repo naming a minor release PGDG has not published yet
+# fails every dnf command, so it is pointed at the major release's tree.
+pgdg_fix_release() {
+  local f=/etc/yum.repos.d/pgdg-redhat-all.repo major ver code
+  [ -f "$f" ] || return 0
+  # already on the major release's tree (the file's comments name $releasever_minor too)
+  grep -q '^[[:space:]]*baseurl=.*\$releasever_minor' "$f" || return 0
+  major=$(rpm -E %rhel)
+  # the release dnf puts in the URL (a "subscription-manager release --set" lock moves it),
+  # else the installed one
+  ver=$(python3 -c 'import dnf; s = dnf.Base().conf.substitutions
+print(s["releasever_major"] + "." + s["releasever_minor"])' 2>/dev/null) ||
+    ver=$(. /etc/os-release 2>/dev/null; echo "${VERSION_ID:-}")
+  case "$ver" in
+    "$major".[0-9]*)
+      code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+        "https://download.postgresql.org/pub/repos/yum/common/redhat/rhel-$ver-$(uname -m)/repodata/repomd.xml")
+      case "$code" in
+        200) return 0 ;;
+        404) echo "PGDG has no rhel-$ver tree yet: using its rhel-$major tree ($f)" ;;
+        *) echo "PGDG: could not check rhel-$ver (HTTP '$code'); $f left as it is"; return 0 ;;
+      esac ;;
+    *) echo "PGDG: no minor release in VERSION_ID '$ver': using the rhel-$major tree ($f)" ;;
+  esac
+  sudo cp -p "$f" "$f.orig" &&
+    sudo sed -i 's/\$releasever_major\.\$releasever_minor/$releasever_major/g' "$f"
+}
 if ! installed; then
   step "installing PostgreSQL 18"
   case "$family" in
@@ -189,8 +217,10 @@ if ! installed; then
       sudo dnf install -y postgresql-server || exit 1
       sudo test -f /var/lib/pgsql/data/PG_VERSION || sudo postgresql-setup --initdb || exit 1 ;;
     rhel)
+      pgdg_fix_release || exit 1
       rpm -q pgdg-redhat-repo >/dev/null 2>&1 || sudo dnf install -y \
         "https://download.postgresql.org/pub/repos/yum/reporpms/EL-$(rpm -E %rhel)-$(uname -m)/pgdg-redhat-repo-latest.noarch.rpm" || exit 1
+      pgdg_fix_release || exit 1
       sudo dnf install -y postgresql18-server || exit 1
       sudo test -f /var/lib/pgsql/18/data/PG_VERSION || sudo /usr/pgsql-18/bin/postgresql-18-setup initdb || exit 1 ;;
     linuxmint)

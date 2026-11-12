@@ -483,8 +483,7 @@ install_pg_local() {
       sudo test -f /var/lib/pgsql/data/PG_VERSION || sudo postgresql-setup --initdb || return 1
       service=postgresql ;;
     rhel)
-      rpm -q pgdg-redhat-repo >/dev/null 2>&1 || sudo dnf install -y \
-        "https://download.postgresql.org/pub/repos/yum/reporpms/EL-$(rpm -E %rhel)-$(uname -m)/pgdg-redhat-repo-latest.noarch.rpm" || return 1
+      "$ROOT/Setup/pgdg_repo.sh" --install || return 1
       rpm -q postgresql18-server >/dev/null 2>&1 || sudo dnf install -y postgresql18-server || return 1
       sudo test -f /var/lib/pgsql/18/data/PG_VERSION || sudo /usr/pgsql-18/bin/postgresql-18-setup initdb || return 1
       service=postgresql-18 ;;
@@ -585,6 +584,9 @@ if sudo -v; then
   SUDO_KEEPALIVE=$!
   trap 'pkill -P "$SUDO_KEEPALIVE" 2>/dev/null; kill "$SUDO_KEEPALIVE" 2>/dev/null' EXIT
   # It can move gcc / clang, so look for them again after.
+  # A PGDG repo whose URLs name a minor release PGDG has not published yet fails every dnf
+  # command, the update's too: point it at the major release's tree first (Setup/pgdg_repo.sh).
+  [ "$family" = rhel ] && "$ROOT/Setup/pgdg_repo.sh"
   echo
   echo "=== system update ==="
   case "$family" in

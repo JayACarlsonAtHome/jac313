@@ -122,7 +122,7 @@
  1. ^~ 10^rhel^sqlite^sudo dnf install -y sqlite-devel
  1. ^~ 11^fedora^sqlite^sudo dnf install -y sqlite-devel
  1. ^~ 12^linuxmint^sqlite^sudo apt-get install -y libsqlite3-dev
- 1. ^~ 13^rhel^pg18^(rpm -q pgdg-redhat-repo >/dev/null 2>&1 || sudo dnf install -y "https://download.postgresql.org/pub/repos/yum/reporpms/EL-$(rpm -E %rhel)-$(uname -m)/pgdg-redhat-repo-latest.noarch.rpm") && (rpm -q perl-IPC-Run >/dev/null 2>&1 || sudo dnf config-manager --set-enabled crb 2>/dev/null || sudo subscription-manager repos --enable "codeready-builder-for-rhel-$(rpm -E %rhel)-$(uname -m)-rpms") && sudo dnf install -y postgresql18-devel
+ 1. ^~ 13^rhel^pg18^Setup/pgdg_repo.sh --install && (rpm -q perl-IPC-Run >/dev/null 2>&1 || sudo dnf config-manager --set-enabled crb 2>/dev/null || sudo subscription-manager repos --enable "codeready-builder-for-rhel-$(rpm -E %rhel)-$(uname -m)-rpms") && sudo dnf install -y postgresql18-devel
  1. ^~ 14^fedora^pg18^sudo dnf install -y libpq-devel
  1. ^~ 15^linuxmint^pg18^sudo apt-get install -y postgresql-common && sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y "$(. /etc/os-release; echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")" && sudo apt-get install -y libpq-dev
  1. ^~ 16^rhel^ninja^sudo dnf install -y python3-pip && python3 -m pip install --user ninja
