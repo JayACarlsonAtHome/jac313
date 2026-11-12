@@ -41,6 +41,8 @@
  1. |# 13|jac313_qlite_v001_module_test|60|256
  1. |# 14|jac313_run_identity_test|30|128
  1. |# 15|jac313_identity_dedup_test|30|128
+ 1. |# 16|jac313_store_readback_selftest|120|1024
+ 1. |# 17|jac313_results_schema_test|120|1024
 === End Data ===
 === End Section ===
 === End File ===
