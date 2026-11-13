@@ -1,6 +1,6 @@
 #include <jac313/Store/v001.hpp>
 
-static_assert(jac313::Store::v001::version() == "v001.023", "v001 version");
+static_assert(jac313::Store::v001::version() == "v001.024", "v001 version");
 
 #include <cstdlib>
 #include <iostream>
