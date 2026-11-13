@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
@@ -156,14 +157,22 @@ JTextSplitEventLog::JTextSplitEventLog(
     i.floats_writer->set_filename(i.floats_path);
 
     // Rows are written with the writer's default formatter, U+25AE / U+258C (SPEC v0.8),
-    // which it changes only for a row whose data holds one of them. No JTextWriter
-    // auto-batching: the ofstream buffer does the batching. Each writer formats a row into its
-    // one-row buffer, reserved here for the longest one-line row (jtext_row_bytes), so it does
-    // not grow while rows are written: the main one when the row limits are known, the metric
-    // ones always (their rows hold numbers only). A multiline row may be longer and grows it.
-    i.main_writer->reserve_batch_bytes(jtext_row_bytes::main_row(limits));
-    if (int_count > 0) i.ints_writer->reserve_batch_bytes(jtext_row_bytes::ints_row(int_count));
-    if (dbl_count > 0) i.floats_writer->reserve_batch_bytes(jtext_row_bytes::floats_row(dbl_count));
+    // which it changes only for a row whose data holds one of them. Each writer batches
+    // kDefaultHighThroughputBatchSize rows and inserts that batch once. The batch buffer is
+    // reserved for that many longest one-line rows (jtext_row_bytes), so it does not grow
+    // while rows are written: the main one when the row limits are known, the metric ones
+    // always (their rows hold numbers only). A multiline row may be longer and grows it.
+    constexpr std::size_t kBatch = JTextWriter::kDefaultHighThroughputBatchSize;
+    auto batch_bytes = [](std::size_t one_row) -> std::size_t {
+        if (one_row == 0 || one_row > std::numeric_limits<std::size_t>::max() / kBatch) return one_row;
+        return one_row * kBatch;
+    };
+    i.main_writer->enable_high_throughput_batching();
+    i.ints_writer->enable_high_throughput_batching();
+    i.floats_writer->enable_high_throughput_batching();
+    i.main_writer->reserve_batch_bytes(batch_bytes(jtext_row_bytes::main_row(limits)));
+    if (int_count > 0) i.ints_writer->reserve_batch_bytes(batch_bytes(jtext_row_bytes::ints_row(int_count)));
+    if (dbl_count > 0) i.floats_writer->reserve_batch_bytes(batch_bytes(jtext_row_bytes::floats_row(dbl_count)));
     i.ints.size_for(int_count);
     i.floats.size_for(dbl_count);
 
