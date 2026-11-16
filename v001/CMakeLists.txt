@@ -17,6 +17,21 @@ set(CMAKE_ERROR_DEPRECATED TRUE CACHE INTERNAL "")
 project(jac313 VERSION 0.1.0 LANGUAGES CXX
         DESCRIPTION "jac313 umbrella libraries (Qlite, jText, store)")
 
+# Red Hat's clang is set to build with one fixed GCC Toolset's C++ library (/etc/clang/*.cfg:
+# gcc-toolset-15 on RHEL 10.3). Give it the newest installed toolset's instead, the one gcc builds
+# with, so both compilers use the same libstdc++ (Setup/gcc_toolset.sh). It prints nothing off the
+# RHEL family, and nothing changes there.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    find_program(JAC313_BASH bash REQUIRED)
+    execute_process(COMMAND "${JAC313_BASH}" "${CMAKE_CURRENT_SOURCE_DIR}/Setup/gcc_toolset.sh" --gcc-install-dir
+                    OUTPUT_VARIABLE JAC313_GCC_INSTALL_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(JAC313_GCC_INSTALL_DIR)
+        message(STATUS "clang uses the C++ library of ${JAC313_GCC_INSTALL_DIR}")
+        add_compile_options("--gcc-install-dir=${JAC313_GCC_INSTALL_DIR}")
+        add_link_options("--gcc-install-dir=${JAC313_GCC_INSTALL_DIR}")
+    endif()
+endif()
+
 # Deliberate default: Debug for local development, matrix gates, and test-summary baselines.
 # Release / -O3 tuning is an optional deployment path, not the repo default yet.
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)

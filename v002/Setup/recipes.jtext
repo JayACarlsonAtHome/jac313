@@ -21,6 +21,11 @@
 //   command    the install command on that OS family
 //
 // gcc15, gcc16, clang: the compiler toolchains (tied to compilers.jtext labels via for).
+// gcc_toolset: REQUIRED on the RHEL family, where the system g++ stays at the release default: the
+//   newest GCC Toolset the repositories offer (RHEL 10.3: gcc-toolset-16), found by asking dnf
+//   (Setup/gcc_toolset.sh), so a new toolset is picked up without a change here. One is enough;
+//   an older one stays installed. Its check passes on every other OS family, so the same command
+//   there never runs (it would say so and fail). The RHEL rows of gcc15 and gcc16 run it too.
 // sqlite: REQUIRED build dependency. Qlite links libsqlite3, so the dev headers must be
 //   present BEFORE the build. Checked in bootstrap's baseline (bsir.sh) so bootstrap installs
 //   it pre-build; without it `find_package(SQLite3)` fails on a fresh clone.
@@ -88,7 +93,7 @@
 === End Fields ===
 === Data ===
  1. ^~ 1^gcc15^GCC 15 toolchain^gcc15^false^
- 1. ^~ 2^gcc16^GCC 16 toolchain (Fedora 44+ system gcc)^gcc16^false^
+ 1. ^~ 2^gcc16^GCC 16 toolchain (Fedora 44+ system gcc; gcc-toolset-16 on RHEL 10.3)^gcc16^false^
  1. ^~ 3^clang^Clang with module scan-deps (clang-scan-deps); its minimum is per OS (compilers.jtext toolchain_min_os)^clang^false^
  1. ^~ 4^sqlite^SQLite3 dev libraries (Qlite links libsqlite3)^^false^[ -e /usr/include/sqlite3.h ]
  1. ^~ 5^pg18^PostgreSQL 18 client dev libraries (libpq: Postgres persist sink + PG gates)^^false^[ -e /usr/pgsql-18/include/libpq-fe.h ] || { v=$(pkg-config --modversion libpq 2>/dev/null); v=${v%%[!0-9]*}; [ -n "$v" ] && [ "$v" -ge 18 ]; }
@@ -99,6 +104,7 @@
  1. ^~ 10^upp_gui^U++ GUI build libraries (GTK3, libnotify, FreeType, Fontconfig, X11, zlib, the MariaDB client) for Jac313Runner and JTextGui; patch + rsync to build the patched U++ (not on Fedora Workstation by default)^^false^
  1. ^~ 11^dbeaver^DBeaver Community 26.2.3 (database browser; DBeaver's own RPM / DEB, sha256-checked)^^false^rpm -q dbeaver-ce >/dev/null 2>&1 || dpkg-query -W -f='${Status}' dbeaver-ce 2>/dev/null | grep -q 'install ok installed'
  1. ^~ 12^chrome^Google Chrome stable (Open Reports in Chrome; Google's signed repository, x86_64 only)^^false^command -v google-chrome >/dev/null 2>&1 || command -v google-chrome-stable >/dev/null 2>&1
+ 1. ^~ 13^gcc_toolset^The newest GCC Toolset (RHEL family: the system g++ stays at the release default)^^true^[ -z "$(rpm -E '%{?rhel}' 2>/dev/null)" ] || Setup/gcc_toolset.sh --check
 === End Data ===
 === End Section ===
 
@@ -110,10 +116,10 @@
  4. /# command/String/Not Null/Not Empty         # the install command
 === End Fields ===
 === Data ===
- 1. ^~ 1^rhel^gcc15^sudo dnf install -y gcc-toolset-15
+ 1. ^~ 1^rhel^gcc15^Setup/gcc_toolset.sh --install
  1. ^~ 2^fedora^gcc15^sudo dnf install -y gcc gcc-c++
  1. ^~ 3^linuxmint^gcc15^sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install -y g++-15
- 1. ^~ 4^rhel^gcc16^sudo dnf install -y gcc-toolset-16
+ 1. ^~ 4^rhel^gcc16^Setup/gcc_toolset.sh --install
  1. ^~ 5^fedora^gcc16^sudo dnf install -y gcc gcc-c++
  1. ^~ 6^linuxmint^gcc16^sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install -y g++-16
  1. ^~ 7^rhel^clang^sudo dnf install -y clang clang-tools-extra
@@ -146,6 +152,9 @@
  1. ^~ 34^rhel^chrome^[ "$(uname -m)" = x86_64 ] || { echo "Google Chrome: no Linux package for $(uname -m)"; exit 1; }; printf '[google-chrome]\nname=google-chrome\nbaseurl=https://dl.google.com/linux/chrome/rpm/stable/x86_64\nenabled=1\ngpgcheck=1\ngpgkey=https://dl.google.com/linux/linux_signing_key.pub\n' | sudo tee /etc/yum.repos.d/google-chrome.repo >/dev/null && sudo dnf install -y google-chrome-stable
  1. ^~ 35^fedora^chrome^[ "$(uname -m)" = x86_64 ] || { echo "Google Chrome: no Linux package for $(uname -m)"; exit 1; }; printf '[google-chrome]\nname=google-chrome\nbaseurl=https://dl.google.com/linux/chrome/rpm/stable/x86_64\nenabled=1\ngpgcheck=1\ngpgkey=https://dl.google.com/linux/linux_signing_key.pub\n' | sudo tee /etc/yum.repos.d/google-chrome.repo >/dev/null && sudo dnf install -y google-chrome-stable
  1. ^~ 36^linuxmint^chrome^[ "$(dpkg --print-architecture)" = amd64 ] || { echo "Google Chrome: no Linux package for $(dpkg --print-architecture)"; exit 1; }; curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor --yes -o /usr/share/keyrings/google-chrome.gpg && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list >/dev/null && sudo apt-get update && sudo apt-get install -y google-chrome-stable
+ 1. ^~ 37^rhel^gcc_toolset^Setup/gcc_toolset.sh --install
+ 1. ^~ 38^fedora^gcc_toolset^Setup/gcc_toolset.sh --install
+ 1. ^~ 39^linuxmint^gcc_toolset^Setup/gcc_toolset.sh --install
 === End Data ===
 === End Section ===
 

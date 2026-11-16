@@ -28,13 +28,17 @@ check "gcc15 rhel activation 4" \
       "bash -c 'source /opt/rh/gcc-toolset-15/enable && {CMD}'"
 check "gcc16 required on fedora" "$(jtext_select "$C" toolchain_os required toolchain gcc16 os fedora | sort -u)" true
 
-check "components rows" "$(jtext_rows "$R" components | wc -l | tr -d ' ')" 12
-check "recipe_os rows" "$(jtext_rows "$R" recipe_os | wc -l | tr -d ' ')" 36
+check "components rows" "$(jtext_rows "$R" components | wc -l | tr -d ' ')" 13
+check "recipe_os rows" "$(jtext_rows "$R" recipe_os | wc -l | tr -d ' ')" 39
 check "clang on fedora" "$(jtext_select "$R" recipe_os command component clang os fedora)" \
       "sudo dnf install -y clang clang-tools-extra"
 check "pg18 check" "$(jtext_select "$R" components check component pg18)" \
       '[ -e /usr/pgsql-18/include/libpq-fe.h ] || { v=$(pkg-config --modversion libpq 2>/dev/null); v=${v%%[!0-9]*}; [ -n "$v" ] && [ "$v" -ge 18 ]; }'
 check "valgrind required" "$(jtext_select "$R" components required component valgrind)" true
+# RHEL family: the newest GCC Toolset is required (Setup/gcc_toolset.sh), not one fixed gcc
+check "gcc_toolset required" "$(jtext_select "$R" components required component gcc_toolset)" true
+check "no fixed gcc required on rhel" \
+      "$(for t in gcc15 gcc16; do jtext_select "$C" toolchain_os required toolchain $t os rhel; done | sort -u)" false
 check "upp_gui no check" "$(jtext_select "$R" components check component upp_gui)" ""
 
 # comments on a row, comment lines, and other sections are skipped

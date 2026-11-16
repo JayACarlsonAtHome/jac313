@@ -21,6 +21,7 @@ The settings are jText tables (full profile, an OS column where they depend on t
 | [`contracts.jtext`](contracts.jtext) | `contract_modes` (os, toolchain, enforce, observe, quick_enforce, ignore) | `jac313_test_cli`, Jac313Runner |
 | [`setup_pg_server.sh`](setup_pg_server.sh), [`find_pg_password.sh`](find_pg_password.sh) | scripts, not tables | Jac313Runner's **Setup Remote PG Server...**; by hand on the server |
 | [`pgdg_repo.sh`](pgdg_repo.sh) | script, not a table: the PGDG dnf repo, pointed at `rhel-N` while PGDG has no tree for this minor release (a copy of its check is in `setup_pg_server.sh`) | `bsir.sh`, `recipes.jtext` (pg18, rhel) |
+| [`gcc_toolset.sh`](gcc_toolset.sh) | script, not a table: on the RHEL family, the newest GCC Toolset the repositories offer (counting down from `FIRST_TOOLSET_TO_TRY`), its check and install, and its GCC folder, which `CMakeLists.txt` gives clang so that clang uses the same libstdc++ as gcc | `bsir.sh`, `recipes.jtext` (gcc_toolset, gcc15, gcc16 on rhel), `CMakeLists.txt` |
 
 The compiler pin is not here: it is machine-local and outside every repository, beside them like
 `SQL_Secrets`, so removing the git folder starts over: `<base>/Compiler_Pins/compilers.pin.jtext`

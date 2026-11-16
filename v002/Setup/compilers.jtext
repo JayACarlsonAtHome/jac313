@@ -46,6 +46,11 @@
 //   Fedora does not require it: Fedora 44+ ships gcc 16 as its system compiler (see gcc16).
 // gcc16: Fedora 44+ ships gcc 16 as the system compiler. jac313 compiles clean with it;
 //   this entry runs + labels it accurately as gcc16 (never mislabeled gcc15).
+//   RHEL 10.3 has it as gcc-toolset-16.
+// RHEL family: no one GCC is required. The requirement is the newest GCC Toolset the repositories
+//   offer (Setup/recipes.jtext gcc_toolset, Setup/gcc_toolset.sh): gcc-toolset-16 on RHEL 10.3,
+//   whatever is newest on RHEL 9. Sensing picks the highest toolchain found, so that is the one built
+//   with. A toolset newer than every row here needs its own row before jac313 builds with it.
 // clang: the label stays "clang" (matches committed results paths); build_dir is build-clang
 //   (no version in it: the version differs by OS). Required on all supported platforms.
 //   Minimum 20; Linux Mint 21 (toolchain_min_os: bsir.sh installs clang-21 from apt.llvm.org).
@@ -89,10 +94,10 @@
  6. /# activation/String/Not Null/Not Empty      # {CMD} = the probe command
 === End Fields ===
 === Data ===
- 1. ^~ 1^rhel^gcc15^true^1^{CMD}
- 1. ^~ 2^rhel^gcc15^true^2^gcc-toolset-15-env {CMD}
- 1. ^~ 3^rhel^gcc15^true^3^scl enable gcc-toolset-15 -- {CMD}
- 1. ^~ 4^rhel^gcc15^true^4^bash -c 'source /opt/rh/gcc-toolset-15/enable && {CMD}'
+ 1. ^~ 1^rhel^gcc15^false^1^{CMD}
+ 1. ^~ 2^rhel^gcc15^false^2^gcc-toolset-15-env {CMD}
+ 1. ^~ 3^rhel^gcc15^false^3^scl enable gcc-toolset-15 -- {CMD}
+ 1. ^~ 4^rhel^gcc15^false^4^bash -c 'source /opt/rh/gcc-toolset-15/enable && {CMD}'
  1. ^~ 5^fedora^gcc15^false^1^{CMD}
  1. ^~ 6^fedora^gcc15^false^2^gcc-toolset-15-env {CMD}
  1. ^~ 7^fedora^gcc15^false^3^scl enable gcc-toolset-15 -- {CMD}

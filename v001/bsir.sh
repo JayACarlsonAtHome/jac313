@@ -9,7 +9,7 @@
 # and then hands off to.
 #
 #   1. Detect the OS family (minimal mirror of Setup::sense_host).
-#   2. Find a C++23 g++ (+ activation prefix), clang, Ninja >= 1.11, CMake, the sqlite3
+#   2. Find a C++23 g++ (+ activation prefix; on the RHEL family the newest GCC Toolset), clang, Ninja >= 1.11, CMake, the sqlite3
 #      dev header, the libpq 18+ dev header (PG sink + PG gates), and valgrind with the
 #      memcheck/helgrind/DRD dev headers — the full set
 #      needed to build AND run the gates, so a fresh box is provisioned in ONE pass.
@@ -199,7 +199,13 @@ clang_ok() {  # a clang++ that reaches the clang toolchain's minimum on this OS 
 
 compute_missing() {
   missing=""
-  [ -n "$CXX" ]                    || missing="$missing $(required_gcc)"
+  # RHEL family: the newest GCC Toolset its repositories offer (Setup/gcc_toolset.sh). It also
+  # stands for "no gcc at all" there: the gcc15 / gcc16 recipes run the same script.
+  if [ "$family" = rhel ] && ! "$ROOT/Setup/gcc_toolset.sh" --check; then
+    missing="$missing gcc_toolset"
+  elif [ -z "$CXX" ]; then
+    missing="$missing $(required_gcc)"
+  fi
   clang_ok                         || missing="$missing clang"
   command -v cmake >/dev/null 2>&1 || missing="$missing cmake"
   command -v vim >/dev/null 2>&1   || missing="$missing vim"
