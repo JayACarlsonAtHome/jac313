@@ -1,6 +1,6 @@
 === jText File ===
  1. ▮▌ results_main.jtext
- 2. ▮▌ 2026-11-13
+ 2. ▮▌ 2026-11-17
  3. ▮▌ Run results: one row per recorded run (results.db run_result)
  4. ▮▌ 0.8
  5. ▮▌ Insensitive
@@ -76,6 +76,7 @@
 64. /# store_tests/Integer/Not Null
 === End Fields ===
 === Data ===
+ 1. ▮▌ 173▮1▮2026-11-17T20:44:44Z▮2026-11-17T20:44:45Z▮v001▮build▮pass▮46▮0▮0▮1e79e1bff00179d2b45f68d7fbe0baa032473565▮0▮jac313-001▮1▮Intel(R) Core(TM) Ultra 7 265▮6▮6▮8▮2380▮2380▮xx7k▮detected▮09ef2f9bcd95ca12bd0af7509b2ba88910ccfec3840471fab5c5c39b2e9b86ba▮linuxmint▮Linux Mint 22.3▮22.3▮7.0.0-43-generic▮x86_64▮gcc15▮gcc 15.2.0▮Debug▮off▮off▮enforce▮on▮off▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮/home/jay/git/jac313/v001/build-bootstrap/tools/jac313_test_cli build --build-dir build-gcc15▮▮▮▮0▮0▮0▮▮0▮▮1
  1. ▮▌ 172▮41▮2026-11-13T01:45:33Z▮2026-11-13T01:46:14Z▮v002▮verify-lite▮pass▮31▮0▮0▮d126fdfe6c77f162017695f9a2acaf0bd1b1857f▮1▮jac313-001▮1▮Intel(R) Core(TM) Ultra 7 265▮20▮20▮62▮800▮5300▮xssd▮detected▮6ec2fd907ec6e84b73079e87f16c63e524e63a400ef21625859fe4f9522d699c▮fedora▮Fedora Linux 45 (Workstation Edition)▮45▮7.3.3-300.fc45.x86_64▮x86_64▮gcc16▮gcc 16.2.1▮Debug▮off▮off▮enforce▮on▮off▮binary,jtext,none,sql▮▮▮drd,helgrind,memcheck▮▮▮▮▮▮▮▮▮▮▮▮▮▮build-bootstrap/tools/jac313_test_cli matrix verify-lite▮▮▮▮0▮0▮0▮▮300▮▮1
  1. ▮▌ 171▮40▮2026-11-13T01:41:32Z▮2026-11-13T01:42:12Z▮v001▮verify-lite▮pass▮31▮0▮0▮d126fdfe6c77f162017695f9a2acaf0bd1b1857f▮1▮jac313-001▮1▮Intel(R) Core(TM) Ultra 7 265▮20▮20▮62▮800▮5300▮xssd▮detected▮6ec2fd907ec6e84b73079e87f16c63e524e63a400ef21625859fe4f9522d699c▮fedora▮Fedora Linux 45 (Workstation Edition)▮45▮7.3.3-300.fc45.x86_64▮x86_64▮gcc16▮gcc 16.2.1▮Debug▮off▮off▮enforce▮on▮off▮binary,jtext,none,sql▮▮▮drd,helgrind,memcheck▮▮▮▮▮▮▮▮▮▮▮▮▮▮build-bootstrap/tools/jac313_test_cli matrix verify-lite▮▮▮▮0▮0▮0▮▮300▮▮1
  1. ▮▌ 170▮38▮2026-11-13T01:36:58Z▮2026-11-13T01:38:43Z▮v002▮verify▮pass▮76▮0▮0▮cc4093b6d9cca895fe04e762b35fb67993031e6d▮1▮jac313-001▮1▮Intel(R) Core(TM) Ultra 7 265▮20▮20▮62▮800▮5300▮xssd▮detected▮6ec2fd907ec6e84b73079e87f16c63e524e63a400ef21625859fe4f9522d699c▮fedora▮Fedora Linux 45 (Workstation Edition)▮45▮7.3.3-300.fc45.x86_64▮x86_64▮clang23▮clang 23.1.5▮Debug▮off▮off▮enforce▮on▮on▮binary,html,inmem,json,jtext,none,sql▮▮▮drd,helgrind,memcheck▮▮▮▮▮▮▮▮▮▮▮▮▮▮/home/jay/git/jac313/v002/build-bootstrap/tools/jac313_test_cli matrix verify --compiler clang --hardened --summary /home/jay/git/jac313/v002/test-summary/runner_last_clang.jtext▮▮▮▮0▮0▮0▮▮300▮▮1
