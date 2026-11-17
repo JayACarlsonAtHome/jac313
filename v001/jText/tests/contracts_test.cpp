@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
+#include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -22,6 +23,10 @@ static bool child_terminates(Fn fn) {
     const pid_t pid = fork();
     if (pid < 0) { std::perror("fork"); std::_Exit(2); }
     if (pid == 0) {
+        // No core file: on a host that pipes cores to systemd-coredump, each abort waits
+        // seconds for the dump, and a handful of them outlast the test timeout.
+        const rlimit no_core{0, 0};
+        setrlimit(RLIMIT_CORE, &no_core);
         fn();
         std::_Exit(0);
     }
