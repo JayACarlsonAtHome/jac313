@@ -85,6 +85,7 @@ if [ -r /etc/os-release ]; then
   id_l=$(lc "${ID:-}"); like_l=$(lc "${ID_LIKE:-}"); pretty_l=$(lc "${PRETTY_NAME:-}")
   case "$id_l" in
     linuxmint) family=linuxmint ;;
+    zorin)     family=zorin ;;
     fedora)    family=fedora ;;
     rhel|centos|rocky|almalinux|ol|scientific|sl) family=rhel ;;
     *)
@@ -499,10 +500,10 @@ install_pg_local() {
       rpm -q postgresql18-server >/dev/null 2>&1 || sudo dnf install -y postgresql18-server || return 1
       sudo test -f /var/lib/pgsql/18/data/PG_VERSION || sudo /usr/pgsql-18/bin/postgresql-18-setup initdb || return 1
       service=postgresql-18 ;;
-    linuxmint)
+    linuxmint|zorin)
       if ! dpkg-query -W -f='${Status}' postgresql-18 2>/dev/null | grep -q 'install ok installed'; then
         [ -x /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh ] || sudo apt-get install -y postgresql-common || return 1
-        # Mint's own codename (xia, zara) is unknown to PGDG: give it the Ubuntu one
+        # Mint's own codename (xia, zara) is unknown to PGDG: give it the Ubuntu one (Zorin: noble too)
         sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
           "$(. /etc/os-release; echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")" || return 1
         sudo apt-get install -y postgresql-18 || return 1   # creates and starts the cluster 18/main
@@ -590,7 +591,9 @@ fi
 # The system update runs on every run, with nothing to answer: every install below and every
 # build comes from current packages. The sudo password once, now; then keep it fresh (sudo
 # forgets after ~5 minutes, and the downloads and builds take longer), until this script ends.
-if sudo -v; then
+# sudo -n true first: on a machine whose sudo needs no password it asks nothing, where sudo -v
+# can still ask (it wants a password unless every sudoers rule for the user is NOPASSWD).
+if sudo -n true 2>/dev/null || sudo -v; then
   # its stderr is dropped: the EXIT trap kills its sleep, and bash would print "Terminated"
   ( while kill -0 $$ 2>/dev/null; do sudo -n true 2>/dev/null; sleep 50; done ) 2>/dev/null &
   SUDO_KEEPALIVE=$!
@@ -600,7 +603,7 @@ if sudo -v; then
   echo "=== system update ==="
   case "$family" in
     fedora|rhel) sudo dnf -y upgrade --refresh ;;
-    linuxmint)   sudo apt-get update && sudo apt-get -y upgrade ;;
+    linuxmint|zorin) sudo apt-get update && sudo apt-get -y upgrade ;;
     *)           echo "  (no update command for '$family'; skipped)" ;;
   esac || echo "  [FAIL] system update (see above); going on"
   detect_cxx

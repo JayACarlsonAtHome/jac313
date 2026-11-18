@@ -353,6 +353,10 @@ std::string normalize_family(const std::string& id, const std::string& id_like,
     if (id_l == "linuxmint" || pretty_l.find("linux mint") != std::string::npos) {
         return "linuxmint";
     }
+    // Zorin is its own family (its own rows in Setup/*.jtext), never Mint or Ubuntu by ID_LIKE.
+    if (id_l == "zorin") {
+        return "zorin";
+    }
     if (id_l == "fedora") {
         return "fedora";
     }

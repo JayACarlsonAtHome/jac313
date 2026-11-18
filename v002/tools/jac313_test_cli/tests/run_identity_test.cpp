@@ -78,6 +78,8 @@ void test_os_key_parsing() {
              std::string("rhel-10.2"));
     check_eq(os_key_from_release("NAME=\"Linux Mint\"\nID=linuxmint\nVERSION_ID=22\n"),
              std::string("linuxmint-22"));
+    check_eq(os_key_from_release("NAME=\"Zorin OS\"\nID=zorin\nID_LIKE=\"ubuntu debian\"\nVERSION_ID=\"18\"\n"),
+             std::string("zorin-18"));
     check_eq(os_key_from_release("ID=\"rhel\"\nVERSION_ID=\"9.8\"\n"),
              std::string("rhel-9.8"));
     check_eq(os_key_from_release("ID=Fedora\nVERSION_ID=42\n"),

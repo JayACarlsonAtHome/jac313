@@ -13,9 +13,14 @@ tab=$(printf '\t')
 C="$HERE/compilers.jtext"; R="$HERE/recipes.jtext"
 
 check "toolchains rows" "$(jtext_rows "$C" toolchains | wc -l | tr -d ' ')" 3
-check "toolchain_os rows" "$(jtext_rows "$C" toolchain_os | wc -l | tr -d ' ')" 24
-# each OS its own limit: Linux Mint has its own Clang minimum, RHEL and Fedora the registry's
+check "toolchain_os rows" "$(jtext_rows "$C" toolchain_os | wc -l | tr -d ' ')" 32
+# each OS its own limit: Linux Mint and Zorin each have their own Clang minimum, RHEL and Fedora
+# the registry's
 check "Linux Mint clang minimum" "$(jtext_select "$C" toolchain_min_os min_version toolchain clang os linuxmint)" 21
+check "Zorin clang minimum" "$(jtext_select "$C" toolchain_min_os min_version toolchain clang os zorin)" 21
+check "Zorin gcc15 required" "$(jtext_select "$C" toolchain_os required toolchain gcc15 os zorin | sort -u)" true
+check "Zorin sqlite recipe" "$(jtext_select "$R" recipe_os command component sqlite os zorin)" \
+      "sudo apt-get install -y libsqlite3-dev"
 check "no RHEL clang minimum row" "$(jtext_select "$C" toolchain_min_os min_version toolchain clang os rhel)" ""
 check "no Fedora clang minimum row" "$(jtext_select "$C" toolchain_min_os min_version toolchain clang os fedora)" ""
 check "toolchains fields" "$(jtext_fields "$C" toolchains | tr '\n' ' ')" \
@@ -29,7 +34,7 @@ check "gcc15 rhel activation 4" \
 check "gcc16 required on fedora" "$(jtext_select "$C" toolchain_os required toolchain gcc16 os fedora | sort -u)" true
 
 check "components rows" "$(jtext_rows "$R" components | wc -l | tr -d ' ')" 13
-check "recipe_os rows" "$(jtext_rows "$R" recipe_os | wc -l | tr -d ' ')" 39
+check "recipe_os rows" "$(jtext_rows "$R" recipe_os | wc -l | tr -d ' ')" 52
 check "clang on fedora" "$(jtext_select "$R" recipe_os command component clang os fedora)" \
       "sudo dnf install -y clang clang-tools-extra"
 check "pg18 check" "$(jtext_select "$R" components check component pg18)" \
@@ -85,7 +90,7 @@ check "override keeps the row in place" "$(jtext_select "$LC" toolchains label |
 check "add: fedora gcc16 activation 4" "$(jtext_select "$LC" toolchain_os activation toolchain gcc16 os fedora activation_seq 4)" \
       "bash -c 'source /opt/rh/gcc-toolset-16/enable && {CMD}'"
 check "remove: fedora gcc15 activation 3" "$(jtext_select "$LC" toolchain_os activation toolchain gcc15 os fedora activation_seq 3)" ""
-check "toolchain_os rows (+1 -1)" "$(jtext_select "$LC" toolchain_os id | wc -l | tr -d ' ')" 24
+check "toolchain_os rows (+1 -1)" "$(jtext_select "$LC" toolchain_os id | wc -l | tr -d ' ')" 32
 check "override: fedora ninja" "$(jtext_select "$LR" recipe_os command component ninja os fedora)" "sudo dnf install -y ninja-build"
 check "add: tmux last" "$(jtext_select "$LR" components component | tail -n1)" tmux
 check "remove: dbeaver" "$(jtext_select "$LR" components component component dbeaver)" ""

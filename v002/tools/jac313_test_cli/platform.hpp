@@ -7,6 +7,7 @@ namespace jac313::test_cli {
 
 enum class PlatformProfile {
     LinuxMint,
+    Zorin,
     Rhel,
 };
 

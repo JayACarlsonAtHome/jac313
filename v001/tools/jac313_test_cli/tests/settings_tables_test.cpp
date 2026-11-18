@@ -41,7 +41,7 @@ void check(bool ok, std::string_view what, std::source_location at = std::source
 }
 
 const fs::path kSource = JAC313_SOURCE_DIR;
-const std::vector<std::string> kFamilies = {"rhel", "fedora", "linuxmint"};
+const std::vector<std::string> kFamilies = {"rhel", "fedora", "linuxmint", "zorin"};
 
 // jText's validator on the whole file: no errors.
 void check_validates(const fs::path& path) {
@@ -110,12 +110,15 @@ int main() {
     }
     try {
         check(min_pinnable_major(kSource, "linuxmint", "clang") == 21, "Linux Mint: Clang minimum 21");
+        check(min_pinnable_major(kSource, "zorin", "clang") == 21, "Zorin: Clang minimum 21");
         check(min_pinnable_major(kSource, "rhel", "clang") == 20, "RHEL: Clang minimum 20");
         check(min_pinnable_major(kSource, "fedora", "clang") == 20, "Fedora: Clang minimum 20");
         for (const auto& fam : kFamilies)
             check(min_pinnable_major(kSource, fam, "gcc") == 15, "GCC minimum 15 on " + fam);
         check(toolchain_label_for(load_toolchains(kSource, "linuxmint"), "clang", 20).empty(),
               "Linux Mint: Clang 20 is below its minimum");
+        check(toolchain_label_for(load_toolchains(kSource, "zorin"), "clang", 20).empty(),
+              "Zorin: Clang 20 is below its minimum");
         check(toolchain_label_for(load_toolchains(kSource, "rhel"), "clang", 20) == "clang",
               "RHEL: Clang 20 is its clang");
     } catch (const std::exception& e) {

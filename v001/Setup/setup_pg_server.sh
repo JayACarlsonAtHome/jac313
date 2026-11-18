@@ -69,16 +69,17 @@ if [[ "$FROM" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] && [[ "$FROM" != 127.* ]] && !
   exit 2
 fi
 
-# --- which recipe: fedora | rhel | linuxmint (Mint, Ubuntu, Debian: PGDG apt) ---
+# --- which recipe: fedora | rhel | linuxmint (Mint, Ubuntu, Debian: PGDG apt) | zorin (its own) ---
 family=$(. /etc/os-release 2>/dev/null; case " ${ID:-} ${ID_LIKE:-} " in
   *" fedora "*) [ "${ID:-}" = fedora ] && echo fedora || echo rhel ;;
   *" rhel "*|*" centos "*|*" rocky "*|*" almalinux "*) echo rhel ;;
+  *" zorin "*) echo zorin ;;
   *" linuxmint "*|*" ubuntu "*|*" debian "*) echo linuxmint ;;
   *) echo unknown ;; esac)
 case "$family" in
   fedora) service=postgresql ;;
   rhel) service=postgresql-18 ;;
-  linuxmint) service=postgresql ;;
+  linuxmint|zorin) service=postgresql ;;
   *) echo "no recipe for this OS ($(. /etc/os-release; echo "${PRETTY_NAME:-?}")): set PostgreSQL up by hand"; exit 1 ;;
 esac
 
@@ -101,7 +102,7 @@ installed() {
   case "$family" in
     fedora) rpm -q postgresql-server >/dev/null 2>&1 ;;
     rhel) rpm -q postgresql18-server >/dev/null 2>&1 ;;
-    linuxmint) dpkg-query -W -f='${Status}' postgresql-18 2>/dev/null | grep -q 'install ok installed' ;;
+    linuxmint|zorin) dpkg-query -W -f='${Status}' postgresql-18 2>/dev/null | grep -q 'install ok installed' ;;
   esac
 }
 running() { systemctl is-active --quiet "$service"; }
@@ -223,7 +224,7 @@ if ! installed; then
       pgdg_fix_release || exit 1
       sudo dnf install -y postgresql18-server || exit 1
       sudo test -f /var/lib/pgsql/18/data/PG_VERSION || sudo /usr/pgsql-18/bin/postgresql-18-setup initdb || exit 1 ;;
-    linuxmint)
+    linuxmint|zorin)
       [ -x /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh ] || sudo apt-get install -y postgresql-common || exit 1
       # Mint's own codename (xia, zara) is unknown to PGDG: give it the Ubuntu one
       sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \

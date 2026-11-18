@@ -17,7 +17,7 @@
 //                '' = none)
 //
 // toolchain_os: one row per OS family per activation, in order.
-//   os              OS family: rhel | fedora | linuxmint (Setup's sensed os_family)
+//   os              OS family: rhel | fedora | linuxmint | zorin (Setup's sensed os_family)
 //   toolchain       a label in toolchains
 //   required        true = REQUIRED on this OS family for a READY verdict (FileCheckList.txt);
 //                   false = optional there (informational only)
@@ -31,7 +31,7 @@
 // toolchain_min_os: an OS family's own minimum for a toolchain, replacing its min_version there.
 //   Each OS has its own limit of the compilers its repositories offer, so a compiler change is
 //   made for one OS family here, never for all of them in toolchains.
-//   os           OS family: rhel | fedora | linuxmint
+//   os           OS family: rhel | fedora | linuxmint | zorin
 //   toolchain    a label in toolchains
 //   min_version  this OS family's minimum MAJOR (0 = exact match on the toolchain's version)
 //
@@ -42,7 +42,7 @@
 // child process (configure, build, ctest, and each matrix test binary). To support a
 // new platform, add its toolchain_os rows here: no code change.
 //
-// gcc15: RHEL-family via gcc-toolset-15, Linux Mint via the ubuntu-toolchain-r PPA.
+// gcc15: RHEL-family via gcc-toolset-15, Linux Mint and Zorin via the ubuntu-toolchain-r PPA.
 //   Fedora does not require it: Fedora 44+ ships gcc 16 as its system compiler (see gcc16).
 // gcc16: Fedora 44+ ships gcc 16 as the system compiler. jac313 compiles clean with it;
 //   this entry runs + labels it accurately as gcc16 (never mislabeled gcc15).
@@ -53,7 +53,9 @@
 //   with. A toolset newer than every row here needs its own row before jac313 builds with it.
 // clang: the label stays "clang" (matches committed results paths); build_dir is build-clang
 //   (no version in it: the version differs by OS). Required on all supported platforms.
-//   Minimum 20; Linux Mint 21 (toolchain_min_os: bsir.sh installs clang-21 from apt.llvm.org).
+//   Minimum 20; Linux Mint and Zorin 21 (toolchain_min_os: bsir.sh installs clang-21 from apt.llvm.org).
+// zorin: its own OS family (Zorin OS 18, Ubuntu 24.04 noble). Its rows started as copies of the
+//   linuxmint rows; change them for Zorin alone.
 //
 // Formatter ^~ on the data rows (splice ^, comment ~): the activations hold |, ' and &&,
 // and bsir.sh reads this file with POSIX awk before anything is built. Keep one row per
@@ -87,7 +89,7 @@
 === Section: toolchain_os ===
 === Fields ===
  1. /# id/Integer/Not Null
- 2. /# os/String/Not Null/Not Empty              # rhel | fedora | linuxmint
+ 2. /# os/String/Not Null/Not Empty              # rhel | fedora | linuxmint | zorin
  3. /# toolchain/String/Not Null/Not Empty       # a label in toolchains
  4. /# required/Bool/Not Null                    # required for READY on this OS
  5. /# activation_seq/Integer/Not Null           # 1 first
@@ -118,18 +120,27 @@
  1. ^~ 22^rhel^clang^true^1^{CMD}
  1. ^~ 23^fedora^clang^true^1^{CMD}
  1. ^~ 24^linuxmint^clang^true^1^{CMD}
+ 1. ^~ 25^zorin^gcc15^true^1^{CMD}
+ 1. ^~ 26^zorin^gcc15^true^2^gcc-toolset-15-env {CMD}
+ 1. ^~ 27^zorin^gcc15^true^3^scl enable gcc-toolset-15 -- {CMD}
+ 1. ^~ 28^zorin^gcc15^true^4^bash -c 'source /opt/rh/gcc-toolset-15/enable && {CMD}'
+ 1. ^~ 29^zorin^gcc16^false^1^{CMD}
+ 1. ^~ 30^zorin^gcc16^false^2^gcc-toolset-16-env {CMD}
+ 1. ^~ 31^zorin^gcc16^false^3^scl enable gcc-toolset-16 -- {CMD}
+ 1. ^~ 32^zorin^clang^true^1^{CMD}
 === End Data ===
 === End Section ===
 
 === Section: toolchain_min_os ===
 === Fields ===
  1. /# id/Integer/Not Null
- 2. /# os/String/Not Null/Not Empty              # rhel | fedora | linuxmint
+ 2. /# os/String/Not Null/Not Empty              # rhel | fedora | linuxmint | zorin
  3. /# toolchain/String/Not Null/Not Empty       # a label in toolchains
  4. /# min_version/Integer/Not Null              # this OS family's minimum; 0 = exact version
 === End Fields ===
 === Data ===
  1. ^~ 1^linuxmint^clang^21
+ 1. ^~ 2^zorin^clang^21
 === End Data ===
 === End Section ===
 === End File ===

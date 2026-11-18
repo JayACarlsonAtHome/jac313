@@ -88,6 +88,9 @@ PlatformProfile infer_profile(const std::string& id,
     if (id_lower == "linuxmint" || pretty_lower.find("linux mint") != std::string::npos) {
         return PlatformProfile::LinuxMint;
     }
+    if (id_lower == "zorin") {
+        return PlatformProfile::Zorin;
+    }
     if (is_rhel_family_id(id_lower) || id_like_contains(id_like, "rhel")
         || id_like_contains(id_like, "fedora")) {
         return PlatformProfile::Rhel;
@@ -99,9 +102,10 @@ ReleaseCompilerSlot make_gcc15_slot() {
     return {"gcc15", "g++-15", true, false};
 }
 
-// each OS its own Clang: Linux Mint installs clang-21 (apt.llvm.org); RHEL-family keeps clang 20
+// each OS its own Clang: Linux Mint and Zorin install clang-21 (apt.llvm.org); RHEL-family keeps clang 20
 ReleaseCompilerSlot make_clang_slot(PlatformProfile profile) {
-    return {"clang", profile == PlatformProfile::LinuxMint ? "clang++-21" : "clang++-20", false, true};
+    const bool apt_llvm = profile == PlatformProfile::LinuxMint || profile == PlatformProfile::Zorin;
+    return {"clang", apt_llvm ? "clang++-21" : "clang++-20", false, true};
 }
 
 } // namespace
@@ -124,13 +128,19 @@ PlatformInfo platform_from_name(const std::string& name) {
         info.profile = PlatformProfile::LinuxMint;
         return info;
     }
+    if (lowered == "zorin") {
+        info.id = "zorin";
+        info.pretty_name = "Zorin OS (forced)";
+        info.profile = PlatformProfile::Zorin;
+        return info;
+    }
     if (lowered == "rhel" || lowered == "redhat" || lowered == "red-hat") {
         info.id = "rhel";
         info.pretty_name = "RHEL (forced)";
         info.profile = PlatformProfile::Rhel;
         return info;
     }
-    throw std::runtime_error("unknown --platform value: " + name + " (use mint or rhel)");
+    throw std::runtime_error("unknown --platform value: " + name + " (use mint, zorin or rhel)");
 }
 
 std::vector<ReleaseCompilerSlot> release_compilers_for_platform(PlatformProfile profile) {
@@ -138,6 +148,7 @@ std::vector<ReleaseCompilerSlot> release_compilers_for_platform(PlatformProfile 
     // ubuntu-toolchain-r PPA; on RHEL-family from gcc-toolset-15.
     switch (profile) {
     case PlatformProfile::LinuxMint:
+    case PlatformProfile::Zorin:
     case PlatformProfile::Rhel:
         return {make_gcc15_slot(), make_clang_slot(profile)};
     }
@@ -148,6 +159,8 @@ std::string platform_profile_name(PlatformProfile profile) {
     switch (profile) {
     case PlatformProfile::LinuxMint:
         return "linuxmint";
+    case PlatformProfile::Zorin:
+        return "zorin";
     case PlatformProfile::Rhel:
         return "rhel";
     }

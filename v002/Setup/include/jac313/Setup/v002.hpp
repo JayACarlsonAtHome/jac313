@@ -85,9 +85,9 @@ std::optional<int> parse_version_major(const std::string& version_text);
 
 // A read-only snapshot of the host, for the informational manifest.
 struct HostSnapshot {
-    std::string os_id;        // rhel, linuxmint, ...
+    std::string os_id;        // rhel, linuxmint, zorin, ...
     std::string os_pretty;    // "Red Hat Enterprise Linux 9.8 (Plow)"
-    std::string os_family;    // rhel | linuxmint | unknown (normalized)
+    std::string os_family;    // rhel | fedora | linuxmint | zorin | unknown (normalized)
     std::string kernel;       // uname release
     std::string cpu_model;
     int cpu_cores{0};
