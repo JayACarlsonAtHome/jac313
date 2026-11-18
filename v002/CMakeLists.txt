@@ -140,6 +140,9 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_G
     endif()
     add_compile_options(-fcontracts -fcontract-evaluation-semantic=${JAC313_CONTRACTS})
     add_link_options(-fcontracts)
+    # -fcontracts links -lstdc++exp. An OS whose GCC 16 lacks it (RHEL 9's gcc-toolset-16) builds
+    # its locked copy here; every other OS gets nothing (third_party/stdcxx_exp/).
+    include(third_party/stdcxx_exp/stdcxx_exp.cmake)
 elseif(JAC313_CONTRACTS STREQUAL "ignore")
     add_compile_definitions(JAC313_CONTRACTS_ENABLED=0 JTEXT_CONTRACTS_ENABLED=0 QLITE_CONTRACTS_ENABLED=0)
 elseif(NOT JAC313_CONTRACTS STREQUAL "enforce")
