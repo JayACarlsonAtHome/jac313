@@ -44,6 +44,10 @@
  1. |# 11|jac313_store_flags|30|256
  1. |# 12|jac313_store_metric_view|30|256
  1. |# 13|jac313_store_bench_smoke|120|1024
+// 008 writes a real jText file and SQLite database (fsync) even with --persist=none: on a guest
+// whose disk sits on a shared hard drive it took 1-34 s, so it gets the I/O-test timeout.
+ 1. |# 26|jac313_store_008_TS|120|0
+ 1. |# 27|jac313_store_008_XS|120|0
 // jText tests
  1. |# 14|jac313_jtext_v002_test|60|512
  1. |# 15|jac313_jtext_v002_parser_validator_test|60|256
