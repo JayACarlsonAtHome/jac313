@@ -20,6 +20,8 @@
 //   os         OS family: rhel | fedora | linuxmint | zorin (FileCheckList's sensed os_family)
 //   command    the install command on that OS family
 //
+// zorin: Zorin OS has no pkg-config until something installs it (Mint has it), and the pg18 check
+//   reads libpq's version with it, so Zorin's pg18 installs pkg-config with libpq-dev.
 // gcc15, gcc16, clang: the compiler toolchains (tied to compilers.jtext labels via for).
 // gcc_toolset: REQUIRED on the RHEL family, where the system g++ stays at the release default: the
 //   newest GCC Toolset the repositories offer (RHEL 10.3: gcc-toolset-16), found by asking dnf
@@ -159,7 +161,7 @@
  1. ^~ 41^zorin^gcc16^sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install -y g++-16
  1. ^~ 42^zorin^clang^c="$(. /etc/os-release; echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")" && sudo install -d -m 0755 /etc/apt/keyrings && wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/keyrings/apt.llvm.org.asc >/dev/null && echo "deb [signed-by=/etc/apt/keyrings/apt.llvm.org.asc] http://apt.llvm.org/$c/ llvm-toolchain-$c-21 main" | sudo tee /etc/apt/sources.list.d/llvm-21.list >/dev/null && sudo apt-get update && sudo apt-get install -y clang-21 clang-tools-21
  1. ^~ 43^zorin^sqlite^sudo apt-get install -y libsqlite3-dev
- 1. ^~ 44^zorin^pg18^sudo apt-get install -y postgresql-common && sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y "$(. /etc/os-release; echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")" && sudo apt-get install -y libpq-dev
+ 1. ^~ 44^zorin^pg18^sudo apt-get install -y postgresql-common && sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y "$(. /etc/os-release; echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")" && sudo apt-get install -y libpq-dev pkg-config
  1. ^~ 45^zorin^ninja^sudo apt-get install -y ninja-build
  1. ^~ 46^zorin^cmake^sudo apt-get install -y cmake
  1. ^~ 47^zorin^vim^sudo apt-get install -y vim

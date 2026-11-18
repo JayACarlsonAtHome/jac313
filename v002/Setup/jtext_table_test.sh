@@ -21,6 +21,9 @@ check "Zorin clang minimum" "$(jtext_select "$C" toolchain_min_os min_version to
 check "Zorin gcc15 required" "$(jtext_select "$C" toolchain_os required toolchain gcc15 os zorin | sort -u)" true
 check "Zorin sqlite recipe" "$(jtext_select "$R" recipe_os command component sqlite os zorin)" \
       "sudo apt-get install -y libsqlite3-dev"
+# Zorin has no pkg-config of its own, and the pg18 check needs it
+check "Zorin pg18 installs pkg-config" \
+      "$(jtext_select "$R" recipe_os command component pg18 os zorin | grep -c 'libpq-dev pkg-config$')" 1
 check "no RHEL clang minimum row" "$(jtext_select "$C" toolchain_min_os min_version toolchain clang os rhel)" ""
 check "no Fedora clang minimum row" "$(jtext_select "$C" toolchain_min_os min_version toolchain clang os fedora)" ""
 check "toolchains fields" "$(jtext_fields "$C" toolchains | tr '\n' ' ')" \
