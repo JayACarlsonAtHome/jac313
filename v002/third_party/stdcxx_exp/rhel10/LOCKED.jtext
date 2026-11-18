@@ -1,0 +1,46 @@
+//File:    LOCKED.jtext
+//Date:    2026-11-17
+//Purpose: A source file locked in for ONE OS: RHEL 10. Do not edit contract26.cc; to move it to a
+//         new GCC release, replace it with that release's file and update the rows below.
+//
+// Why: GCC 16 links -lstdc++exp whenever -fcontracts is on the link line (the default
+// contract-violation handler lives there). RHEL 10's gcc-toolset-16 does not ship libstdc++exp.a:
+// its gcc.spec (CentOS Stream dist-git, gcc-toolset-16-gcc, branch c10s, commit baa632e) moves only
+// libstdc++.*a and libstdc++fs.*a into the toolset and then runs
+//     rm -f %{buildroot}%{_prefix}/%{_lib}/{libffi*,libiberty.a,libstdc++*,libgfortran*}
+// so every v002 gcc16 link on RHEL 10 failed with "cannot find -lstdc++exp" (RHEL-10-001,
+// 2026-11-17).
+//
+// What: contract26.cc is the only member of libstdc++exp.a that -fcontracts needs (the default
+// handler: __handle_contract_violation, handle_contract_violation,
+// std::contracts::invoke_default_contract_violation_handler). The stacktrace / print /
+// filesystem members are not used by -fcontracts and are not copied.
+//
+// How: stdcxx_exp.cmake builds it with THIS machine's gcc-toolset-16 into
+// <build>/stdcxx_exp/libstdc++exp.a, only when /etc/os-release is RHEL 10 AND the compiler is GCC 16
+// AND that compiler has no libstdc++exp.a of its own. Every other OS: nothing is built or used.
+//
+=== jText File ===
+ 1. ?# LOCKED.jtext
+ 2. ?# 2026-11-17
+ 3. ?# Locked GCC source for RHEL 10 (libstdc++exp contracts handler)
+ 4. ?# 0.8
+
+=== Section: locked ===
+=== Fields ===
+ 1. /# id/Integer/Not Null
+ 2. /# key/String/Not Null/Not Empty
+ 3. /# value/String/Not Null
+=== End Fields ===
+=== Data ===
+ 1. |# 1|os|rhel 10 (/etc/os-release ID=rhel, VERSION_ID 10.x)
+ 1. |# 2|compiler|gcc-toolset-16 (GCC 16)
+ 1. |# 3|upstream|GCC releases/gcc-16.2.0 (commit 1831ac03fd08e3400c16b29f21762e6b326a618d)
+ 1. |# 4|upstream_path|libstdc++-v3/src/experimental/contract26.cc
+ 1. |# 5|file|contract26.cc
+ 1. |# 6|sha256|6e982cb6cff6f385550ccd63ffb3d1a1a49d6835f99b0f8b7b2912cad3812803
+ 1. |# 7|license|GPL-3.0-or-later WITH GCC-exception-3.1 (GCC Runtime Library Exception)
+ 1. |# 8|locked|2026-11-17
+=== End Data ===
+=== End Section ===
+=== End File ===

@@ -3,7 +3,8 @@
 # with the source and a LOCKED.jtext that says why. Nothing is generic: an OS without a folder,
 # or a compiler that already has libstdc++exp.a, gets nothing from this file.
 #
-#   rhel9/  RHEL 9: gcc-toolset-16 deletes libstdc++exp.a (rhel9/LOCKED.jtext).
+#   rhel9/   RHEL 9:  gcc-toolset-16 deletes libstdc++exp.a (rhel9/LOCKED.jtext).
+#   rhel10/  RHEL 10: gcc-toolset-16 deletes libstdc++exp.a (rhel10/LOCKED.jtext).
 
 set(_jac313_os_id "")
 set(_jac313_os_major "")
@@ -19,9 +20,12 @@ if(EXISTS "/etc/os-release")
 endif()
 
 set(_jac313_exp_dir "")
-if(_jac313_os_id STREQUAL "rhel" AND _jac313_os_major STREQUAL "9"
-   AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 17)
-    set(_jac313_exp_dir "${CMAKE_CURRENT_LIST_DIR}/rhel9")
+if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 17)
+    if(_jac313_os_id STREQUAL "rhel" AND _jac313_os_major STREQUAL "9")
+        set(_jac313_exp_dir "${CMAKE_CURRENT_LIST_DIR}/rhel9")
+    elseif(_jac313_os_id STREQUAL "rhel" AND _jac313_os_major STREQUAL "10")
+        set(_jac313_exp_dir "${CMAKE_CURRENT_LIST_DIR}/rhel10")
+    endif()
 endif()
 
 if(_jac313_exp_dir)
