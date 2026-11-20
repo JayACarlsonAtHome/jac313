@@ -589,9 +589,10 @@ fi
 # can still ask (it wants a password unless every sudoers rule for the user is NOPASSWD).
 if sudo -n true 2>/dev/null || sudo -v; then
   # its stderr is dropped: the EXIT trap kills its sleep, and bash would print "Terminated"
+  # The loop may already be gone. A failed kill must not become this script's exit status.
   ( while kill -0 $$ 2>/dev/null; do sudo -n true 2>/dev/null; sleep 50; done ) 2>/dev/null &
   SUDO_KEEPALIVE=$!
-  trap 'pkill -P "$SUDO_KEEPALIVE" 2>/dev/null; kill "$SUDO_KEEPALIVE" 2>/dev/null' EXIT
+  trap 'pkill -P "$SUDO_KEEPALIVE" 2>/dev/null || true; kill "$SUDO_KEEPALIVE" 2>/dev/null || true' EXIT
   # It can move gcc / clang, so look for them again after.
   # A PGDG repo whose URLs name a minor release PGDG has not published yet fails every dnf
   # command, the update's too: point it at the major release's tree first (Setup/pgdg_repo.sh).
