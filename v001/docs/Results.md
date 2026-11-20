@@ -12,6 +12,10 @@ from functional-matrix logs are historical.
 Live per-run detail lives in the test-summary reports under this version. Hardware-specific
 numbers vary; see the structured per-machine tables rather than any single headline.
 
+The systems that run now are Fedora Linux 45 (Workstation Edition), Linux Mint 22.3,
+Red Hat Enterprise Linux 9.9 (Plow), Red Hat Enterprise Linux 10.3 (Coughlan), and
+Zorin OS 18.1. The platform sections below are earlier measurements.
+
 ### The run results record (results_main.jtext, results_note.jtext)
 
 Each recorded run gets a `run_result` row (pass or fail, the counts, the git commit and

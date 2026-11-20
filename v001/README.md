@@ -129,15 +129,12 @@ For more details on the project, see the docs in [docs/](docs/) (listed under Do
 | [docs/Verify.md](docs/Verify.md) | valgrind memcheck + helgrind/DRD — method, the tail-reader data race found & fixed, results, and honest limits |
 | [docs/Maturity.md](docs/Maturity.md) | Honest self-assessment on a 12-level scale — where jac313 sits (7.5), and why that's a deliberate ceiling |
 | [docs/Benchmarks.md](docs/Benchmarks.md) | **Why and how to run the throughput suite** — the production run first (keeper file + database + binary replay log at once, events routed by flags; hot path, drain times, durable total), then each sink alone and the flag sweep; contract modes; compiler / CMake comparisons; and a sample report |
-| [docs/Results.md](docs/Results.md) | What a clean build + test run actually produces, **per platform** — Linux Mint (116/116, ~2.9M events/s, ~611 MB), RHEL 9.8 (116/116, up to ~24.3M ops/s; CMake 3.31.8-vs-4.3.3 import-std comparison), and RHEL 10.2 (116/116 on **both g++-15 and clang**, up to ~24.3M ops/s, on a 7200 RPM HDD) |
+| [docs/Results.md](docs/Results.md) | What a clean build + test run produces. The systems that run now are in the repository README. The platform sections in that file are earlier measurements. |
 | Package READMEs | [jText](jText/README.md) · [Store](Store/README.md) |
 
-**Status (2026-11-10):** all three packages in-tree. From a fresh clone on Fedora 44, the full
-`--run-everything` passed on GCC 16 and Clang: ctest 94/0, smoke 344/0, bench 32/0, valgrind
-verify 76/76 clean, no compiler warnings (every warning is an error). RHEL 9.8, RHEL 10.2 and
-Linux Mint passed earlier versions (116-scenario matrix, see [docs/Results.md](docs/Results.md))
-and are being run again. The legacy repos (`jacQlite`, `jText`, `ts_store`) remain only as
-historical origin.
+**Status (2026-11-20):** all three packages in-tree. v001 runs with no errors on Fedora Linux 45,
+Linux Mint 22.3, Red Hat Enterprise Linux 9.9, Red Hat Enterprise Linux 10.3, and Zorin OS 18.1.
+The legacy repos (`jacQlite`, `jText`, `ts_store`) remain only as historical origin.
 
 ---
 

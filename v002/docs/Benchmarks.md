@@ -219,7 +219,7 @@ Each run's detail page (`Run_NNN.md`) lists the same, production figures include
 ## Sample report
 
 A small production run (8 threads × 20,000 events, 3 runs, jtext + sql, read-back `sample`;
-Intel Core Ultra 7 265 · 20 cores · Fedora 44 · gcc 16 Release — your numbers will differ):
+Intel Core Ultra 7 265 · 20 cores · Fedora 44 (not in the current tested set) · gcc 16 Release — your numbers will differ):
 
 ```
 READBACK backend=binary mode=sample status=PASS expected=160000 found=160000 ... checked=160000

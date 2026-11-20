@@ -35,6 +35,12 @@ library side came from the GCC 16 release notes (https://gcc.gnu.org/gcc-16/chan
   `std::dynamic_format` (P3953R3) and `add_sat`/`mul_sat`/... -> `saturating_add`/
   `saturating_mul`/... (P4052R0). Our shims stay; see `docs/Cpp26_Adoption.md`.
 
+## Re-check 2026-11-20
+
+RHEL 9.9 and RHEL 10.3 build with GCC 16.2.1 from gcc-toolset-16 and Clang 22.1.8.
+Fedora Linux 45 builds with GCC 16.2.1 and Clang 23.1.5. Linux Mint 22.3 and Zorin OS 18.1
+build with GCC 15.2.0 and Clang 21.1.8.
+
 ## The one we're actually waiting on
 **clang + libstdc++ `import std` (recorded in build-times).** v002 CMake now validates
 `import std;` on **clang-21 + libstdc++** (reusing GCC's std-module BMI) — see

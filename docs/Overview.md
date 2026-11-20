@@ -117,12 +117,15 @@ language standard independently.
 
 | Version | Standard | State |
 |---------|----------|-------|
-| [**v001/**](../v001/README.md) | **C++23** | The proven baseline — builds and tests green on GCC and Clang across multiple Linux distros; the full persist × scale matrix is recorded. Modules build with the distro CMake. Carries experimental, non-standard **library contracts** (from jac321) that need no compiler support beyond C++23; Qlite's column and bind numbers use them today ([Contracts](../v001/docs/Contracts.md)). |
+| [**v001/**](../v001/README.md) | **C++23** | The proven baseline — builds and tests with no errors on GCC and Clang. Modules build with the distro CMake. Carries experimental, non-standard **library contracts** (from jac321) that need no compiler support beyond C++23; Qlite's column and bind numbers use them today ([Contracts](../v001/docs/Contracts.md)). |
 | [**v002/**](../v002/README.md) | **C++26** | The evolving frontier — compiled as C++26. Currently using a small number of C++26 library facilities (via shims/workarounds) and the C++26 contracts through a shim (`JAC313_PRE/POST/ASSERT`: native `contract_assert` on GCC 16, run-time checks on Clang). Most new C++26 language features not yet adopted in main code. We plan to re-evaluate and add more within the next 12 months. Modules build with the distro CMake. |
 
 The one coordination cost of full duplication: a shared-infra fix made *before* the two
 versions diverge must be applied to each `v00N/`. After they diverge, they are free to
 differ.
+
+v001 and v002 run with no errors on Fedora Linux 45 (Workstation Edition), Linux Mint 22.3,
+Red Hat Enterprise Linux 9.9 (Plow), Red Hat Enterprise Linux 10.3 (Coughlan), and Zorin OS 18.1.
 
 ---
 

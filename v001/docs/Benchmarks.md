@@ -220,7 +220,7 @@ Each run's detail page (`Run_NNN.md`) lists the same, production figures include
 ## Sample report
 
 A small production run (8 threads × 20,000 events, 3 runs, jtext + sql, read-back `sample`;
-recorded on v002, which runs the same bench code; Intel Core Ultra 7 265 · 20 cores · Fedora 44 ·
+recorded on v002, which runs the same bench code; Intel Core Ultra 7 265 · 20 cores · Fedora 44 (not in the current tested set) ·
 gcc 16 Release — your numbers will differ):
 
 ```

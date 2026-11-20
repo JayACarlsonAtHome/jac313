@@ -164,9 +164,15 @@ yourself:
 
 ## Where it has been tested
 
-Fedora 44: the full `--run-everything` passed for both versions from a fresh clone
-(2026-11-10). RHEL 9.8, RHEL 10.2 and Linux Mint passed earlier versions and are being run
-again. Other Linux systems have not been tested. It does not run on macOS or Windows.
+v001 and v002 run with no errors on:
+
+- Fedora Linux 45 (Workstation Edition)
+- Linux Mint 22.3
+- Red Hat Enterprise Linux 9.9 (Plow)
+- Red Hat Enterprise Linux 10.3 (Coughlan)
+- Zorin OS 18.1
+
+Other Linux systems have not been tested. It does not run on macOS or Windows.
 
 ## Results: what to expect
 

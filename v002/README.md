@@ -131,13 +131,13 @@ For more details on the project, see the docs in [docs/](docs/) (listed under Do
 | [docs/Results.md](docs/Results.md) | v002 results — recorded per-platform in `results.db` and rendered under [test-summary/](test-summary/) (median + low–high band) |
 | Package READMEs | [jText](jText/README.md) · [Store](Store/README.md) |
 
-**Status (2026-11-10):** v002 began as a copy of v001 and now builds as C++26 (`cxx_std_26`).
-From a fresh clone on Fedora 44, the full `--run-everything` passed on GCC 16 and Clang:
-ctest 104/0, smoke 344/0, bench 32/0, valgrind verify clean, no compiler warnings (every
-warning is an error). It uses the C++26 contracts (`JAC313_PRE/POST/ASSERT`: native
-`contract_assert` on GCC 16, run-time checks on Clang; see docs/Cpp26_Adoption.md) and a few
-C++26 library facilities; most new C++26 language features are not used yet. The legacy repos
-(`jacQlite`, `jText`, `ts_store`) remain only as historical origin.
+**Status (2026-11-20):** v002 began as a copy of v001 and now builds as C++26 (`cxx_std_26`).
+v002 runs with no errors on Fedora Linux 45, Linux Mint 22.3, Red Hat Enterprise Linux 9.9,
+Red Hat Enterprise Linux 10.3, and Zorin OS 18.1. It uses the C++26 contracts
+(`JAC313_PRE/POST/ASSERT`: native `contract_assert` on GCC 16, run-time checks on Clang; see
+docs/Cpp26_Adoption.md) and a few C++26 library facilities; most new C++26 language features
+are not used yet. The legacy repos (`jacQlite`, `jText`, `ts_store`) remain only as
+historical origin.
 
 ---
 
