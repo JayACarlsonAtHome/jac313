@@ -76,6 +76,7 @@
 64. /# store_tests/Integer/Not Null
 === End Fields ===
 === Data ===
+ 1. ▮▌ 1▮1▮2026-11-20T08:50:20Z▮2026-11-20T08:50:21Z▮v001▮build▮pass▮46▮0▮0▮41c828e3bb82816a7cddcc4589d760f3f826b15b▮0▮jac313-001▮1▮Intel(R) Core(TM) Ultra 7 265▮6▮6▮8▮2380▮2380▮xx7k▮detected▮09ef2f9bcd95ca12bd0af7509b2ba88910ccfec3840471fab5c5c39b2e9b86ba▮linuxmint▮Linux Mint 22.3▮22.3▮7.0.0-43-generic▮x86_64▮gcc15▮gcc 15.2.0▮Debug▮off▮off▮enforce▮on▮off▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮/home/jay/git/jac313/v001/build-bootstrap/tools/jac313_test_cli build --build-dir build-gcc15▮▮▮▮0▮0▮0▮▮0▮▮1
 === End Data ===
 === End Section ===
 
